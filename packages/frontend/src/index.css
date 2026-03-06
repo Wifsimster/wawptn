@@ -87,7 +87,14 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
     font-family: var(--font-sans);
+    background-color: var(--background);
+    background-image:
+      radial-gradient(ellipse at 15% 80%, oklch(0.22 0.14 265 / 0.5), transparent 50%),
+      radial-gradient(ellipse at 85% 15%, oklch(0.18 0.10 290 / 0.4), transparent 50%),
+      radial-gradient(ellipse at 50% 50%, oklch(0.15 0.06 230 / 0.3), transparent 55%);
+    background-attachment: fixed;
+    min-height: 100vh;
   }
 }

@@ -152,7 +152,7 @@ export function VotePage() {
   // Result screen
   if (result) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <AnimatePresence>
           <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
@@ -198,7 +198,7 @@ export function VotePage() {
   // Waiting screen (already voted)
   if (hasVoted) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <Check className="w-16 h-16 text-success mb-4" />
         <h2 className="text-2xl font-bold mb-2">{t('vote.submitted')}</h2>
         <p className="text-muted-foreground mb-6">
@@ -227,7 +227,7 @@ export function VotePage() {
 
   // Voting interface
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen flex flex-col">
       <header className="border-b border-border p-4">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <Button variant="ghost" size="icon" onClick={() => navigate(`/groups/${id}`)} aria-label={t('group.back')}>

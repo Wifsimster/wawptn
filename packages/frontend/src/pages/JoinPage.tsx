@@ -36,7 +36,7 @@ export function JoinPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center px-4">
         <Gamepad2 className="w-12 h-12 text-primary mb-4" />
         <h1 className="text-2xl font-bold mb-2">{t('join.invited')}</h1>
         <p className="text-muted-foreground mb-6">{t('join.loginPrompt')}</p>
@@ -49,7 +49,7 @@ export function JoinPage() {
 
   if (joining) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+      <div className="min-h-screen flex flex-col items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground">{t('join.connecting')}</p>
       </div>
@@ -58,7 +58,7 @@ export function JoinPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center px-4">
         <h1 className="text-2xl font-bold mb-2 text-destructive">{t('join.failed')}</h1>
         <p className="text-muted-foreground mb-6">{error}</p>
         <Button onClick={() => navigate('/')}>{t('join.goToGroups')}</Button>

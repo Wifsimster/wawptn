@@ -107,7 +107,7 @@ export function GroupPage() {
 
   if (!currentGroup) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <header className="border-b border-border p-4">
           <div className="max-w-2xl mx-auto flex items-center gap-3">
             <Skeleton className="h-5 w-5 rounded" />
@@ -125,7 +125,7 @@ export function GroupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <header className="border-b border-border p-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')}>

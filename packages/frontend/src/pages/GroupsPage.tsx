@@ -69,7 +69,7 @@ export function GroupsPage() {
   }, [loading, groups, navigate])
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <AppHeader>
         <div className="flex items-center gap-3">
           {user && (

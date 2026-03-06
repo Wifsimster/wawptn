@@ -7,7 +7,7 @@ export function LoginPage() {
   const { t } = useTranslation()
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4">
       <div className="text-center mb-12">
         <div className="flex items-center justify-center gap-3 mb-4">
           <Gamepad2 className="w-12 h-12 text-primary" />

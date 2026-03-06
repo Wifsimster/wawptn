@@ -1,0 +1,56 @@
+import { useEffect } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuthStore } from '@/stores/auth.store'
+import { connectSocket, disconnectSocket } from '@/lib/socket'
+import { LoginPage } from '@/pages/LoginPage'
+import { GroupsPage } from '@/pages/GroupsPage'
+import { GroupPage } from '@/pages/GroupPage'
+import { VotePage } from '@/pages/VotePage'
+import { JoinPage } from '@/pages/JoinPage'
+
+function App() {
+  const { user, loading, fetchUser } = useAuthStore()
+
+  useEffect(() => {
+    fetchUser()
+  }, [fetchUser])
+
+  useEffect(() => {
+    if (user) {
+      connectSocket()
+    } else {
+      disconnectSocket()
+    }
+    return () => disconnectSocket()
+  }, [user])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/join/:token" element={<JoinPage />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    )
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<GroupsPage />} />
+      <Route path="/groups/:id" element={<GroupPage />} />
+      <Route path="/groups/:id/vote" element={<VotePage />} />
+      <Route path="/join/:token" element={<JoinPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
+export default App

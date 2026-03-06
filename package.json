@@ -1,0 +1,40 @@
+{
+  "name": "wawptn",
+  "version": "0.1.0",
+  "private": true,
+  "description": "What Are We Playing Tonight? — Help your friend group decide what game to play together.",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:backend": "npm run dev -w @wawptn/backend",
+    "dev:frontend": "npm run dev -w @wawptn/frontend",
+    "build": "npm run build --workspaces --if-present",
+    "build:types": "npm run build -w @wawptn/types",
+    "build:backend": "npm run build -w @wawptn/backend",
+    "build:frontend": "npm run build -w @wawptn/frontend",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:migrate": "npm run db:migrate -w @wawptn/backend",
+    "db:rollback": "npm run db:rollback -w @wawptn/backend",
+    "db:seed": "npm run db:seed -w @wawptn/backend",
+    "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
+    "version:patch": "npm version patch --workspaces --no-git-tag-version && npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --workspaces --no-git-tag-version && npm version minor --no-git-tag-version",
+    "version:major": "npm version major --workspaces --no-git-tag-version && npm version major --no-git-tag-version",
+    "docker:build": "docker build --build-arg VERSION=$npm_package_version --build-arg BUILD_DATE=$(date -u +\"%Y-%m-%dT%H:%M:%SZ\") --build-arg VCS_REF=$(git rev-parse --short HEAD) -t wifsimster/wawptn:latest -t wifsimster/wawptn:$npm_package_version .",
+    "docker:tag": "docker tag wifsimster/wawptn:$npm_package_version wifsimster/wawptn:$(echo $npm_package_version | cut -d. -f1-2) && docker tag wifsimster/wawptn:$npm_package_version wifsimster/wawptn:$(echo $npm_package_version | cut -d. -f1)",
+    "docker:push": "docker push wifsimster/wawptn --all-tags",
+    "release": "npm run build && npm run docker:build && npm run docker:tag && npm run docker:push",
+    "prepare": "husky"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.3.1",
+    "@commitlint/config-conventional": "^20.3.1",
+    "husky": "^9.1.7"
+  }
+}

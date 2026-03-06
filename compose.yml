@@ -1,0 +1,66 @@
+name: wawptn
+
+services:
+  wawptn:
+    image: wifsimster/wawptn:latest
+    container_name: wawptn
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    env_file:
+      - .env
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Paris
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${DB_USER:-wawptn}:${DB_PASSWORD:-wawptn}@wawptn-postgres:5432/${DB_NAME:-wawptn}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - STEAM_API_KEY=${STEAM_API_KEY}
+      - API_URL=https://wawptn.battistella.ovh
+      - CORS_ORIGIN=https://wawptn.battistella.ovh
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=lan"
+      - "traefik.http.routers.wawptn.entrypoints=websecure"
+      - "traefik.http.routers.wawptn.rule=Host(`wawptn.battistella.ovh`)"
+      - "traefik.http.routers.wawptn.tls=true"
+      - "traefik.http.routers.wawptn.tls.certresolver=letsencrypt"
+      - "traefik.http.services.wawptn.loadBalancer.server.port=80"
+      - com.centurylinklabs.watchtower.enable=true
+    networks:
+      lan:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: wawptn-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-wawptn}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-wawptn}
+      - POSTGRES_DB=${DB_NAME:-wawptn}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - TZ=Europe/Paris
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      lan:
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-wawptn}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+
+networks:
+  lan:
+    external: true

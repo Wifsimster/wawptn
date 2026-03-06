@@ -66,7 +66,7 @@ async function main() {
   if (env.NODE_ENV === 'production') {
     const frontendPath = path.resolve(__dirname, '..', '..', 'frontend', 'dist')
     app.use(express.static(frontendPath))
-    app.get('*', (_req, res) => {
+    app.get('{*path}', (_req, res) => {
       res.sendFile(path.join(frontendPath, 'index.html'))
     })
   }

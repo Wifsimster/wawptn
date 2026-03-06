@@ -10,6 +10,15 @@ Application web qui aide un groupe d'amis à choisir ensemble à quel jeu vidéo
 - [Environnements](#environnements)
 - [Déploiement](#déploiement)
 - [Stack technique](#stack-technique)
+- [Documentation complémentaire](#documentation-complémentaire)
+
+### Documentation technique
+
+| Document | Description |
+|----------|-------------|
+| [Architecture API](docs/api-architecture.md) | Routes REST, événements WebSocket et flux de vote |
+| [Schéma de base de données](docs/database-schema.md) | Structure des 8 tables et leurs relations |
+| [Intégration Steam](docs/steam-integration.md) | Authentification OpenID 2.0, synchronisation et protections |
 
 ## À quoi sert ce produit ?
 
@@ -70,3 +79,9 @@ Le pipeline CI/CD (Intégration et Déploiement Continus) se déclenche à chaqu
 - **Backend :** Node.js 24, Express 5, Better Auth, Socket.io, Zod
 - **Base de données :** PostgreSQL 16, Knex.js
 - **Infrastructure :** Docker, Docker Compose, Traefik, GitHub Actions CI/CD
+
+## Documentation complémentaire
+
+- [Architecture API](docs/api-architecture.md) — Routes REST, événements WebSocket et flux de vote
+- [Schéma de base de données](docs/database-schema.md) — Structure des 8 tables et leurs relations
+- [Intégration Steam](docs/steam-integration.md) — Authentification OpenID 2.0, synchronisation et protections

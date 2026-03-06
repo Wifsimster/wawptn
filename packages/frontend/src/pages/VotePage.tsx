@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ThumbsUp, ThumbsDown, Check, ExternalLink } from 'lucide-react'
+import { ArrowLeft, ThumbsUp, ThumbsDown, Check, ExternalLink, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -38,6 +38,9 @@ export function VotePage() {
   const [totalMembers, setTotalMembers] = useState(0)
   const [result, setResult] = useState<VoteResult | null>(null)
   const [hasVoted, setHasVoted] = useState(false)
+  const [voting, setVoting] = useState(false)
+  const [closing, setClosing] = useState(false)
+  const votingRef = useRef(false)
 
   useEffect(() => {
     if (!id) return
@@ -89,7 +92,9 @@ export function VotePage() {
   }, [id, navigate])
 
   const castVote = useCallback(async (steamAppId: number, vote: boolean) => {
-    if (!id || !session) return
+    if (!id || !session || votingRef.current) return
+    votingRef.current = true
+    setVoting(true)
     setMyVotes(prev => new Map(prev).set(steamAppId, vote))
 
     try {
@@ -97,6 +102,9 @@ export function VotePage() {
     } catch (err) {
       toast.error(t('vote.voteError'))
       console.error('Failed to cast vote:', err)
+    } finally {
+      votingRef.current = false
+      setVoting(false)
     }
 
     if (currentIndex < games.length - 1) {
@@ -125,13 +133,16 @@ export function VotePage() {
   }, [hasVoted, result, games, currentIndex, castVote])
 
   const handleClose = async () => {
-    if (!id || !session) return
+    if (!id || !session || closing) return
+    setClosing(true)
     try {
       const data = await api.closeVote(id, session.id)
       setResult(data.result)
     } catch (err) {
       toast.error(t('vote.closeError'))
       console.error('Failed to close vote:', err)
+    } finally {
+      setClosing(false)
     }
   }
 
@@ -162,7 +173,7 @@ export function VotePage() {
               {t('vote.votedFor', { yes: result.yesCount, total: result.totalVoters })}
             </p>
 
-            {result.steamAppId && (
+            {Number.isInteger(result.steamAppId) && result.steamAppId > 0 && (
               <Button variant="steam" size="lg" asChild>
                 <a href={`steam://run/${result.steamAppId}`} className="gap-2">
                   <ExternalLink className="w-5 h-5" />
@@ -197,7 +208,8 @@ export function VotePage() {
         <Progress value={voterCount} max={totalMembers} className="w-48 mb-8" />
 
         {canClose && (
-          <Button onClick={handleClose}>
+          <Button onClick={handleClose} disabled={closing}>
+            {closing && <Loader2 className="w-4 h-4 animate-spin" />}
             {t('vote.closeVote')}
           </Button>
         )}
@@ -253,20 +265,24 @@ export function VotePage() {
               </Card>
 
               <div className="flex justify-center gap-8 mt-8">
-                <button
+                <Button
+                  variant="ghost"
                   onClick={() => castVote(currentGame.steamAppId, false)}
-                  className="w-16 h-16 rounded-full bg-destructive/20 hover:bg-destructive/40 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  disabled={voting}
+                  className="w-16 h-16 rounded-full bg-destructive/20 hover:bg-destructive/40"
                   aria-label={t('vote.voteNo', { game: currentGame.gameName })}
                 >
                   <ThumbsDown className="w-7 h-7 text-destructive" />
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={() => castVote(currentGame.steamAppId, true)}
-                  className="w-16 h-16 rounded-full bg-success/20 hover:bg-success/40 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  disabled={voting}
+                  className="w-16 h-16 rounded-full bg-success/20 hover:bg-success/40"
                   aria-label={t('vote.voteYes', { game: currentGame.gameName })}
                 >
                   <ThumbsUp className="w-7 h-7 text-success" />
-                </button>
+                </Button>
               </div>
 
               <p className="text-center text-xs text-muted-foreground mt-4">

@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/lora";
 
 :root {
   --background: oklch(0.145 0 0);
@@ -39,7 +38,6 @@
 }
 
 @theme inline {
-  --font-serif: 'Lora Variable', serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -91,8 +89,5 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
-  }
-  html {
-    @apply font-serif;
   }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Plus, LogIn, LogOut, Users, Gamepad2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -115,6 +115,7 @@ export function GroupsPage() {
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder={t('createGroup.placeholder')}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                maxLength={100}
                 autoFocus
               />
               <Button onClick={handleCreate}>{t('createGroup.submit')}</Button>
@@ -136,6 +137,7 @@ export function GroupsPage() {
                 onChange={(e) => setInviteToken(e.target.value)}
                 placeholder={t('joinGroup.placeholder')}
                 onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+                maxLength={128}
                 autoFocus
               />
               <Button onClick={handleJoin}>{t('joinGroup.submit')}</Button>
@@ -159,22 +161,17 @@ export function GroupsPage() {
         ) : (
           <div className="space-y-3">
             {groups.map((group) => (
-              <Card
-                key={group.id}
-                className="cursor-pointer p-4 hover:border-primary/50 transition-colors"
-                onClick={() => navigate(`/groups/${group.id}`)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && navigate(`/groups/${group.id}`)}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold">{group.name}</h3>
-                    <p className="text-sm text-muted-foreground">{group.role}</p>
+              <Link key={group.id} to={`/groups/${group.id}`} className="block">
+                <Card className="p-4 hover:border-primary/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold">{group.name}</h3>
+                      <p className="text-sm text-muted-foreground">{group.role}</p>
+                    </div>
+                    <Gamepad2 className="w-5 h-5 text-muted-foreground" />
                   </div>
-                  <Gamepad2 className="w-5 h-5 text-muted-foreground" />
-                </div>
-              </Card>
+                </Card>
+              </Link>
             ))}
           </div>
         )}

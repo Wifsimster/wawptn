@@ -4,7 +4,7 @@
 
 WAWPTN (What Are We Playing Tonight?) is a web application that helps groups of friends decide what game to play together. Built with a monorepo architecture using npm workspaces.
 
-**GitHub:** `github.com/Wifsimster/wawptn`
+**GitHub:** `github.com/wifsimster/wawptn`
 
 ## Tech Stack
 

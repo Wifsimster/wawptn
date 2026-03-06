@@ -21,15 +21,23 @@ export function AppHeader({ children, className }: AppHeaderProps) {
   }
 
   return (
-    <header className={cn('border-b border-border p-4', className)}>
-      <div className="max-w-2xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {children}
-          <Gamepad2 className="w-6 h-6 text-primary" />
-          <span className="font-bold text-lg">WAWPTN</span>
-        </div>
+    <header className={cn('sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60', className)}>
+      <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
+        {children && (
+          <div className="mr-2 flex items-center">
+            {children}
+          </div>
+        )}
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
+          <Gamepad2 className="h-6 w-6 text-primary" />
+          <span className="font-bold text-lg tracking-tight">WAWPTN</span>
+        </button>
+        <div className="flex-1" />
         <Button variant="ghost" size="icon" onClick={handleLogout} aria-label={t('groups.logout')}>
-          <LogOut className="w-5 h-5" />
+          <LogOut className="h-5 w-5" />
         </Button>
       </div>
     </header>

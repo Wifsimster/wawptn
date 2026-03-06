@@ -45,27 +45,6 @@ export function GroupPage() {
     : filteredGames.slice(0, DISPLAY_CAP)
   const hasMore = !isFiltering && !showAll && filteredGames.length > DISPLAY_CAP
 
-  useEffect(() => {
-    if (!id) return
-    fetchGroup(id)
-    loadCommonGames(id)
-    loadLastResult(id)
-
-    const socket = getSocket()
-    socket.emit('group:join', id)
-
-    socket.on('member:joined', () => fetchGroup(id))
-    socket.on('library:synced', () => loadCommonGames(id))
-    socket.on('session:created', () => navigate(`/groups/${id}/vote`))
-
-    return () => {
-      socket.emit('group:leave', id)
-      socket.off('member:joined')
-      socket.off('library:synced')
-      socket.off('session:created')
-    }
-  }, [id, fetchGroup, navigate, loadCommonGames])
-
   const loadCommonGames = useCallback(async (groupId: string) => {
     setLoadingGames(true)
     try {
@@ -88,6 +67,27 @@ export function GroupPage() {
       // Non-critical, fail silently
     }
   }
+
+  useEffect(() => {
+    if (!id) return
+    fetchGroup(id)
+    loadCommonGames(id)
+    loadLastResult(id)
+
+    const socket = getSocket()
+    socket.emit('group:join', id)
+
+    socket.on('member:joined', () => fetchGroup(id))
+    socket.on('library:synced', () => loadCommonGames(id))
+    socket.on('session:created', () => navigate(`/groups/${id}/vote`))
+
+    return () => {
+      socket.emit('group:leave', id)
+      socket.off('member:joined')
+      socket.off('library:synced')
+      socket.off('session:created')
+    }
+  }, [id, fetchGroup, navigate, loadCommonGames])
 
   const handleSync = async () => {
     if (!id) return

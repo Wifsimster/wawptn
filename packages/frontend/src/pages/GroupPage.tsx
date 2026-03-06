@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, Vote, Users, Share2, Trophy } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Vote, Users, Share2, Trophy, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
 import { api } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -24,6 +25,25 @@ export function GroupPage() {
   const [lastResult, setLastResult] = useState<{ winningGameName: string; closedAt: string } | null>(null)
   const [inviteToken, setInviteToken] = useState<string | null>(null)
   const [loadingGames, setLoadingGames] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showAll, setShowAll] = useState(false)
+
+  const DISPLAY_CAP = 50
+
+  const normalize = (s: string) =>
+    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+  const filteredGames = useMemo(() => {
+    if (searchQuery.trim() === '') return commonGames
+    const q = normalize(searchQuery)
+    return commonGames.filter((g) => normalize(g.gameName).includes(q))
+  }, [commonGames, searchQuery])
+
+  const isFiltering = searchQuery.trim().length > 0
+  const displayedGames = isFiltering || showAll
+    ? filteredGames
+    : filteredGames.slice(0, DISPLAY_CAP)
+  const hasMore = !isFiltering && !showAll && filteredGames.length > DISPLAY_CAP
 
   useEffect(() => {
     if (!id) return
@@ -208,9 +228,36 @@ export function GroupPage() {
         {/* Common Games */}
         <Card>
           <CardHeader>
-            <h2 className="font-semibold">{t('group.commonGames', { count: commonGames.length })}</h2>
+            <h2 className="font-semibold">
+              {isFiltering
+                ? t('group.commonGamesFiltered', { filtered: filteredGames.length, total: commonGames.length })
+                : t('group.commonGames', { count: commonGames.length })}
+            </h2>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            {!loadingGames && commonGames.length > 0 && (
+              <div className="relative" role="search">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t('group.searchGames')}
+                  aria-label={t('group.searchGames')}
+                  className="pl-9 pr-9"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={t('group.clearSearch')}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            )}
+
             {loadingGames ? (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -221,27 +268,51 @@ export function GroupPage() {
               <p className="text-sm text-muted-foreground">
                 {t('group.noCommonGames')}
               </p>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {commonGames.slice(0, 12).map((game) => (
-                  <div key={game.steamAppId} className="relative group">
-                    <img
-                      src={game.headerImageUrl}
-                      alt={game.gameName}
-                      className="w-full rounded aspect-[460/215] object-cover"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent rounded flex items-end p-2">
-                      <span className="text-xs font-medium text-white leading-tight">{game.gameName}</span>
-                    </div>
-                    {game.ownerCount < game.totalMembers && (
-                      <span className="absolute top-1 right-1 text-[10px] bg-black/70 text-white px-1 rounded">
-                        {game.ownerCount}/{game.totalMembers}
-                      </span>
-                    )}
-                  </div>
-                ))}
+            ) : filteredGames.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground">{t('group.noSearchResults')}</p>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-sm text-primary hover:underline mt-1"
+                >
+                  {t('group.clearSearch')}
+                </button>
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {displayedGames.map((game) => (
+                    <div key={game.steamAppId} className="relative group" style={{ transition: 'opacity 150ms ease' }}>
+                      <img
+                        src={game.headerImageUrl}
+                        alt={game.gameName}
+                        width={460}
+                        height={215}
+                        className="w-full rounded aspect-[460/215] object-cover"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent rounded flex items-end p-2">
+                        <span className="text-xs font-medium text-white leading-tight">{game.gameName}</span>
+                      </div>
+                      {game.ownerCount < game.totalMembers && (
+                        <span className="absolute top-1 right-1 text-[10px] bg-black/70 text-white px-1 rounded">
+                          {game.ownerCount}/{game.totalMembers}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {hasMore && (
+                  <Button
+                    variant="ghost"
+                    className="w-full mt-2"
+                    onClick={() => setShowAll(true)}
+                  >
+                    {t('group.showAll', { count: filteredGames.length })}
+                  </Button>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

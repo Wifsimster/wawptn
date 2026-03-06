@@ -23,6 +23,23 @@
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
+
+  --animate-in: enter 0.2s ease-out;
+  --animate-out: exit 0.15s ease-in;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes exit {
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
 }
 
 body {

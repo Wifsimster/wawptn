@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Gamepad2, RefreshCw, Vote, Users, Share2, Trophy } from 'lucide-react'
+import { toast } from 'sonner'
 import { useGroupStore } from '@/stores/group.store'
 import { api } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader, CardContent } from '@/components/ui/card'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { InviteLink } from '@/components/invite-link'
 
 export function GroupPage() {
   const { id } = useParams<{ id: string }>()
@@ -13,6 +20,7 @@ export function GroupPage() {
   const [syncing, setSyncing] = useState(false)
   const [lastResult, setLastResult] = useState<{ winningGameName: string; closedAt: string } | null>(null)
   const [inviteToken, setInviteToken] = useState<string | null>(null)
+  const [loadingGames, setLoadingGames] = useState(true)
 
   useEffect(() => {
     if (!id) return
@@ -36,10 +44,15 @@ export function GroupPage() {
   }, [id, fetchGroup, navigate])
 
   const loadCommonGames = async (groupId: string) => {
+    setLoadingGames(true)
     try {
       const result = await api.getCommonGames(groupId)
       setCommonGames(result.games)
-    } catch { /* empty */ }
+    } catch {
+      toast.error('Impossible de charger les jeux en commun')
+    } finally {
+      setLoadingGames(false)
+    }
   }
 
   const loadLastResult = async (groupId: string) => {
@@ -48,7 +61,9 @@ export function GroupPage() {
       if (history.length > 0 && history[0]) {
         setLastResult({ winningGameName: history[0].winningGameName, closedAt: history[0].closedAt })
       }
-    } catch { /* empty */ }
+    } catch {
+      // Non-critical, fail silently
+    }
   }
 
   const handleSync = async () => {
@@ -56,6 +71,9 @@ export function GroupPage() {
     setSyncing(true)
     try {
       await api.syncLibraries(id)
+      toast.success('Synchronisation lancee !')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur de synchronisation')
     } finally {
       setTimeout(() => setSyncing(false), 3000)
     }
@@ -67,30 +85,50 @@ export function GroupPage() {
       await api.createVoteSession(id)
       navigate(`/groups/${id}/vote`)
     } catch (err) {
-      // If session already exists, navigate to it
       if (err instanceof Error && err.message.includes('already open')) {
         navigate(`/groups/${id}/vote`)
+      } else {
+        toast.error(err instanceof Error ? err.message : 'Impossible de lancer le vote')
       }
     }
   }
 
   const handleGenerateInvite = async () => {
     if (!id) return
-    const result = await api.generateInvite(id)
-    setInviteToken(result.inviteToken)
+    try {
+      const result = await api.generateInvite(id)
+      setInviteToken(result.inviteToken)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Impossible de generer l'invitation")
+    }
   }
 
   if (!currentGroup) {
-    return <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">Loading...</div>
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border p-4">
+          <div className="max-w-2xl mx-auto flex items-center gap-3">
+            <Skeleton className="h-5 w-5 rounded" />
+            <Skeleton className="h-5 w-5 rounded" />
+            <Skeleton className="h-6 w-32" />
+          </div>
+        </header>
+        <main className="max-w-2xl mx-auto p-4 space-y-6">
+          <Skeleton className="h-[100px] w-full rounded-lg" />
+          <Skeleton className="h-[200px] w-full rounded-lg" />
+          <Skeleton className="h-[200px] w-full rounded-lg" />
+        </main>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border p-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <button onClick={() => navigate('/')} className="text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label="Retour">
             <ArrowLeft className="w-5 h-5" />
-          </button>
+          </Button>
           <Gamepad2 className="w-5 h-5 text-primary" />
           <h1 className="font-bold text-lg">{currentGroup.name}</h1>
         </div>
@@ -99,107 +137,119 @@ export function GroupPage() {
       <main className="max-w-2xl mx-auto p-4 space-y-6">
         {/* Last Result */}
         {lastResult && (
-          <div className="p-4 bg-card rounded-lg border border-primary/30">
-            <div className="flex items-center gap-2 mb-1">
-              <Trophy className="w-4 h-4 text-primary" />
-              <span className="text-sm text-muted-foreground">Last game night</span>
-            </div>
-            <p className="font-semibold text-lg">{lastResult.winningGameName}</p>
-          </div>
+          <Card className="border-primary/30">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Trophy className="w-4 h-4 text-primary" />
+                <span className="text-sm text-muted-foreground">Derniere soiree</span>
+              </div>
+              <p className="font-semibold text-lg">{lastResult.winningGameName}</p>
+            </CardContent>
+          </Card>
         )}
 
         {/* Start Vote CTA */}
-        <button
+        <Button
           onClick={handleStartVote}
-          className="w-full p-6 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-center"
+          className="w-full h-auto p-6 flex-col"
         >
-          <Vote className="w-8 h-8 mx-auto mb-2" />
-          <span className="text-xl font-bold block">Start a Vote for Tonight</span>
-          <span className="text-sm opacity-80">{commonGames.length} common games available</span>
-        </button>
+          <Vote className="w-8 h-8 mb-2" />
+          <span className="text-xl font-bold block">Lancer un vote pour ce soir</span>
+          <span className="text-sm opacity-80">{commonGames.length} jeux en commun</span>
+        </Button>
 
         {/* Members */}
-        <div className="bg-card rounded-lg border border-border p-4">
-          <div className="flex items-center justify-between mb-3">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
             <h2 className="font-semibold flex items-center gap-2">
               <Users className="w-4 h-4" />
-              Members ({currentGroup.members.length})
+              Membres ({currentGroup.members.length})
             </h2>
-            <div className="flex gap-2">
-              <button onClick={handleSync} className="text-muted-foreground hover:text-foreground transition-colors" title="Sync libraries">
-                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-              </button>
-              <button onClick={handleGenerateInvite} className="text-muted-foreground hover:text-foreground transition-colors" title="Invite">
-                <Share2 className="w-4 h-4" />
-              </button>
+            <div className="flex gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={handleSync} aria-label="Synchroniser les bibliotheques">
+                    <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Synchroniser les bibliotheques</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={handleGenerateInvite} aria-label="Inviter">
+                    <Share2 className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Generer un lien d'invitation</TooltipContent>
+              </Tooltip>
             </div>
-          </div>
+          </CardHeader>
 
-          {inviteToken && (
-            <div className="mb-3 p-3 bg-background rounded border border-border">
-              <p className="text-xs text-muted-foreground mb-1">Share this invite link:</p>
-              <div className="flex gap-2">
-                <code className="flex-1 text-xs bg-secondary px-2 py-1 rounded break-all">
-                  {window.location.origin}/join/{inviteToken}
-                </code>
-                <button
-                  onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join/${inviteToken}`)}
-                  className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs"
-                >
-                  Copy
-                </button>
-              </div>
-            </div>
-          )}
+          <CardContent>
+            {inviteToken && <InviteLink token={inviteToken} />}
 
-          <div className="space-y-2">
-            {currentGroup.members.map((member) => (
-              <div key={member.id} className="flex items-center gap-3 py-2">
-                <img src={member.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
-                <div className="flex-1">
-                  <span className="text-sm font-medium">{member.displayName}</span>
-                  {member.role === 'owner' && (
-                    <span className="ml-2 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">owner</span>
-                  )}
-                </div>
-                {!member.libraryVisible && (
-                  <span className="text-xs text-destructive">Library private</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Common Games */}
-        <div className="bg-card rounded-lg border border-border p-4">
-          <h2 className="font-semibold mb-3">Common Games ({commonGames.length})</h2>
-          {commonGames.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No common games found. Make sure all members have synced their libraries and their Steam profiles are public.
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {commonGames.slice(0, 12).map((game) => (
-                <div key={game.steamAppId} className="relative group">
-                  <img
-                    src={game.headerImageUrl}
-                    alt={game.gameName}
-                    className="w-full rounded aspect-[460/215] object-cover"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent rounded flex items-end p-2">
-                    <span className="text-xs font-medium text-white leading-tight">{game.gameName}</span>
+            <div className="space-y-2 mt-2">
+              {currentGroup.members.map((member) => (
+                <div key={member.id} className="flex items-center gap-3 py-2">
+                  <Avatar>
+                    <AvatarImage src={member.avatarUrl} alt={member.displayName} />
+                    <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <span className="text-sm font-medium">{member.displayName}</span>
+                    {member.role === 'owner' && (
+                      <span className="ml-2 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">owner</span>
+                    )}
                   </div>
-                  {game.ownerCount < game.totalMembers && (
-                    <span className="absolute top-1 right-1 text-[10px] bg-black/70 text-white px-1 rounded">
-                      {game.ownerCount}/{game.totalMembers}
-                    </span>
+                  {!member.libraryVisible && (
+                    <span className="text-xs text-destructive">Bibliotheque privee</span>
                   )}
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </CardContent>
+        </Card>
+
+        {/* Common Games */}
+        <Card>
+          <CardHeader>
+            <h2 className="font-semibold">Jeux en commun ({commonGames.length})</h2>
+          </CardHeader>
+          <CardContent>
+            {loadingGames ? (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <Skeleton key={i} className="w-full aspect-[460/215] rounded" />
+                ))}
+              </div>
+            ) : commonGames.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aucun jeu en commun trouve. Verifie que tous les membres ont synchronise leur bibliotheque et que leur profil Steam est public.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {commonGames.slice(0, 12).map((game) => (
+                  <div key={game.steamAppId} className="relative group">
+                    <img
+                      src={game.headerImageUrl}
+                      alt={game.gameName}
+                      className="w-full rounded aspect-[460/215] object-cover"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent rounded flex items-end p-2">
+                      <span className="text-xs font-medium text-white leading-tight">{game.gameName}</span>
+                    </div>
+                    {game.ownerCount < game.totalMembers && (
+                      <span className="absolute top-1 right-1 text-[10px] bg-black/70 text-white px-1 rounded">
+                        {game.ownerCount}/{game.totalMembers}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </main>
     </div>
   )

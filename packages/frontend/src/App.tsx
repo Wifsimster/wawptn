@@ -7,6 +7,7 @@ import { GroupsPage } from '@/pages/GroupsPage'
 import { GroupPage } from '@/pages/GroupPage'
 import { VotePage } from '@/pages/VotePage'
 import { JoinPage } from '@/pages/JoinPage'
+import { Skeleton } from '@/components/ui/skeleton'
 
 function App() {
   const { user, loading, fetchUser } = useAuthStore()
@@ -26,8 +27,9 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <Skeleton className="h-12 w-12 rounded-full" />
+        <Skeleton className="h-4 w-32" />
       </div>
     )
   }

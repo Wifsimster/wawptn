@@ -2,9 +2,13 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ThumbsUp, ThumbsDown, Check, ExternalLink } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
 import { useAuthStore } from '@/stores/auth.store'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
 
 interface Game {
   steamAppId: number
@@ -26,7 +30,7 @@ export function VotePage() {
   const { user } = useAuthStore()
   const [session, setSession] = useState<{ id: string; createdBy: string } | null>(null)
   const [games, setGames] = useState<Game[]>([])
-  const [myVotes, setMyVotes] = useState<Map<number, boolean>>(new Map())
+  const [, setMyVotes] = useState<Map<number, boolean>>(new Map())
   const [currentIndex, setCurrentIndex] = useState(0)
   const [voterCount, setVoterCount] = useState(0)
   const [totalMembers, setTotalMembers] = useState(0)
@@ -35,7 +39,33 @@ export function VotePage() {
 
   useEffect(() => {
     if (!id) return
-    loadSession(id)
+    let cancelled = false
+
+    api.getVoteSession(id).then(
+      (data) => {
+        if (cancelled) return
+        if (!data.session) {
+          navigate(`/groups/${id}`)
+          return
+        }
+        setSession({ id: data.session.id, createdBy: data.session.createdBy })
+        setGames(data.games)
+        setVoterCount(data.voterCount)
+        setTotalMembers(data.totalMembers)
+
+        const votes = new Map<number, boolean>()
+        for (const v of data.myVotes) {
+          votes.set(v.steamAppId, v.vote)
+        }
+        setMyVotes(votes)
+        if (data.myVotes.length > 0) {
+          setHasVoted(true)
+        }
+      },
+      () => {
+        if (!cancelled) navigate(`/groups/${id}`)
+      }
+    )
 
     const socket = getSocket()
     socket.emit('group:join', id)
@@ -49,50 +79,24 @@ export function VotePage() {
     })
 
     return () => {
+      cancelled = true
       socket.emit('group:leave', id)
       socket.off('vote:cast')
       socket.off('vote:closed')
     }
-  }, [id])
-
-  const loadSession = async (groupId: string) => {
-    try {
-      const data = await api.getVoteSession(groupId)
-      if (!data.session) {
-        navigate(`/groups/${groupId}`)
-        return
-      }
-      setSession({ id: data.session.id, createdBy: data.session.createdBy })
-      setGames(data.games)
-      setVoterCount(data.voterCount)
-      setTotalMembers(data.totalMembers)
-
-      // Restore existing votes
-      const votes = new Map<number, boolean>()
-      for (const v of data.myVotes) {
-        votes.set(v.steamAppId, v.vote)
-      }
-      setMyVotes(votes)
-      if (data.myVotes.length > 0) {
-        setHasVoted(true)
-      }
-    } catch {
-      navigate(`/groups/${groupId}`)
-    }
-  }
+  }, [id, navigate])
 
   const castVote = useCallback(async (steamAppId: number, vote: boolean) => {
     if (!id || !session) return
     setMyVotes(prev => new Map(prev).set(steamAppId, vote))
 
-    // Send to backend
     try {
       await api.castVote(id, session.id, steamAppId, vote)
     } catch (err) {
+      toast.error('Erreur lors du vote')
       console.error('Failed to cast vote:', err)
     }
 
-    // Move to next game
     if (currentIndex < games.length - 1) {
       setCurrentIndex(prev => prev + 1)
     } else {
@@ -100,12 +104,31 @@ export function VotePage() {
     }
   }, [id, session, currentIndex, games.length])
 
+  // Keyboard navigation for voting
+  useEffect(() => {
+    if (hasVoted || result || !games[currentIndex]) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        e.preventDefault()
+        castVote(games[currentIndex]!.steamAppId, false)
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        castVote(games[currentIndex]!.steamAppId, true)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [hasVoted, result, games, currentIndex, castVote])
+
   const handleClose = async () => {
     if (!id || !session) return
     try {
       const data = await api.closeVote(id, session.id)
       setResult(data.result)
     } catch (err) {
+      toast.error('Erreur lors de la cloture du vote')
       console.error('Failed to close vote:', err)
     }
   }
@@ -124,7 +147,7 @@ export function VotePage() {
             transition={{ type: 'spring', duration: 0.6 }}
             className="text-center max-w-md w-full"
           >
-            <p className="text-sm text-muted-foreground mb-4 uppercase tracking-wide">Tonight you're playing</p>
+            <p className="text-sm text-muted-foreground mb-4 uppercase tracking-wide">Ce soir vous jouez a</p>
             {result.headerImageUrl && (
               <img
                 src={result.headerImageUrl}
@@ -134,25 +157,25 @@ export function VotePage() {
             )}
             <h1 className="text-3xl font-bold mb-2">{result.gameName}</h1>
             <p className="text-muted-foreground mb-8">
-              {result.yesCount} out of {result.totalVoters} voted for this
+              {result.yesCount} sur {result.totalVoters} ont vote pour
             </p>
 
             {result.steamAppId && (
-              <a
-                href={`steam://run/${result.steamAppId}`}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-steam text-white rounded-lg hover:bg-steam-light transition-colors text-lg font-medium"
-              >
-                <ExternalLink className="w-5 h-5" />
-                Launch in Steam
-              </a>
+              <Button variant="steam" size="lg" asChild>
+                <a href={`steam://run/${result.steamAppId}`} className="gap-2">
+                  <ExternalLink className="w-5 h-5" />
+                  Lancer sur Steam
+                </a>
+              </Button>
             )}
 
-            <button
+            <Button
+              variant="ghost"
+              className="block mx-auto mt-4"
               onClick={() => navigate(`/groups/${id}`)}
-              className="block mx-auto mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              Back to group
-            </button>
+              Retour au groupe
+            </Button>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -164,33 +187,26 @@ export function VotePage() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <Check className="w-16 h-16 text-success mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Vote submitted!</h2>
+        <h2 className="text-2xl font-bold mb-2">Vote soumis !</h2>
         <p className="text-muted-foreground mb-6">
-          Waiting for others... {voterCount} of {totalMembers} have voted
+          En attente des autres... {voterCount} sur {totalMembers} ont vote
         </p>
 
-        <div className="w-48 h-2 bg-secondary rounded-full overflow-hidden mb-8">
-          <div
-            className="h-full bg-primary rounded-full transition-all duration-500"
-            style={{ width: `${totalMembers > 0 ? (voterCount / totalMembers) * 100 : 0}%` }}
-          />
-        </div>
+        <Progress value={voterCount} max={totalMembers} className="w-48 mb-8" />
 
         {canClose && (
-          <button
-            onClick={handleClose}
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
-          >
-            Close Vote & Reveal Winner
-          </button>
+          <Button onClick={handleClose}>
+            Cloturer le vote et reveler le gagnant
+          </Button>
         )}
 
-        <button
+        <Button
+          variant="ghost"
+          className="mt-4"
           onClick={() => navigate(`/groups/${id}`)}
-          className="mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          Back to group
-        </button>
+          Retour au groupe
+        </Button>
       </div>
     )
   }
@@ -200,14 +216,14 @@ export function VotePage() {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border p-4">
         <div className="max-w-md mx-auto flex items-center justify-between">
-          <button onClick={() => navigate(`/groups/${id}`)} className="text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/groups/${id}`)} aria-label="Retour">
             <ArrowLeft className="w-5 h-5" />
-          </button>
+          </Button>
           <span className="text-sm text-muted-foreground">
             {currentIndex + 1} / {games.length}
           </span>
           <div className="text-sm text-muted-foreground">
-            {voterCount}/{totalMembers} voted
+            {voterCount}/{totalMembers} votes
           </div>
         </div>
       </header>
@@ -223,7 +239,7 @@ export function VotePage() {
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="w-full"
             >
-              <div className="bg-card rounded-lg border border-border overflow-hidden shadow-xl">
+              <Card className="overflow-hidden shadow-xl">
                 <img
                   src={currentGame.headerImageUrl}
                   alt={currentGame.gameName}
@@ -232,22 +248,28 @@ export function VotePage() {
                 <div className="p-4">
                   <h2 className="text-xl font-bold text-center">{currentGame.gameName}</h2>
                 </div>
-              </div>
+              </Card>
 
               <div className="flex justify-center gap-8 mt-8">
                 <button
                   onClick={() => castVote(currentGame.steamAppId, false)}
-                  className="w-16 h-16 rounded-full bg-destructive/20 hover:bg-destructive/40 flex items-center justify-center transition-colors"
+                  className="w-16 h-16 rounded-full bg-destructive/20 hover:bg-destructive/40 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  aria-label={`Voter non pour ${currentGame.gameName}`}
                 >
                   <ThumbsDown className="w-7 h-7 text-destructive" />
                 </button>
                 <button
                   onClick={() => castVote(currentGame.steamAppId, true)}
-                  className="w-16 h-16 rounded-full bg-success/20 hover:bg-success/40 flex items-center justify-center transition-colors"
+                  className="w-16 h-16 rounded-full bg-success/20 hover:bg-success/40 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  aria-label={`Voter oui pour ${currentGame.gameName}`}
                 >
                   <ThumbsUp className="w-7 h-7 text-success" />
                 </button>
               </div>
+
+              <p className="text-center text-xs text-muted-foreground mt-4">
+                Utilise les fleches gauche/droite du clavier
+              </p>
             </motion.div>
           </AnimatePresence>
         )}

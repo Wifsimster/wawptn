@@ -1,45 +1,46 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Gamepad2, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/lib/api'
+import { Button } from '@/components/ui/button'
 
 export function JoinPage() {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const [error, setError] = useState<string | null>(null)
-  const [joining, setJoining] = useState(false)
+  const joining = !!user && !!token && !error
 
   useEffect(() => {
     if (!user || !token) return
-    joinGroup()
-  }, [user, token])
+    let cancelled = false
 
-  const joinGroup = async () => {
-    if (!token) return
-    setJoining(true)
-    try {
-      const result = await api.joinGroup(token)
-      navigate(`/groups/${result.id}`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to join group')
-      setJoining(false)
-    }
-  }
+    api.joinGroup(token).then(
+      (result) => {
+        if (cancelled) return
+        toast.success('Groupe rejoint !')
+        navigate(`/groups/${result.id}`)
+      },
+      (err) => {
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : 'Impossible de rejoindre le groupe')
+      }
+    )
+
+    return () => { cancelled = true }
+  }, [user, token, navigate])
 
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
         <Gamepad2 className="w-12 h-12 text-primary mb-4" />
-        <h1 className="text-2xl font-bold mb-2">You've been invited!</h1>
-        <p className="text-muted-foreground mb-6">Sign in with Steam to join the group.</p>
-        <a
-          href="/api/auth/steam/login"
-          className="flex items-center gap-3 px-8 py-4 bg-steam hover:bg-steam-light text-white rounded-lg transition-colors text-lg font-medium"
-        >
-          Sign in with Steam
-        </a>
+        <h1 className="text-2xl font-bold mb-2">Tu as ete invite !</h1>
+        <p className="text-muted-foreground mb-6">Connecte-toi avec Steam pour rejoindre le groupe.</p>
+        <Button variant="steam" size="lg" asChild>
+          <a href="/api/auth/steam/login">Sign in with Steam</a>
+        </Button>
       </div>
     )
   }
@@ -48,7 +49,7 @@ export function JoinPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Joining group...</p>
+        <p className="text-muted-foreground">Connexion au groupe...</p>
       </div>
     )
   }
@@ -56,11 +57,9 @@ export function JoinPage() {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
-        <h1 className="text-2xl font-bold mb-2 text-destructive">Could not join</h1>
+        <h1 className="text-2xl font-bold mb-2 text-destructive">Impossible de rejoindre</h1>
         <p className="text-muted-foreground mb-6">{error}</p>
-        <button onClick={() => navigate('/')} className="px-4 py-2 bg-primary text-primary-foreground rounded-md">
-          Go to my groups
-        </button>
+        <Button onClick={() => navigate('/')}>Aller a mes groupes</Button>
       </div>
     )
   }

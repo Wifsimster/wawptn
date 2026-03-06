@@ -10,7 +10,7 @@ npx @better-auth/cli migrate
 
 # Run database migrations
 echo "Running database migrations..."
-npx tsx node_modules/.bin/knex migrate:latest --knexfile knexfile.ts
+npx knex migrate:latest --knexfile knexfile.ts
 cd /app
 
 # Start the backend server

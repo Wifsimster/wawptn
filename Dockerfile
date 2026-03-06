@@ -55,7 +55,7 @@ COPY package.json package-lock.json ./
 COPY packages/types/package.json ./packages/types/
 COPY packages/backend/package.json ./packages/backend/
 
-RUN npm ci --omit=dev --ignore-scripts && npm install -w @wawptn/backend tsx @better-auth/cli
+RUN npm ci --omit=dev --ignore-scripts && npm install -w @wawptn/backend tsx knex @better-auth/cli
 
 COPY --from=builder /app/packages/types/dist ./packages/types/dist
 COPY --from=builder /app/packages/backend/dist ./packages/backend/dist

@@ -1,5 +1,4 @@
 import { Router, type Request, type Response } from 'express'
-import { auth } from '../../infrastructure/auth/auth.js'
 import { db } from '../../infrastructure/database/connection.js'
 import { getSteamLoginUrl, verifySteamLogin, getPlayerSummary, getOwnedGames, getHeaderImageUrl } from '../../infrastructure/steam/steam-client.js'
 import { authLogger, steamLogger } from '../../infrastructure/logger/logger.js'
@@ -66,41 +65,26 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
       })
     }
 
-    // Create Better Auth session
-    // We use Better Auth's internal API to create a session for this user
-    // Since Better Auth manages sessions, we need to link the Steam user
-    // For MVP, we create a session cookie directly
-    const session = await auth.api.signInWithIdToken({
-      body: {
-        providerId: 'steam',
-        idToken: steamId,
-        // Additional user info
-      },
-      headers: new Headers(),
-    }).catch(() => null)
+    // Create session manually
+    const token = crypto.randomUUID()
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
-    if (!session) {
-      // Fallback: create session manually via a custom token
-      const token = crypto.randomUUID()
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    await db('sessions').insert({
+      id: crypto.randomUUID(),
+      user_id: user.id,
+      token,
+      expires_at: expiresAt,
+      created_at: new Date(),
+      updated_at: new Date(),
+    })
 
-      await db('sessions').insert({
-        id: crypto.randomUUID(),
-        user_id: user.id,
-        token,
-        expires_at: expiresAt,
-        created_at: new Date(),
-        updated_at: new Date(),
-      })
-
-      res.cookie('wawptn.session_token', token, {
-        httpOnly: true,
-        secure: env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        expires: expiresAt,
-        path: '/',
-      })
-    }
+    res.cookie('wawptn.session_token', token, {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      expires: expiresAt,
+      path: '/',
+    })
 
     // Trigger background library sync
     syncUserLibrary(user.id, steamId).catch(err => {

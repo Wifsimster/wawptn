@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
-import { generateInviteToken, hashInviteToken, getHeaderImageUrl } from '../../infrastructure/steam/steam-client.js'
+import { generateInviteToken, hashInviteToken } from '../../infrastructure/steam/steam-client.js'
 import { getIO } from '../../infrastructure/socket/socket.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 
@@ -26,7 +26,7 @@ router.get('/', async (req: Request, res: Response) => {
 // Get group detail with members
 router.get('/:id', async (req: Request, res: Response) => {
   const userId = req.userId!
-  const groupId = req.params['id']!
+  const groupId = String(req.params['id'])
 
   // Verify membership
   const membership = await db('group_members')
@@ -107,7 +107,7 @@ router.post('/', async (req: Request, res: Response) => {
 // Generate new invite link
 router.post('/:id/invite', async (req: Request, res: Response) => {
   const userId = req.userId!
-  const groupId = req.params['id']!
+  const groupId = String(req.params['id'])
 
   const membership = await db('group_members')
     .where({ group_id: groupId, user_id: userId, role: 'owner' })
@@ -197,8 +197,8 @@ router.post('/join', async (req: Request, res: Response) => {
 // Leave group or kick member
 router.delete('/:id/members/:userId', async (req: Request, res: Response) => {
   const currentUserId = req.userId!
-  const groupId = req.params['id']!
-  const targetUserId = req.params['userId']!
+  const groupId = String(req.params['id'])
+  const targetUserId = String(req.params['userId'])
 
   // Check if current user is the target (leaving) or an owner (kicking)
   if (currentUserId !== targetUserId) {
@@ -224,7 +224,7 @@ router.delete('/:id/members/:userId', async (req: Request, res: Response) => {
 // Get common games for a group
 router.get('/:id/common-games', async (req: Request, res: Response) => {
   const userId = req.userId!
-  const groupId = req.params['id']!
+  const groupId = String(req.params['id'])
 
   const membership = await db('group_members')
     .where({ group_id: groupId, user_id: userId })
@@ -268,7 +268,7 @@ router.get('/:id/common-games', async (req: Request, res: Response) => {
 // Trigger library sync for all group members
 router.post('/:id/sync', async (req: Request, res: Response) => {
   const userId = req.userId!
-  const groupId = req.params['id']!
+  const groupId = String(req.params['id'])
 
   const membership = await db('group_members')
     .where({ group_id: groupId, user_id: userId })

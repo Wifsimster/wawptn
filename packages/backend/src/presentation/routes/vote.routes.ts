@@ -8,7 +8,7 @@ const router = Router()
 // Get active voting session for a group
 router.get('/:groupId/vote', async (req: Request, res: Response) => {
   const userId = req.userId!
-  const groupId = req.params['groupId']!
+  const groupId = String(req.params['groupId'])
 
   const membership = await db('group_members')
     .where({ group_id: groupId, user_id: userId })
@@ -68,7 +68,7 @@ router.get('/:groupId/vote', async (req: Request, res: Response) => {
 // Create a new voting session (on-demand)
 router.post('/:groupId/vote', async (req: Request, res: Response) => {
   const userId = req.userId!
-  const groupId = req.params['groupId']!
+  const groupId = String(req.params['groupId'])
 
   const membership = await db('group_members')
     .where({ group_id: groupId, user_id: userId })
@@ -158,8 +158,8 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
 // Cast a vote (yes/no per game)
 router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => {
   const userId = req.userId!
-  const groupId = req.params['groupId']!
-  const sessionId = req.params['sessionId']!
+  const groupId = String(req.params['groupId'])
+  const sessionId = String(req.params['sessionId'])
   const { steamAppId, vote } = req.body as { steamAppId: number; vote: boolean }
 
   if (steamAppId === undefined || vote === undefined) {
@@ -217,8 +217,8 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
 // Close voting session and compute winner
 router.post('/:groupId/vote/:sessionId/close', async (req: Request, res: Response) => {
   const userId = req.userId!
-  const groupId = req.params['groupId']!
-  const sessionId = req.params['sessionId']!
+  const groupId = String(req.params['groupId'])
+  const sessionId = String(req.params['sessionId'])
 
   // Only session creator or group owner can close
   const session = await db('voting_sessions')
@@ -278,9 +278,9 @@ router.post('/:groupId/vote/:sessionId/close', async (req: Request, res: Respons
     .countDistinct('user_id as count')
     .first()
 
-  const result = {
-    steamAppId: winnerAppId,
-    gameName: winnerName,
+  const result: import('@wawptn/types').VoteResult = {
+    steamAppId: winnerAppId ?? 0,
+    gameName: winnerName ?? 'Unknown',
     headerImageUrl: winnerAppId ? `https://cdn.akamai.steamstatic.com/steam/apps/${winnerAppId}/header.jpg` : null,
     yesCount: results.length > 0 ? Number(results[0]!.yes_count) : 0,
     totalVoters: Number(voterCount?.count || 0),
@@ -297,7 +297,7 @@ router.post('/:groupId/vote/:sessionId/close', async (req: Request, res: Respons
 // Get past voting sessions for a group
 router.get('/:groupId/vote/history', async (req: Request, res: Response) => {
   const userId = req.userId!
-  const groupId = req.params['groupId']!
+  const groupId = String(req.params['groupId'])
 
   const membership = await db('group_members')
     .where({ group_id: groupId, user_id: userId })

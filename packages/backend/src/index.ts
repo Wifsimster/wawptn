@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import { createServer } from 'http'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -22,12 +23,29 @@ async function main() {
   const app = express()
   const httpServer = createServer(app)
 
+  // Security headers
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'https://cdn.akamai.steamstatic.com', 'https://avatars.steamstatic.com'],
+        connectSrc: ["'self'", 'wss:', 'ws:'],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  }))
+
   // Middleware
   app.use(cors({
     origin: env.CORS_ORIGIN,
     credentials: true,
   }))
-  app.use(express.json())
+  app.use(express.json({ limit: '10kb' }))
   app.use(cookieParser())
 
   // Rate limiting

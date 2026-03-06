@@ -77,6 +77,11 @@ router.post('/', async (req: Request, res: Response) => {
     return
   }
 
+  if (name.trim().length > 100) {
+    res.status(400).json({ error: 'validation', message: 'Group name must be 100 characters or less' })
+    return
+  }
+
   const { token, hash } = generateInviteToken()
   const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000) // 72 hours
 

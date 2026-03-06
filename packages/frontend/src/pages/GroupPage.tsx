@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, Vote, Users, Share2, Trophy, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -64,9 +64,9 @@ export function GroupPage() {
       socket.off('library:synced')
       socket.off('session:created')
     }
-  }, [id, fetchGroup, navigate])
+  }, [id, fetchGroup, navigate, loadCommonGames])
 
-  const loadCommonGames = async (groupId: string) => {
+  const loadCommonGames = useCallback(async (groupId: string) => {
     setLoadingGames(true)
     try {
       const result = await api.getCommonGames(groupId)
@@ -76,7 +76,7 @@ export function GroupPage() {
     } finally {
       setLoadingGames(false)
     }
-  }
+  }, [t])
 
   const loadLastResult = async (groupId: string) => {
     try {

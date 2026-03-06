@@ -16,6 +16,10 @@ on:
           - major
         default: "patch"
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   packages: write
@@ -154,6 +158,7 @@ jobs:
 
       - name: Push changes to repository
         run: |
+          git pull --rebase origin main
           git push origin main
           git push origin "v${{ steps.version.outputs.new_version }}"
 

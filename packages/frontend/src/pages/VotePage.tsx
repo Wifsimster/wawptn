@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
+import { AppHeader } from '@/components/app-header'
 import { getSocket } from '@/lib/socket'
 import { useAuthStore } from '@/stores/auth.store'
 import { Button } from '@/components/ui/button'
@@ -228,19 +229,11 @@ export function VotePage() {
   // Voting interface
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b border-border p-4">
-        <div className="max-w-md mx-auto flex items-center justify-between">
-          <Button variant="ghost" size="icon" onClick={() => navigate(`/groups/${id}`)} aria-label={t('group.back')}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            {currentIndex + 1} / {games.length}
-          </span>
-          <div className="text-sm text-muted-foreground">
-            {voterCount}/{totalMembers} {t('vote.votes')}
-          </div>
-        </div>
-      </header>
+      <AppHeader>
+        <Button variant="ghost" size="icon" onClick={() => navigate(`/groups/${id}`)} aria-label={t('group.back')}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+      </AppHeader>
 
       <main className="flex-1 flex flex-col items-center justify-center p-4 max-w-md mx-auto w-full">
         {currentGame && (

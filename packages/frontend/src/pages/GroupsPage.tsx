@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Plus, LogIn, LogOut, Users, Gamepad2 } from 'lucide-react'
+import { Plus, LogIn, Users, Gamepad2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '@/stores/auth.store'
 import { useGroupStore } from '@/stores/group.store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { AppHeader } from '@/components/app-header'
@@ -16,7 +14,6 @@ import { InviteLink } from '@/components/invite-link'
 
 export function GroupsPage() {
   const { t } = useTranslation()
-  const { user, logout } = useAuthStore()
   const { groups, loading, fetchGroups, createGroup, joinGroup } = useGroupStore()
   const navigate = useNavigate()
   const [showCreate, setShowCreate] = useState(false)
@@ -56,11 +53,6 @@ export function GroupsPage() {
     }
   }
 
-  const handleLogout = async () => {
-    await logout()
-    navigate('/login')
-  }
-
   // If user has exactly one group, redirect to it
   useEffect(() => {
     if (!loading && groups.length === 1 && groups[0]) {
@@ -70,22 +62,7 @@ export function GroupsPage() {
 
   return (
     <div className="min-h-screen">
-      <AppHeader>
-        <div className="flex items-center gap-3">
-          {user && (
-            <>
-              <Avatar>
-                <AvatarImage src={user.avatarUrl} alt={user.displayName} />
-                <AvatarFallback>{user.displayName.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <span className="text-sm text-muted-foreground">{user.displayName}</span>
-            </>
-          )}
-          <Button variant="ghost" size="icon" onClick={handleLogout} aria-label={t('groups.logout')}>
-            <LogOut className="w-5 h-5" />
-          </Button>
-        </div>
-      </AppHeader>
+      <AppHeader />
 
       <main className="max-w-2xl mx-auto p-4">
         <div className="flex items-center justify-between mb-6">

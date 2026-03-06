@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Gamepad2, RefreshCw, Vote, Users, Share2, Trophy } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Vote, Users, Share2, Trophy } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
@@ -11,6 +11,7 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { AppHeader } from '@/components/app-header'
 import { InviteLink } from '@/components/invite-link'
 
 export function GroupPage() {
@@ -108,13 +109,9 @@ export function GroupPage() {
   if (!currentGroup) {
     return (
       <div className="min-h-screen">
-        <header className="border-b border-border p-4">
-          <div className="max-w-2xl mx-auto flex items-center gap-3">
-            <Skeleton className="h-5 w-5 rounded" />
-            <Skeleton className="h-5 w-5 rounded" />
-            <Skeleton className="h-6 w-32" />
-          </div>
-        </header>
+        <AppHeader>
+          <Skeleton className="h-5 w-5 rounded" />
+        </AppHeader>
         <main className="max-w-2xl mx-auto p-4 space-y-6">
           <Skeleton className="h-[100px] w-full rounded-lg" />
           <Skeleton className="h-[200px] w-full rounded-lg" />
@@ -126,15 +123,11 @@ export function GroupPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-border p-4">
-        <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <Gamepad2 className="w-5 h-5 text-primary" />
-          <h1 className="font-bold text-lg">{currentGroup.name}</h1>
-        </div>
-      </header>
+      <AppHeader>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+      </AppHeader>
 
       <main className="max-w-2xl mx-auto p-4 space-y-6">
         {/* Last Result */}

@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Gamepad2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 
 export function JoinPage() {
+  const { t } = useTranslation()
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
   const { user } = useAuthStore()
@@ -20,26 +22,26 @@ export function JoinPage() {
     api.joinGroup(token).then(
       (result) => {
         if (cancelled) return
-        toast.success('Groupe rejoint !')
+        toast.success(t('joinGroup.success'))
         navigate(`/groups/${result.id}`)
       },
       (err) => {
         if (cancelled) return
-        setError(err instanceof Error ? err.message : 'Impossible de rejoindre le groupe')
+        setError(err instanceof Error ? err.message : t('joinGroup.error'))
       }
     )
 
     return () => { cancelled = true }
-  }, [user, token, navigate])
+  }, [user, token, navigate, t])
 
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
         <Gamepad2 className="w-12 h-12 text-primary mb-4" />
-        <h1 className="text-2xl font-bold mb-2">Tu as ete invite !</h1>
-        <p className="text-muted-foreground mb-6">Connecte-toi avec Steam pour rejoindre le groupe.</p>
+        <h1 className="text-2xl font-bold mb-2">{t('join.invited')}</h1>
+        <p className="text-muted-foreground mb-6">{t('join.loginPrompt')}</p>
         <Button variant="steam" size="lg" asChild>
-          <a href="/api/auth/steam/login">Sign in with Steam</a>
+          <a href="/api/auth/steam/login">{t('login.signIn')}</a>
         </Button>
       </div>
     )
@@ -49,7 +51,7 @@ export function JoinPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Connexion au groupe...</p>
+        <p className="text-muted-foreground">{t('join.connecting')}</p>
       </div>
     )
   }
@@ -57,9 +59,9 @@ export function JoinPage() {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
-        <h1 className="text-2xl font-bold mb-2 text-destructive">Impossible de rejoindre</h1>
+        <h1 className="text-2xl font-bold mb-2 text-destructive">{t('join.failed')}</h1>
         <p className="text-muted-foreground mb-6">{error}</p>
-        <Button onClick={() => navigate('/')}>Aller a mes groupes</Button>
+        <Button onClick={() => navigate('/')}>{t('join.goToGroups')}</Button>
       </div>
     )
   }

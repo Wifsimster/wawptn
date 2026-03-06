@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ThumbsUp, ThumbsDown, Check, ExternalLink } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
 import { useAuthStore } from '@/stores/auth.store'
@@ -25,6 +26,7 @@ interface VoteResult {
 }
 
 export function VotePage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuthStore()
@@ -93,7 +95,7 @@ export function VotePage() {
     try {
       await api.castVote(id, session.id, steamAppId, vote)
     } catch (err) {
-      toast.error('Erreur lors du vote')
+      toast.error(t('vote.voteError'))
       console.error('Failed to cast vote:', err)
     }
 
@@ -102,7 +104,7 @@ export function VotePage() {
     } else {
       setHasVoted(true)
     }
-  }, [id, session, currentIndex, games.length])
+  }, [id, session, currentIndex, games.length, t])
 
   // Keyboard navigation for voting
   useEffect(() => {
@@ -128,7 +130,7 @@ export function VotePage() {
       const data = await api.closeVote(id, session.id)
       setResult(data.result)
     } catch (err) {
-      toast.error('Erreur lors de la cloture du vote')
+      toast.error(t('vote.closeError'))
       console.error('Failed to close vote:', err)
     }
   }
@@ -147,7 +149,7 @@ export function VotePage() {
             transition={{ type: 'spring', duration: 0.6 }}
             className="text-center max-w-md w-full"
           >
-            <p className="text-sm text-muted-foreground mb-4 uppercase tracking-wide">Ce soir vous jouez a</p>
+            <p className="text-sm text-muted-foreground mb-4 uppercase tracking-wide">{t('vote.tonightYouPlay')}</p>
             {result.headerImageUrl && (
               <img
                 src={result.headerImageUrl}
@@ -157,14 +159,14 @@ export function VotePage() {
             )}
             <h1 className="text-3xl font-bold mb-2">{result.gameName}</h1>
             <p className="text-muted-foreground mb-8">
-              {result.yesCount} sur {result.totalVoters} ont vote pour
+              {t('vote.votedFor', { yes: result.yesCount, total: result.totalVoters })}
             </p>
 
             {result.steamAppId && (
               <Button variant="steam" size="lg" asChild>
                 <a href={`steam://run/${result.steamAppId}`} className="gap-2">
                   <ExternalLink className="w-5 h-5" />
-                  Lancer sur Steam
+                  {t('vote.launchSteam')}
                 </a>
               </Button>
             )}
@@ -174,7 +176,7 @@ export function VotePage() {
               className="block mx-auto mt-4"
               onClick={() => navigate(`/groups/${id}`)}
             >
-              Retour au groupe
+              {t('vote.backToGroup')}
             </Button>
           </motion.div>
         </AnimatePresence>
@@ -187,16 +189,16 @@ export function VotePage() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <Check className="w-16 h-16 text-success mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Vote soumis !</h2>
+        <h2 className="text-2xl font-bold mb-2">{t('vote.submitted')}</h2>
         <p className="text-muted-foreground mb-6">
-          En attente des autres... {voterCount} sur {totalMembers} ont vote
+          {t('vote.waiting', { done: voterCount, total: totalMembers })}
         </p>
 
         <Progress value={voterCount} max={totalMembers} className="w-48 mb-8" />
 
         {canClose && (
           <Button onClick={handleClose}>
-            Cloturer le vote et reveler le gagnant
+            {t('vote.closeVote')}
           </Button>
         )}
 
@@ -205,7 +207,7 @@ export function VotePage() {
           className="mt-4"
           onClick={() => navigate(`/groups/${id}`)}
         >
-          Retour au groupe
+          {t('vote.backToGroup')}
         </Button>
       </div>
     )
@@ -216,14 +218,14 @@ export function VotePage() {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border p-4">
         <div className="max-w-md mx-auto flex items-center justify-between">
-          <Button variant="ghost" size="icon" onClick={() => navigate(`/groups/${id}`)} aria-label="Retour">
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/groups/${id}`)} aria-label={t('group.back')}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <span className="text-sm text-muted-foreground">
             {currentIndex + 1} / {games.length}
           </span>
           <div className="text-sm text-muted-foreground">
-            {voterCount}/{totalMembers} votes
+            {voterCount}/{totalMembers} {t('vote.votes')}
           </div>
         </div>
       </header>
@@ -254,21 +256,21 @@ export function VotePage() {
                 <button
                   onClick={() => castVote(currentGame.steamAppId, false)}
                   className="w-16 h-16 rounded-full bg-destructive/20 hover:bg-destructive/40 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  aria-label={`Voter non pour ${currentGame.gameName}`}
+                  aria-label={t('vote.voteNo', { game: currentGame.gameName })}
                 >
                   <ThumbsDown className="w-7 h-7 text-destructive" />
                 </button>
                 <button
                   onClick={() => castVote(currentGame.steamAppId, true)}
                   className="w-16 h-16 rounded-full bg-success/20 hover:bg-success/40 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  aria-label={`Voter oui pour ${currentGame.gameName}`}
+                  aria-label={t('vote.voteYes', { game: currentGame.gameName })}
                 >
                   <ThumbsUp className="w-7 h-7 text-success" />
                 </button>
               </div>
 
               <p className="text-center text-xs text-muted-foreground mt-4">
-                Utilise les fleches gauche/droite du clavier
+                {t('vote.keyboardHint')}
               </p>
             </motion.div>
           </AnimatePresence>

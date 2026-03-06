@@ -1,0 +1,80 @@
+{
+  "app": {
+    "name": "WAWPTN",
+    "tagline": "On joue a quoi ce soir ?"
+  },
+  "login": {
+    "subtitle": "Connecte ton compte Steam, cree un groupe avec tes amis, et votez pour le jeu de ce soir.",
+    "signIn": "Se connecter avec Steam",
+    "privacy": "Nous accedons uniquement a ton profil public et ta bibliotheque de jeux. Aucun mot de passe stocke."
+  },
+  "groups": {
+    "title": "Mes Groupes",
+    "join": "Rejoindre",
+    "create": "Creer",
+    "noGroups": "Aucun groupe",
+    "noGroupsHint": "Cree un groupe et invite tes amis pour commencer.",
+    "logout": "Se deconnecter"
+  },
+  "createGroup": {
+    "title": "Creer un groupe",
+    "description": "Donne un nom a ton groupe pour commencer.",
+    "placeholder": "Nom du groupe...",
+    "submit": "Creer",
+    "success": "Groupe cree !",
+    "error": "Impossible de creer le groupe"
+  },
+  "joinGroup": {
+    "title": "Rejoindre un groupe",
+    "description": "Colle le token d'invitation recu.",
+    "placeholder": "Token d'invitation...",
+    "submit": "Rejoindre",
+    "success": "Groupe rejoint !",
+    "error": "Impossible de rejoindre le groupe"
+  },
+  "group": {
+    "back": "Retour",
+    "lastSession": "Derniere soiree",
+    "startVote": "Lancer un vote pour ce soir",
+    "commonGamesCount": "{{count}} jeux en commun",
+    "members": "Membres ({{count}})",
+    "syncLibraries": "Synchroniser les bibliotheques",
+    "invite": "Inviter",
+    "generateInvite": "Generer un lien d'invitation",
+    "privateLibrary": "Bibliotheque privee",
+    "commonGames": "Jeux en commun ({{count}})",
+    "noCommonGames": "Aucun jeu en commun trouve. Verifie que tous les membres ont synchronise leur bibliotheque et que leur profil Steam est public.",
+    "loadGamesError": "Impossible de charger les jeux en commun",
+    "syncSuccess": "Synchronisation lancee !",
+    "syncError": "Erreur de synchronisation",
+    "startVoteError": "Impossible de lancer le vote",
+    "generateInviteError": "Impossible de generer l'invitation"
+  },
+  "vote": {
+    "tonightYouPlay": "Ce soir vous jouez a",
+    "votedFor": "{{yes}} sur {{total}} ont vote pour",
+    "launchSteam": "Lancer sur Steam",
+    "backToGroup": "Retour au groupe",
+    "submitted": "Vote soumis !",
+    "waiting": "En attente des autres... {{done}} sur {{total}} ont vote",
+    "closeVote": "Cloturer le vote et reveler le gagnant",
+    "voteError": "Erreur lors du vote",
+    "closeError": "Erreur lors de la cloture du vote",
+    "voteNo": "Voter non pour {{game}}",
+    "voteYes": "Voter oui pour {{game}}",
+    "keyboardHint": "Utilise les fleches gauche/droite du clavier",
+    "votes": "votes"
+  },
+  "join": {
+    "invited": "Tu as ete invite !",
+    "loginPrompt": "Connecte-toi avec Steam pour rejoindre le groupe.",
+    "connecting": "Connexion au groupe...",
+    "failed": "Impossible de rejoindre",
+    "goToGroups": "Aller a mes groupes"
+  },
+  "invite": {
+    "shareLink": "Partage ce lien avec tes amis :",
+    "copy": "Copier",
+    "copied": "Lien copie !"
+  }
+}

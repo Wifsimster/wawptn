@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, LogIn, LogOut, Users, Gamepad2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGroupStore } from '@/stores/group.store'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,7 @@ import { AppHeader } from '@/components/app-header'
 import { InviteLink } from '@/components/invite-link'
 
 export function GroupsPage() {
+  const { t } = useTranslation()
   const { user, logout } = useAuthStore()
   const { groups, loading, fetchGroups, createGroup, joinGroup } = useGroupStore()
   const navigate = useNavigate()
@@ -34,9 +36,9 @@ export function GroupsPage() {
       setInviteResult(result.inviteToken)
       setGroupName('')
       fetchGroups()
-      toast.success('Groupe cree !')
+      toast.success(t('createGroup.success'))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Impossible de creer le groupe')
+      toast.error(err instanceof Error ? err.message : t('createGroup.error'))
     }
   }
 
@@ -48,9 +50,9 @@ export function GroupsPage() {
       setShowJoin(false)
       fetchGroups()
       navigate(`/groups/${result.id}`)
-      toast.success('Groupe rejoint !')
+      toast.success(t('joinGroup.success'))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Impossible de rejoindre le groupe')
+      toast.error(err instanceof Error ? err.message : t('joinGroup.error'))
     }
   }
 
@@ -79,7 +81,7 @@ export function GroupsPage() {
               <span className="text-sm text-muted-foreground">{user.displayName}</span>
             </>
           )}
-          <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Se deconnecter">
+          <Button variant="ghost" size="icon" onClick={handleLogout} aria-label={t('groups.logout')}>
             <LogOut className="w-5 h-5" />
           </Button>
         </div>
@@ -87,15 +89,15 @@ export function GroupsPage() {
 
       <main className="max-w-2xl mx-auto p-4">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Mes Groupes</h2>
+          <h2 className="text-2xl font-bold">{t('groups.title')}</h2>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowJoin(true)}>
               <LogIn className="w-4 h-4" />
-              Rejoindre
+              {t('groups.join')}
             </Button>
             <Button size="sm" onClick={() => setShowCreate(true)}>
               <Plus className="w-4 h-4" />
-              Creer
+              {t('groups.create')}
             </Button>
           </div>
         </div>
@@ -104,18 +106,18 @@ export function GroupsPage() {
         <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) setInviteResult(null) }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Creer un groupe</DialogTitle>
-              <DialogDescription>Donne un nom a ton groupe pour commencer.</DialogDescription>
+              <DialogTitle>{t('createGroup.title')}</DialogTitle>
+              <DialogDescription>{t('createGroup.description')}</DialogDescription>
             </DialogHeader>
             <div className="flex gap-2 mt-4">
               <Input
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
-                placeholder="Nom du groupe..."
+                placeholder={t('createGroup.placeholder')}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
                 autoFocus
               />
-              <Button onClick={handleCreate}>Creer</Button>
+              <Button onClick={handleCreate}>{t('createGroup.submit')}</Button>
             </div>
             {inviteResult && <InviteLink token={inviteResult} />}
           </DialogContent>
@@ -125,18 +127,18 @@ export function GroupsPage() {
         <Dialog open={showJoin} onOpenChange={setShowJoin}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Rejoindre un groupe</DialogTitle>
-              <DialogDescription>Colle le token d'invitation recu.</DialogDescription>
+              <DialogTitle>{t('joinGroup.title')}</DialogTitle>
+              <DialogDescription>{t('joinGroup.description')}</DialogDescription>
             </DialogHeader>
             <div className="flex gap-2 mt-4">
               <Input
                 value={inviteToken}
                 onChange={(e) => setInviteToken(e.target.value)}
-                placeholder="Token d'invitation..."
+                placeholder={t('joinGroup.placeholder')}
                 onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
                 autoFocus
               />
-              <Button onClick={handleJoin}>Rejoindre</Button>
+              <Button onClick={handleJoin}>{t('joinGroup.submit')}</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -151,8 +153,8 @@ export function GroupsPage() {
         ) : groups.length === 0 ? (
           <div className="text-center py-16">
             <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-xl font-semibold mb-2">Aucun groupe</h3>
-            <p className="text-muted-foreground mb-6">Cree un groupe et invite tes amis pour commencer.</p>
+            <h3 className="text-xl font-semibold mb-2">{t('groups.noGroups')}</h3>
+            <p className="text-muted-foreground mb-6">{t('groups.noGroupsHint')}</p>
           </div>
         ) : (
           <div className="space-y-3">

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 
@@ -6,12 +7,13 @@ interface InviteLinkProps {
 }
 
 export function InviteLink({ token }: InviteLinkProps) {
+  const { t } = useTranslation()
   const url = `${window.location.origin}/join/${token}`
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(url)
-      toast.success('Lien copie !')
+      toast.success(t('invite.copied'))
     } catch {
       // Fallback for non-secure contexts
       const textarea = document.createElement('textarea')
@@ -22,19 +24,19 @@ export function InviteLink({ token }: InviteLinkProps) {
       textarea.select()
       document.execCommand('copy')
       document.body.removeChild(textarea)
-      toast.success('Lien copie !')
+      toast.success(t('invite.copied'))
     }
   }
 
   return (
     <div className="mt-3 p-3 bg-background rounded-md border border-border">
-      <p className="text-xs text-muted-foreground mb-1">Partage ce lien avec tes amis :</p>
+      <p className="text-xs text-muted-foreground mb-1">{t('invite.shareLink')}</p>
       <div className="flex gap-2">
         <code className="flex-1 text-xs bg-secondary px-2 py-1.5 rounded break-all">
           {url}
         </code>
         <Button size="sm" onClick={handleCopy}>
-          Copier
+          {t('invite.copy')}
         </Button>
       </div>
     </div>

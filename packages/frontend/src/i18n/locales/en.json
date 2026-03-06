@@ -1,0 +1,80 @@
+{
+  "app": {
+    "name": "WAWPTN",
+    "tagline": "What Are We Playing Tonight?"
+  },
+  "login": {
+    "subtitle": "Connect your Steam account, create a group with friends, and vote on tonight's game.",
+    "signIn": "Sign in with Steam",
+    "privacy": "We only access your public profile and game library. No passwords stored."
+  },
+  "groups": {
+    "title": "My Groups",
+    "join": "Join",
+    "create": "Create",
+    "noGroups": "No groups",
+    "noGroupsHint": "Create a group and invite your friends to get started.",
+    "logout": "Log out"
+  },
+  "createGroup": {
+    "title": "Create a group",
+    "description": "Give your group a name to get started.",
+    "placeholder": "Group name...",
+    "submit": "Create",
+    "success": "Group created!",
+    "error": "Unable to create group"
+  },
+  "joinGroup": {
+    "title": "Join a group",
+    "description": "Paste the invite token you received.",
+    "placeholder": "Invite token...",
+    "submit": "Join",
+    "success": "Group joined!",
+    "error": "Unable to join group"
+  },
+  "group": {
+    "back": "Back",
+    "lastSession": "Last session",
+    "startVote": "Start a vote for tonight",
+    "commonGamesCount": "{{count}} games in common",
+    "members": "Members ({{count}})",
+    "syncLibraries": "Sync libraries",
+    "invite": "Invite",
+    "generateInvite": "Generate invite link",
+    "privateLibrary": "Private library",
+    "commonGames": "Games in common ({{count}})",
+    "noCommonGames": "No common games found. Make sure all members have synced their library and their Steam profile is public.",
+    "loadGamesError": "Unable to load common games",
+    "syncSuccess": "Sync started!",
+    "syncError": "Sync error",
+    "startVoteError": "Unable to start vote",
+    "generateInviteError": "Unable to generate invite"
+  },
+  "vote": {
+    "tonightYouPlay": "Tonight you're playing",
+    "votedFor": "{{yes}} out of {{total}} voted for it",
+    "launchSteam": "Launch on Steam",
+    "backToGroup": "Back to group",
+    "submitted": "Vote submitted!",
+    "waiting": "Waiting for others... {{done}} out of {{total}} voted",
+    "closeVote": "Close vote and reveal winner",
+    "voteError": "Error while voting",
+    "closeError": "Error while closing vote",
+    "voteNo": "Vote no for {{game}}",
+    "voteYes": "Vote yes for {{game}}",
+    "keyboardHint": "Use left/right arrow keys",
+    "votes": "votes"
+  },
+  "join": {
+    "invited": "You've been invited!",
+    "loginPrompt": "Sign in with Steam to join the group.",
+    "connecting": "Joining group...",
+    "failed": "Unable to join",
+    "goToGroups": "Go to my groups"
+  },
+  "invite": {
+    "shareLink": "Share this link with your friends:",
+    "copy": "Copy",
+    "copied": "Link copied!"
+  }
+}

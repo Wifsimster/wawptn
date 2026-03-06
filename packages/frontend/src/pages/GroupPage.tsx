@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Gamepad2, RefreshCw, Vote, Users, Share2, Trophy } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
 import { api } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
@@ -13,6 +14,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { InviteLink } from '@/components/invite-link'
 
 export function GroupPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { currentGroup, fetchGroup } = useGroupStore()
@@ -49,7 +51,7 @@ export function GroupPage() {
       const result = await api.getCommonGames(groupId)
       setCommonGames(result.games)
     } catch {
-      toast.error('Impossible de charger les jeux en commun')
+      toast.error(t('group.loadGamesError'))
     } finally {
       setLoadingGames(false)
     }
@@ -71,9 +73,9 @@ export function GroupPage() {
     setSyncing(true)
     try {
       await api.syncLibraries(id)
-      toast.success('Synchronisation lancee !')
+      toast.success(t('group.syncSuccess'))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur de synchronisation')
+      toast.error(err instanceof Error ? err.message : t('group.syncError'))
     } finally {
       setTimeout(() => setSyncing(false), 3000)
     }
@@ -88,7 +90,7 @@ export function GroupPage() {
       if (err instanceof Error && err.message.includes('already open')) {
         navigate(`/groups/${id}/vote`)
       } else {
-        toast.error(err instanceof Error ? err.message : 'Impossible de lancer le vote')
+        toast.error(err instanceof Error ? err.message : t('group.startVoteError'))
       }
     }
   }
@@ -99,7 +101,7 @@ export function GroupPage() {
       const result = await api.generateInvite(id)
       setInviteToken(result.inviteToken)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Impossible de generer l'invitation")
+      toast.error(err instanceof Error ? err.message : t('group.generateInviteError'))
     }
   }
 
@@ -126,7 +128,7 @@ export function GroupPage() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border p-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label="Retour">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <Gamepad2 className="w-5 h-5 text-primary" />
@@ -141,7 +143,7 @@ export function GroupPage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Trophy className="w-4 h-4 text-primary" />
-                <span className="text-sm text-muted-foreground">Derniere soiree</span>
+                <span className="text-sm text-muted-foreground">{t('group.lastSession')}</span>
               </div>
               <p className="font-semibold text-lg">{lastResult.winningGameName}</p>
             </CardContent>
@@ -154,8 +156,8 @@ export function GroupPage() {
           className="w-full h-auto p-6 flex-col"
         >
           <Vote className="w-8 h-8 mb-2" />
-          <span className="text-xl font-bold block">Lancer un vote pour ce soir</span>
-          <span className="text-sm opacity-80">{commonGames.length} jeux en commun</span>
+          <span className="text-xl font-bold block">{t('group.startVote')}</span>
+          <span className="text-sm opacity-80">{t('group.commonGamesCount', { count: commonGames.length })}</span>
         </Button>
 
         {/* Members */}
@@ -163,24 +165,24 @@ export function GroupPage() {
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
             <h2 className="font-semibold flex items-center gap-2">
               <Users className="w-4 h-4" />
-              Membres ({currentGroup.members.length})
+              {t('group.members', { count: currentGroup.members.length })}
             </h2>
             <div className="flex gap-1">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={handleSync} aria-label="Synchroniser les bibliotheques">
+                  <Button variant="ghost" size="icon" onClick={handleSync} aria-label={t('group.syncLibraries')}>
                     <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Synchroniser les bibliotheques</TooltipContent>
+                <TooltipContent>{t('group.syncLibraries')}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={handleGenerateInvite} aria-label="Inviter">
+                  <Button variant="ghost" size="icon" onClick={handleGenerateInvite} aria-label={t('group.invite')}>
                     <Share2 className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Generer un lien d'invitation</TooltipContent>
+                <TooltipContent>{t('group.generateInvite')}</TooltipContent>
               </Tooltip>
             </div>
           </CardHeader>
@@ -202,7 +204,7 @@ export function GroupPage() {
                     )}
                   </div>
                   {!member.libraryVisible && (
-                    <span className="text-xs text-destructive">Bibliotheque privee</span>
+                    <span className="text-xs text-destructive">{t('group.privateLibrary')}</span>
                   )}
                 </div>
               ))}
@@ -213,7 +215,7 @@ export function GroupPage() {
         {/* Common Games */}
         <Card>
           <CardHeader>
-            <h2 className="font-semibold">Jeux en commun ({commonGames.length})</h2>
+            <h2 className="font-semibold">{t('group.commonGames', { count: commonGames.length })}</h2>
           </CardHeader>
           <CardContent>
             {loadingGames ? (
@@ -224,7 +226,7 @@ export function GroupPage() {
               </div>
             ) : commonGames.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Aucun jeu en commun trouve. Verifie que tous les membres ont synchronise leur bibliotheque et que leur profil Steam est public.
+                {t('group.noCommonGames')}
               </p>
             ) : (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">

@@ -282,7 +282,7 @@ export function VotePage() {
                 </div>
               </Card>
 
-              <div className="flex justify-center gap-8 mt-8">
+              <div className="flex justify-center gap-6 sm:gap-8 mt-8">
                 <Button
                   variant="ghost"
                   onClick={() => castVote(currentGame.steamAppId, false)}

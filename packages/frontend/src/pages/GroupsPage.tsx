@@ -65,7 +65,7 @@ export function GroupsPage() {
       <AppHeader />
 
       <main className="max-w-2xl mx-auto p-4">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
           <h2 className="text-2xl font-bold">{t('groups.title')}</h2>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowJoin(true)}>

@@ -1,7 +1,6 @@
 import { Server as HttpServer } from 'http'
 import { Server } from 'socket.io'
 import type { ServerToClientEvents, ClientToServerEvents } from '@wawptn/types'
-import { auth } from '../auth/auth.js'
 import { db } from '../database/connection.js'
 import { socketLogger } from '../logger/logger.js'
 import { env } from '../../config/env.js'
@@ -9,6 +8,32 @@ import { env } from '../../config/env.js'
 export type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>
 
 let io: TypedServer
+
+// In-memory presence: groupId -> Set<userId>
+const groupPresence = new Map<string, Set<string>>()
+
+function addPresence(groupId: string, userId: string): boolean {
+  let members = groupPresence.get(groupId)
+  if (!members) {
+    members = new Set()
+    groupPresence.set(groupId, members)
+  }
+  const wasNew = !members.has(userId)
+  members.add(userId)
+  return wasNew
+}
+
+function removePresence(groupId: string, userId: string): boolean {
+  const members = groupPresence.get(groupId)
+  if (!members) return false
+  const removed = members.delete(userId)
+  if (members.size === 0) groupPresence.delete(groupId)
+  return removed
+}
+
+function getPresence(groupId: string): string[] {
+  return Array.from(groupPresence.get(groupId) ?? [])
+}
 
 export function createSocketServer(httpServer: HttpServer): TypedServer {
   io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
@@ -29,17 +54,23 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
         return next(new Error('unauthorized'))
       }
 
-      // Verify session via Better Auth
-      const request = new Request(`${env.API_URL}/api/auth/get-session`, {
-        headers: { cookie: cookieHeader },
-      })
-      const session = await auth.api.getSession({ headers: request.headers })
-
-      if (!session?.user) {
+      // Parse session token from cookie header
+      const match = cookieHeader.match(/wawptn\.session_token=([^;]+)/)
+      const sessionToken = match?.[1]
+      if (!sessionToken) {
         return next(new Error('unauthorized'))
       }
 
-      socket.data.userId = session.user.id
+      const session = await db('sessions')
+        .where({ token: sessionToken })
+        .where('expires_at', '>', new Date())
+        .first()
+
+      if (!session) {
+        return next(new Error('unauthorized'))
+      }
+
+      socket.data.userId = session.user_id
       next()
     } catch {
       next(new Error('unauthorized'))
@@ -58,15 +89,55 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
       if (membership) {
         await socket.join(`group:${groupId}`)
         socketLogger.debug({ userId: socket.data.userId, groupId }, 'joined group room')
+
+        // Send current presence list to the joining socket
+        socket.emit('group:presence', { onlineUserIds: getPresence(groupId) })
+
+        // Track presence and notify others
+        const wasNew = addPresence(groupId, socket.data.userId)
+        if (wasNew) {
+          socket.to(`group:${groupId}`).emit('member:online', { groupId, userId: socket.data.userId })
+        }
       }
     })
 
     socket.on('group:leave', async (groupId) => {
       await socket.leave(`group:${groupId}`)
+
+      // Check if user still has other sockets in this room
+      const room = io.sockets.adapter.rooms.get(`group:${groupId}`)
+      const stillConnected = room && Array.from(room).some((socketId) => {
+        const s = io.sockets.sockets.get(socketId)
+        return s && s.data.userId === socket.data.userId
+      })
+
+      if (!stillConnected) {
+        const removed = removePresence(groupId, socket.data.userId)
+        if (removed) {
+          io.to(`group:${groupId}`).emit('member:offline', { groupId, userId: socket.data.userId })
+        }
+      }
     })
 
     socket.on('disconnect', () => {
       socketLogger.debug({ userId: socket.data.userId }, 'client disconnected')
+
+      // Remove presence from all groups this user was in
+      for (const [groupId, members] of groupPresence.entries()) {
+        if (members.has(socket.data.userId)) {
+          // Check if user has other sockets still in this group room
+          const room = io.sockets.adapter.rooms.get(`group:${groupId}`)
+          const stillConnected = room && Array.from(room).some((socketId) => {
+            const s = io.sockets.sockets.get(socketId)
+            return s && s.data.userId === socket.data.userId
+          })
+
+          if (!stillConnected) {
+            removePresence(groupId, socket.data.userId)
+            io.to(`group:${groupId}`).emit('member:offline', { groupId, userId: socket.data.userId })
+          }
+        }
+      }
     })
   })
 

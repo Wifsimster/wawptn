@@ -260,7 +260,7 @@ export function VotePage() {
         </Button>
       </AppHeader>
 
-      <main className="flex-1 flex flex-col items-center justify-center p-4 max-w-md mx-auto w-full">
+      <main id="main-content" className="flex-1 flex flex-col items-center justify-center p-4 max-w-md mx-auto w-full">
         {currentGame && (
           <AnimatePresence mode="wait">
             <motion.div

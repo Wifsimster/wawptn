@@ -20,18 +20,22 @@
   "createGroup": {
     "title": "Create a group",
     "description": "Give your group a name to get started.",
+    "label": "Group name",
     "placeholder": "Group name...",
     "submit": "Create",
     "success": "Group created!",
-    "error": "Unable to create group"
+    "error": "Unable to create group",
+    "required": "Please enter a group name"
   },
   "joinGroup": {
     "title": "Join a group",
     "description": "Paste the invite token you received.",
+    "label": "Invite token",
     "placeholder": "Invite token...",
     "submit": "Join",
     "success": "Group joined!",
-    "error": "Unable to join group"
+    "error": "Unable to join group",
+    "required": "Please enter an invite token"
   },
   "group": {
     "back": "Back",
@@ -109,7 +113,7 @@
     "closeError": "Error while closing vote",
     "voteNo": "Vote no for {{game}}",
     "voteYes": "Vote yes for {{game}}",
-    "keyboardHint": "Use left/right arrow keys",
+    "keyboardHint": "Use arrow keys (left/down = no, right/up = yes)",
     "votes": "votes",
     "sessionInProgress": "Vote in progress",
     "notParticipant": "You are not a participant in this voting session."

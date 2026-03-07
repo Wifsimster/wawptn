@@ -20,18 +20,22 @@
   "createGroup": {
     "title": "Créer un groupe",
     "description": "Donne un nom à ton groupe pour commencer.",
+    "label": "Nom du groupe",
     "placeholder": "Nom du groupe...",
     "submit": "Créer",
     "success": "Groupe créé !",
-    "error": "Impossible de créer le groupe"
+    "error": "Impossible de créer le groupe",
+    "required": "Veuillez entrer un nom de groupe"
   },
   "joinGroup": {
     "title": "Rejoindre un groupe",
     "description": "Colle le token d'invitation reçu.",
+    "label": "Token d'invitation",
     "placeholder": "Token d'invitation...",
     "submit": "Rejoindre",
     "success": "Groupe rejoint !",
-    "error": "Impossible de rejoindre le groupe"
+    "error": "Impossible de rejoindre le groupe",
+    "required": "Veuillez entrer un token d'invitation"
   },
   "group": {
     "back": "Retour",
@@ -109,7 +113,7 @@
     "closeError": "Erreur lors de la clôture du vote",
     "voteNo": "Voter non pour {{game}}",
     "voteYes": "Voter oui pour {{game}}",
-    "keyboardHint": "Utilise les flèches gauche/droite du clavier",
+    "keyboardHint": "Utilise les flèches du clavier (gauche/bas = non, droite/haut = oui)",
     "votes": "votes",
     "sessionInProgress": "Vote en cours",
     "notParticipant": "Tu ne participes pas à cette session de vote."

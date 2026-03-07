@@ -21,13 +21,19 @@ export function GroupsPage() {
   const [groupName, setGroupName] = useState('')
   const [inviteToken, setInviteToken] = useState('')
   const [inviteResult, setInviteResult] = useState<string | null>(null)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [joinError, setJoinError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchGroups()
   }, [fetchGroups])
 
   const handleCreate = async () => {
-    if (!groupName.trim()) return
+    if (!groupName.trim()) {
+      setCreateError(t('createGroup.required'))
+      return
+    }
+    setCreateError(null)
     try {
       const result = await createGroup(groupName.trim())
       setInviteResult(result.inviteToken)
@@ -35,12 +41,18 @@ export function GroupsPage() {
       fetchGroups()
       toast.success(t('createGroup.success'))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('createGroup.error'))
+      const msg = err instanceof Error ? err.message : t('createGroup.error')
+      setCreateError(msg)
+      toast.error(msg)
     }
   }
 
   const handleJoin = async () => {
-    if (!inviteToken.trim()) return
+    if (!inviteToken.trim()) {
+      setJoinError(t('joinGroup.required'))
+      return
+    }
+    setJoinError(null)
     try {
       const result = await joinGroup(inviteToken.trim())
       setInviteToken('')
@@ -49,7 +61,9 @@ export function GroupsPage() {
       navigate(`/groups/${result.id}`)
       toast.success(t('joinGroup.success'))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('joinGroup.error'))
+      const msg = err instanceof Error ? err.message : t('joinGroup.error')
+      setJoinError(msg)
+      toast.error(msg)
     }
   }
 
@@ -64,7 +78,7 @@ export function GroupsPage() {
     <div className="min-h-screen">
       <AppHeader />
 
-      <main className="max-w-2xl mx-auto p-4">
+      <main id="main-content" className="max-w-2xl mx-auto p-4">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
           <h2 className="text-2xl font-bold">{t('groups.title')}</h2>
           <div className="flex gap-2">
@@ -86,16 +100,29 @@ export function GroupsPage() {
               <DialogTitle>{t('createGroup.title')}</DialogTitle>
               <DialogDescription>{t('createGroup.description')}</DialogDescription>
             </DialogHeader>
-            <div className="flex gap-2 mt-4">
-              <Input
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                placeholder={t('createGroup.placeholder')}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-                maxLength={100}
-                autoFocus
-              />
-              <Button onClick={handleCreate}>{t('createGroup.submit')}</Button>
+            <div className="mt-4 space-y-2">
+              <label htmlFor="group-name" className="text-sm font-medium">
+                {t('createGroup.label')}
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  id="group-name"
+                  value={groupName}
+                  onChange={(e) => { setGroupName(e.target.value); setCreateError(null) }}
+                  placeholder={t('createGroup.placeholder')}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                  maxLength={100}
+                  autoFocus
+                  aria-invalid={!!createError}
+                  aria-describedby={createError ? 'group-name-error' : undefined}
+                />
+                <Button onClick={handleCreate}>{t('createGroup.submit')}</Button>
+              </div>
+              {createError && (
+                <p id="group-name-error" role="alert" className="text-sm text-destructive">
+                  {createError}
+                </p>
+              )}
             </div>
             {inviteResult && <InviteLink token={inviteResult} />}
           </DialogContent>
@@ -108,16 +135,29 @@ export function GroupsPage() {
               <DialogTitle>{t('joinGroup.title')}</DialogTitle>
               <DialogDescription>{t('joinGroup.description')}</DialogDescription>
             </DialogHeader>
-            <div className="flex gap-2 mt-4">
-              <Input
-                value={inviteToken}
-                onChange={(e) => setInviteToken(e.target.value)}
-                placeholder={t('joinGroup.placeholder')}
-                onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-                maxLength={128}
-                autoFocus
-              />
-              <Button onClick={handleJoin}>{t('joinGroup.submit')}</Button>
+            <div className="mt-4 space-y-2">
+              <label htmlFor="invite-token" className="text-sm font-medium">
+                {t('joinGroup.label')}
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  id="invite-token"
+                  value={inviteToken}
+                  onChange={(e) => { setInviteToken(e.target.value); setJoinError(null) }}
+                  placeholder={t('joinGroup.placeholder')}
+                  onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+                  maxLength={128}
+                  autoFocus
+                  aria-invalid={!!joinError}
+                  aria-describedby={joinError ? 'invite-token-error' : undefined}
+                />
+                <Button onClick={handleJoin}>{t('joinGroup.submit')}</Button>
+              </div>
+              {joinError && (
+                <p id="invite-token-error" role="alert" className="text-sm text-destructive">
+                  {joinError}
+                </p>
+              )}
             </div>
           </DialogContent>
         </Dialog>

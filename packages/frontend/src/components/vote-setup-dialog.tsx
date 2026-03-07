@@ -110,11 +110,12 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
             </DialogHeader>
 
             <div className="space-y-3">
-              <label className="flex items-center gap-3 py-1.5 cursor-pointer">
+              <label htmlFor="select-all" className="flex items-center gap-3 py-1.5 cursor-pointer">
                 <Checkbox
+                  id="select-all"
                   checked={allSelected}
                   onCheckedChange={toggleAll}
-                  aria-label={t('voteSetup.selectAll')}
+                  className="size-5"
                 />
                 <span className="text-sm font-medium text-muted-foreground">{t('voteSetup.selectAll')}</span>
               </label>
@@ -125,11 +126,12 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                 {sortedMembers.map((member) => {
                   const isOnline = onlineMembers.has(member.id)
                   return (
-                    <label key={member.id} className="flex items-center gap-3 py-1.5 px-1 rounded-md cursor-pointer hover:bg-accent/50">
+                    <label key={member.id} htmlFor={`member-${member.id}`} className="flex items-center gap-3 py-1.5 px-1 rounded-md cursor-pointer hover:bg-accent/50">
                       <Checkbox
+                        id={`member-${member.id}`}
                         checked={selectedIds.has(member.id)}
                         onCheckedChange={() => toggleMember(member.id)}
-                        aria-label={member.displayName}
+                        className="size-5"
                       />
                       <div className="relative">
                         <Avatar className="w-7 h-7">

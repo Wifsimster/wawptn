@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { Search, X, Users, Handshake, Star, ChevronDown, Gamepad2, Monitor, TrendingUp } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
@@ -51,6 +52,7 @@ interface GameGridProps {
 }
 
 const DISPLAY_CAP = 50
+const VIRTUALIZE_THRESHOLD = 100
 
 const METACRITIC_THRESHOLDS = [null, 60, 70, 75, 80, 85, 90] as const
 
@@ -140,6 +142,42 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
     : filteredGames.slice(0, DISPLAY_CAP)
   const hasMore = !isFiltering && !showAll && filteredGames.length > DISPLAY_CAP
 
+  // Virtualization for large lists
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [columnCount, setColumnCount] = useState(2)
+  const shouldVirtualize = displayedGames.length >= VIRTUALIZE_THRESHOLD
+
+  const updateColumnCount = useCallback(() => {
+    const w = scrollContainerRef.current?.offsetWidth ?? window.innerWidth
+    if (w >= 1024) setColumnCount(4)
+    else if (w >= 640) setColumnCount(3)
+    else setColumnCount(2)
+  }, [])
+
+  useEffect(() => {
+    if (!shouldVirtualize) return
+    updateColumnCount()
+    const observer = new ResizeObserver(updateColumnCount)
+    if (scrollContainerRef.current) observer.observe(scrollContainerRef.current)
+    return () => observer.disconnect()
+  }, [shouldVirtualize, updateColumnCount])
+
+  const rowCount = shouldVirtualize ? Math.ceil(displayedGames.length / columnCount) : 0
+
+  const virtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => {
+      // aspect-[460/215] → height = width / (460/215) ≈ width * 0.467 + gap
+      const containerWidth = scrollContainerRef.current?.offsetWidth ?? 300
+      const gap = 8
+      const cardWidth = (containerWidth - gap * (columnCount - 1)) / columnCount
+      return cardWidth * (215 / 460) + gap
+    },
+    overscan: 3,
+    enabled: shouldVirtualize,
+  })
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -225,7 +263,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                 key={threshold ?? 'all'}
                 variant={filters.minMetacritic === threshold ? 'default' : 'outline'}
                 size="sm"
-                className="h-6 px-2 text-xs"
+                className="h-8 px-3 text-xs"
                 onClick={() => onSetMinMetacritic(threshold)}
               >
                 {threshold === null ? t('group.allScores') : `${threshold}+`}
@@ -244,7 +282,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                 key={p}
                 variant={filters.platform === p ? 'default' : 'outline'}
                 size="sm"
-                className="h-6 px-2 text-xs"
+                className="h-8 px-3 text-xs"
                 onClick={() => onSetPlatform(p)}
               >
                 {t(`group.platform_${p}`)}
@@ -263,7 +301,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                 key={s}
                 variant={filters.sortBy === s ? 'default' : 'outline'}
                 size="sm"
-                className="h-6 px-2 text-xs"
+                className="h-8 px-3 text-xs"
                 onClick={() => onSetSortBy(s)}
               >
                 {t(`group.sort_${s}`)}
@@ -282,13 +320,13 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                 <ChevronDown className={`w-3 h-3 transition-transform ${genreExpanded ? 'rotate-180' : ''}`} />
                 {t('group.genres')}
                 {filters.selectedGenres.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
+                  <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-xs">
                     {filters.selectedGenres.length}
                   </Badge>
                 )}
               </button>
               {genreExpanded && (
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {availableGenres.map((genre) => {
                     const isSelected = filters.selectedGenres.includes(genre.id)
                     return (
@@ -296,7 +334,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                         key={genre.id}
                         type="button"
                         onClick={() => onToggleGenre(genre.id)}
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors cursor-pointer ${
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
                           isSelected
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
@@ -346,75 +384,47 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {displayedGames.map((game) => (
-              <div key={game.steamAppId} className="relative group" style={{ transition: 'opacity 150ms ease' }}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <img
-                        src={game.headerImageUrl}
-                        alt={game.gameName}
-                        width={460}
-                        height={215}
-                        className="w-full rounded aspect-[460/215] object-cover"
-                        loading="lazy"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent rounded flex items-end p-2">
-                        <span className="text-xs font-medium text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{game.gameName}</span>
-                      </div>
+          {shouldVirtualize ? (
+            <div
+              ref={scrollContainerRef}
+              className="overflow-y-auto"
+              style={{ maxHeight: '70vh' }}
+            >
+              <div
+                style={{
+                  height: `${virtualizer.getTotalSize()}px`,
+                  width: '100%',
+                  position: 'relative',
+                }}
+              >
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const startIndex = virtualRow.index * columnCount
+                  const rowGames = displayedGames.slice(startIndex, startIndex + columnCount)
+                  return (
+                    <div
+                      key={virtualRow.key}
+                      className="grid gap-2 absolute w-full"
+                      style={{
+                        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+                        height: `${virtualRow.size}px`,
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    >
+                      {rowGames.map((game) => (
+                        <GameCard key={game.steamAppId} game={game} t={t} />
+                      ))}
                     </div>
-                  </TooltipTrigger>
-                  {game.shortDescription && (
-                    <TooltipContent side="bottom" className="max-w-xs text-xs">
-                      {game.shortDescription}
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-                {game.metacriticScore !== null && (
-                  <span className={`absolute top-1 left-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                    game.metacriticScore >= 75 ? 'bg-emerald-600 text-white' :
-                    game.metacriticScore >= 50 ? 'bg-amber-500 text-white' :
-                    'bg-red-600 text-white'
-                  }`}>
-                    {game.metacriticScore}
-                  </span>
-                )}
-                {game.ownerCount < game.totalMembers && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="absolute top-1 right-1 text-[10px] bg-black/70 text-white px-1.5 py-0.5 rounded flex items-center gap-0.5 cursor-help">
-                        <Users className="w-2.5 h-2.5" />
-                        {game.ownerCount}/{game.totalMembers}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {t('group.ownerCountHint', { owned: game.ownerCount, total: game.totalMembers })}
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-                <div className="absolute bottom-7 right-1 flex gap-0.5">
-                  {game.isFree && (
-                    <span className="text-[10px] font-bold bg-emerald-600 text-white px-1.5 py-0.5 rounded">
-                      {t('group.free')}
-                    </span>
-                  )}
-                  {game.controllerSupport && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="text-[10px] bg-black/70 text-white px-1 py-0.5 rounded cursor-help">
-                          <Gamepad2 className="w-2.5 h-2.5" />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {t('group.controllerSupportLevel', { level: game.controllerSupport })}
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </div>
+                  )
+                })}
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+              {displayedGames.map((game) => (
+                <GameCard key={game.steamAppId} game={game} t={t} />
+              ))}
+            </div>
+          )}
           {hasMore && (
             <Button
               variant="ghost"
@@ -426,6 +436,76 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
           )}
         </>
       )}
+    </div>
+  )
+}
+
+function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<string, unknown>) => string }) {
+  return (
+    <div className="relative group" style={{ transition: 'opacity 150ms ease' }}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div>
+            <img
+              src={game.headerImageUrl}
+              alt={game.gameName}
+              width={460}
+              height={215}
+              className="w-full rounded aspect-[460/215] object-cover"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent rounded flex items-end p-2">
+              <span className="text-xs font-medium text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{game.gameName}</span>
+            </div>
+          </div>
+        </TooltipTrigger>
+        {game.shortDescription && (
+          <TooltipContent side="bottom" className="max-w-xs text-xs">
+            {game.shortDescription}
+          </TooltipContent>
+        )}
+      </Tooltip>
+      {game.metacriticScore !== null && (
+        <span className={`absolute top-1 left-1 text-xs font-bold px-1.5 py-0.5 rounded ${
+          game.metacriticScore >= 75 ? 'bg-emerald-600 text-white' :
+          game.metacriticScore >= 50 ? 'bg-amber-500 text-white' :
+          'bg-red-600 text-white'
+        }`}>
+          {game.metacriticScore}
+        </span>
+      )}
+      {game.ownerCount < game.totalMembers && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="absolute top-1 right-1 text-xs bg-black/70 text-white px-1.5 py-0.5 rounded flex items-center gap-0.5 cursor-help">
+              <Users className="w-2.5 h-2.5" />
+              {game.ownerCount}/{game.totalMembers}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t('group.ownerCountHint', { owned: game.ownerCount, total: game.totalMembers })}
+          </TooltipContent>
+        </Tooltip>
+      )}
+      <div className="absolute bottom-7 right-1 flex gap-0.5">
+        {game.isFree && (
+          <span className="text-xs font-bold bg-emerald-600 text-white px-1.5 py-0.5 rounded">
+            {t('group.free')}
+          </span>
+        )}
+        {game.controllerSupport && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-xs bg-black/70 text-white px-1 py-0.5 rounded cursor-help">
+                <Gamepad2 className="w-2.5 h-2.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {t('group.controllerSupportLevel', { level: game.controllerSupport })}
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
     </div>
   )
 }

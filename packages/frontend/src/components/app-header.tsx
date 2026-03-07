@@ -26,7 +26,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[60] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded-md">
         {t('app.skipToContent', 'Skip to content')}
       </a>
-      <nav className={cn('mx-auto flex h-14 items-center px-4', maxWidth === 'wide' ? 'max-w-6xl' : 'max-w-2xl')} aria-label={t('app.name')}>
+      <nav className={cn('mx-auto flex h-14 items-center px-[max(1rem,env(safe-area-inset-left))]', maxWidth === 'wide' ? 'max-w-6xl' : 'max-w-2xl')} style={{ paddingRight: 'max(1rem, env(safe-area-inset-right))' }} aria-label={t('app.name')}>
         {children && (
           <div className="mr-2 flex items-center">
             {children}
@@ -39,7 +39,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
         >
           <Gamepad2 className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg tracking-tight">WAWPTN</span>
-          <span className="ml-2 text-[10px] text-muted-foreground/60 leading-tight hidden sm:inline">
+          <span className="ml-2 text-xs text-muted-foreground/60 leading-tight hidden sm:inline">
             v{__APP_VERSION__} — {new Date(__BUILD_TIME__).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </span>
         </button>

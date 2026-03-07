@@ -2,6 +2,7 @@ import { RefreshCw, Share2, Users, Trophy, History } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { InviteLink } from '@/components/invite-link'
@@ -31,7 +32,7 @@ interface GroupSidebarProps {
 }
 
 export function GroupSidebar({ members, syncing, inviteToken, voteHistory, onSync, onGenerateInvite }: GroupSidebarProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   return (
     <aside className="space-y-4">
@@ -55,7 +56,7 @@ export function GroupSidebar({ members, syncing, inviteToken, voteHistory, onSyn
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium truncate ${index === 0 ? 'text-primary' : ''}`}>{session.winningGameName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(session.closedAt))}
+                    {new Intl.DateTimeFormat(i18n.language, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(session.closedAt))}
                   </p>
                 </div>
                 {index === 0 && <Trophy className="w-4 h-4 text-primary shrink-0" />}
@@ -104,7 +105,7 @@ export function GroupSidebar({ members, syncing, inviteToken, voteHistory, onSyn
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium truncate block">{member.displayName}</span>
                   {member.role === 'owner' && (
-                    <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">owner</span>
+                    <Badge variant="secondary" className="bg-primary/20 text-primary border-0">{t('group.roleOwner', 'owner')}</Badge>
                   )}
                 </div>
                 {!member.libraryVisible && (

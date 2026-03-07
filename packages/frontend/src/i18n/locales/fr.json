@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "WAWPTN",
-    "tagline": "On joue à quoi ce soir ?"
+    "tagline": "On joue à quoi ce soir ?",
+    "skipToContent": "Aller au contenu principal"
   },
   "login": {
     "subtitle": "Connecte ton compte Steam, crée un groupe avec tes amis, et votez pour le jeu de ce soir.",
@@ -65,7 +66,8 @@
     "ownerCountHint": "{{owned}} membres sur {{total}} possèdent ce jeu",
     "openSidebar": "Voir les membres et l'historique",
     "randomPick": "Au hasard",
-    "randomPickHint": "Choix aléatoire"
+    "randomPickHint": "Choix aléatoire",
+    "roleOwner": "propriétaire"
   },
   "randomPick": {
     "title": "Choix aléatoire",
@@ -74,6 +76,11 @@
     "launch": "Lancer sur Steam",
     "onlyOneGame": "Un seul jeu en commun, pas de relance possible.",
     "keyboardHint": "Appuie sur Espace ou Entrée pour relancer"
+  },
+  "error": {
+    "title": "Oups, quelque chose s'est mal passé",
+    "description": "Une erreur inattendue est survenue.",
+    "backHome": "Retour à l'accueil"
   },
   "vote": {
     "tonightYouPlay": "Ce soir vous jouez à",

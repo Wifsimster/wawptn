@@ -107,6 +107,7 @@ export interface VotingSession {
   createdBy: string
   winningGameAppId: number | null
   winningGameName: string | null
+  scheduledAt: string | null
   createdAt: string
   closedAt: string | null
 }
@@ -160,7 +161,7 @@ export interface ServerToClientEvents {
   'member:joined': (data: { groupId: string; user: Pick<User, 'id' | 'displayName' | 'avatarUrl'> }) => void
   'member:left': (data: { groupId: string; userId: string }) => void
   'library:synced': (data: { groupId: string; userId: string; gameCount: number }) => void
-  'session:created': (data: { sessionId: string; groupId: string; createdBy: string; participantIds?: string[] }) => void
+  'session:created': (data: { sessionId: string; groupId: string; createdBy: string; participantIds?: string[]; scheduledAt?: string }) => void
   'group:presence': (data: { onlineUserIds: string[] }) => void
   'member:online': (data: { groupId: string; userId: string }) => void
   'member:offline': (data: { groupId: string; userId: string }) => void

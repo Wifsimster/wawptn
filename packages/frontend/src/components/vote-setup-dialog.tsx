@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Vote, Loader2, Users } from 'lucide-react'
+import { ArrowLeft, Vote, Loader2, Users, Calendar } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -21,7 +21,7 @@ interface VoteSetupDialogProps {
   groupId: string
   onlineMembers: Set<string>
   activeFilter?: string
-  onStartVote: (participantIds: string[]) => void
+  onStartVote: (participantIds: string[], scheduledAt?: string) => void
 }
 
 type Step = 'select' | 'confirm'
@@ -32,6 +32,25 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [previewCount, setPreviewCount] = useState<number | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
+  const [isScheduled, setIsScheduled] = useState(false)
+  const [scheduledDate, setScheduledDate] = useState('')
+
+  // Compute minimum datetime-local value (15 minutes from now)
+  const minDateTime = useMemo(() => {
+    const d = new Date(Date.now() + 15 * 60 * 1000)
+    return d.toISOString().slice(0, 16)
+  }, [])
+
+  // Default to today at 20:00 (or tomorrow if past 20:00)
+  const defaultScheduledDate = useMemo(() => {
+    const now = new Date()
+    const target = new Date(now)
+    target.setHours(20, 0, 0, 0)
+    if (target.getTime() <= now.getTime() + 15 * 60 * 1000) {
+      target.setDate(target.getDate() + 1)
+    }
+    return target.toISOString().slice(0, 16)
+  }, [])
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -39,8 +58,10 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
       setStep('select')
       setSelectedIds(new Set(members.map(m => m.id)))
       setPreviewCount(null)
+      setIsScheduled(false)
+      setScheduledDate(defaultScheduledDate)
     }
-  }, [open, members])
+  }, [open, members, defaultScheduledDate])
 
   const sortedMembers = [...members].sort((a, b) => {
     const aOnline = onlineMembers.has(a.id)
@@ -90,7 +111,8 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
   }
 
   const handleConfirm = () => {
-    onStartVote(Array.from(selectedIds))
+    const scheduled = isScheduled && scheduledDate ? new Date(scheduledDate).toISOString() : undefined
+    onStartVote(Array.from(selectedIds), scheduled)
     onOpenChange(false)
   }
 
@@ -191,13 +213,45 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
               </p>
             )}
 
+            <div className="mt-4 space-y-3 border-t border-border pt-4">
+              <label htmlFor="schedule-toggle" className="flex items-center gap-3 cursor-pointer">
+                <Checkbox
+                  id="schedule-toggle"
+                  checked={isScheduled}
+                  onCheckedChange={(checked) => setIsScheduled(checked === true)}
+                  className="size-5"
+                />
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">{t('voteSetup.scheduleLater')}</span>
+              </label>
+
+              {isScheduled && (
+                <div className="space-y-2 pl-8">
+                  <label htmlFor="scheduled-date" className="text-xs text-muted-foreground">
+                    {t('voteSetup.scheduleDateLabel')}
+                  </label>
+                  <input
+                    id="scheduled-date"
+                    type="datetime-local"
+                    value={scheduledDate}
+                    min={minDateTime}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {t('voteSetup.scheduleHint')}
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3 mt-4 justify-between">
               <Button variant="ghost" onClick={handleBack}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 {t('voteSetup.back')}
               </Button>
-              <Button onClick={handleConfirm}>
-                {t('voteSetup.startVote')}
+              <Button onClick={handleConfirm} disabled={isScheduled && !scheduledDate}>
+                {isScheduled ? t('voteSetup.scheduleVote') : t('voteSetup.startVote')}
               </Button>
             </div>
           </>

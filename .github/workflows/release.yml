@@ -111,6 +111,8 @@ jobs:
           echo "changelog_file=CHANGELOG_TEMP.md" >> $GITHUB_OUTPUT
 
       - name: Commit version bump
+        env:
+          HUSKY: "0"
         run: |
           git add package.json packages/*/package.json package-lock.json
           git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
@@ -157,6 +159,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
 
       - name: Push changes to repository
+        env:
+          HUSKY: "0"
         run: |
           NEW_VERSION="${{ steps.version.outputs.new_version }}"
           VERSION_TYPE="${{ steps.version_type.outputs.type }}"

@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ThumbsUp, ThumbsDown, Check, ExternalLink, Loader2, Vote } from 'lucide-react'
+import { ArrowLeft, Check, ExternalLink, Loader2, Vote, Search, Send } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -10,7 +10,6 @@ import { CountdownTimer } from '@/components/countdown-timer'
 import { getSocket } from '@/lib/socket'
 import { useAuthStore } from '@/stores/auth.store'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 
 interface Game {
@@ -34,16 +33,15 @@ export function VotePage() {
   const { user } = useAuthStore()
   const [session, setSession] = useState<{ id: string; createdBy: string; scheduledAt: string | null } | null>(null)
   const [games, setGames] = useState<Game[]>([])
-  const [, setMyVotes] = useState<Map<number, boolean>>(new Map())
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [selectedGames, setSelectedGames] = useState<Set<number>>(new Set())
   const [voterCount, setVoterCount] = useState(0)
   const [totalMembers, setTotalMembers] = useState(0)
   const [result, setResult] = useState<VoteResult | null>(null)
   const [hasVoted, setHasVoted] = useState(false)
-  const [voting, setVoting] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [closing, setClosing] = useState(false)
   const [isParticipant, setIsParticipant] = useState(true)
-  const votingRef = useRef(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -62,13 +60,13 @@ export function VotePage() {
         setTotalMembers(data.totalMembers)
         setIsParticipant(data.isParticipant !== false)
 
-        const votes = new Map<number, boolean>()
-        for (const v of data.myVotes) {
-          votes.set(v.steamAppId, v.vote)
-        }
-        setMyVotes(votes)
         if (data.myVotes.length > 0) {
           setHasVoted(true)
+          const selected = new Set<number>()
+          for (const v of data.myVotes) {
+            if (v.vote) selected.add(v.steamAppId)
+          }
+          setSelectedGames(selected)
         }
       },
       () => {
@@ -96,46 +94,33 @@ export function VotePage() {
     }
   }, [id, navigate])
 
-  const castVote = useCallback(async (steamAppId: number, vote: boolean) => {
-    if (!id || !session || votingRef.current) return
-    votingRef.current = true
-    setVoting(true)
-    setMyVotes(prev => new Map(prev).set(steamAppId, vote))
+  const toggleGame = useCallback((steamAppId: number) => {
+    setSelectedGames(prev => {
+      const next = new Set(prev)
+      if (next.has(steamAppId)) next.delete(steamAppId)
+      else next.add(steamAppId)
+      return next
+    })
+  }, [])
+
+  const submitVotes = useCallback(async () => {
+    if (!id || !session || submitting) return
+    setSubmitting(true)
 
     try {
-      await api.castVote(id, session.id, steamAppId, vote)
+      // Send a vote for each game: selected = true, not selected = false
+      const promises = games.map(game =>
+        api.castVote(id, session.id, game.steamAppId, selectedGames.has(game.steamAppId))
+      )
+      await Promise.all(promises)
+      setHasVoted(true)
     } catch (err) {
       toast.error(t('vote.voteError'))
-      console.error('Failed to cast vote:', err)
+      console.error('Failed to submit votes:', err)
     } finally {
-      votingRef.current = false
-      setVoting(false)
+      setSubmitting(false)
     }
-
-    if (currentIndex < games.length - 1) {
-      setCurrentIndex(prev => prev + 1)
-    } else {
-      setHasVoted(true)
-    }
-  }, [id, session, currentIndex, games.length, t])
-
-  // Keyboard navigation for voting
-  useEffect(() => {
-    if (hasVoted || result || !games[currentIndex]) return
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
-        e.preventDefault()
-        castVote(games[currentIndex]!.steamAppId, false)
-      } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
-        e.preventDefault()
-        castVote(games[currentIndex]!.steamAppId, true)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [hasVoted, result, games, currentIndex, castVote])
+  }, [id, session, games, selectedGames, submitting, t])
 
   const handleClose = async () => {
     if (!id || !session || closing) return
@@ -151,7 +136,12 @@ export function VotePage() {
     }
   }
 
-  const currentGame = games[currentIndex]
+  const filteredGames = useMemo(() => {
+    if (!search.trim()) return games
+    const q = search.toLowerCase()
+    return games.filter(g => g.gameName.toLowerCase().includes(q))
+  }, [games, search])
+
   const canClose = session && (session.createdBy === user?.id)
   const prefersReducedMotion = useMemo(() =>
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches, []
@@ -223,6 +213,9 @@ export function VotePage() {
           </div>
         )}
 
+        <p className="text-muted-foreground mb-2">
+          {t('vote.selectedCount', { count: selectedGames.size })}
+        </p>
         <p className="text-muted-foreground mb-6">
           {t('vote.waiting', { done: voterCount, total: totalMembers })}
         </p>
@@ -266,7 +259,7 @@ export function VotePage() {
     )
   }
 
-  // Voting interface
+  // Game selection interface
   return (
     <div className="min-h-screen flex flex-col">
       <AppHeader>
@@ -275,55 +268,76 @@ export function VotePage() {
         </Button>
       </AppHeader>
 
-      <main id="main-content" className="flex-1 flex flex-col items-center justify-center p-4 max-w-md mx-auto w-full">
-        {currentGame && (
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentGame.steamAppId}
-              initial={prefersReducedMotion ? { opacity: 0 } : { x: 300, opacity: 0 }}
-              animate={prefersReducedMotion ? { opacity: 1 } : { x: 0, opacity: 1 }}
-              exit={prefersReducedMotion ? { opacity: 0 } : { x: -300, opacity: 0 }}
-              transition={prefersReducedMotion ? { duration: 0.2 } : { type: 'spring', stiffness: 300, damping: 30 }}
-              className="w-full"
-            >
-              <Card className="overflow-hidden shadow-xl">
+      <main id="main-content" className="flex-1 flex flex-col p-4 max-w-2xl mx-auto w-full">
+        <div className="text-center mb-4">
+          <h2 className="text-xl font-bold">{t('vote.selectGamesTitle')}</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {t('vote.selectGamesHint', { count: games.length })}
+          </p>
+        </div>
+
+        {/* Search bar */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('group.searchGames')}
+            className="w-full rounded-lg border border-border bg-background pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+
+        {/* Game grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 overflow-y-auto pb-24">
+          {filteredGames.map(game => {
+            const isSelected = selectedGames.has(game.steamAppId)
+            return (
+              <button
+                key={game.steamAppId}
+                onClick={() => toggleGame(game.steamAppId)}
+                className={`relative rounded-lg overflow-hidden border-2 transition-all ${
+                  isSelected
+                    ? 'border-primary ring-2 ring-primary/30 shadow-lg'
+                    : 'border-border hover:border-muted-foreground/40'
+                }`}
+              >
                 <img
-                  src={currentGame.headerImageUrl}
-                  alt={currentGame.gameName}
-                  className="w-full aspect-[460/215] object-cover"
+                  src={game.headerImageUrl}
+                  alt={game.gameName}
+                  className={`w-full aspect-[460/215] object-cover transition-opacity ${
+                    isSelected ? 'opacity-100' : 'opacity-60 hover:opacity-90'
+                  }`}
                 />
-                <div className="p-4">
-                  <h2 className="text-xl font-bold text-center">{currentGame.gameName}</h2>
+                {isSelected && (
+                  <div className="absolute top-1.5 right-1.5 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                    <Check className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                )}
+                <div className="p-2">
+                  <p className="text-xs font-medium truncate">{game.gameName}</p>
                 </div>
-              </Card>
+              </button>
+            )
+          })}
+        </div>
 
-              <div className="flex justify-center gap-6 sm:gap-8 mt-8">
-                <Button
-                  variant="ghost"
-                  onClick={() => castVote(currentGame.steamAppId, false)}
-                  disabled={voting}
-                  className="w-16 h-16 rounded-full bg-destructive/20 hover:bg-destructive/40"
-                  aria-label={t('vote.voteNo', { game: currentGame.gameName })}
-                >
-                  <ThumbsDown className="w-7 h-7 text-destructive" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => castVote(currentGame.steamAppId, true)}
-                  disabled={voting}
-                  className="w-16 h-16 rounded-full bg-success/20 hover:bg-success/40"
-                  aria-label={t('vote.voteYes', { game: currentGame.gameName })}
-                >
-                  <ThumbsUp className="w-7 h-7 text-success" />
-                </Button>
-              </div>
-
-              <p className="text-center text-xs text-muted-foreground mt-4">
-                {t('vote.keyboardHint')}
-              </p>
-            </motion.div>
-          </AnimatePresence>
-        )}
+        {/* Floating submit button */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-sm border-t border-border">
+          <div className="max-w-2xl mx-auto flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              {t('vote.gamesSelected', { count: selectedGames.size })}
+            </span>
+            <Button onClick={submitVotes} disabled={submitting || selectedGames.size === 0}>
+              {submitting ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Send className="w-4 h-4 mr-2" />
+              )}
+              {t('vote.submitSelection')}
+            </Button>
+          </div>
+        </div>
       </main>
     </div>
   )

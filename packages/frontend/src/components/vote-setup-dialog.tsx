@@ -209,7 +209,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
 
             {previewCount !== null && (
               <p className="text-sm text-muted-foreground">
-                {t('voteSetup.gameSelectionHint', { max: Math.min(previewCount, 20), total: previewCount })}
+                {t('voteSetup.gameSelectionHint', { total: previewCount })}
               </p>
             )}
 

@@ -104,7 +104,7 @@ export function GroupsPage() {
               <label htmlFor="group-name" className="text-sm font-medium">
                 {t('createGroup.label')}
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
                   id="group-name"
                   value={groupName}
@@ -116,7 +116,7 @@ export function GroupsPage() {
                   aria-invalid={!!createError}
                   aria-describedby={createError ? 'group-name-error' : undefined}
                 />
-                <Button onClick={handleCreate}>{t('createGroup.submit')}</Button>
+                <Button className="w-full sm:w-auto" onClick={handleCreate}>{t('createGroup.submit')}</Button>
               </div>
               {createError && (
                 <p id="group-name-error" role="alert" className="text-sm text-destructive">
@@ -139,7 +139,7 @@ export function GroupsPage() {
               <label htmlFor="invite-token" className="text-sm font-medium">
                 {t('joinGroup.label')}
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
                   id="invite-token"
                   value={inviteToken}
@@ -151,7 +151,7 @@ export function GroupsPage() {
                   aria-invalid={!!joinError}
                   aria-describedby={joinError ? 'invite-token-error' : undefined}
                 />
-                <Button onClick={handleJoin}>{t('joinGroup.submit')}</Button>
+                <Button className="w-full sm:w-auto" onClick={handleJoin}>{t('joinGroup.submit')}</Button>
               </div>
               {joinError && (
                 <p id="invite-token-error" role="alert" className="text-sm text-destructive">

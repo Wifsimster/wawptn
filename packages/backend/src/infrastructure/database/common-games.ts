@@ -90,3 +90,23 @@ export async function computeCommonGames(
     contentDescriptors: (g.contentDescriptors as string | null) ?? null,
   }))
 }
+
+/**
+ * Count common games for a set of user IDs (lightweight, no metadata).
+ * Returns the number of games owned by at least `threshold` users.
+ */
+export async function countCommonGames(
+  userIds: string[],
+  threshold?: number
+): Promise<number> {
+  const t = threshold ?? userIds.length
+
+  const [result] = await db('user_games')
+    .whereIn('user_id', userIds)
+    .groupBy('steam_app_id')
+    .havingRaw('COUNT(DISTINCT user_id) >= ?', [t])
+    .count('* as cnt')
+    .then(rows => [rows.length])
+
+  return result
+}

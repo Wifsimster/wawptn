@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
-import { computeCommonGames } from '../../infrastructure/database/common-games.js'
+import { computeCommonGames, countCommonGames } from '../../infrastructure/database/common-games.js'
 import { generateInviteToken, hashInviteToken } from '../../infrastructure/steam/steam-client.js'
 import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-store-client.js'
 import { getIO, forceLeaveRoom } from '../../infrastructure/socket/socket.js'
@@ -42,12 +42,37 @@ router.get('/', async (req: Request, res: Response) => {
     : []
   const lastSessionMap = new Map(lastSessions.map((s: { group_id: string; winning_game_app_id: number; winning_game_name: string; closed_at: string }) => [s.group_id, s]))
 
+  // Get member IDs per group for common game counting
+  const allMemberships = groupIds.length > 0
+    ? await db('group_members')
+        .whereIn('group_id', groupIds)
+        .select('group_id', 'user_id')
+    : []
+  const memberIdsMap = new Map<string, string[]>()
+  for (const m of allMemberships) {
+    const list = memberIdsMap.get(m.group_id) || []
+    list.push(m.user_id)
+    memberIdsMap.set(m.group_id, list)
+  }
+
+  // Count common games per group in parallel
+  const commonGameCounts = await Promise.all(
+    groups.map(async (g) => {
+      const memberIds = memberIdsMap.get(g.id) || []
+      if (memberIds.length < 1) return 0
+      const threshold = g.common_game_threshold || memberIds.length
+      return countCommonGames(memberIds, threshold)
+    })
+  )
+  const commonGameCountMap = new Map(groups.map((g, i) => [g.id, commonGameCounts[i]]))
+
   res.json(groups.map(g => ({
     id: g.id,
     name: g.name,
     role: g.role,
     createdAt: g.created_at,
     memberCount: memberCountMap.get(g.id) || 0,
+    commonGameCount: commonGameCountMap.get(g.id) || 0,
     lastSession: lastSessionMap.has(g.id)
       ? {
           gameName: lastSessionMap.get(g.id)!.winning_game_name,

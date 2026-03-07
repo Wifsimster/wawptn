@@ -63,7 +63,17 @@
     "confirmStartVote": "Start",
     "cancel": "Cancel",
     "ownerCountHint": "{{owned}} out of {{total}} members own this game",
-    "openSidebar": "View members and history"
+    "openSidebar": "View members and history",
+    "randomPick": "Random pick",
+    "randomPickHint": "Pick a random game"
+  },
+  "randomPick": {
+    "title": "Random pick",
+    "pickNumber": "Pick #{{number}}",
+    "reroll": "Re-roll",
+    "launch": "Launch on Steam",
+    "onlyOneGame": "Only one common game, re-roll not available.",
+    "keyboardHint": "Press Space or Enter to re-roll"
   },
   "vote": {
     "tonightYouPlay": "Tonight you're playing",

@@ -1,32 +1,32 @@
 {
   "app": {
     "name": "WAWPTN",
-    "tagline": "On joue a quoi ce soir ?"
+    "tagline": "On joue à quoi ce soir ?"
   },
   "login": {
-    "subtitle": "Connecte ton compte Steam, cree un groupe avec tes amis, et votez pour le jeu de ce soir.",
+    "subtitle": "Connecte ton compte Steam, crée un groupe avec tes amis, et votez pour le jeu de ce soir.",
     "signIn": "Se connecter avec Steam",
-    "privacy": "Nous accedons uniquement a ton profil public et ta bibliotheque de jeux. Aucun mot de passe stocke."
+    "privacy": "Nous accédons uniquement à ton profil public et ta bibliothèque de jeux. Aucun mot de passe stocké."
   },
   "groups": {
     "title": "Mes Groupes",
     "join": "Rejoindre",
-    "create": "Creer",
+    "create": "Créer",
     "noGroups": "Aucun groupe",
-    "noGroupsHint": "Cree un groupe et invite tes amis pour commencer.",
-    "logout": "Se deconnecter"
+    "noGroupsHint": "Crée un groupe et invite tes amis pour commencer.",
+    "logout": "Se déconnecter"
   },
   "createGroup": {
-    "title": "Creer un groupe",
-    "description": "Donne un nom a ton groupe pour commencer.",
+    "title": "Créer un groupe",
+    "description": "Donne un nom à ton groupe pour commencer.",
     "placeholder": "Nom du groupe...",
-    "submit": "Creer",
-    "success": "Groupe cree !",
-    "error": "Impossible de creer le groupe"
+    "submit": "Créer",
+    "success": "Groupe créé !",
+    "error": "Impossible de créer le groupe"
   },
   "joinGroup": {
     "title": "Rejoindre un groupe",
-    "description": "Colle le token d'invitation recu.",
+    "description": "Colle le token d'invitation reçu.",
     "placeholder": "Token d'invitation...",
     "submit": "Rejoindre",
     "success": "Groupe rejoint !",
@@ -34,63 +34,73 @@
   },
   "group": {
     "back": "Retour",
-    "lastSession": "Derniere soiree",
+    "lastSession": "Dernière soirée",
     "startVote": "Lancer un vote pour ce soir",
     "commonGamesCount": "{{count}} jeux en commun",
     "members": "Membres ({{count}})",
-    "syncLibraries": "Synchroniser les bibliotheques",
+    "syncLibraries": "Synchroniser les bibliothèques",
     "invite": "Inviter",
-    "generateInvite": "Generer un lien d'invitation",
-    "privateLibrary": "Bibliotheque privee",
+    "generateInvite": "Générer un lien d'invitation",
+    "privateLibrary": "Bibliothèque privée",
     "commonGames": "Jeux en commun ({{count}})",
     "commonGamesFiltered": "Jeux en commun ({{filtered}}/{{total}})",
     "searchGames": "Rechercher un jeu...",
-    "noCommonGames": "Aucun jeu en commun trouve. Verifie que tous les membres ont synchronise leur bibliotheque et que leur profil Steam est public.",
-    "noSearchResults": "Aucun jeu ne correspond a ta recherche.",
+    "noCommonGames": "Aucun jeu en commun trouvé. Vérifie que tous les membres ont synchronisé leur bibliothèque et que leur profil Steam est public.",
+    "noSearchResults": "Aucun jeu ne correspond à ta recherche.",
     "clearSearch": "Effacer la recherche",
     "multiplayerOnly": "Multijoueur",
     "showAll": "Voir tous les jeux ({{count}})",
     "loadGamesError": "Impossible de charger les jeux en commun",
-    "syncSuccess": "Synchronisation lancee !",
+    "syncSuccess": "Synchronisation lancée !",
     "syncError": "Erreur de synchronisation",
     "startVoteError": "Impossible de lancer le vote",
-    "generateInviteError": "Impossible de generer l'invitation",
-    "history": "Historique des soirees",
-    "voteStarted": "Un vote vient d'etre lance !",
+    "generateInviteError": "Impossible de générer l'invitation",
+    "history": "Historique des soirées",
+    "voteStarted": "Un vote vient d'être lancé !",
     "joinVote": "Rejoindre",
     "confirmVoteTitle": "Lancer un vote ?",
-    "confirmVoteDescription": "Tous les membres du groupe seront notifies. {{count}} jeux en commun seront soumis au vote.",
+    "confirmVoteDescription": "Tous les membres du groupe seront notifiés. {{count}} jeux en commun seront soumis au vote.",
     "confirmStartVote": "Lancer",
     "cancel": "Annuler",
-    "ownerCountHint": "{{owned}} membres sur {{total}} possedent ce jeu",
-    "openSidebar": "Voir les membres et l'historique"
+    "ownerCountHint": "{{owned}} membres sur {{total}} possèdent ce jeu",
+    "openSidebar": "Voir les membres et l'historique",
+    "randomPick": "Au hasard",
+    "randomPickHint": "Choix aléatoire"
+  },
+  "randomPick": {
+    "title": "Choix aléatoire",
+    "pickNumber": "Tirage #{{number}}",
+    "reroll": "Relancer",
+    "launch": "Lancer sur Steam",
+    "onlyOneGame": "Un seul jeu en commun, pas de relance possible.",
+    "keyboardHint": "Appuie sur Espace ou Entrée pour relancer"
   },
   "vote": {
-    "tonightYouPlay": "Ce soir vous jouez a",
-    "votedFor": "{{yes}} sur {{total}} ont vote pour",
+    "tonightYouPlay": "Ce soir vous jouez à",
+    "votedFor": "{{yes}} sur {{total}} ont voté pour",
     "launchSteam": "Lancer sur Steam",
     "backToGroup": "Retour au groupe",
     "submitted": "Vote soumis !",
-    "waiting": "En attente des autres... {{done}} sur {{total}} ont vote",
-    "closeVote": "Cloturer le vote et reveler le gagnant",
+    "waiting": "En attente des autres... {{done}} sur {{total}} ont voté",
+    "closeVote": "Clôturer le vote et révéler le gagnant",
     "voteError": "Erreur lors du vote",
-    "closeError": "Erreur lors de la cloture du vote",
+    "closeError": "Erreur lors de la clôture du vote",
     "voteNo": "Voter non pour {{game}}",
     "voteYes": "Voter oui pour {{game}}",
-    "keyboardHint": "Utilise les fleches gauche/droite du clavier",
+    "keyboardHint": "Utilise les flèches gauche/droite du clavier",
     "votes": "votes"
   },
   "join": {
-    "invited": "Tu as ete invite !",
+    "invited": "Tu as été invité !",
     "loginPrompt": "Connecte-toi avec Steam pour rejoindre le groupe.",
     "connecting": "Connexion au groupe...",
     "failed": "Impossible de rejoindre",
-    "goToGroups": "Aller a mes groupes"
+    "goToGroups": "Aller à mes groupes"
   },
   "invite": {
     "shareLink": "Partage ce lien avec tes amis :",
     "copy": "Copier",
-    "copied": "Lien copie !",
+    "copied": "Lien copié !",
     "share": "Partager",
     "shareText": "Rejoins notre groupe sur WAWPTN !"
   }

@@ -96,7 +96,7 @@ export function GroupPage() {
       socket.off('library:synced')
       socket.off('session:created')
     }
-  }, [id, fetchGroup, navigate, loadCommonGames, activeFilter])
+  }, [id, fetchGroup, navigate, loadCommonGames, activeFilter, t, user?.id])
 
   const handleSync = async () => {
     if (!id) return

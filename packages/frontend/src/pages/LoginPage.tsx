@@ -30,6 +30,10 @@ export function LoginPage() {
       <p className="mt-6 text-xs text-muted-foreground">
         {t('login.privacy')}
       </p>
+
+      <p className="mt-8 text-[10px] text-muted-foreground/50">
+        v{__APP_VERSION__} — {new Date(__BUILD_TIME__).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+      </p>
     </div>
   )
 }

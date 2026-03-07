@@ -39,6 +39,9 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
         >
           <Gamepad2 className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg tracking-tight">WAWPTN</span>
+          <span className="ml-2 text-[10px] text-muted-foreground/60 leading-tight hidden sm:inline">
+            v{__APP_VERSION__} — {new Date(__BUILD_TIME__).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          </span>
         </button>
         <div className="flex-1" />
         <Button variant="ghost" size="icon" onClick={handleLogout} aria-label={t('groups.logout')}>

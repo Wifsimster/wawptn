@@ -163,9 +163,11 @@ async function enrichGameMetadata(appIds: number[]): Promise<void> {
   if (appIds.length === 0) return
 
   // Find which ones still need enrichment
+  // Also re-enrich games that were enriched before genres/metacritic columns existed
   const existing = await db('game_metadata')
     .whereIn('steam_app_id', appIds)
     .whereNotNull('enriched_at')
+    .whereNotNull('genres')
     .select('steam_app_id')
 
   const existingSet = new Set(existing.map((r: { steam_app_id: number }) => r.steam_app_id))

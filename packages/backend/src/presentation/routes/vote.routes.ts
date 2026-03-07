@@ -180,9 +180,24 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
     return
   }
 
-  // Pick up to 20 random games for the session
-  const shuffled = commonGames.sort(() => Math.random() - 0.5)
-  const selectedGames = shuffled.slice(0, 20)
+  // Order common games by popularity in previous sessions (most voted-for first)
+  const previousVoteCounts = await db('votes')
+    .join('voting_sessions', 'votes.session_id', 'voting_sessions.id')
+    .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed', 'votes.vote': true })
+    .groupBy('votes.steam_app_id')
+    .select('votes.steam_app_id', db.raw('COUNT(*) as vote_count'))
+
+  const voteCountMap = new Map<number, number>()
+  for (const row of previousVoteCounts) {
+    voteCountMap.set(row.steam_app_id, Number(row.vote_count))
+  }
+
+  const selectedGames = commonGames.sort((a, b) => {
+    const countA = voteCountMap.get(a.steamAppId) || 0
+    const countB = voteCountMap.get(b.steamAppId) || 0
+    if (countA !== countB) return countB - countA
+    return a.gameName.localeCompare(b.gameName)
+  })
 
   // Create session
   const [session] = await db('voting_sessions').insert({

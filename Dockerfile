@@ -35,6 +35,9 @@ RUN npm run build:backend
 # Compile migrations to JS (so tsx is not needed at runtime)
 RUN cd packages/backend && npx tsc -p tsconfig.migrations.json
 
+# Compile knexfile to JS for production CLI usage (rollback, migrate, etc.)
+RUN cd packages/backend && npx tsc knexfile.ts --target ES2022 --module NodeNext --moduleResolution NodeNext --esModuleInterop --skipLibCheck --declaration false --outDir .
+
 # Stage 3b: Build frontend (parallel with backend)
 FROM types-builder AS frontend-builder
 
@@ -84,6 +87,9 @@ COPY --from=backend-builder /app/packages/backend/dist ./packages/backend/dist
 
 # Copy compiled migrations (JS, no tsx needed)
 COPY --from=backend-builder /app/packages/backend/migrations-compiled ./packages/backend/migrations
+
+# Copy compiled knexfile for CLI usage (rollback, migrate, etc.)
+COPY --from=backend-builder /app/packages/backend/knexfile.js ./packages/backend/knexfile.js
 
 # Copy built frontend to be served by Node.js
 COPY --from=frontend-builder /app/packages/frontend/dist ./packages/frontend/dist

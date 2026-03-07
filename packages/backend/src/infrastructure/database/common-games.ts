@@ -7,6 +7,8 @@ interface CommonGameRow {
   ownerCount: number
   isMultiplayer: boolean | null
   isCoop: boolean | null
+  genres: string | null
+  metacriticScore: number | null
 }
 
 /**
@@ -29,6 +31,12 @@ export async function computeCommonGames(
     })
   }
 
+  if (options?.filter === 'coop') {
+    query = query.where(function () {
+      this.where('game_metadata.is_coop', true).orWhereNull('game_metadata.is_coop')
+    })
+  }
+
   const games = await query
     .groupBy('user_games.steam_app_id', 'user_games.game_name', 'user_games.header_image_url')
     .havingRaw('COUNT(DISTINCT user_games.user_id) >= ?', [threshold])
@@ -38,7 +46,9 @@ export async function computeCommonGames(
       'user_games.header_image_url as headerImageUrl',
       db.raw('COUNT(DISTINCT user_games.user_id) as "ownerCount"'),
       db.raw('bool_or(game_metadata.is_multiplayer) as "isMultiplayer"'),
-      db.raw('bool_or(game_metadata.is_coop) as "isCoop"')
+      db.raw('bool_or(game_metadata.is_coop) as "isCoop"'),
+      db.raw('MAX(game_metadata.genres::text) as "genres"'),
+      db.raw('MAX(game_metadata.metacritic_score) as "metacriticScore"')
     )
     .orderByRaw('"ownerCount" DESC')
 
@@ -49,5 +59,7 @@ export async function computeCommonGames(
     ownerCount: Number(g.ownerCount),
     isMultiplayer: (g.isMultiplayer as boolean | null) ?? null,
     isCoop: (g.isCoop as boolean | null) ?? null,
+    genres: (g.genres as string | null) ?? null,
+    metacriticScore: g.metacriticScore != null ? Number(g.metacriticScore) : null,
   }))
 }

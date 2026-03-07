@@ -44,7 +44,7 @@ export const api = {
     method: 'DELETE',
   }),
   getCommonGames: (groupId: string, filter?: string) => request<{
-    games: { steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null }[];
+    games: { steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null }[];
     totalMembers: number; threshold: number;
   }>(`/groups/${groupId}/common-games${filter ? `?filter=${filter}` : ''}`),
   syncLibraries: (groupId: string) => request(`/groups/${groupId}/sync`, { method: 'POST' }),

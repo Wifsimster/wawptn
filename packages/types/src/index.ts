@@ -62,11 +62,15 @@ export interface CommonGame {
   totalMembers: number
   isMultiplayer: boolean | null
   isCoop: boolean | null
+  genres: { id: string; description: string }[] | null
+  metacriticScore: number | null
 }
 
 export interface GameMetadata {
   steamAppId: number
   categories: { id: number; description: string }[] | null
+  genres: { id: string; description: string }[] | null
+  metacriticScore: number | null
   isMultiplayer: boolean | null
   isCoop: boolean | null
   enrichedAt: string | null

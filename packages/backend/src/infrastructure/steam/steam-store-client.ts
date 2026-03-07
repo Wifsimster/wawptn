@@ -71,18 +71,31 @@ interface SteamAppCategory {
   description: string
 }
 
+interface SteamAppGenre {
+  id: string
+  description: string
+}
+
 interface SteamAppDetailsResponse {
   success: boolean
   data?: {
     categories?: SteamAppCategory[]
+    genres?: SteamAppGenre[]
+    metacritic?: { score: number; url: string }
   }
 }
 
-async function getAppDetails(appId: number): Promise<SteamAppCategory[] | null> {
+interface AppDetailsResult {
+  categories: SteamAppCategory[]
+  genres: SteamAppGenre[]
+  metacriticScore: number | null
+}
+
+async function getAppDetails(appId: number): Promise<AppDetailsResult | null> {
   if (isStoreCircuitOpen()) return null
 
   try {
-    const url = `${STEAM_STORE_API_BASE}/appdetails?appids=${appId}&filters=categories`
+    const url = `${STEAM_STORE_API_BASE}/appdetails?appids=${appId}&filters=categories,genres,metacritic`
     const response = await storeRateLimitedFetch(url)
 
     if (!response.ok) {
@@ -97,11 +110,15 @@ async function getAppDetails(appId: number): Promise<SteamAppCategory[] | null> 
     if (!appData?.success) {
       // App delisted or region-locked — not a service failure
       recordStoreSuccess()
-      return []
+      return { categories: [], genres: [], metacriticScore: null }
     }
 
     recordStoreSuccess()
-    return appData.data?.categories || []
+    return {
+      categories: appData.data?.categories || [],
+      genres: appData.data?.genres || [],
+      metacriticScore: appData.data?.metacritic?.score ?? null,
+    }
   } catch (error) {
     recordStoreFailure()
     steamLogger.error({ error: String(error), appId }, 'Steam Store API request failed')
@@ -136,32 +153,31 @@ async function enrichGameMetadata(appIds: number[]): Promise<void> {
       break
     }
 
-    const categories = await getAppDetails(appId)
+    const details = await getAppDetails(appId)
 
-    if (categories === null) {
+    if (details === null) {
       // Transient error — skip, will retry next time
       continue
     }
 
-    const categoryIds = categories.map(c => c.id)
+    const categoryIds = details.categories.map(c => c.id)
     const isMultiplayer = categoryIds.some(id => MULTIPLAYER_CATEGORY_IDS.has(id))
     const isCoop = categoryIds.some(id => COOP_CATEGORY_IDS.has(id))
 
+    const row = {
+      steam_app_id: appId,
+      categories: JSON.stringify(details.categories),
+      genres: JSON.stringify(details.genres),
+      metacritic_score: details.metacriticScore,
+      is_multiplayer: isMultiplayer,
+      is_coop: isCoop,
+      enriched_at: new Date(),
+    }
+
     await db('game_metadata')
-      .insert({
-        steam_app_id: appId,
-        categories: JSON.stringify(categories),
-        is_multiplayer: isMultiplayer,
-        is_coop: isCoop,
-        enriched_at: new Date(),
-      })
+      .insert(row)
       .onConflict('steam_app_id')
-      .merge({
-        categories: JSON.stringify(categories),
-        is_multiplayer: isMultiplayer,
-        is_coop: isCoop,
-        enriched_at: new Date(),
-      })
+      .merge(row)
 
     enrichedCount++
   }

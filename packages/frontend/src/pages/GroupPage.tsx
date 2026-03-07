@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AppHeader } from '@/components/app-header'
 import { GroupSidebar } from '@/components/group-sidebar'
-import { GameGrid } from '@/components/game-grid'
+import { GameGrid, type GameFilters } from '@/components/game-grid'
 import { RandomPickModal } from '@/components/random-pick-modal'
 import { VoteSetupDialog } from '@/components/vote-setup-dialog'
 
@@ -23,12 +23,17 @@ export function GroupPage() {
   const navigate = useNavigate()
   const { currentGroup, fetchGroup } = useGroupStore()
   const { user } = useAuthStore()
-  const [commonGames, setCommonGames] = useState<{ steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null }[]>([])
+  const [commonGames, setCommonGames] = useState<{ steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null }[]>([])
   const [syncing, setSyncing] = useState(false)
   const [voteHistory, setVoteHistory] = useState<{ id: string; winningGameAppId: number; winningGameName: string; closedAt: string }[]>([])
   const [inviteToken, setInviteToken] = useState<string | null>(null)
   const [loadingGames, setLoadingGames] = useState(true)
-  const [multiplayerOnly, setMultiplayerOnly] = useState(true)
+  const [gameFilters, setGameFilters] = useState<GameFilters>({
+    multiplayerOnly: true,
+    coopOnly: false,
+    selectedGenres: [],
+    minMetacritic: null,
+  })
   const [voteSetupOpen, setVoteSetupOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [randomPickOpen, setRandomPickOpen] = useState(false)
@@ -55,7 +60,7 @@ export function GroupPage() {
     }
   }
 
-  const activeFilter = multiplayerOnly ? 'multiplayer' : undefined
+  const activeFilter = gameFilters.multiplayerOnly ? 'multiplayer' : gameFilters.coopOnly ? 'coop' : undefined
 
   useEffect(() => {
     if (!id) return
@@ -239,8 +244,27 @@ export function GroupPage() {
             <GameGrid
               games={commonGames}
               loading={loadingGames}
-              multiplayerOnly={multiplayerOnly}
-              onToggleMultiplayer={setMultiplayerOnly}
+              filters={gameFilters}
+              onToggleMultiplayer={(value) => setGameFilters(prev => ({
+                ...prev,
+                multiplayerOnly: value,
+                coopOnly: value ? false : prev.coopOnly,
+              }))}
+              onToggleCoop={(value) => setGameFilters(prev => ({
+                ...prev,
+                coopOnly: value,
+                multiplayerOnly: value ? false : prev.multiplayerOnly,
+              }))}
+              onToggleGenre={(genreId) => setGameFilters(prev => ({
+                ...prev,
+                selectedGenres: prev.selectedGenres.includes(genreId)
+                  ? prev.selectedGenres.filter(id => id !== genreId)
+                  : [...prev.selectedGenres, genreId],
+              }))}
+              onSetMinMetacritic={(value) => setGameFilters(prev => ({
+                ...prev,
+                minMetacritic: value,
+              }))}
             />
           </div>
         </div>

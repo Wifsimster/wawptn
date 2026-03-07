@@ -1,7 +1,8 @@
 import { Component, type ReactNode } from 'react'
+import { withTranslation, type WithTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 
-interface Props {
+interface Props extends WithTranslation {
   children: ReactNode
 }
 
@@ -9,7 +10,7 @@ interface State {
   hasError: boolean
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundaryInner extends Component<Props, State> {
   state: State = { hasError: false }
 
   static getDerivedStateFromError(): State {
@@ -17,13 +18,15 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   render() {
+    const { t } = this.props
+
     if (this.state.hasError) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center px-4">
-          <h1 className="text-2xl font-bold mb-2">Oups, quelque chose s'est mal passé</h1>
-          <p className="text-muted-foreground mb-6">Une erreur inattendue est survenue.</p>
+          <h1 className="text-2xl font-bold mb-2">{t('error.title', "Oups, quelque chose s'est mal passe")}</h1>
+          <p className="text-muted-foreground mb-6">{t('error.description', 'Une erreur inattendue est survenue.')}</p>
           <Button onClick={() => { this.setState({ hasError: false }); window.location.href = '/' }}>
-            Retour à l'accueil
+            {t('error.backHome', "Retour a l'accueil")}
           </Button>
         </div>
       )
@@ -32,3 +35,5 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children
   }
 }
+
+export const ErrorBoundary = withTranslation()(ErrorBoundaryInner)

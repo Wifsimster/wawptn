@@ -54,7 +54,7 @@ export function GameGrid({ games, loading, multiplayerOnly, onToggleMultiplayer 
       </div>
 
       {!loading && games.length > 0 && (
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
           <div className="relative flex-1" role="search">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <Input

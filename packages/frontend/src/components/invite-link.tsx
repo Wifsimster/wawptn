@@ -48,10 +48,10 @@ export function InviteLink({ token }: InviteLinkProps) {
   return (
     <div className="mt-3 p-3 bg-background rounded-md border border-border">
       <p className="text-xs text-muted-foreground mb-1">{t('invite.shareLink')}</p>
+      <code className="block text-xs bg-secondary px-2 py-1.5 rounded break-all mb-2">
+        {url}
+      </code>
       <div className="flex gap-2">
-        <code className="flex-1 text-xs bg-secondary px-2 py-1.5 rounded break-all">
-          {url}
-        </code>
         <Button size="sm" onClick={handleCopy}>
           {t('invite.copy')}
         </Button>

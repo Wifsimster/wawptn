@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Vote, Loader2, Users, Calendar } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -132,7 +132,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
             </DialogHeader>
 
             <div className="space-y-3">
-              <label htmlFor="select-all" className="flex items-center gap-3 py-1.5 cursor-pointer">
+              <label htmlFor="select-all" className="flex items-center gap-3 py-2.5 cursor-pointer">
                 <Checkbox
                   id="select-all"
                   checked={allSelected}
@@ -144,11 +144,11 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
 
               <div className="border-t border-border" />
 
-              <div className="max-h-[50vh] overflow-y-auto space-y-1">
+              <div className="max-h-[40dvh] overflow-y-auto -mx-2">
                 {sortedMembers.map((member) => {
                   const isOnline = onlineMembers.has(member.id)
                   return (
-                    <label key={member.id} htmlFor={`member-${member.id}`} className="flex items-center gap-3 py-1.5 px-1 rounded-md cursor-pointer hover:bg-accent/50">
+                    <label key={member.id} htmlFor={`member-${member.id}`} className="flex items-center gap-3 py-2.5 px-2 rounded-md cursor-pointer hover:bg-accent/50">
                       <Checkbox
                         id={`member-${member.id}`}
                         checked={selectedIds.has(member.id)}
@@ -171,11 +171,11 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
               </div>
             </div>
 
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center mt-4">
-              <span className="text-xs text-muted-foreground text-center sm:text-left">
+            <div className="flex justify-between items-center mt-4">
+              <span className="text-xs text-muted-foreground">
                 {t('voteSetup.selectedCount', { count: selectedIds.size })}
               </span>
-              <Button className="w-full sm:w-auto" onClick={handleNext} disabled={!canProceed || loadingPreview}>
+              <Button onClick={handleNext} disabled={!canProceed || loadingPreview}>
                 {loadingPreview && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {t('voteSetup.next')}
               </Button>
@@ -214,7 +214,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
             )}
 
             <div className="mt-4 space-y-3 border-t border-border pt-4">
-              <label htmlFor="schedule-toggle" className="flex items-center gap-3 cursor-pointer">
+              <label htmlFor="schedule-toggle" className="flex items-center gap-3 py-1 cursor-pointer">
                 <Checkbox
                   id="schedule-toggle"
                   checked={isScheduled}
@@ -236,7 +236,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                     value={scheduledDate}
                     min={minDateTime}
                     onChange={(e) => setScheduledDate(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   <p className="text-xs text-muted-foreground">
                     {t('voteSetup.scheduleHint')}
@@ -245,15 +245,15 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
               )}
             </div>
 
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between mt-4">
-              <Button variant="ghost" className="w-full sm:w-auto" onClick={handleBack}>
+            <DialogFooter className="mt-4 sm:justify-between">
+              <Button variant="ghost" onClick={handleBack}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 {t('voteSetup.back')}
               </Button>
-              <Button className="w-full sm:w-auto" onClick={handleConfirm} disabled={isScheduled && !scheduledDate}>
+              <Button onClick={handleConfirm} disabled={isScheduled && !scheduledDate}>
                 {isScheduled ? t('voteSetup.scheduleVote') : t('voteSetup.startVote')}
               </Button>
-            </div>
+            </DialogFooter>
           </>
         )}
       </DialogContent>

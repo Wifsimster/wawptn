@@ -82,7 +82,7 @@ function RandomPickContent({ games }: { games: Game[] }) {
               className="w-full aspect-[460/215] object-cover"
             />
           )}
-          <div className="p-6 space-y-4">
+          <div className="p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-4">
             <div className="text-center">
               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
                 {t('randomPick.pickNumber', { number: pickCount })}
@@ -90,7 +90,7 @@ function RandomPickContent({ games }: { games: Game[] }) {
               <h2 className="text-xl font-bold">{currentGame.gameName}</h2>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+            <div className="flex gap-3">
               <Button
                 variant="secondary"
                 className="flex-1 gap-2"
@@ -142,7 +142,7 @@ export function RandomPickModal({ open, onOpenChange, games }: RandomPickModalPr
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden [&>button]:top-2 [&>button]:right-2">
+      <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden">
         <DialogTitle className="sr-only">{t('randomPick.title')}</DialogTitle>
         {open && games.length > 0 && <RandomPickContent key={sessionKey} games={games} />}
       </DialogContent>

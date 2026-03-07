@@ -374,6 +374,7 @@ export function GroupPage() {
               onLeaveGroup={handleLeaveGroup}
               onKickMember={handleKickMember}
               onDeleteGroup={handleDeleteGroup}
+              compact
             />
           </DialogContent>
         </Dialog>

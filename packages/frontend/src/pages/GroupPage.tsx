@@ -21,7 +21,7 @@ export function GroupPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { currentGroup, fetchGroup } = useGroupStore()
+  const { currentGroup, fetchGroup, leaveGroup, deleteGroup } = useGroupStore()
   const { user } = useAuthStore()
   const [commonGames, setCommonGames] = useState<{ steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null; type: string | null; shortDescription: string | null; platforms: { windows: boolean; mac: boolean; linux: boolean } | null; recommendationsTotal: number | null; releaseDate: string | null; comingSoon: boolean | null; controllerSupport: string | null; isFree: boolean | null }[]>([])
   const [syncing, setSyncing] = useState(false)
@@ -79,6 +79,19 @@ export function GroupPage() {
     socket.on('member:online', (data) => setOnlineUserIds((prev) => prev.includes(data.userId) ? prev : [...prev, data.userId]))
     socket.on('member:offline', (data) => setOnlineUserIds((prev) => prev.filter((id) => id !== data.userId)))
     socket.on('member:joined', () => fetchGroup(id))
+    socket.on('member:left', () => fetchGroup(id))
+    socket.on('member:kicked', (data) => {
+      if (data.userId === user?.id) {
+        toast.error(t('group.youWereKicked'))
+        navigate('/')
+      } else {
+        fetchGroup(id)
+      }
+    })
+    socket.on('group:deleted', (data) => {
+      toast(t('group.groupDeleted', { name: data.groupName }))
+      navigate('/')
+    })
     socket.on('library:synced', () => loadCommonGames(id, activeFilter))
     socket.on('session:created', (data) => {
       // Only show join prompt to participants (or all if no participantIds — legacy)
@@ -105,6 +118,9 @@ export function GroupPage() {
       socket.off('member:online')
       socket.off('member:offline')
       socket.off('member:joined')
+      socket.off('member:left')
+      socket.off('member:kicked')
+      socket.off('group:deleted')
       socket.off('library:synced')
       socket.off('session:created')
     }
@@ -147,7 +163,39 @@ export function GroupPage() {
     }
   }
 
+  const handleLeaveGroup = async () => {
+    if (!id || !user?.id) return
+    try {
+      await leaveGroup(id, user.id)
+      toast.success(t('group.leftGroup'))
+      navigate('/')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('group.leaveError'))
+    }
+  }
+
+  const handleKickMember = async (userId: string) => {
+    if (!id) return
+    try {
+      await api.leaveGroup(id, userId)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('group.kickError'))
+    }
+  }
+
+  const handleDeleteGroup = async () => {
+    if (!id) return
+    try {
+      await deleteGroup(id)
+      toast.success(t('group.groupDeletedSuccess'))
+      navigate('/')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('group.deleteError'))
+    }
+  }
+
   const onlineMembers = useMemo(() => new Set(onlineUserIds), [onlineUserIds])
+  const currentUserRole = currentGroup?.members.find(m => m.id === user?.id)?.role || 'member'
 
   if (!currentGroup) {
     return (
@@ -202,8 +250,13 @@ export function GroupPage() {
               inviteToken={inviteToken}
               voteHistory={voteHistory}
               onlineMembers={onlineMembers}
+              currentUserId={user?.id || ''}
+              currentUserRole={currentUserRole}
               onSync={handleSync}
               onGenerateInvite={handleGenerateInvite}
+              onLeaveGroup={handleLeaveGroup}
+              onKickMember={handleKickMember}
+              onDeleteGroup={handleDeleteGroup}
             />
           </div>
 
@@ -314,8 +367,13 @@ export function GroupPage() {
               inviteToken={inviteToken}
               voteHistory={voteHistory}
               onlineMembers={onlineMembers}
+              currentUserId={user?.id || ''}
+              currentUserRole={currentUserRole}
               onSync={handleSync}
               onGenerateInvite={handleGenerateInvite}
+              onLeaveGroup={handleLeaveGroup}
+              onKickMember={handleKickMember}
+              onDeleteGroup={handleDeleteGroup}
             />
           </DialogContent>
         </Dialog>

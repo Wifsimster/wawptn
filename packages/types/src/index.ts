@@ -160,6 +160,8 @@ export interface ServerToClientEvents {
   'vote:closed': (data: { sessionId: string; result: VoteResult }) => void
   'member:joined': (data: { groupId: string; user: Pick<User, 'id' | 'displayName' | 'avatarUrl'> }) => void
   'member:left': (data: { groupId: string; userId: string }) => void
+  'member:kicked': (data: { groupId: string; userId: string }) => void
+  'group:deleted': (data: { groupId: string; groupName: string }) => void
   'library:synced': (data: { groupId: string; userId: string; gameCount: number }) => void
   'session:created': (data: { sessionId: string; groupId: string; createdBy: string; participantIds?: string[]; scheduledAt?: string }) => void
   'group:presence': (data: { onlineUserIds: string[] }) => void

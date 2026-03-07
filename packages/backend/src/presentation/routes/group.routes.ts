@@ -3,7 +3,7 @@ import { db } from '../../infrastructure/database/connection.js'
 import { computeCommonGames } from '../../infrastructure/database/common-games.js'
 import { generateInviteToken, hashInviteToken } from '../../infrastructure/steam/steam-client.js'
 import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-store-client.js'
-import { getIO } from '../../infrastructure/socket/socket.js'
+import { getIO, forceLeaveRoom } from '../../infrastructure/socket/socket.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 
 const router = Router()
@@ -144,7 +144,7 @@ router.post('/', async (req: Request, res: Response) => {
   })
 })
 
-// Generate new invite link
+// Generate new invite link (owner only)
 router.post('/:id/invite', async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['id'])
@@ -234,19 +234,36 @@ router.post('/join', async (req: Request, res: Response) => {
   res.json({ id: group.id, name: group.name, alreadyMember: false })
 })
 
-// Leave group or kick member
+// Leave group (self) or kick member (owner only)
 router.delete('/:id/members/:userId', async (req: Request, res: Response) => {
   const currentUserId = req.userId!
   const groupId = String(req.params['id'])
   const targetUserId = String(req.params['userId'])
+  const isSelfLeave = currentUserId === targetUserId
 
-  // Check if current user is the target (leaving) or an owner (kicking)
-  if (currentUserId !== targetUserId) {
-    const membership = await db('group_members')
+  // Verify target is actually a member
+  const targetMembership = await db('group_members')
+    .where({ group_id: groupId, user_id: targetUserId })
+    .first()
+
+  if (!targetMembership) {
+    res.status(404).json({ error: 'not_found', message: 'User is not a member of this group' })
+    return
+  }
+
+  if (isSelfLeave) {
+    // Owner cannot leave — must delete the group instead
+    if (targetMembership.role === 'owner') {
+      res.status(403).json({ error: 'forbidden', message: 'Group owner cannot leave. Delete the group instead.' })
+      return
+    }
+  } else {
+    // Only the owner can kick other members
+    const currentMembership = await db('group_members')
       .where({ group_id: groupId, user_id: currentUserId, role: 'owner' })
       .first()
 
-    if (!membership) {
+    if (!currentMembership) {
       res.status(403).json({ error: 'forbidden', message: 'Only the group owner can remove members' })
       return
     }
@@ -256,8 +273,72 @@ router.delete('/:id/members/:userId', async (req: Request, res: Response) => {
     .where({ group_id: groupId, user_id: targetUserId })
     .del()
 
-  getIO().to(`group:${groupId}`).emit('member:left', { groupId, userId: targetUserId })
+  // Force-evict kicked/left user from socket room
+  forceLeaveRoom(groupId, targetUserId)
 
+  if (isSelfLeave) {
+    getIO().to(`group:${groupId}`).emit('member:left', { groupId, userId: targetUserId })
+  } else {
+    // Emit kicked event so the kicked user's frontend can react
+    getIO().to(`group:${groupId}`).emit('member:kicked', { groupId, userId: targetUserId })
+    // Also notify the kicked user directly (they may have been removed from room already,
+    // so emit on their socket specifically)
+    const io = getIO()
+    for (const [, socket] of io.sockets.sockets) {
+      if (socket.data.userId === targetUserId) {
+        socket.emit('member:kicked', { groupId, userId: targetUserId })
+      }
+    }
+  }
+
+  logger.info({ currentUserId, targetUserId, groupId, action: isSelfLeave ? 'leave' : 'kick' }, 'member removed from group')
+  res.json({ ok: true })
+})
+
+// Delete group (owner only)
+router.delete('/:id', async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const groupId = String(req.params['id'])
+
+  const membership = await db('group_members')
+    .where({ group_id: groupId, user_id: userId, role: 'owner' })
+    .first()
+
+  if (!membership) {
+    res.status(403).json({ error: 'forbidden', message: 'Only the group owner can delete the group' })
+    return
+  }
+
+  // Check for open voting sessions
+  const openSession = await db('voting_sessions')
+    .where({ group_id: groupId, status: 'open' })
+    .first()
+
+  if (openSession) {
+    res.status(409).json({ error: 'conflict', message: 'Cannot delete group while a voting session is open. Close the vote first.' })
+    return
+  }
+
+  const group = await db('groups').where({ id: groupId }).first()
+  const groupName = group?.name || 'Unknown'
+
+  // Notify all members before deletion
+  getIO().to(`group:${groupId}`).emit('group:deleted', { groupId, groupName })
+
+  // Force all sockets out of the room
+  const io = getIO()
+  const room = io.sockets.adapter.rooms.get(`group:${groupId}`)
+  if (room) {
+    for (const socketId of Array.from(room)) {
+      const s = io.sockets.sockets.get(socketId)
+      if (s) s.leave(`group:${groupId}`)
+    }
+  }
+
+  // Delete the group — CASCADE handles group_members, voting_sessions, votes, etc.
+  await db('groups').where({ id: groupId }).del()
+
+  logger.info({ userId, groupId, groupName }, 'group deleted')
   res.json({ ok: true })
 })
 
@@ -349,17 +430,17 @@ router.post('/:id/common-games/preview', async (req: Request, res: Response) => 
   }
 })
 
-// Trigger library sync for all group members
+// Trigger library sync for all group members (owner only)
 router.post('/:id/sync', async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['id'])
 
   const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId })
+    .where({ group_id: groupId, user_id: userId, role: 'owner' })
     .first()
 
   if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Not a member' })
+    res.status(403).json({ error: 'forbidden', message: 'Only the group owner can trigger sync' })
     return
   }
 

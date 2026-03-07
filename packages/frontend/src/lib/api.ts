@@ -43,6 +43,9 @@ export const api = {
   leaveGroup: (groupId: string, userId: string) => request(`/groups/${groupId}/members/${userId}`, {
     method: 'DELETE',
   }),
+  deleteGroup: (groupId: string) => request(`/groups/${groupId}`, {
+    method: 'DELETE',
+  }),
   getCommonGames: (groupId: string, filter?: string) => request<{
     games: { steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null; type: string | null; shortDescription: string | null; platforms: { windows: boolean; mac: boolean; linux: boolean } | null; recommendationsTotal: number | null; releaseDate: string | null; comingSoon: boolean | null; controllerSupport: string | null; isFree: boolean | null; contentDescriptors: { ids: number[]; notes: string | null } | null }[];
     totalMembers: number; threshold: number;

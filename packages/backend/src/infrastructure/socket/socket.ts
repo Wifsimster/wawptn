@@ -144,6 +144,19 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
   return io
 }
 
+export function forceLeaveRoom(groupId: string, userId: string): void {
+  if (!io) return
+  const room = io.sockets.adapter.rooms.get(`group:${groupId}`)
+  if (!room) return
+  for (const socketId of Array.from(room)) {
+    const s = io.sockets.sockets.get(socketId)
+    if (s && s.data.userId === userId) {
+      s.leave(`group:${groupId}`)
+    }
+  }
+  removePresence(groupId, userId)
+}
+
 export function getIO(): TypedServer {
   if (!io) throw new Error('Socket.io not initialized')
   return io

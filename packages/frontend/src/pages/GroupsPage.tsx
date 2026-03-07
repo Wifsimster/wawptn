@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Plus, LogIn, Users, Gamepad2, Trophy } from 'lucide-react'
+import { Plus, LogIn, Users, Gamepad2, Trophy, Crown } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
@@ -67,12 +67,6 @@ export function GroupsPage() {
     }
   }
 
-  // If user has exactly one group, redirect to it
-  useEffect(() => {
-    if (!loading && groups.length === 1 && groups[0]) {
-      navigate(`/groups/${groups[0].id}`, { replace: true })
-    }
-  }, [loading, groups, navigate])
 
   return (
     <div className="min-h-screen">
@@ -182,7 +176,10 @@ export function GroupsPage() {
                 <Card className="p-4 hover:border-primary/50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold">{group.name}</h3>
+                      <h3 className="font-semibold flex items-center gap-1.5">
+                        {group.name}
+                        {group.role === 'owner' && <Crown className="w-4 h-4 text-amber-500 shrink-0" />}
+                      </h3>
                       <div className="flex items-center gap-3 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Users className="w-3 h-3" />

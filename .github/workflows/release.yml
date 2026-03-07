@@ -158,22 +158,30 @@ jobs:
 
       - name: Push changes to repository
         run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          VERSION_TYPE="${{ steps.version_type.outputs.type }}"
           MAX_RETRIES=3
           for i in $(seq 1 $MAX_RETRIES); do
-            git pull --rebase origin main && break
-            if [ $i -eq $MAX_RETRIES ]; then
-              echo "Rebase failed after $MAX_RETRIES attempts"
-              exit 1
+            if git pull --rebase origin main; then
+              break
             fi
-            echo "Rebase conflict detected, resolving by accepting ours for version bump files..."
-            git checkout --theirs package.json package-lock.json packages/*/package.json 2>/dev/null || true
-            npm run version:${{ steps.version_type.outputs.type }}
+            echo "Rebase conflict on attempt $i, rebuilding version bump from latest main..."
+            git rebase --abort
+            git fetch origin main
+            git reset --hard origin/main
+            npm run version:${VERSION_TYPE}
+            NEW_VERSION=$(node -p "require('./package.json').version")
             npm install --package-lock-only
             git add package.json package-lock.json packages/*/package.json
-            GIT_EDITOR=true git rebase --continue
+            git commit -m "chore: bump version to ${NEW_VERSION}"
+            git tag -fa "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "Failed after $MAX_RETRIES attempts"
+              exit 1
+            fi
           done
           git push origin main
-          git push origin "v${{ steps.version.outputs.new_version }}"
+          git push origin "v${NEW_VERSION}" --force
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

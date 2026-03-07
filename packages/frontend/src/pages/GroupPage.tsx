@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Vote, AlertTriangle, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Vote, AlertTriangle, ChevronUp, Dices } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AppHeader } from '@/components/app-header'
 import { GroupSidebar } from '@/components/group-sidebar'
 import { GameGrid } from '@/components/game-grid'
+import { RandomPickModal } from '@/components/random-pick-modal'
 
 export function GroupPage() {
   const { t } = useTranslation()
@@ -27,6 +28,7 @@ export function GroupPage() {
   const [multiplayerOnly, setMultiplayerOnly] = useState(true)
   const [confirmVoteOpen, setConfirmVoteOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [randomPickOpen, setRandomPickOpen] = useState(false)
 
   const loadCommonGames = useCallback(async (groupId: string, filter?: string) => {
     setLoadingGames(true)
@@ -176,15 +178,34 @@ export function GroupPage() {
 
           {/* Main content: games grid */}
           <div className="space-y-4">
-            {/* Start Vote CTA */}
-            <Button
-              onClick={() => setConfirmVoteOpen(true)}
-              className="w-full h-auto py-4 flex-col"
-            >
-              <Vote className="w-6 h-6 mb-1" />
-              <span className="text-lg font-bold block">{t('group.startVote')}</span>
-              <span className="text-sm opacity-80">{t('group.commonGamesCount', { count: commonGames.length })}</span>
-            </Button>
+            {/* Action buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={() => setConfirmVoteOpen(true)}
+                className="h-auto py-4 flex-col"
+              >
+                <Vote className="w-6 h-6 mb-1" />
+                <span className="text-lg font-bold block">{t('group.startVote')}</span>
+                <span className="text-sm opacity-80">{t('group.commonGamesCount', { count: commonGames.length })}</span>
+              </Button>
+
+              <Button
+                variant="secondary"
+                onClick={() => setRandomPickOpen(true)}
+                disabled={commonGames.length === 0}
+                className="h-auto py-4 flex-col"
+              >
+                <Dices className="w-6 h-6 mb-1" />
+                <span className="text-lg font-bold block">{t('group.randomPick')}</span>
+                <span className="text-sm opacity-80">{t('group.randomPickHint')}</span>
+              </Button>
+            </div>
+
+            <RandomPickModal
+              open={randomPickOpen}
+              onOpenChange={setRandomPickOpen}
+              games={commonGames}
+            />
 
             <Dialog open={confirmVoteOpen} onOpenChange={setConfirmVoteOpen}>
               <DialogContent>

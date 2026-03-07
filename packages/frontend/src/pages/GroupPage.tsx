@@ -288,6 +288,16 @@ export function GroupPage() {
                 ...prev,
                 sortBy: value,
               }))}
+              onResetFilters={() => setGameFilters({
+                multiplayerOnly: true,
+                coopOnly: false,
+                selectedGenres: [],
+                minMetacritic: null,
+                gamesOnly: true,
+                controllerOnly: false,
+                platform: 'all',
+                sortBy: 'owners',
+              })}
             />
           </div>
         </div>

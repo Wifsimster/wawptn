@@ -49,6 +49,7 @@ interface GameGridProps {
   onToggleControllerOnly: (value: boolean) => void
   onSetPlatform: (value: 'all' | 'windows' | 'mac' | 'linux') => void
   onSetSortBy: (value: 'owners' | 'popularity' | 'name') => void
+  onResetFilters: () => void
 }
 
 const DISPLAY_CAP = 50
@@ -59,7 +60,7 @@ const METACRITIC_THRESHOLDS = [null, 60, 70, 75, 80, 85, 90] as const
 const normalize = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
-export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggleCoop, onToggleGenre, onSetMinMetacritic, onToggleGamesOnly, onToggleControllerOnly, onSetPlatform, onSetSortBy }: GameGridProps) {
+export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggleCoop, onToggleGenre, onSetMinMetacritic, onToggleGamesOnly, onToggleControllerOnly, onSetPlatform, onSetSortBy, onResetFilters }: GameGridProps) {
   const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
   const [showAll, setShowAll] = useState(false)
@@ -136,7 +137,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
     return result
   }, [games, searchQuery, filters.selectedGenres, filters.minMetacritic, filters.gamesOnly, filters.platform, filters.controllerOnly, filters.sortBy])
 
-  const isFiltering = searchQuery.trim().length > 0 || filters.selectedGenres.length > 0 || filters.minMetacritic !== null || filters.gamesOnly || filters.controllerOnly || filters.platform !== 'all'
+  const isFiltering = searchQuery.trim().length > 0 || filters.selectedGenres.length > 0 || filters.minMetacritic !== null || filters.controllerOnly || filters.platform !== 'all'
   const displayedGames = isFiltering || showAll
     ? filteredGames
     : filteredGames.slice(0, DISPLAY_CAP)
@@ -376,10 +377,13 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
           <p className="text-sm text-muted-foreground">{t('group.noSearchResults')}</p>
           <button
             type="button"
-            onClick={() => setSearchQuery('')}
+            onClick={() => {
+              setSearchQuery('')
+              onResetFilters()
+            }}
             className="text-sm text-primary hover:underline mt-1"
           >
-            {t('group.clearSearch')}
+            {t('group.clearFilters')}
           </button>
         </div>
       ) : (

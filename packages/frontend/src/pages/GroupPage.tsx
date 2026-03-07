@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Vote } from 'lucide-react'
+import { ArrowLeft, Vote, AlertTriangle, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
@@ -9,6 +9,7 @@ import { getSocket } from '@/lib/socket'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { AppHeader } from '@/components/app-header'
 import { GroupSidebar } from '@/components/group-sidebar'
 import { GameGrid } from '@/components/game-grid'
@@ -24,6 +25,8 @@ export function GroupPage() {
   const [inviteToken, setInviteToken] = useState<string | null>(null)
   const [loadingGames, setLoadingGames] = useState(true)
   const [multiplayerOnly, setMultiplayerOnly] = useState(true)
+  const [confirmVoteOpen, setConfirmVoteOpen] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   const loadCommonGames = useCallback(async (groupId: string, filter?: string) => {
     setLoadingGames(true)
@@ -59,7 +62,15 @@ export function GroupPage() {
 
     socket.on('member:joined', () => fetchGroup(id))
     socket.on('library:synced', () => loadCommonGames(id, activeFilter))
-    socket.on('session:created', () => navigate(`/groups/${id}/vote`))
+    socket.on('session:created', () => {
+      toast(t('group.voteStarted'), {
+        action: {
+          label: t('group.joinVote'),
+          onClick: () => navigate(`/groups/${id}/vote`),
+        },
+        duration: 10000,
+      })
+    })
 
     return () => {
       socket.emit('group:leave', id)
@@ -131,8 +142,13 @@ export function GroupPage() {
       </AppHeader>
 
       <main className="max-w-6xl mx-auto p-4">
-        {/* Mobile: horizontal avatar bar */}
-        <div className="lg:hidden mb-4">
+        {/* Mobile: tappable avatar bar that opens sidebar sheet */}
+        <button
+          type="button"
+          className="lg:hidden mb-4 w-full"
+          onClick={() => setMobileSidebarOpen(true)}
+          aria-label={t('group.openSidebar')}
+        >
           <div className="flex items-center gap-2 overflow-x-auto pb-2">
             <span className="text-xs text-muted-foreground whitespace-nowrap">{t('group.members', { count: currentGroup.members.length })}</span>
             {currentGroup.members.map((member) => (
@@ -141,8 +157,9 @@ export function GroupPage() {
                 <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
             ))}
+            <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0 ml-auto" />
           </div>
-        </div>
+        </button>
 
         <div className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-6">
           {/* Sidebar — hidden on mobile, shown on lg+ */}
@@ -161,13 +178,35 @@ export function GroupPage() {
           <div className="space-y-4">
             {/* Start Vote CTA */}
             <Button
-              onClick={handleStartVote}
+              onClick={() => setConfirmVoteOpen(true)}
               className="w-full h-auto py-4 flex-col"
             >
               <Vote className="w-6 h-6 mb-1" />
               <span className="text-lg font-bold block">{t('group.startVote')}</span>
               <span className="text-sm opacity-80">{t('group.commonGamesCount', { count: commonGames.length })}</span>
             </Button>
+
+            <Dialog open={confirmVoteOpen} onOpenChange={setConfirmVoteOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-primary" />
+                    {t('group.confirmVoteTitle')}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {t('group.confirmVoteDescription', { count: commonGames.length })}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex gap-3 mt-4 justify-end">
+                  <Button variant="secondary" onClick={() => setConfirmVoteOpen(false)}>
+                    {t('group.cancel')}
+                  </Button>
+                  <Button onClick={() => { setConfirmVoteOpen(false); handleStartVote() }}>
+                    {t('group.confirmStartVote')}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             <GameGrid
               games={commonGames}
@@ -178,17 +217,22 @@ export function GroupPage() {
           </div>
         </div>
 
-        {/* Mobile: sidebar content below games */}
-        <div className="lg:hidden mt-6">
-          <GroupSidebar
-            members={currentGroup.members}
-            syncing={syncing}
-            inviteToken={inviteToken}
-            voteHistory={voteHistory}
-            onSync={handleSync}
-            onGenerateInvite={handleGenerateInvite}
-          />
-        </div>
+        {/* Mobile: sidebar as dialog sheet */}
+        <Dialog open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+          <DialogContent className="max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{currentGroup.name}</DialogTitle>
+            </DialogHeader>
+            <GroupSidebar
+              members={currentGroup.members}
+              syncing={syncing}
+              inviteToken={inviteToken}
+              voteHistory={voteHistory}
+              onSync={handleSync}
+              onGenerateInvite={handleGenerateInvite}
+            />
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   )

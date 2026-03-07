@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 interface Game {
   steamAppId: number
@@ -120,13 +121,21 @@ export function GameGrid({ games, loading, multiplayerOnly, onToggleMultiplayer 
                   className="w-full rounded aspect-[460/215] object-cover"
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent rounded flex items-end p-2">
-                  <span className="text-xs font-medium text-white leading-tight">{game.gameName}</span>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent rounded flex items-end p-2">
+                  <span className="text-xs font-medium text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{game.gameName}</span>
                 </div>
                 {game.ownerCount < game.totalMembers && (
-                  <span className="absolute top-1 right-1 text-[10px] bg-black/70 text-white px-1 rounded">
-                    {game.ownerCount}/{game.totalMembers}
-                  </span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="absolute top-1 right-1 text-[10px] bg-black/70 text-white px-1.5 py-0.5 rounded flex items-center gap-0.5 cursor-help">
+                        <Users className="w-2.5 h-2.5" />
+                        {game.ownerCount}/{game.totalMembers}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {t('group.ownerCountHint', { owned: game.ownerCount, total: game.totalMembers })}
+                    </TooltipContent>
+                  </Tooltip>
                 )}
               </div>
             ))}

@@ -101,12 +101,12 @@ export async function countCommonGames(
 ): Promise<number> {
   const t = threshold ?? userIds.length
 
-  const [result] = await db('user_games')
+  const count = await db('user_games')
     .whereIn('user_id', userIds)
     .groupBy('steam_app_id')
     .havingRaw('COUNT(DISTINCT user_id) >= ?', [t])
     .count('* as cnt')
-    .then(rows => [rows.length])
+    .then(rows => rows.length)
 
-  return result
+  return count
 }

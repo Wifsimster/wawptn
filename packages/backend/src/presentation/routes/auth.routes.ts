@@ -24,21 +24,21 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     const expectedReturnTo = `${env.API_URL}/api/auth/steam/callback`
     if (returnTo !== expectedReturnTo) {
       authLogger.warn({ returnTo, expected: expectedReturnTo }, 'return_to mismatch')
-      res.redirect(`${env.CORS_ORIGIN}/login?error=auth_failed`)
+      res.redirect(`${env.CORS_ORIGIN}/#/login?error=auth_failed`)
       return
     }
 
     // Verify with Steam
     const steamId = await verifySteamLogin(params)
     if (!steamId) {
-      res.redirect(`${env.CORS_ORIGIN}/login?error=auth_failed`)
+      res.redirect(`${env.CORS_ORIGIN}/#/login?error=auth_failed`)
       return
     }
 
     // Get player profile from Steam
     const profile = await getPlayerSummary(steamId)
     if (!profile) {
-      res.redirect(`${env.CORS_ORIGIN}/login?error=steam_profile_failed`)
+      res.redirect(`${env.CORS_ORIGIN}/#/login?error=steam_profile_failed`)
       return
     }
 
@@ -92,10 +92,10 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
       steamLogger.error({ error: String(err), steamId }, 'background library sync failed')
     })
 
-    res.redirect(`${env.CORS_ORIGIN}/`)
+    res.redirect(`${env.CORS_ORIGIN}/#/`)
   } catch (error) {
     authLogger.error({ error: String(error) }, 'Steam callback failed')
-    res.redirect(`${env.CORS_ORIGIN}/login?error=auth_failed`)
+    res.redirect(`${env.CORS_ORIGIN}/#/login?error=auth_failed`)
   }
 })
 

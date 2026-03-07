@@ -143,7 +143,7 @@ export function GroupPage() {
         <AppHeader maxWidth="wide">
           <Skeleton className="h-5 w-5 rounded" />
         </AppHeader>
-        <main className="max-w-6xl mx-auto p-4">
+        <main id="main-content" className="max-w-6xl mx-auto p-4">
           <div className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-6">
             <Skeleton className="hidden lg:block h-[300px] rounded-lg" />
             <Skeleton className="h-[400px] w-full rounded-lg" />
@@ -161,7 +161,7 @@ export function GroupPage() {
         </Button>
       </AppHeader>
 
-      <main className="max-w-6xl mx-auto p-4">
+      <main id="main-content" className="max-w-6xl mx-auto p-4">
         {/* Mobile: tappable avatar bar that opens sidebar sheet */}
         <button
           type="button"

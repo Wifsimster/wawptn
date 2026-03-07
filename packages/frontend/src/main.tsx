@@ -25,6 +25,7 @@ createRoot(document.getElementById('root')!).render(
               color: 'var(--card-foreground)',
             },
           }}
+          containerAriaLabel="Notifications"
         />
       </TooltipProvider>
     </BrowserRouter>

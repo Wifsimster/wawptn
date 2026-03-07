@@ -294,7 +294,7 @@ export function GroupPage() {
 
         {/* Mobile: sidebar as dialog sheet */}
         <Dialog open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-          <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{currentGroup.name}</DialogTitle>
             </DialogHeader>

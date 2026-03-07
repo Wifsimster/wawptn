@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
 import { getSteamLoginUrl, verifySteamLogin, getPlayerSummary, getOwnedGames, getHeaderImageUrl } from '../../infrastructure/steam/steam-client.js'

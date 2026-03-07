@@ -40,7 +40,7 @@ export async function computeCommonGames(
       db.raw('bool_or(game_metadata.is_multiplayer) as "isMultiplayer"'),
       db.raw('bool_or(game_metadata.is_coop) as "isCoop"')
     )
-    .orderBy('ownerCount', 'desc')
+    .orderByRaw('"ownerCount" DESC')
 
   return games.map((g: Record<string, unknown>) => ({
     steamAppId: g.steamAppId as number,

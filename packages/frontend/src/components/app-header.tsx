@@ -65,11 +65,11 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
             <DialogTitle>{t('groups.logoutConfirmTitle')}</DialogTitle>
             <DialogDescription>{t('groups.logoutConfirmDescription')}</DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="secondary" className="w-full sm:w-auto" onClick={() => setShowLogoutDialog(false)}>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowLogoutDialog(false)}>
               {t('groups.logoutCancel')}
             </Button>
-            <Button variant="destructive" className="w-full sm:w-auto" onClick={handleLogout}>
+            <Button variant="destructive" onClick={handleLogout}>
               {t('groups.logoutConfirm')}
             </Button>
           </DialogFooter>

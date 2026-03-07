@@ -171,11 +171,11 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
               </div>
             </div>
 
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center mt-4">
-              <span className="text-xs text-muted-foreground text-center sm:text-left">
+            <div className="flex justify-between items-center mt-4">
+              <span className="text-xs text-muted-foreground">
                 {t('voteSetup.selectedCount', { count: selectedIds.size })}
               </span>
-              <Button className="w-full sm:w-auto" onClick={handleNext} disabled={!canProceed || loadingPreview}>
+              <Button onClick={handleNext} disabled={!canProceed || loadingPreview}>
                 {loadingPreview && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {t('voteSetup.next')}
               </Button>
@@ -245,12 +245,12 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
               )}
             </div>
 
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between mt-4">
-              <Button variant="ghost" className="w-full sm:w-auto" onClick={handleBack}>
+            <div className="flex gap-3 mt-4 justify-between">
+              <Button variant="ghost" onClick={handleBack}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 {t('voteSetup.back')}
               </Button>
-              <Button className="w-full sm:w-auto" onClick={handleConfirm} disabled={isScheduled && !scheduledDate}>
+              <Button onClick={handleConfirm} disabled={isScheduled && !scheduledDate}>
                 {isScheduled ? t('voteSetup.scheduleVote') : t('voteSetup.startVote')}
               </Button>
             </div>

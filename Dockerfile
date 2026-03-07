@@ -16,30 +16,36 @@ COPY packages/frontend/package.json ./packages/frontend/
 # Install all dependencies
 RUN npm ci
 
-# Stage 2: Build everything
-FROM deps AS builder
+# Stage 2: Build types (shared dependency)
+FROM deps AS types-builder
 WORKDIR /app
 
-# Copy source files
 COPY packages/types ./packages/types
-COPY packages/backend ./packages/backend
-COPY packages/frontend ./packages/frontend
 COPY tsconfig.json ./
 
-# Build types first (shared dependency)
 RUN npm run build:types
 
-# Build backend
+# Stage 3a: Build backend (parallel with frontend)
+FROM types-builder AS backend-builder
+
+COPY packages/backend ./packages/backend
+
 RUN npm run build:backend
 
-# Build frontend (API calls go to same origin /api)
-# Pass version to frontend build
+# Compile migrations to JS (so tsx is not needed at runtime)
+RUN cd packages/backend && npx tsc -p tsconfig.migrations.json
+
+# Stage 3b: Build frontend (parallel with backend)
+FROM types-builder AS frontend-builder
+
+COPY packages/frontend ./packages/frontend
+
 ARG VERSION
 ENV VITE_APP_VERSION=${VERSION}
 ENV VITE_API_URL=""
 RUN npm run build:frontend
 
-# Stage 3: Production runtime
+# Stage 4: Production runtime
 FROM node:24-alpine AS runner
 
 # Build arguments for labels
@@ -68,34 +74,39 @@ COPY package.json package-lock.json ./
 COPY packages/types/package.json ./packages/types/
 COPY packages/backend/package.json ./packages/backend/
 
-# Install production dependencies only + tsx for migrations + better-auth CLI
+# Install production dependencies only
 # --ignore-scripts skips lifecycle scripts like prepare (which runs husky)
-RUN npm ci --omit=dev --ignore-scripts && npm install -w @wawptn/backend tsx @better-auth/cli
+RUN npm ci --omit=dev --ignore-scripts
 
 # Copy built backend artifacts
-COPY --from=builder /app/packages/types/dist ./packages/types/dist
-COPY --from=builder /app/packages/backend/dist ./packages/backend/dist
+COPY --from=backend-builder /app/packages/types/dist ./packages/types/dist
+COPY --from=backend-builder /app/packages/backend/dist ./packages/backend/dist
 
-# Copy migrations and knexfile
-COPY packages/backend/migrations ./packages/backend/migrations
-COPY packages/backend/knexfile.ts ./packages/backend/knexfile.ts
+# Copy compiled migrations (JS, no tsx needed)
+COPY --from=backend-builder /app/packages/backend/migrations-compiled ./packages/backend/migrations
 
 # Copy built frontend to be served by Node.js
-COPY --from=builder /app/packages/frontend/dist ./packages/frontend/dist
-
-# Set ownership of app directory
-RUN chown -R wawptn:nodejs /app
-
-# Expose port (Node.js serves on 80)
-EXPOSE 80
+COPY --from=frontend-builder /app/packages/frontend/dist ./packages/frontend/dist
 
 # Copy startup script
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
+# Set ownership of app directory
+RUN chown -R wawptn:nodejs /app
+
+# Switch to non-root user
+USER wawptn
+
+# Expose port
+EXPOSE 8080
+
+ENV PORT=8080
+ENV NODE_ENV=production
+
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Start services
 CMD ["/docker-entrypoint.sh"]

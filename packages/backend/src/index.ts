@@ -83,8 +83,13 @@ async function main() {
   // Serve frontend in production
   if (env.NODE_ENV === 'production') {
     const frontendPath = path.resolve(__dirname, '..', '..', 'frontend', 'dist')
-    app.use(express.static(frontendPath))
+    app.use(express.static(frontendPath, {
+      maxAge: '1y',
+      immutable: true,
+      index: false,
+    }))
     app.get('{*path}', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache')
       res.sendFile(path.join(frontendPath, 'index.html'))
     })
   }
@@ -102,8 +107,8 @@ async function main() {
   createSocketServer(httpServer)
 
   // Start server
-  httpServer.listen(env.NODE_ENV === 'production' ? 80 : env.PORT, () => {
-    logger.info({ port: env.NODE_ENV === 'production' ? 80 : env.PORT, env: env.NODE_ENV }, 'server started')
+  httpServer.listen(env.PORT, () => {
+    logger.info({ port: env.PORT, env: env.NODE_ENV }, 'server started')
   })
 
   // Graceful shutdown

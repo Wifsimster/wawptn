@@ -19,7 +19,7 @@ export const db: Knex = knex({
   },
   migrations: {
     directory: path.resolve(__dirname, '..', '..', '..', 'migrations'),
-    extension: 'ts',
+    extension: env.NODE_ENV === 'production' ? 'js' : 'ts',
   },
 })
 

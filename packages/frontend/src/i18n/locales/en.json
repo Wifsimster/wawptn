@@ -91,7 +91,8 @@
     "randomPickHint": "Pick a random game",
     "roleOwner": "owner",
     "inviteFriend": "Invite a friend",
-    "voteStartedOthers": "A vote has been started for other players"
+    "voteStartedOthers": "A vote has been started for other players",
+    "voteScheduled": "A gaming night has been scheduled for {{date}}!"
   },
   "voteSetup": {
     "title": "Who's playing tonight?",
@@ -104,7 +105,11 @@
     "confirmDescriptionNoPreview": "{{players}} players selected.",
     "gameSelectionHint": "{{max}} games will be selected from {{total}} games in common",
     "back": "Back",
-    "startVote": "Start vote"
+    "startVote": "Start vote",
+    "scheduleLater": "Schedule for later",
+    "scheduleDateLabel": "Date and time of the gaming night",
+    "scheduleHint": "The vote will automatically close at this time.",
+    "scheduleVote": "Schedule gaming night"
   },
   "randomPick": {
     "title": "Random pick",
@@ -134,7 +139,9 @@
     "keyboardHint": "Use arrow keys (left/down = no, right/up = yes)",
     "votes": "votes",
     "sessionInProgress": "Vote in progress",
-    "notParticipant": "You are not a participant in this voting session."
+    "notParticipant": "You are not a participant in this voting session.",
+    "scheduledCountdown": "Gaming night starts in...",
+    "scheduledDate": "{{date}}"
   },
   "join": {
     "invited": "You've been invited!",

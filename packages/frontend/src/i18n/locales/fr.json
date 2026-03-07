@@ -91,7 +91,8 @@
     "randomPickHint": "Choix aléatoire",
     "roleOwner": "propriétaire",
     "inviteFriend": "Inviter un ami",
-    "voteStartedOthers": "Un vote a été lancé pour d'autres joueurs"
+    "voteStartedOthers": "Un vote a été lancé pour d'autres joueurs",
+    "voteScheduled": "Une soirée a été planifiée pour le {{date}} !"
   },
   "voteSetup": {
     "title": "Qui joue ce soir ?",
@@ -104,7 +105,11 @@
     "confirmDescriptionNoPreview": "{{players}} joueurs sélectionnés.",
     "gameSelectionHint": "{{max}} jeux seront sélectionnés parmi les {{total}} jeux en commun",
     "back": "Retour",
-    "startVote": "Lancer le vote"
+    "startVote": "Lancer le vote",
+    "scheduleLater": "Planifier pour plus tard",
+    "scheduleDateLabel": "Date et heure de la soirée",
+    "scheduleHint": "Le vote se fermera automatiquement à cette date.",
+    "scheduleVote": "Planifier la soirée"
   },
   "randomPick": {
     "title": "Choix aléatoire",
@@ -134,7 +139,9 @@
     "keyboardHint": "Utilise les flèches du clavier (gauche/bas = non, droite/haut = oui)",
     "votes": "votes",
     "sessionInProgress": "Vote en cours",
-    "notParticipant": "Tu ne participes pas à cette session de vote."
+    "notParticipant": "Tu ne participes pas à cette session de vote.",
+    "scheduledCountdown": "La soirée commence dans...",
+    "scheduledDate": "{{date}}"
   },
   "join": {
     "invited": "Tu as été invité !",

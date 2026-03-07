@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
 import { computeCommonGames } from '../../infrastructure/database/common-games.js'
 import { getIO } from '../../infrastructure/socket/socket.js'
+import { closeSession } from '../../domain/close-session.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 
 const router = Router()
@@ -81,6 +82,7 @@ router.get('/:groupId/vote', async (req: Request, res: Response) => {
       groupId: session.group_id,
       status: session.status,
       createdBy: session.created_by,
+      scheduledAt: session.scheduled_at || null,
       createdAt: session.created_at,
     },
     games,
@@ -116,12 +118,32 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
     return
   }
 
-  const { filter, participantIds } = req.body as { filter?: string; participantIds: string[] }
+  const { filter, participantIds, scheduledAt } = req.body as { filter?: string; participantIds: string[]; scheduledAt?: string }
 
   // Validate participantIds
   if (!Array.isArray(participantIds) || participantIds.length < 2) {
     res.status(400).json({ error: 'validation', message: 'At least 2 participant IDs are required' })
     return
+  }
+
+  // Validate scheduledAt if provided
+  let parsedScheduledAt: Date | null = null
+  if (scheduledAt) {
+    parsedScheduledAt = new Date(scheduledAt)
+    if (isNaN(parsedScheduledAt.getTime())) {
+      res.status(400).json({ error: 'validation', message: 'Invalid scheduledAt date format' })
+      return
+    }
+    const minTime = Date.now() + 60 * 1000 // at least 1 minute in the future
+    if (parsedScheduledAt.getTime() < minTime) {
+      res.status(400).json({ error: 'validation', message: 'scheduledAt must be at least 1 minute in the future' })
+      return
+    }
+    const maxTime = Date.now() + 7 * 24 * 60 * 60 * 1000 // max 7 days
+    if (parsedScheduledAt.getTime() > maxTime) {
+      res.status(400).json({ error: 'validation', message: 'scheduledAt cannot be more than 7 days in the future' })
+      return
+    }
   }
 
   // Ensure the session creator is included
@@ -167,6 +189,7 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
     group_id: groupId,
     status: 'open',
     created_by: userId,
+    ...(parsedScheduledAt ? { scheduled_at: parsedScheduledAt } : {}),
   }).returning('*')
 
   // Insert session participants
@@ -193,6 +216,7 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
     groupId,
     createdBy: userId,
     participantIds: validMembers,
+    ...(parsedScheduledAt ? { scheduledAt: parsedScheduledAt.toISOString() } : {}),
   })
 
   logger.info({ sessionId: session.id, groupId, gameCount: selectedGames.length, participants: validMembers.length }, 'voting session created')
@@ -203,6 +227,7 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
       groupId,
       status: 'open',
       createdBy: userId,
+      scheduledAt: session.scheduled_at || null,
       createdAt: session.created_at,
     },
     games: selectedGames.map(g => ({
@@ -330,57 +355,12 @@ router.post('/:groupId/vote/:sessionId/close', async (req: Request, res: Respons
     return
   }
 
-  // Tally votes: count yes-votes per game
-  const results = await db('votes')
-    .where({ session_id: sessionId, vote: true })
-    .groupBy('steam_app_id')
-    .select('steam_app_id', db.raw('COUNT(*) as yes_count'))
-    .orderBy('yes_count', 'desc')
+  const result = await closeSession(sessionId, groupId)
 
-  let winnerAppId: number | null = null
-  let winnerName: string | null = null
-
-  if (results.length > 0) {
-    // Find max votes
-    const maxVotes = Number(results[0]!.yes_count)
-    const tied = results.filter(r => Number(r.yes_count) === maxVotes)
-
-    // Random tie-break
-    const winner = tied[Math.floor(Math.random() * tied.length)]!
-    winnerAppId = winner.steam_app_id
-
-    // Get game name
-    const gameInfo = await db('voting_session_games')
-      .where({ session_id: sessionId, steam_app_id: winnerAppId })
-      .first()
-    winnerName = gameInfo?.game_name || null
+  if (!result) {
+    res.status(409).json({ error: 'conflict', message: 'Session already closed' })
+    return
   }
-
-  // Close session
-  await db('voting_sessions').where({ id: sessionId }).update({
-    status: 'closed',
-    winning_game_app_id: winnerAppId,
-    winning_game_name: winnerName,
-    closed_at: db.fn.now(),
-  })
-
-  const voterCount = await db('votes')
-    .where({ session_id: sessionId })
-    .countDistinct('user_id as count')
-    .first()
-
-  const result: import('@wawptn/types').VoteResult = {
-    steamAppId: winnerAppId ?? 0,
-    gameName: winnerName ?? 'Unknown',
-    headerImageUrl: winnerAppId ? `https://cdn.akamai.steamstatic.com/steam/apps/${winnerAppId}/header.jpg` : null,
-    yesCount: results.length > 0 ? Number(results[0]!.yes_count) : 0,
-    totalVoters: Number(voterCount?.count || 0),
-  }
-
-  // Broadcast result
-  getIO().to(`group:${groupId}`).emit('vote:closed', { sessionId, result })
-
-  logger.info({ sessionId, groupId, winner: winnerName, winnerAppId }, 'voting session closed')
 
   res.json({ result })
 })

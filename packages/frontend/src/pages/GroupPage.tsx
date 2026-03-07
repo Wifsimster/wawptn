@@ -83,8 +83,11 @@ export function GroupPage() {
     socket.on('session:created', (data) => {
       // Only show join prompt to participants (or all if no participantIds — legacy)
       const isParticipant = !data.participantIds || !user?.id || data.participantIds.includes(user.id)
+      const toastMessage = data.scheduledAt
+        ? t('group.voteScheduled', { date: new Date(data.scheduledAt).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })
+        : t('group.voteStarted')
       if (isParticipant) {
-        toast(t('group.voteStarted'), {
+        toast(toastMessage, {
           action: {
             label: t('group.joinVote'),
             onClick: () => navigate(`/groups/${id}/vote`),
@@ -120,10 +123,10 @@ export function GroupPage() {
     }
   }
 
-  const handleStartVote = async (participantIds: string[]) => {
+  const handleStartVote = async (participantIds: string[], scheduledAt?: string) => {
     if (!id) return
     try {
-      await api.createVoteSession(id, participantIds, activeFilter)
+      await api.createVoteSession(id, participantIds, activeFilter, scheduledAt)
       navigate(`/groups/${id}/vote`)
     } catch (err) {
       if (err instanceof Error && err.message.includes('already open')) {

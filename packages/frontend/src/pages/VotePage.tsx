@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
 import { AppHeader } from '@/components/app-header'
+import { CountdownTimer } from '@/components/countdown-timer'
 import { getSocket } from '@/lib/socket'
 import { useAuthStore } from '@/stores/auth.store'
 import { Button } from '@/components/ui/button'
@@ -31,7 +32,7 @@ export function VotePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const [session, setSession] = useState<{ id: string; createdBy: string } | null>(null)
+  const [session, setSession] = useState<{ id: string; createdBy: string; scheduledAt: string | null } | null>(null)
   const [games, setGames] = useState<Game[]>([])
   const [, setMyVotes] = useState<Map<number, boolean>>(new Map())
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -55,7 +56,7 @@ export function VotePage() {
           navigate(`/groups/${id}`)
           return
         }
-        setSession({ id: data.session.id, createdBy: data.session.createdBy })
+        setSession({ id: data.session.id, createdBy: data.session.createdBy, scheduledAt: data.session.scheduledAt })
         setGames(data.games)
         setVoterCount(data.voterCount)
         setTotalMembers(data.totalMembers)
@@ -204,10 +205,24 @@ export function VotePage() {
 
   // Waiting screen (already voted)
   if (hasVoted) {
+    const scheduledDate = session?.scheduledAt ? new Date(session.scheduledAt) : null
+    const isScheduledSession = scheduledDate && scheduledDate.getTime() > Date.now()
+
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <Check className="w-16 h-16 text-success mb-4" />
         <h2 className="text-2xl font-bold mb-2">{t('vote.submitted')}</h2>
+
+        {isScheduledSession && (
+          <div className="mb-6 text-center">
+            <p className="text-sm text-muted-foreground mb-3">{t('vote.scheduledCountdown')}</p>
+            <CountdownTimer targetDate={scheduledDate} />
+            <p className="text-xs text-muted-foreground mt-3">
+              {t('vote.scheduledDate', { date: scheduledDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+            </p>
+          </div>
+        )}
+
         <p className="text-muted-foreground mb-6">
           {t('vote.waiting', { done: voterCount, total: totalMembers })}
         </p>

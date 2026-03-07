@@ -56,17 +56,17 @@ export const api = {
 
   // Voting
   getVoteSession: (groupId: string) => request<{
-    session: { id: string; groupId: string; status: string; createdBy: string; createdAt: string } | null;
+    session: { id: string; groupId: string; status: string; createdBy: string; scheduledAt: string | null; createdAt: string } | null;
     games: { steamAppId: number; gameName: string; headerImageUrl: string }[];
     myVotes: { steamAppId: number; vote: boolean }[];
     voterCount: number; totalMembers: number; isParticipant: boolean; participantIds: string[];
   }>(`/groups/${groupId}/vote`),
-  createVoteSession: (groupId: string, participantIds: string[], filter?: string) => request<{
-    session: { id: string; groupId: string; status: string; createdBy: string; createdAt: string };
+  createVoteSession: (groupId: string, participantIds: string[], filter?: string, scheduledAt?: string) => request<{
+    session: { id: string; groupId: string; status: string; createdBy: string; scheduledAt: string | null; createdAt: string };
     games: { steamAppId: number; gameName: string; headerImageUrl: string }[];
   }>(`/groups/${groupId}/vote`, {
     method: 'POST',
-    body: JSON.stringify({ participantIds, ...(filter ? { filter } : {}) }),
+    body: JSON.stringify({ participantIds, ...(filter ? { filter } : {}), ...(scheduledAt ? { scheduledAt } : {}) }),
   }),
   castVote: (groupId: string, sessionId: string, steamAppId: number, vote: boolean) =>
     request(`/groups/${groupId}/vote/${sessionId}`, {

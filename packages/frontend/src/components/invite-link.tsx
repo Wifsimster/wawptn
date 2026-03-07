@@ -9,7 +9,7 @@ interface InviteLinkProps {
 
 export function InviteLink({ token }: InviteLinkProps) {
   const { t } = useTranslation()
-  const url = `${window.location.origin}/join/${token}`
+  const url = `${window.location.origin}/#/join/${token}`
   const canShare = typeof navigator.share === 'function'
 
   const handleCopy = async () => {

@@ -74,8 +74,8 @@ export function GroupSidebar({ members, syncing, inviteToken, voteHistory, onSyn
           <div className="flex gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={onSync} aria-label={t('group.syncLibraries')}>
-                  <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                <Button variant="ghost" size="icon" onClick={onSync} disabled={syncing} aria-label={t('group.syncLibraries')}>
+                  <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin text-primary' : ''}`} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t('group.syncLibraries')}</TooltipContent>

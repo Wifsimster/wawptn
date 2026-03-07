@@ -55,7 +55,15 @@
     "syncError": "Sync error",
     "startVoteError": "Unable to start vote",
     "generateInviteError": "Unable to generate invite",
-    "history": "Game night history"
+    "history": "Game night history",
+    "voteStarted": "A vote has just been started!",
+    "joinVote": "Join",
+    "confirmVoteTitle": "Start a vote?",
+    "confirmVoteDescription": "All group members will be notified. {{count}} common games will be put to a vote.",
+    "confirmStartVote": "Start",
+    "cancel": "Cancel",
+    "ownerCountHint": "{{owned}} out of {{total}} members own this game",
+    "openSidebar": "View members and history"
   },
   "vote": {
     "tonightYouPlay": "Tonight you're playing",
@@ -82,6 +90,8 @@
   "invite": {
     "shareLink": "Share this link with your friends:",
     "copy": "Copy",
-    "copied": "Link copied!"
+    "copied": "Link copied!",
+    "share": "Share",
+    "shareText": "Join our group on WAWPTN!"
   }
 }

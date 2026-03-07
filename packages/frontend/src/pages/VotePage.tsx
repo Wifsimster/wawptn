@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ThumbsUp, ThumbsDown, Check, ExternalLink, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -149,6 +149,9 @@ export function VotePage() {
 
   const currentGame = games[currentIndex]
   const canClose = session && (session.createdBy === user?.id)
+  const prefersReducedMotion = useMemo(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches, []
+  )
 
   // Result screen
   if (result) {
@@ -156,9 +159,9 @@ export function VotePage() {
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <AnimatePresence>
           <motion.div
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', duration: 0.6 }}
+            initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0.5, opacity: 0 }}
+            animate={prefersReducedMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }}
+            transition={prefersReducedMotion ? { duration: 0.2 } : { type: 'spring', duration: 0.6 }}
             className="text-center max-w-md w-full"
           >
             <p className="text-sm text-muted-foreground mb-4 uppercase tracking-wide">{t('vote.tonightYouPlay')}</p>
@@ -240,10 +243,10 @@ export function VotePage() {
           <AnimatePresence mode="wait">
             <motion.div
               key={currentGame.steamAppId}
-              initial={{ x: 300, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -300, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              initial={prefersReducedMotion ? { opacity: 0 } : { x: 300, opacity: 0 }}
+              animate={prefersReducedMotion ? { opacity: 1 } : { x: 0, opacity: 1 }}
+              exit={prefersReducedMotion ? { opacity: 0 } : { x: -300, opacity: 0 }}
+              transition={prefersReducedMotion ? { duration: 0.2 } : { type: 'spring', stiffness: 300, damping: 30 }}
               className="w-full"
             >
               <Card className="overflow-hidden shadow-xl">

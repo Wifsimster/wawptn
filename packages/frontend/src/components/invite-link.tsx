@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 
@@ -9,6 +10,7 @@ interface InviteLinkProps {
 export function InviteLink({ token }: InviteLinkProps) {
   const { t } = useTranslation()
   const url = `${window.location.origin}/join/${token}`
+  const canShare = typeof navigator.share === 'function'
 
   const handleCopy = async () => {
     try {
@@ -28,6 +30,21 @@ export function InviteLink({ token }: InviteLinkProps) {
     }
   }
 
+  const handleShare = async () => {
+    try {
+      await navigator.share({
+        title: t('app.name'),
+        text: t('invite.shareText'),
+        url,
+      })
+    } catch (err) {
+      // User cancelled share or not supported — fall back to copy
+      if (err instanceof Error && err.name !== 'AbortError') {
+        handleCopy()
+      }
+    }
+  }
+
   return (
     <div className="mt-3 p-3 bg-background rounded-md border border-border">
       <p className="text-xs text-muted-foreground mb-1">{t('invite.shareLink')}</p>
@@ -38,6 +55,11 @@ export function InviteLink({ token }: InviteLinkProps) {
         <Button size="sm" onClick={handleCopy}>
           {t('invite.copy')}
         </Button>
+        {canShare && (
+          <Button size="sm" variant="secondary" onClick={handleShare} aria-label={t('invite.share')}>
+            <Share2 className="w-3.5 h-3.5" />
+          </Button>
+        )}
       </div>
     </div>
   )

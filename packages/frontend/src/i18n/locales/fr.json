@@ -55,7 +55,15 @@
     "syncError": "Erreur de synchronisation",
     "startVoteError": "Impossible de lancer le vote",
     "generateInviteError": "Impossible de generer l'invitation",
-    "history": "Historique des soirees"
+    "history": "Historique des soirees",
+    "voteStarted": "Un vote vient d'etre lance !",
+    "joinVote": "Rejoindre",
+    "confirmVoteTitle": "Lancer un vote ?",
+    "confirmVoteDescription": "Tous les membres du groupe seront notifies. {{count}} jeux en commun seront soumis au vote.",
+    "confirmStartVote": "Lancer",
+    "cancel": "Annuler",
+    "ownerCountHint": "{{owned}} membres sur {{total}} possedent ce jeu",
+    "openSidebar": "Voir les membres et l'historique"
   },
   "vote": {
     "tonightYouPlay": "Ce soir vous jouez a",
@@ -82,6 +90,8 @@
   "invite": {
     "shareLink": "Partage ce lien avec tes amis :",
     "copy": "Copier",
-    "copied": "Lien copie !"
+    "copied": "Lien copie !",
+    "share": "Partager",
+    "shareText": "Rejoins notre groupe sur WAWPTN !"
   }
 }

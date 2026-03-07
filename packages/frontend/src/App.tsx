@@ -8,6 +8,7 @@ import { GroupPage } from '@/pages/GroupPage'
 import { VotePage } from '@/pages/VotePage'
 import { JoinPage } from '@/pages/JoinPage'
 import { Skeleton } from '@/components/ui/skeleton'
+import { DialogTestPage } from '@/pages/DialogTestPage'
 
 function App() {
   const { user, loading, fetchUser } = useAuthStore()
@@ -24,6 +25,15 @@ function App() {
     }
     return () => disconnectSocket()
   }, [user])
+
+  // Dev-only dialog test page (no auth required)
+  if (import.meta.env.DEV && window.location.pathname === '/test-dialogs') {
+    return (
+      <Routes>
+        <Route path="/test-dialogs" element={<DialogTestPage />} />
+      </Routes>
+    )
+  }
 
   if (loading) {
     return (

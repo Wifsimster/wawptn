@@ -82,7 +82,7 @@ function RandomPickContent({ games }: { games: Game[] }) {
               className="w-full aspect-[460/215] object-cover"
             />
           )}
-          <div className="p-6 space-y-4">
+          <div className="p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-4">
             <div className="text-center">
               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
                 {t('randomPick.pickNumber', { number: pickCount })}

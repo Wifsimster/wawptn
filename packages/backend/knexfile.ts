@@ -23,7 +23,7 @@ const config: { [key: string]: Knex.Config } = {
     },
     migrations: {
       directory: './migrations',
-      extension: 'ts',
+      extension: 'js',
     },
   },
 }

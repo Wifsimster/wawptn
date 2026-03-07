@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
+import { computeCommonGames } from '../../infrastructure/database/common-games.js'
 import { generateInviteToken, hashInviteToken } from '../../infrastructure/steam/steam-client.js'
 import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-store-client.js'
 import { getIO } from '../../infrastructure/socket/socket.js'
@@ -276,53 +277,60 @@ router.get('/:id/common-games', async (req: Request, res: Response) => {
   }
 
   const group = await db('groups').where({ id: groupId }).first()
-  const memberCount = await db('group_members').where({ group_id: groupId }).count('* as count').first()
-  const totalMembers = Number(memberCount?.count || 0)
-
-  // Get threshold: default is all members, but configurable
+  const memberIds = await db('group_members').where({ group_id: groupId }).pluck('user_id')
+  const totalMembers = memberIds.length
   const threshold = group?.common_game_threshold || totalMembers
 
-  let query = db('user_games')
-    .leftJoin('game_metadata', 'user_games.steam_app_id', 'game_metadata.steam_app_id')
-    .whereIn('user_games.user_id', db('group_members').select('user_id').where({ group_id: groupId }))
-
-  // Filter: multiplayer includes games with is_multiplayer=true OR unknown (NULL = not yet enriched)
-  if (filter === 'multiplayer') {
-    query = query.where(function () {
-      this.where('game_metadata.is_multiplayer', true).orWhereNull('game_metadata.is_multiplayer')
-    })
-  }
-
-  const commonGames = await query
-    .groupBy('user_games.steam_app_id', 'user_games.game_name', 'user_games.header_image_url')
-    .havingRaw('COUNT(DISTINCT user_games.user_id) >= ?', [threshold])
-    .select(
-      'user_games.steam_app_id as steamAppId',
-      'user_games.game_name as gameName',
-      'user_games.header_image_url as headerImageUrl',
-      db.raw('COUNT(DISTINCT user_games.user_id) as "ownerCount"'),
-      db.raw('bool_or(game_metadata.is_multiplayer) as "isMultiplayer"'),
-      db.raw('bool_or(game_metadata.is_coop) as "isCoop"')
-    )
-    .orderBy('ownerCount', 'desc')
+  const commonGames = await computeCommonGames(memberIds, { filter, threshold })
 
   // Trigger background enrichment for un-enriched common games
-  const allAppIds = commonGames.map((g: { steamAppId: number }) => g.steamAppId)
+  const allAppIds = commonGames.map(g => g.steamAppId)
   if (allAppIds.length > 0) {
     triggerBackgroundEnrichment(allAppIds)
   }
 
   res.json({
-    games: commonGames.map(g => ({
-      ...g,
-      ownerCount: Number(g.ownerCount),
-      isMultiplayer: g.isMultiplayer ?? null,
-      isCoop: g.isCoop ?? null,
-      totalMembers,
-    })),
+    games: commonGames.map(g => ({ ...g, totalMembers })),
     totalMembers,
     threshold,
   })
+})
+
+// Preview common games for a subset of members (read-only, no enrichment)
+router.post('/:id/common-games/preview', async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const groupId = String(req.params['id'])
+  const { memberIds, filter } = req.body as { memberIds: string[]; filter?: string }
+
+  if (!Array.isArray(memberIds) || memberIds.length < 2) {
+    res.status(400).json({ error: 'validation', message: 'At least 2 member IDs are required' })
+    return
+  }
+
+  const membership = await db('group_members')
+    .where({ group_id: groupId, user_id: userId })
+    .first()
+
+  if (!membership) {
+    res.status(403).json({ error: 'forbidden', message: 'Not a member' })
+    return
+  }
+
+  // Validate all provided IDs are actual group members
+  const validMembers = await db('group_members')
+    .where({ group_id: groupId })
+    .whereIn('user_id', memberIds)
+    .pluck('user_id')
+
+  const invalidIds = memberIds.filter(id => !validMembers.includes(id))
+  if (invalidIds.length > 0) {
+    res.status(422).json({ error: 'invalid_members', message: 'Some user IDs are not group members', invalidIds })
+    return
+  }
+
+  const commonGames = await computeCommonGames(validMembers, { filter })
+
+  res.json({ gameCount: commonGames.length, totalMembers: validMembers.length })
 })
 
 // Trigger library sync for all group members

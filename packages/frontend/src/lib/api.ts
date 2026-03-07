@@ -48,20 +48,25 @@ export const api = {
     totalMembers: number; threshold: number;
   }>(`/groups/${groupId}/common-games${filter ? `?filter=${filter}` : ''}`),
   syncLibraries: (groupId: string) => request(`/groups/${groupId}/sync`, { method: 'POST' }),
+  previewCommonGames: (groupId: string, memberIds: string[], filter?: string) =>
+    request<{ gameCount: number; totalMembers: number }>(`/groups/${groupId}/common-games/preview`, {
+      method: 'POST',
+      body: JSON.stringify({ memberIds, filter }),
+    }),
 
   // Voting
   getVoteSession: (groupId: string) => request<{
     session: { id: string; groupId: string; status: string; createdBy: string; createdAt: string } | null;
     games: { steamAppId: number; gameName: string; headerImageUrl: string }[];
     myVotes: { steamAppId: number; vote: boolean }[];
-    voterCount: number; totalMembers: number;
+    voterCount: number; totalMembers: number; isParticipant: boolean; participantIds: string[];
   }>(`/groups/${groupId}/vote`),
-  createVoteSession: (groupId: string, filter?: string) => request<{
+  createVoteSession: (groupId: string, participantIds: string[], filter?: string) => request<{
     session: { id: string; groupId: string; status: string; createdBy: string; createdAt: string };
     games: { steamAppId: number; gameName: string; headerImageUrl: string }[];
   }>(`/groups/${groupId}/vote`, {
     method: 'POST',
-    body: JSON.stringify(filter ? { filter } : {}),
+    body: JSON.stringify({ participantIds, ...(filter ? { filter } : {}) }),
   }),
   castVote: (groupId: string, sessionId: string, steamAppId: number, vote: boolean) =>
     request(`/groups/${groupId}/vote/${sessionId}`, {

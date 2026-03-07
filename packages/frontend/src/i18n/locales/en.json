@@ -67,7 +67,22 @@
     "openSidebar": "View members and history",
     "randomPick": "Random pick",
     "randomPickHint": "Pick a random game",
-    "roleOwner": "owner"
+    "roleOwner": "owner",
+    "inviteFriend": "Invite a friend",
+    "voteStartedOthers": "A vote has been started for other players"
+  },
+  "voteSetup": {
+    "title": "Who's playing tonight?",
+    "description": "Select the players participating in tonight's session.",
+    "selectAll": "Select all",
+    "selectedCount": "{{count}} player(s) selected",
+    "next": "Next",
+    "confirmTitle": "Start vote?",
+    "confirmDescription": "{{players}} players selected — {{games}} games in common.",
+    "confirmDescriptionNoPreview": "{{players}} players selected.",
+    "gameSelectionHint": "{{max}} games will be selected from {{total}} games in common",
+    "back": "Back",
+    "startVote": "Start vote"
   },
   "randomPick": {
     "title": "Random pick",
@@ -95,7 +110,9 @@
     "voteNo": "Vote no for {{game}}",
     "voteYes": "Vote yes for {{game}}",
     "keyboardHint": "Use left/right arrow keys",
-    "votes": "votes"
+    "votes": "votes",
+    "sessionInProgress": "Vote in progress",
+    "notParticipant": "You are not a participant in this voting session."
   },
   "join": {
     "invited": "You've been invited!",

@@ -67,7 +67,22 @@
     "openSidebar": "Voir les membres et l'historique",
     "randomPick": "Au hasard",
     "randomPickHint": "Choix aléatoire",
-    "roleOwner": "propriétaire"
+    "roleOwner": "propriétaire",
+    "inviteFriend": "Inviter un ami",
+    "voteStartedOthers": "Un vote a été lancé pour d'autres joueurs"
+  },
+  "voteSetup": {
+    "title": "Qui joue ce soir ?",
+    "description": "Sélectionne les joueurs qui participent à la session de ce soir.",
+    "selectAll": "Tout sélectionner",
+    "selectedCount": "{{count}} joueur(s) sélectionné(s)",
+    "next": "Suivant",
+    "confirmTitle": "Lancer le vote ?",
+    "confirmDescription": "{{players}} joueurs sélectionnés — {{games}} jeux en commun.",
+    "confirmDescriptionNoPreview": "{{players}} joueurs sélectionnés.",
+    "gameSelectionHint": "{{max}} jeux seront sélectionnés parmi les {{total}} jeux en commun",
+    "back": "Retour",
+    "startVote": "Lancer le vote"
   },
   "randomPick": {
     "title": "Choix aléatoire",
@@ -95,7 +110,9 @@
     "voteNo": "Voter non pour {{game}}",
     "voteYes": "Voter oui pour {{game}}",
     "keyboardHint": "Utilise les flèches gauche/droite du clavier",
-    "votes": "votes"
+    "votes": "votes",
+    "sessionInProgress": "Vote en cours",
+    "notParticipant": "Tu ne participes pas à cette session de vote."
   },
   "join": {
     "invited": "Tu as été invité !",

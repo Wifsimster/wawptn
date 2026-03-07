@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ThumbsUp, ThumbsDown, Check, ExternalLink, Loader2 } from 'lucide-react'
+import { ArrowLeft, ThumbsUp, ThumbsDown, Check, ExternalLink, Loader2, Vote } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -41,6 +41,7 @@ export function VotePage() {
   const [hasVoted, setHasVoted] = useState(false)
   const [voting, setVoting] = useState(false)
   const [closing, setClosing] = useState(false)
+  const [isParticipant, setIsParticipant] = useState(true)
   const votingRef = useRef(false)
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export function VotePage() {
         setGames(data.games)
         setVoterCount(data.voterCount)
         setTotalMembers(data.totalMembers)
+        setIsParticipant(data.isParticipant !== false)
 
         const votes = new Map<number, boolean>()
         for (const v of data.myVotes) {
@@ -78,6 +80,7 @@ export function VotePage() {
 
     socket.on('vote:cast', (data) => {
       setVoterCount(data.voterCount)
+      if (data.totalParticipants) setTotalMembers(data.totalParticipants)
     })
 
     socket.on('vote:closed', (data) => {
@@ -221,6 +224,25 @@ export function VotePage() {
         <Button
           variant="ghost"
           className="mt-4"
+          onClick={() => navigate(`/groups/${id}`)}
+        >
+          {t('vote.backToGroup')}
+        </Button>
+      </div>
+    )
+  }
+
+  // Non-participant view
+  if (!isParticipant) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <Vote className="w-16 h-16 text-muted-foreground mb-4" />
+        <h2 className="text-2xl font-bold mb-2">{t('vote.sessionInProgress')}</h2>
+        <p className="text-muted-foreground mb-6">
+          {t('vote.notParticipant')}
+        </p>
+        <Button
+          variant="ghost"
           onClick={() => navigate(`/groups/${id}`)}
         >
           {t('vote.backToGroup')}

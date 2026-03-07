@@ -133,12 +133,15 @@ export interface SteamLibrarySyncStatus {
 // ============================================
 
 export interface ServerToClientEvents {
-  'vote:cast': (data: { sessionId: string; userId: string; voterCount: number }) => void
+  'vote:cast': (data: { sessionId: string; userId: string; voterCount: number; totalParticipants?: number }) => void
   'vote:closed': (data: { sessionId: string; result: VoteResult }) => void
   'member:joined': (data: { groupId: string; user: Pick<User, 'id' | 'displayName' | 'avatarUrl'> }) => void
   'member:left': (data: { groupId: string; userId: string }) => void
   'library:synced': (data: { groupId: string; userId: string; gameCount: number }) => void
-  'session:created': (data: { sessionId: string; groupId: string; createdBy: string }) => void
+  'session:created': (data: { sessionId: string; groupId: string; createdBy: string; participantIds?: string[] }) => void
+  'group:presence': (data: { onlineUserIds: string[] }) => void
+  'member:online': (data: { groupId: string; userId: string }) => void
+  'member:offline': (data: { groupId: string; userId: string }) => void
 }
 
 export interface ClientToServerEvents {

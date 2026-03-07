@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
+import { computeCommonGames } from '../../infrastructure/database/common-games.js'
 import { getIO } from '../../infrastructure/socket/socket.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 
@@ -29,15 +30,34 @@ router.get('/:groupId/vote', async (req: Request, res: Response) => {
     return
   }
 
-  // Get votes for this session (only count, not content — no live tallies)
+  // Get voter count
   const voterCount = await db('votes')
     .where({ session_id: session.id })
     .countDistinct('user_id as count')
     .first()
 
-  const totalMembers = await db('group_members')
-    .where({ group_id: groupId })
+  // Get total participants from junction table, fallback to group_members for legacy sessions
+  const participantCount = await db('voting_session_participants')
+    .where({ session_id: session.id })
     .count('* as count')
+    .first()
+  const totalParticipants = Number(participantCount?.count || 0)
+
+  let totalMembers: number
+  if (totalParticipants > 0) {
+    totalMembers = totalParticipants
+  } else {
+    // Fallback for sessions created before the junction table
+    const memberCount = await db('group_members')
+      .where({ group_id: groupId })
+      .count('* as count')
+      .first()
+    totalMembers = Number(memberCount?.count || 0)
+  }
+
+  // Check if current user is a participant
+  const isParticipant = totalParticipants === 0 || await db('voting_session_participants')
+    .where({ session_id: session.id, user_id: userId })
     .first()
 
   // Get current user's votes
@@ -50,6 +70,11 @@ router.get('/:groupId/vote', async (req: Request, res: Response) => {
     .where({ session_id: session.id })
     .select('steam_app_id as steamAppId', 'game_name as gameName', 'header_image_url as headerImageUrl')
 
+  // Get participant IDs
+  const participantIds = totalParticipants > 0
+    ? await db('voting_session_participants').where({ session_id: session.id }).pluck('user_id')
+    : []
+
   res.json({
     session: {
       id: session.id,
@@ -61,7 +86,9 @@ router.get('/:groupId/vote', async (req: Request, res: Response) => {
     games,
     myVotes,
     voterCount: Number(voterCount?.count || 0),
-    totalMembers: Number(totalMembers?.count || 0),
+    totalMembers,
+    isParticipant: !!isParticipant,
+    participantIds,
   })
 })
 
@@ -89,27 +116,39 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
     return
   }
 
-  // Get common games
-  const { filter } = req.body as { filter?: string }
-  const totalMembers = await db('group_members').where({ group_id: groupId }).count('* as count').first()
-  const memberCount = Number(totalMembers?.count || 0)
-  const group = await db('groups').where({ id: groupId }).first()
-  const threshold = group?.common_game_threshold || memberCount
+  const { filter, participantIds } = req.body as { filter?: string; participantIds: string[] }
 
-  let commonGamesQuery = db('user_games')
-    .leftJoin('game_metadata', 'user_games.steam_app_id', 'game_metadata.steam_app_id')
-    .whereIn('user_games.user_id', db('group_members').select('user_id').where({ group_id: groupId }))
-
-  if (filter === 'multiplayer') {
-    commonGamesQuery = commonGamesQuery.where(function () {
-      this.where('game_metadata.is_multiplayer', true).orWhereNull('game_metadata.is_multiplayer')
-    })
+  // Validate participantIds
+  if (!Array.isArray(participantIds) || participantIds.length < 2) {
+    res.status(400).json({ error: 'validation', message: 'At least 2 participant IDs are required' })
+    return
   }
 
-  const commonGames = await commonGamesQuery
-    .groupBy('user_games.steam_app_id', 'user_games.game_name', 'user_games.header_image_url')
-    .havingRaw('COUNT(DISTINCT user_games.user_id) >= ?', [threshold])
-    .select('user_games.steam_app_id', 'user_games.game_name', 'user_games.header_image_url')
+  // Ensure the session creator is included
+  if (!participantIds.includes(userId)) {
+    res.status(400).json({ error: 'validation', message: 'Session creator must be a participant' })
+    return
+  }
+
+  // Validate all participant IDs are group members
+  const validMembers = await db('group_members')
+    .where({ group_id: groupId })
+    .whereIn('user_id', participantIds)
+    .pluck('user_id')
+
+  const invalidIds = participantIds.filter(id => !validMembers.includes(id))
+  if (invalidIds.length > 0) {
+    res.status(422).json({ error: 'invalid_members', message: 'Some user IDs are not group members', invalidIds })
+    return
+  }
+
+  // Get common games for the selected participants
+  const group = await db('groups').where({ id: groupId }).first()
+  const threshold = group?.common_game_threshold
+    ? Math.min(group.common_game_threshold, validMembers.length)
+    : validMembers.length
+
+  const commonGames = await computeCommonGames(validMembers, { filter, threshold })
 
   if (commonGames.length === 0) {
     res.status(422).json({
@@ -130,24 +169,33 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
     created_by: userId,
   }).returning('*')
 
+  // Insert session participants
+  await db('voting_session_participants').insert(
+    validMembers.map(uid => ({
+      session_id: session.id,
+      user_id: uid,
+    }))
+  )
+
   // Insert session games
   await db('voting_session_games').insert(
     selectedGames.map(g => ({
       session_id: session.id,
-      steam_app_id: g.steam_app_id,
-      game_name: g.game_name,
-      header_image_url: g.header_image_url,
+      steam_app_id: g.steamAppId,
+      game_name: g.gameName,
+      header_image_url: g.headerImageUrl,
     }))
   )
 
-  // Notify group
+  // Notify group (include participantIds so frontend can filter)
   getIO().to(`group:${groupId}`).emit('session:created', {
     sessionId: session.id,
     groupId,
     createdBy: userId,
+    participantIds: validMembers,
   })
 
-  logger.info({ sessionId: session.id, groupId, gameCount: selectedGames.length }, 'voting session created')
+  logger.info({ sessionId: session.id, groupId, gameCount: selectedGames.length, participants: validMembers.length }, 'voting session created')
 
   res.status(201).json({
     session: {
@@ -158,9 +206,9 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
       createdAt: session.created_at,
     },
     games: selectedGames.map(g => ({
-      steamAppId: g.steam_app_id,
-      gameName: g.game_name,
-      headerImageUrl: g.header_image_url,
+      steamAppId: g.steamAppId,
+      gameName: g.gameName,
+      headerImageUrl: g.headerImageUrl,
     })),
   })
 })
@@ -177,16 +225,6 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
     return
   }
 
-  // Verify membership
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId })
-    .first()
-
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Not a member' })
-    return
-  }
-
   // Verify session is open
   const session = await db('voting_sessions')
     .where({ id: sessionId, group_id: groupId, status: 'open' })
@@ -195,6 +233,32 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
   if (!session) {
     res.status(404).json({ error: 'not_found', message: 'No open session found' })
     return
+  }
+
+  // Check if user is a participant (junction table), fallback to group_members for legacy sessions
+  const participantCount = await db('voting_session_participants')
+    .where({ session_id: sessionId })
+    .count('* as count')
+    .first()
+  const hasParticipants = Number(participantCount?.count || 0) > 0
+
+  if (hasParticipants) {
+    const isParticipant = await db('voting_session_participants')
+      .where({ session_id: sessionId, user_id: userId })
+      .first()
+    if (!isParticipant) {
+      res.status(403).json({ error: 'forbidden', message: 'Not a participant in this voting session' })
+      return
+    }
+  } else {
+    // Legacy fallback: check group membership
+    const membership = await db('group_members')
+      .where({ group_id: groupId, user_id: userId })
+      .first()
+    if (!membership) {
+      res.status(403).json({ error: 'forbidden', message: 'Not a member' })
+      return
+    }
   }
 
   // Upsert vote (DB unique constraint prevents duplicates)
@@ -214,11 +278,28 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
     .countDistinct('user_id as count')
     .first()
 
-  // Notify group (just count, not content)
+  // Get total participants for progress tracking
+  let totalParticipants: number
+  if (hasParticipants) {
+    const pCount = await db('voting_session_participants')
+      .where({ session_id: sessionId })
+      .count('* as count')
+      .first()
+    totalParticipants = Number(pCount?.count || 0)
+  } else {
+    const mCount = await db('group_members')
+      .where({ group_id: groupId })
+      .count('* as count')
+      .first()
+    totalParticipants = Number(mCount?.count || 0)
+  }
+
+  // Notify group (include totalParticipants so waiting screen doesn't need to cache)
   getIO().to(`group:${groupId}`).emit('vote:cast', {
     sessionId,
     userId,
     voterCount: Number(voterCount?.count || 0),
+    totalParticipants,
   })
 
   res.json({ ok: true })

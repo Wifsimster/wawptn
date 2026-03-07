@@ -18,16 +18,17 @@ export function GroupPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { currentGroup, fetchGroup } = useGroupStore()
-  const [commonGames, setCommonGames] = useState<{ steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number }[]>([])
+  const [commonGames, setCommonGames] = useState<{ steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null }[]>([])
   const [syncing, setSyncing] = useState(false)
   const [voteHistory, setVoteHistory] = useState<{ id: string; winningGameAppId: number; winningGameName: string; closedAt: string }[]>([])
   const [inviteToken, setInviteToken] = useState<string | null>(null)
   const [loadingGames, setLoadingGames] = useState(true)
+  const [multiplayerOnly, setMultiplayerOnly] = useState(true)
 
-  const loadCommonGames = useCallback(async (groupId: string) => {
+  const loadCommonGames = useCallback(async (groupId: string, filter?: string) => {
     setLoadingGames(true)
     try {
-      const result = await api.getCommonGames(groupId)
+      const result = await api.getCommonGames(groupId, filter)
       setCommonGames(result.games)
     } catch {
       toast.error(t('group.loadGamesError'))
@@ -45,17 +46,19 @@ export function GroupPage() {
     }
   }
 
+  const activeFilter = multiplayerOnly ? 'multiplayer' : undefined
+
   useEffect(() => {
     if (!id) return
     fetchGroup(id)
-    loadCommonGames(id)
+    loadCommonGames(id, activeFilter)
     loadVoteHistory(id)
 
     const socket = getSocket()
     socket.emit('group:join', id)
 
     socket.on('member:joined', () => fetchGroup(id))
-    socket.on('library:synced', () => loadCommonGames(id))
+    socket.on('library:synced', () => loadCommonGames(id, activeFilter))
     socket.on('session:created', () => navigate(`/groups/${id}/vote`))
 
     return () => {
@@ -64,7 +67,7 @@ export function GroupPage() {
       socket.off('library:synced')
       socket.off('session:created')
     }
-  }, [id, fetchGroup, navigate, loadCommonGames])
+  }, [id, fetchGroup, navigate, loadCommonGames, activeFilter])
 
   const handleSync = async () => {
     if (!id) return
@@ -82,7 +85,7 @@ export function GroupPage() {
   const handleStartVote = async () => {
     if (!id) return
     try {
-      await api.createVoteSession(id)
+      await api.createVoteSession(id, activeFilter)
       navigate(`/groups/${id}/vote`)
     } catch (err) {
       if (err instanceof Error && err.message.includes('already open')) {
@@ -166,7 +169,12 @@ export function GroupPage() {
               <span className="text-sm opacity-80">{t('group.commonGamesCount', { count: commonGames.length })}</span>
             </Button>
 
-            <GameGrid games={commonGames} loading={loadingGames} />
+            <GameGrid
+              games={commonGames}
+              loading={loadingGames}
+              multiplayerOnly={multiplayerOnly}
+              onToggleMultiplayer={setMultiplayerOnly}
+            />
           </div>
         </div>
 

@@ -90,16 +90,26 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
   }
 
   // Get common games
+  const { filter } = req.body as { filter?: string }
   const totalMembers = await db('group_members').where({ group_id: groupId }).count('* as count').first()
   const memberCount = Number(totalMembers?.count || 0)
   const group = await db('groups').where({ id: groupId }).first()
   const threshold = group?.common_game_threshold || memberCount
 
-  const commonGames = await db('user_games')
-    .whereIn('user_id', db('group_members').select('user_id').where({ group_id: groupId }))
-    .groupBy('steam_app_id', 'game_name', 'header_image_url')
-    .havingRaw('COUNT(DISTINCT user_id) >= ?', [threshold])
-    .select('steam_app_id', 'game_name', 'header_image_url')
+  let commonGamesQuery = db('user_games')
+    .leftJoin('game_metadata', 'user_games.steam_app_id', 'game_metadata.steam_app_id')
+    .whereIn('user_games.user_id', db('group_members').select('user_id').where({ group_id: groupId }))
+
+  if (filter === 'multiplayer') {
+    commonGamesQuery = commonGamesQuery.where(function () {
+      this.where('game_metadata.is_multiplayer', true).orWhereNull('game_metadata.is_multiplayer')
+    })
+  }
+
+  const commonGames = await commonGamesQuery
+    .groupBy('user_games.steam_app_id', 'user_games.game_name', 'user_games.header_image_url')
+    .havingRaw('COUNT(DISTINCT user_games.user_id) >= ?', [threshold])
+    .select('user_games.steam_app_id', 'user_games.game_name', 'user_games.header_image_url')
 
   if (commonGames.length === 0) {
     res.status(422).json({

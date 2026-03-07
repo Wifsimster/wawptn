@@ -48,6 +48,7 @@
     "noCommonGames": "Aucun jeu en commun trouve. Verifie que tous les membres ont synchronise leur bibliotheque et que leur profil Steam est public.",
     "noSearchResults": "Aucun jeu ne correspond a ta recherche.",
     "clearSearch": "Effacer la recherche",
+    "multiplayerOnly": "Multijoueur",
     "showAll": "Voir tous les jeux ({{count}})",
     "loadGamesError": "Impossible de charger les jeux en commun",
     "syncSuccess": "Synchronisation lancee !",

@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
 import { generateInviteToken, hashInviteToken } from '../../infrastructure/steam/steam-client.js'
+import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-store-client.js'
 import { getIO } from '../../infrastructure/socket/socket.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 
@@ -263,6 +264,7 @@ router.delete('/:id/members/:userId', async (req: Request, res: Response) => {
 router.get('/:id/common-games', async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['id'])
+  const filter = String(req.query['filter'] || '')
 
   const membership = await db('group_members')
     .where({ group_id: groupId, user_id: userId })
@@ -280,22 +282,42 @@ router.get('/:id/common-games', async (req: Request, res: Response) => {
   // Get threshold: default is all members, but configurable
   const threshold = group?.common_game_threshold || totalMembers
 
-  const commonGames = await db('user_games')
-    .whereIn('user_id', db('group_members').select('user_id').where({ group_id: groupId }))
-    .groupBy('steam_app_id', 'game_name', 'header_image_url')
-    .havingRaw('COUNT(DISTINCT user_id) >= ?', [threshold])
+  let query = db('user_games')
+    .leftJoin('game_metadata', 'user_games.steam_app_id', 'game_metadata.steam_app_id')
+    .whereIn('user_games.user_id', db('group_members').select('user_id').where({ group_id: groupId }))
+
+  // Filter: multiplayer includes games with is_multiplayer=true OR unknown (NULL = not yet enriched)
+  if (filter === 'multiplayer') {
+    query = query.where(function () {
+      this.where('game_metadata.is_multiplayer', true).orWhereNull('game_metadata.is_multiplayer')
+    })
+  }
+
+  const commonGames = await query
+    .groupBy('user_games.steam_app_id', 'user_games.game_name', 'user_games.header_image_url')
+    .havingRaw('COUNT(DISTINCT user_games.user_id) >= ?', [threshold])
     .select(
-      'steam_app_id as steamAppId',
-      'game_name as gameName',
-      'header_image_url as headerImageUrl',
-      db.raw('COUNT(DISTINCT user_id) as "ownerCount"')
+      'user_games.steam_app_id as steamAppId',
+      'user_games.game_name as gameName',
+      'user_games.header_image_url as headerImageUrl',
+      db.raw('COUNT(DISTINCT user_games.user_id) as "ownerCount"'),
+      db.raw('bool_or(game_metadata.is_multiplayer) as "isMultiplayer"'),
+      db.raw('bool_or(game_metadata.is_coop) as "isCoop"')
     )
     .orderBy('ownerCount', 'desc')
+
+  // Trigger background enrichment for un-enriched common games
+  const allAppIds = commonGames.map((g: { steamAppId: number }) => g.steamAppId)
+  if (allAppIds.length > 0) {
+    triggerBackgroundEnrichment(allAppIds)
+  }
 
   res.json({
     games: commonGames.map(g => ({
       ...g,
       ownerCount: Number(g.ownerCount),
+      isMultiplayer: g.isMultiplayer ?? null,
+      isCoop: g.isCoop ?? null,
       totalMembers,
     })),
     totalMembers,

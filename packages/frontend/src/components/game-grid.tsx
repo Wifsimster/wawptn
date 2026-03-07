@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Search, X } from 'lucide-react'
+import { Search, X, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,8 @@ interface Game {
 interface GameGridProps {
   games: Game[]
   loading: boolean
+  multiplayerOnly: boolean
+  onToggleMultiplayer: (value: boolean) => void
 }
 
 const DISPLAY_CAP = 50
@@ -23,7 +25,7 @@ const DISPLAY_CAP = 50
 const normalize = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
-export function GameGrid({ games, loading }: GameGridProps) {
+export function GameGrid({ games, loading, multiplayerOnly, onToggleMultiplayer }: GameGridProps) {
   const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
   const [showAll, setShowAll] = useState(false)
@@ -51,25 +53,36 @@ export function GameGrid({ games, loading }: GameGridProps) {
       </div>
 
       {!loading && games.length > 0 && (
-        <div className="relative" role="search">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t('group.searchGames')}
-            aria-label={t('group.searchGames')}
-            className="pl-9 pr-9"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label={t('group.clearSearch')}
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+        <div className="flex gap-2 items-center">
+          <div className="relative flex-1" role="search">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('group.searchGames')}
+              aria-label={t('group.searchGames')}
+              className="pl-9 pr-9"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label={t('group.clearSearch')}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <Button
+            variant={multiplayerOnly ? 'default' : 'secondary'}
+            size="sm"
+            onClick={() => onToggleMultiplayer(!multiplayerOnly)}
+            className="shrink-0 gap-1.5"
+          >
+            <Users className="w-3.5 h-3.5" />
+            {t('group.multiplayerOnly')}
+          </Button>
         </div>
       )}
 

@@ -43,10 +43,10 @@ export const api = {
   leaveGroup: (groupId: string, userId: string) => request(`/groups/${groupId}/members/${userId}`, {
     method: 'DELETE',
   }),
-  getCommonGames: (groupId: string) => request<{
-    games: { steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number }[];
+  getCommonGames: (groupId: string, filter?: string) => request<{
+    games: { steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null }[];
     totalMembers: number; threshold: number;
-  }>(`/groups/${groupId}/common-games`),
+  }>(`/groups/${groupId}/common-games${filter ? `?filter=${filter}` : ''}`),
   syncLibraries: (groupId: string) => request(`/groups/${groupId}/sync`, { method: 'POST' }),
 
   // Voting
@@ -56,10 +56,13 @@ export const api = {
     myVotes: { steamAppId: number; vote: boolean }[];
     voterCount: number; totalMembers: number;
   }>(`/groups/${groupId}/vote`),
-  createVoteSession: (groupId: string) => request<{
+  createVoteSession: (groupId: string, filter?: string) => request<{
     session: { id: string; groupId: string; status: string; createdBy: string; createdAt: string };
     games: { steamAppId: number; gameName: string; headerImageUrl: string }[];
-  }>(`/groups/${groupId}/vote`, { method: 'POST' }),
+  }>(`/groups/${groupId}/vote`, {
+    method: 'POST',
+    body: JSON.stringify(filter ? { filter } : {}),
+  }),
   castVote: (groupId: string, sessionId: string, steamAppId: number, vote: boolean) =>
     request(`/groups/${groupId}/vote/${sessionId}`, {
       method: 'POST',

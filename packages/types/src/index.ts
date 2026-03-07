@@ -60,6 +60,16 @@ export interface CommonGame {
   headerImageUrl: string | null
   ownerCount: number
   totalMembers: number
+  isMultiplayer: boolean | null
+  isCoop: boolean | null
+}
+
+export interface GameMetadata {
+  steamAppId: number
+  categories: { id: number; description: string }[] | null
+  isMultiplayer: boolean | null
+  isCoop: boolean | null
+  enrichedAt: string | null
 }
 
 // ============================================

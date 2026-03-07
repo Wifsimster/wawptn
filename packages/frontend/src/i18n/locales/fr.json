@@ -19,7 +19,8 @@
     "logoutConfirmTitle": "Se déconnecter ?",
     "logoutConfirmDescription": "Tu seras redirigé vers la page de connexion.",
     "logoutConfirm": "Se déconnecter",
-    "logoutCancel": "Annuler"
+    "logoutCancel": "Annuler",
+    "commonGames": "{{count}} jeux en commun"
   },
   "createGroup": {
     "title": "Créer un groupe",

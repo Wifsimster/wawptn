@@ -19,7 +19,8 @@
     "logoutConfirmTitle": "Log out?",
     "logoutConfirmDescription": "You will be redirected to the login page.",
     "logoutConfirm": "Log out",
-    "logoutCancel": "Cancel"
+    "logoutCancel": "Cancel",
+    "commonGames": "{{count}} common games"
   },
   "createGroup": {
     "title": "Create a group",

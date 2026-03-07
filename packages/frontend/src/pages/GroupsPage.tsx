@@ -185,6 +185,10 @@ export function GroupsPage() {
                           <Users className="w-3 h-3" />
                           {group.memberCount}
                         </span>
+                        <span className="flex items-center gap-1">
+                          <Gamepad2 className="w-3 h-3" />
+                          {t('groups.commonGames', { count: group.commonGameCount })}
+                        </span>
                         {group.lastSession && (
                           <span className="flex items-center gap-1 truncate">
                             <Trophy className="w-3 h-3 shrink-0" />
@@ -193,7 +197,7 @@ export function GroupsPage() {
                         )}
                       </div>
                     </div>
-                    <Gamepad2 className="w-5 h-5 text-muted-foreground shrink-0" />
+                    <Gamepad2 className="w-5 h-5 text-muted-foreground/30 shrink-0" />
                   </div>
                 </Card>
               </Link>

@@ -110,4 +110,45 @@
       radial-gradient(ellipse at 85% 15%, oklch(0.18 0.10 290 / 0.4), transparent 50%),
       radial-gradient(ellipse at 50% 50%, oklch(0.15 0.06 230 / 0.3), transparent 55%);
   }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: -20%;
+    z-index: -1;
+    opacity: 0.12;
+    filter: blur(80px);
+    will-change: transform;
+    backface-visibility: hidden;
+    background-image:
+      radial-gradient(ellipse 60% 50% at 20% 30%, oklch(0.25 0.12 270 / 0.8), transparent),
+      radial-gradient(ellipse 50% 60% at 75% 70%, oklch(0.20 0.10 285 / 0.7), transparent),
+      radial-gradient(ellipse 70% 40% at 50% 20%, oklch(0.18 0.08 250 / 0.6), transparent);
+    animation: fog-drift 28s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes fog-drift {
+  0% {
+    transform: translate(0%, 0%) scale(1);
+    opacity: 0.10;
+  }
+  33% {
+    transform: translate(2%, -1.5%) scale(1.04);
+    opacity: 0.14;
+  }
+  66% {
+    transform: translate(-1.5%, 2%) scale(0.97);
+    opacity: 0.11;
+  }
+  100% {
+    transform: translate(1%, -1%) scale(1.02);
+    opacity: 0.13;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::after {
+    animation: none;
+    opacity: 0.10;
+  }
 }

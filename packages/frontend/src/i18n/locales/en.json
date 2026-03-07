@@ -15,7 +15,11 @@
     "create": "Create",
     "noGroups": "No groups",
     "noGroupsHint": "Create a group and invite your friends to get started.",
-    "logout": "Log out"
+    "logout": "Log out",
+    "logoutConfirmTitle": "Log out?",
+    "logoutConfirmDescription": "You will be redirected to the login page.",
+    "logoutConfirm": "Log out",
+    "logoutCancel": "Cancel"
   },
   "createGroup": {
     "title": "Create a group",

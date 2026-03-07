@@ -15,7 +15,11 @@
     "create": "Créer",
     "noGroups": "Aucun groupe",
     "noGroupsHint": "Crée un groupe et invite tes amis pour commencer.",
-    "logout": "Se déconnecter"
+    "logout": "Se déconnecter",
+    "logoutConfirmTitle": "Se déconnecter ?",
+    "logoutConfirmDescription": "Tu seras redirigé vers la page de connexion.",
+    "logoutConfirm": "Se déconnecter",
+    "logoutCancel": "Annuler"
   },
   "createGroup": {
     "title": "Créer un groupe",

@@ -14,7 +14,7 @@ const buttonVariants = cva(
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-secondary text-muted-foreground hover:text-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
-        steam: 'bg-steam text-white hover:bg-steam-light shadow-lg hover:shadow-xl transition-shadow',
+        steam: 'bg-steam text-steam-foreground hover:bg-steam-light shadow-lg hover:shadow-xl transition-shadow',
       },
       size: {
         default: 'h-10 px-4 py-2',

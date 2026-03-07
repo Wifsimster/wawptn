@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button'
 interface AppHeaderProps {
   children?: React.ReactNode
   className?: string
+  maxWidth?: 'narrow' | 'wide'
 }
 
-export function AppHeader({ children, className }: AppHeaderProps) {
+export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeaderProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { logout } = useAuthStore()
@@ -22,7 +23,7 @@ export function AppHeader({ children, className }: AppHeaderProps) {
 
   return (
     <header className={cn('sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60', className)}>
-      <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
+      <div className={cn('mx-auto flex h-14 items-center px-4', maxWidth === 'wide' ? 'max-w-6xl' : 'max-w-2xl')}>
         {children && (
           <div className="mr-2 flex items-center">
             {children}

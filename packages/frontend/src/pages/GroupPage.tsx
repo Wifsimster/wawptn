@@ -1,19 +1,17 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, Vote, Users, Share2, Trophy, Search, X, History } from 'lucide-react'
+import { ArrowLeft, Vote } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
 import { api } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { AppHeader } from '@/components/app-header'
-import { InviteLink } from '@/components/invite-link'
+import { GroupSidebar } from '@/components/group-sidebar'
+import { GameGrid } from '@/components/game-grid'
 
 export function GroupPage() {
   const { t } = useTranslation()
@@ -25,25 +23,6 @@ export function GroupPage() {
   const [voteHistory, setVoteHistory] = useState<{ id: string; winningGameAppId: number; winningGameName: string; closedAt: string }[]>([])
   const [inviteToken, setInviteToken] = useState<string | null>(null)
   const [loadingGames, setLoadingGames] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showAll, setShowAll] = useState(false)
-
-  const DISPLAY_CAP = 50
-
-  const normalize = (s: string) =>
-    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-
-  const filteredGames = useMemo(() => {
-    if (searchQuery.trim() === '') return commonGames
-    const q = normalize(searchQuery)
-    return commonGames.filter((g) => normalize(g.gameName).includes(q))
-  }, [commonGames, searchQuery])
-
-  const isFiltering = searchQuery.trim().length > 0
-  const displayedGames = isFiltering || showAll
-    ? filteredGames
-    : filteredGames.slice(0, DISPLAY_CAP)
-  const hasMore = !isFiltering && !showAll && filteredGames.length > DISPLAY_CAP
 
   const loadCommonGames = useCallback(async (groupId: string) => {
     setLoadingGames(true)
@@ -60,7 +39,7 @@ export function GroupPage() {
   const loadVoteHistory = async (groupId: string) => {
     try {
       const history = await api.getVoteHistory(groupId)
-      setVoteHistory(history.filter(h => h.winningGameName).slice(0, 5))
+      setVoteHistory(history.filter((h: { winningGameName: string }) => h.winningGameName).slice(0, 5))
     } catch {
       // Non-critical, fail silently
     }
@@ -127,13 +106,14 @@ export function GroupPage() {
   if (!currentGroup) {
     return (
       <div className="min-h-screen">
-        <AppHeader>
+        <AppHeader maxWidth="wide">
           <Skeleton className="h-5 w-5 rounded" />
         </AppHeader>
-        <main className="max-w-2xl mx-auto p-4 space-y-6">
-          <Skeleton className="h-[100px] w-full rounded-lg" />
-          <Skeleton className="h-[200px] w-full rounded-lg" />
-          <Skeleton className="h-[200px] w-full rounded-lg" />
+        <main className="max-w-6xl mx-auto p-4">
+          <div className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-6">
+            <Skeleton className="hidden lg:block h-[300px] rounded-lg" />
+            <Skeleton className="h-[400px] w-full rounded-lg" />
+          </div>
         </main>
       </div>
     )
@@ -141,197 +121,66 @@ export function GroupPage() {
 
   return (
     <div className="min-h-screen">
-      <AppHeader>
+      <AppHeader maxWidth="wide">
         <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
       </AppHeader>
 
-      <main className="max-w-2xl mx-auto p-4 space-y-6">
-        {/* Vote History */}
-        {voteHistory.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <h2 className="font-semibold flex items-center gap-2">
-                <History className="w-4 h-4" />
-                {t('group.history')}
-              </h2>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {voteHistory.map((session, index) => (
-                <div key={session.id} className="flex items-center gap-3">
-                  <img
-                    src={`https://cdn.akamai.steamstatic.com/steam/apps/${session.winningGameAppId}/header.jpg`}
-                    alt={session.winningGameName}
-                    className="w-16 h-[34px] rounded object-cover shrink-0"
-                    loading="lazy"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${index === 0 ? 'text-primary' : ''}`}>{session.winningGameName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(session.closedAt))}
-                    </p>
-                  </div>
-                  {index === 0 && <Trophy className="w-4 h-4 text-primary shrink-0" />}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
+      <main className="max-w-6xl mx-auto p-4">
+        {/* Mobile: horizontal avatar bar */}
+        <div className="lg:hidden mb-4">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">{t('group.members', { count: currentGroup.members.length })}</span>
+            {currentGroup.members.map((member) => (
+              <Avatar key={member.id} className="w-8 h-8 shrink-0">
+                <AvatarImage src={member.avatarUrl} alt={member.displayName} />
+                <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
+            ))}
+          </div>
+        </div>
 
-        {/* Start Vote CTA */}
-        <Button
-          onClick={handleStartVote}
-          className="w-full h-auto p-6 flex-col"
-        >
-          <Vote className="w-8 h-8 mb-2" />
-          <span className="text-xl font-bold block">{t('group.startVote')}</span>
-          <span className="text-sm opacity-80">{t('group.commonGamesCount', { count: commonGames.length })}</span>
-        </Button>
+        <div className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-6">
+          {/* Sidebar — hidden on mobile, shown on lg+ */}
+          <div className="hidden lg:block">
+            <GroupSidebar
+              members={currentGroup.members}
+              syncing={syncing}
+              inviteToken={inviteToken}
+              voteHistory={voteHistory}
+              onSync={handleSync}
+              onGenerateInvite={handleGenerateInvite}
+            />
+          </div>
 
-        {/* Members */}
-        <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-            <h2 className="font-semibold flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              {t('group.members', { count: currentGroup.members.length })}
-            </h2>
-            <div className="flex gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={handleSync} aria-label={t('group.syncLibraries')}>
-                    <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('group.syncLibraries')}</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={handleGenerateInvite} aria-label={t('group.invite')}>
-                    <Share2 className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('group.generateInvite')}</TooltipContent>
-              </Tooltip>
-            </div>
-          </CardHeader>
+          {/* Main content: games grid */}
+          <div className="space-y-4">
+            {/* Start Vote CTA */}
+            <Button
+              onClick={handleStartVote}
+              className="w-full h-auto py-4 flex-col"
+            >
+              <Vote className="w-6 h-6 mb-1" />
+              <span className="text-lg font-bold block">{t('group.startVote')}</span>
+              <span className="text-sm opacity-80">{t('group.commonGamesCount', { count: commonGames.length })}</span>
+            </Button>
 
-          <CardContent>
-            {inviteToken && <InviteLink token={inviteToken} />}
+            <GameGrid games={commonGames} loading={loadingGames} />
+          </div>
+        </div>
 
-            <div className="space-y-2 mt-2">
-              {currentGroup.members.map((member) => (
-                <div key={member.id} className="flex items-center gap-3 py-2">
-                  <Avatar>
-                    <AvatarImage src={member.avatarUrl} alt={member.displayName} />
-                    <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <span className="text-sm font-medium">{member.displayName}</span>
-                    {member.role === 'owner' && (
-                      <span className="ml-2 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">owner</span>
-                    )}
-                  </div>
-                  {!member.libraryVisible && (
-                    <span className="text-xs text-destructive">{t('group.privateLibrary')}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Common Games */}
-        <Card>
-          <CardHeader>
-            <h2 className="font-semibold">
-              {isFiltering
-                ? t('group.commonGamesFiltered', { filtered: filteredGames.length, total: commonGames.length })
-                : t('group.commonGames', { count: commonGames.length })}
-            </h2>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {!loadingGames && commonGames.length > 0 && (
-              <div className="relative" role="search">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t('group.searchGames')}
-                  aria-label={t('group.searchGames')}
-                  className="pl-9 pr-9"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label={t('group.clearSearch')}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            )}
-
-            {loadingGames ? (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <Skeleton key={i} className="w-full aspect-[460/215] rounded" />
-                ))}
-              </div>
-            ) : commonGames.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t('group.noCommonGames')}
-              </p>
-            ) : filteredGames.length === 0 ? (
-              <div className="text-center py-4">
-                <p className="text-sm text-muted-foreground">{t('group.noSearchResults')}</p>
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="text-sm text-primary hover:underline mt-1"
-                >
-                  {t('group.clearSearch')}
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {displayedGames.map((game) => (
-                    <div key={game.steamAppId} className="relative group" style={{ transition: 'opacity 150ms ease' }}>
-                      <img
-                        src={game.headerImageUrl}
-                        alt={game.gameName}
-                        width={460}
-                        height={215}
-                        className="w-full rounded aspect-[460/215] object-cover"
-                        loading="lazy"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent rounded flex items-end p-2">
-                        <span className="text-xs font-medium text-white leading-tight">{game.gameName}</span>
-                      </div>
-                      {game.ownerCount < game.totalMembers && (
-                        <span className="absolute top-1 right-1 text-[10px] bg-black/70 text-white px-1 rounded">
-                          {game.ownerCount}/{game.totalMembers}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {hasMore && (
-                  <Button
-                    variant="ghost"
-                    className="w-full mt-2"
-                    onClick={() => setShowAll(true)}
-                  >
-                    {t('group.showAll', { count: filteredGames.length })}
-                  </Button>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+        {/* Mobile: sidebar content below games */}
+        <div className="lg:hidden mt-6">
+          <GroupSidebar
+            members={currentGroup.members}
+            syncing={syncing}
+            inviteToken={inviteToken}
+            voteHistory={voteHistory}
+            onSync={handleSync}
+            onGenerateInvite={handleGenerateInvite}
+          />
+        </div>
       </main>
     </div>
   )

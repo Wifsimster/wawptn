@@ -62,11 +62,33 @@ export interface CommonGame {
   totalMembers: number
   isMultiplayer: boolean | null
   isCoop: boolean | null
+  genres: { id: string; description: string }[] | null
+  metacriticScore: number | null
+  type: string | null
+  shortDescription: string | null
+  platforms: { windows: boolean; mac: boolean; linux: boolean } | null
+  recommendationsTotal: number | null
+  releaseDate: string | null
+  comingSoon: boolean | null
+  controllerSupport: string | null
+  isFree: boolean | null
+  contentDescriptors: { ids: number[]; notes: string | null } | null
 }
 
 export interface GameMetadata {
   steamAppId: number
+  type: string | null
+  shortDescription: string | null
+  isFree: boolean | null
   categories: { id: number; description: string }[] | null
+  genres: { id: string; description: string }[] | null
+  metacriticScore: number | null
+  platforms: { windows: boolean; mac: boolean; linux: boolean } | null
+  recommendationsTotal: number | null
+  releaseDate: string | null
+  comingSoon: boolean | null
+  controllerSupport: string | null
+  contentDescriptors: { ids: number[]; notes: string | null } | null
   isMultiplayer: boolean | null
   isCoop: boolean | null
   enrichedAt: string | null

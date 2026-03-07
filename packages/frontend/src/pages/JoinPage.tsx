@@ -41,7 +41,7 @@ export function JoinPage() {
         <h1 className="text-2xl font-bold mb-2">{t('join.invited')}</h1>
         <p className="text-muted-foreground mb-6">{t('join.loginPrompt')}</p>
         <Button variant="steam" size="lg" asChild>
-          <a href="/api/auth/steam/login">{t('login.signIn')}</a>
+          <a href={`/api/auth/steam/login?returnTo=/join/${token}`}>{t('login.signIn')}</a>
         </Button>
       </div>
     )

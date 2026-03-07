@@ -7,8 +7,25 @@ import { env } from '../../config/env.js'
 
 const router = Router()
 
+// Validate returnTo path against strict allowlist
+function isAllowedReturnPath(path: string): boolean {
+  return /^\/join\/[a-f0-9]{64}$/.test(path)
+}
+
 // Initiate Steam OpenID login
-router.get('/steam/login', (_req: Request, res: Response) => {
+router.get('/steam/login', (req: Request, res: Response) => {
+  const returnTo = req.query.returnTo as string | undefined
+  if (returnTo && isAllowedReturnPath(returnTo)) {
+    res.cookie('wawptn.invite_return', returnTo, {
+      httpOnly: true,
+      signed: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 10 * 60 * 1000, // 10 minutes
+      path: '/api/auth/steam/callback',
+    })
+  }
+
   const returnUrl = `${env.API_URL}/api/auth/steam/callback`
   const loginUrl = getSteamLoginUrl(returnUrl)
   res.redirect(loginUrl)
@@ -92,7 +109,13 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
       steamLogger.error({ error: String(err), steamId }, 'background library sync failed')
     })
 
-    res.redirect(`${env.CORS_ORIGIN}/#/`)
+    // Redirect to invite join page if cookie present, otherwise home
+    const inviteReturn = req.signedCookies?.['wawptn.invite_return']
+    res.clearCookie('wawptn.invite_return', { path: '/api/auth/steam/callback' })
+    const redirectPath = typeof inviteReturn === 'string' && isAllowedReturnPath(inviteReturn)
+      ? inviteReturn
+      : '/'
+    res.redirect(`${env.CORS_ORIGIN}/#${redirectPath}`)
   } catch (error) {
     authLogger.error({ error: String(error) }, 'Steam callback failed')
     res.redirect(`${env.CORS_ORIGIN}/#/login?error=auth_failed`)

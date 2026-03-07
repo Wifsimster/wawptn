@@ -263,74 +263,84 @@ router.delete('/:id/members/:userId', async (req: Request, res: Response) => {
 
 // Get common games for a group
 router.get('/:id/common-games', async (req: Request, res: Response) => {
-  const userId = req.userId!
-  const groupId = String(req.params['id'])
-  const filter = String(req.query['filter'] || '')
+  try {
+    const userId = req.userId!
+    const groupId = String(req.params['id'])
+    const filter = String(req.query['filter'] || '')
 
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId })
-    .first()
+    const membership = await db('group_members')
+      .where({ group_id: groupId, user_id: userId })
+      .first()
 
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Not a member' })
-    return
+    if (!membership) {
+      res.status(403).json({ error: 'forbidden', message: 'Not a member' })
+      return
+    }
+
+    const group = await db('groups').where({ id: groupId }).first()
+    const memberIds = await db('group_members').where({ group_id: groupId }).pluck('user_id')
+    const totalMembers = memberIds.length
+    const threshold = group?.common_game_threshold || totalMembers
+
+    const commonGames = await computeCommonGames(memberIds, { filter, threshold })
+
+    // Trigger background enrichment for un-enriched common games
+    const allAppIds = commonGames.map(g => g.steamAppId)
+    if (allAppIds.length > 0) {
+      triggerBackgroundEnrichment(allAppIds)
+    }
+
+    res.json({
+      games: commonGames.map(g => ({ ...g, totalMembers })),
+      totalMembers,
+      threshold,
+    })
+  } catch (error) {
+    logger.error({ error: String(error), groupId: req.params['id'] }, 'failed to load common games')
+    res.status(500).json({ error: 'internal', message: 'Failed to load common games' })
   }
-
-  const group = await db('groups').where({ id: groupId }).first()
-  const memberIds = await db('group_members').where({ group_id: groupId }).pluck('user_id')
-  const totalMembers = memberIds.length
-  const threshold = group?.common_game_threshold || totalMembers
-
-  const commonGames = await computeCommonGames(memberIds, { filter, threshold })
-
-  // Trigger background enrichment for un-enriched common games
-  const allAppIds = commonGames.map(g => g.steamAppId)
-  if (allAppIds.length > 0) {
-    triggerBackgroundEnrichment(allAppIds)
-  }
-
-  res.json({
-    games: commonGames.map(g => ({ ...g, totalMembers })),
-    totalMembers,
-    threshold,
-  })
 })
 
 // Preview common games for a subset of members (read-only, no enrichment)
 router.post('/:id/common-games/preview', async (req: Request, res: Response) => {
-  const userId = req.userId!
-  const groupId = String(req.params['id'])
-  const { memberIds, filter } = req.body as { memberIds: string[]; filter?: string }
+  try {
+    const userId = req.userId!
+    const groupId = String(req.params['id'])
+    const { memberIds, filter } = req.body as { memberIds: string[]; filter?: string }
 
-  if (!Array.isArray(memberIds) || memberIds.length < 2) {
-    res.status(400).json({ error: 'validation', message: 'At least 2 member IDs are required' })
-    return
+    if (!Array.isArray(memberIds) || memberIds.length < 2) {
+      res.status(400).json({ error: 'validation', message: 'At least 2 member IDs are required' })
+      return
+    }
+
+    const membership = await db('group_members')
+      .where({ group_id: groupId, user_id: userId })
+      .first()
+
+    if (!membership) {
+      res.status(403).json({ error: 'forbidden', message: 'Not a member' })
+      return
+    }
+
+    // Validate all provided IDs are actual group members
+    const validMembers = await db('group_members')
+      .where({ group_id: groupId })
+      .whereIn('user_id', memberIds)
+      .pluck('user_id')
+
+    const invalidIds = memberIds.filter(id => !validMembers.includes(id))
+    if (invalidIds.length > 0) {
+      res.status(422).json({ error: 'invalid_members', message: 'Some user IDs are not group members', invalidIds })
+      return
+    }
+
+    const commonGames = await computeCommonGames(validMembers, { filter })
+
+    res.json({ gameCount: commonGames.length, totalMembers: validMembers.length })
+  } catch (error) {
+    logger.error({ error: String(error), groupId: req.params['id'] }, 'failed to preview common games')
+    res.status(500).json({ error: 'internal', message: 'Failed to preview common games' })
   }
-
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId })
-    .first()
-
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Not a member' })
-    return
-  }
-
-  // Validate all provided IDs are actual group members
-  const validMembers = await db('group_members')
-    .where({ group_id: groupId })
-    .whereIn('user_id', memberIds)
-    .pluck('user_id')
-
-  const invalidIds = memberIds.filter(id => !validMembers.includes(id))
-  if (invalidIds.length > 0) {
-    res.status(422).json({ error: 'invalid_members', message: 'Some user IDs are not group members', invalidIds })
-    return
-  }
-
-  const commonGames = await computeCommonGames(validMembers, { filter })
-
-  res.json({ gameCount: commonGames.length, totalMembers: validMembers.length })
 })
 
 // Trigger library sync for all group members

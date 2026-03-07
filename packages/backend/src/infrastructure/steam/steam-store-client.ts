@@ -79,23 +79,40 @@ interface SteamAppGenre {
 interface SteamAppDetailsResponse {
   success: boolean
   data?: {
+    type?: string
+    short_description?: string
+    is_free?: boolean
     categories?: SteamAppCategory[]
     genres?: SteamAppGenre[]
     metacritic?: { score: number; url: string }
+    platforms?: { windows: boolean; mac: boolean; linux: boolean }
+    recommendations?: { total: number }
+    release_date?: { coming_soon: boolean; date: string }
+    controller_support?: string
+    content_descriptors?: { ids: number[]; notes: string | null }
   }
 }
 
 interface AppDetailsResult {
+  type: string | null
+  shortDescription: string | null
+  isFree: boolean | null
   categories: SteamAppCategory[]
   genres: SteamAppGenre[]
   metacriticScore: number | null
+  platforms: { windows: boolean; mac: boolean; linux: boolean } | null
+  recommendationsTotal: number | null
+  releaseDate: string | null
+  comingSoon: boolean | null
+  controllerSupport: string | null
+  contentDescriptors: { ids: number[]; notes: string | null } | null
 }
 
 async function getAppDetails(appId: number): Promise<AppDetailsResult | null> {
   if (isStoreCircuitOpen()) return null
 
   try {
-    const url = `${STEAM_STORE_API_BASE}/appdetails?appids=${appId}&filters=categories,genres,metacritic`
+    const url = `${STEAM_STORE_API_BASE}/appdetails?appids=${appId}&filters=basic,categories,genres,metacritic,platforms,recommendations,release_date,content_descriptors`
     const response = await storeRateLimitedFetch(url)
 
     if (!response.ok) {
@@ -110,14 +127,30 @@ async function getAppDetails(appId: number): Promise<AppDetailsResult | null> {
     if (!appData?.success) {
       // App delisted or region-locked — not a service failure
       recordStoreSuccess()
-      return { categories: [], genres: [], metacriticScore: null }
+      return {
+        type: null, shortDescription: null, isFree: null,
+        categories: [], genres: [], metacriticScore: null,
+        platforms: null, recommendationsTotal: null,
+        releaseDate: null, comingSoon: null,
+        controllerSupport: null, contentDescriptors: null,
+      }
     }
 
+    const d = appData.data
     recordStoreSuccess()
     return {
-      categories: appData.data?.categories || [],
-      genres: appData.data?.genres || [],
-      metacriticScore: appData.data?.metacritic?.score ?? null,
+      type: d?.type ?? null,
+      shortDescription: d?.short_description ?? null,
+      isFree: d?.is_free ?? null,
+      categories: d?.categories || [],
+      genres: d?.genres || [],
+      metacriticScore: d?.metacritic?.score ?? null,
+      platforms: d?.platforms ?? null,
+      recommendationsTotal: d?.recommendations?.total ?? null,
+      releaseDate: d?.release_date?.date ?? null,
+      comingSoon: d?.release_date?.coming_soon ?? null,
+      controllerSupport: d?.controller_support ?? null,
+      contentDescriptors: d?.content_descriptors ?? null,
     }
   } catch (error) {
     recordStoreFailure()
@@ -166,9 +199,18 @@ async function enrichGameMetadata(appIds: number[]): Promise<void> {
 
     const row = {
       steam_app_id: appId,
+      type: details.type,
+      short_description: details.shortDescription,
+      is_free: details.isFree,
       categories: JSON.stringify(details.categories),
       genres: JSON.stringify(details.genres),
       metacritic_score: details.metacriticScore,
+      platforms: details.platforms ? JSON.stringify(details.platforms) : null,
+      recommendations_total: details.recommendationsTotal,
+      release_date: details.releaseDate,
+      coming_soon: details.comingSoon,
+      controller_support: details.controllerSupport,
+      content_descriptors: details.contentDescriptors ? JSON.stringify(details.contentDescriptors) : null,
       is_multiplayer: isMultiplayer,
       is_coop: isCoop,
       enriched_at: new Date(),

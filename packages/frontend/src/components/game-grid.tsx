@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Search, X, Users, Handshake, Star, ChevronDown } from 'lucide-react'
+import { Search, X, Users, Handshake, Star, ChevronDown, Gamepad2, Monitor, TrendingUp } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,14 @@ interface Game {
   totalMembers: number
   genres: { id: string; description: string }[] | null
   metacriticScore: number | null
+  type: string | null
+  shortDescription: string | null
+  platforms: { windows: boolean; mac: boolean; linux: boolean } | null
+  recommendationsTotal: number | null
+  releaseDate: string | null
+  comingSoon: boolean | null
+  controllerSupport: string | null
+  isFree: boolean | null
 }
 
 export interface GameFilters {
@@ -22,6 +30,10 @@ export interface GameFilters {
   coopOnly: boolean
   selectedGenres: string[]
   minMetacritic: number | null
+  gamesOnly: boolean
+  controllerOnly: boolean
+  platform: 'all' | 'windows' | 'mac' | 'linux'
+  sortBy: 'owners' | 'popularity' | 'name'
 }
 
 interface GameGridProps {
@@ -32,6 +44,10 @@ interface GameGridProps {
   onToggleCoop: (value: boolean) => void
   onToggleGenre: (genre: string) => void
   onSetMinMetacritic: (value: number | null) => void
+  onToggleGamesOnly: (value: boolean) => void
+  onToggleControllerOnly: (value: boolean) => void
+  onSetPlatform: (value: 'all' | 'windows' | 'mac' | 'linux') => void
+  onSetSortBy: (value: 'owners' | 'popularity' | 'name') => void
 }
 
 const DISPLAY_CAP = 50
@@ -41,7 +57,7 @@ const METACRITIC_THRESHOLDS = [null, 60, 70, 75, 80, 85, 90] as const
 const normalize = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
-export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggleCoop, onToggleGenre, onSetMinMetacritic }: GameGridProps) {
+export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggleCoop, onToggleGenre, onSetMinMetacritic, onToggleGamesOnly, onToggleControllerOnly, onSetPlatform, onSetSortBy }: GameGridProps) {
   const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
   const [showAll, setShowAll] = useState(false)
@@ -71,6 +87,25 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
       result = result.filter((g) => normalize(g.gameName).includes(q))
     }
 
+    // Games only (exclude DLC, software, etc.)
+    if (filters.gamesOnly) {
+      result = result.filter((g) => !g.type || g.type === 'game')
+    }
+
+    // Platform filter
+    if (filters.platform !== 'all') {
+      const plat = filters.platform
+      result = result.filter((g) => {
+        if (!g.platforms) return true // keep un-enriched games
+        return g.platforms[plat]
+      })
+    }
+
+    // Controller support
+    if (filters.controllerOnly) {
+      result = result.filter((g) => g.controllerSupport === 'full' || g.controllerSupport === 'partial')
+    }
+
     // Genre filter (client-side)
     if (filters.selectedGenres.length > 0) {
       result = result.filter((g) => {
@@ -88,10 +123,18 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
       })
     }
 
-    return result
-  }, [games, searchQuery, filters.selectedGenres, filters.minMetacritic])
+    // Sorting
+    if (filters.sortBy === 'popularity') {
+      result = [...result].sort((a, b) => (b.recommendationsTotal ?? 0) - (a.recommendationsTotal ?? 0))
+    } else if (filters.sortBy === 'name') {
+      result = [...result].sort((a, b) => a.gameName.localeCompare(b.gameName))
+    }
+    // 'owners' is the default sort from the API
 
-  const isFiltering = searchQuery.trim().length > 0 || filters.selectedGenres.length > 0 || filters.minMetacritic !== null
+    return result
+  }, [games, searchQuery, filters.selectedGenres, filters.minMetacritic, filters.gamesOnly, filters.platform, filters.controllerOnly, filters.sortBy])
+
+  const isFiltering = searchQuery.trim().length > 0 || filters.selectedGenres.length > 0 || filters.minMetacritic !== null || filters.gamesOnly || filters.controllerOnly || filters.platform !== 'all'
   const displayedGames = isFiltering || showAll
     ? filteredGames
     : filteredGames.slice(0, DISPLAY_CAP)
@@ -150,6 +193,24 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                 <Handshake className="w-3.5 h-3.5" />
                 {t('group.coopOnly')}
               </Button>
+              <Button
+                variant={filters.gamesOnly ? 'default' : 'secondary'}
+                size="sm"
+                onClick={() => onToggleGamesOnly(!filters.gamesOnly)}
+                className="gap-1.5"
+              >
+                <Monitor className="w-3.5 h-3.5" />
+                {t('group.gamesOnly')}
+              </Button>
+              <Button
+                variant={filters.controllerOnly ? 'default' : 'secondary'}
+                size="sm"
+                onClick={() => onToggleControllerOnly(!filters.controllerOnly)}
+                className="gap-1.5"
+              >
+                <Gamepad2 className="w-3.5 h-3.5" />
+                {t('group.controllerSupport')}
+              </Button>
             </div>
           </div>
 
@@ -168,6 +229,44 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                 onClick={() => onSetMinMetacritic(threshold)}
               >
                 {threshold === null ? t('group.allScores') : `${threshold}+`}
+              </Button>
+            ))}
+          </div>
+
+          {/* Platform filter */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Monitor className="w-3 h-3" />
+              {t('group.platform')}
+            </span>
+            {(['all', 'windows', 'mac', 'linux'] as const).map((p) => (
+              <Button
+                key={p}
+                variant={filters.platform === p ? 'default' : 'outline'}
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => onSetPlatform(p)}
+              >
+                {t(`group.platform_${p}`)}
+              </Button>
+            ))}
+          </div>
+
+          {/* Sort */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" />
+              {t('group.sortBy')}
+            </span>
+            {(['owners', 'popularity', 'name'] as const).map((s) => (
+              <Button
+                key={s}
+                variant={filters.sortBy === s ? 'default' : 'outline'}
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => onSetSortBy(s)}
+              >
+                {t(`group.sort_${s}`)}
               </Button>
             ))}
           </div>
@@ -250,17 +349,28 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {displayedGames.map((game) => (
               <div key={game.steamAppId} className="relative group" style={{ transition: 'opacity 150ms ease' }}>
-                <img
-                  src={game.headerImageUrl}
-                  alt={game.gameName}
-                  width={460}
-                  height={215}
-                  className="w-full rounded aspect-[460/215] object-cover"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent rounded flex items-end p-2">
-                  <span className="text-xs font-medium text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{game.gameName}</span>
-                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <img
+                        src={game.headerImageUrl}
+                        alt={game.gameName}
+                        width={460}
+                        height={215}
+                        className="w-full rounded aspect-[460/215] object-cover"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent rounded flex items-end p-2">
+                        <span className="text-xs font-medium text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{game.gameName}</span>
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  {game.shortDescription && (
+                    <TooltipContent side="bottom" className="max-w-xs text-xs">
+                      {game.shortDescription}
+                    </TooltipContent>
+                  )}
+                </Tooltip>
                 {game.metacriticScore !== null && (
                   <span className={`absolute top-1 left-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${
                     game.metacriticScore >= 75 ? 'bg-emerald-600 text-white' :
@@ -283,6 +393,25 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                     </TooltipContent>
                   </Tooltip>
                 )}
+                <div className="absolute bottom-7 right-1 flex gap-0.5">
+                  {game.isFree && (
+                    <span className="text-[10px] font-bold bg-emerald-600 text-white px-1.5 py-0.5 rounded">
+                      {t('group.free')}
+                    </span>
+                  )}
+                  {game.controllerSupport && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-[10px] bg-black/70 text-white px-1 py-0.5 rounded cursor-help">
+                          <Gamepad2 className="w-2.5 h-2.5" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {t('group.controllerSupportLevel', { level: game.controllerSupport })}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
               </div>
             ))}
           </div>

@@ -23,7 +23,7 @@ export function GroupPage() {
   const navigate = useNavigate()
   const { currentGroup, fetchGroup } = useGroupStore()
   const { user } = useAuthStore()
-  const [commonGames, setCommonGames] = useState<{ steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null }[]>([])
+  const [commonGames, setCommonGames] = useState<{ steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null; type: string | null; shortDescription: string | null; platforms: { windows: boolean; mac: boolean; linux: boolean } | null; recommendationsTotal: number | null; releaseDate: string | null; comingSoon: boolean | null; controllerSupport: string | null; isFree: boolean | null }[]>([])
   const [syncing, setSyncing] = useState(false)
   const [voteHistory, setVoteHistory] = useState<{ id: string; winningGameAppId: number; winningGameName: string; closedAt: string }[]>([])
   const [inviteToken, setInviteToken] = useState<string | null>(null)
@@ -33,6 +33,10 @@ export function GroupPage() {
     coopOnly: false,
     selectedGenres: [],
     minMetacritic: null,
+    gamesOnly: true,
+    controllerOnly: false,
+    platform: 'all',
+    sortBy: 'owners',
   })
   const [voteSetupOpen, setVoteSetupOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
@@ -264,6 +268,22 @@ export function GroupPage() {
               onSetMinMetacritic={(value) => setGameFilters(prev => ({
                 ...prev,
                 minMetacritic: value,
+              }))}
+              onToggleGamesOnly={(value) => setGameFilters(prev => ({
+                ...prev,
+                gamesOnly: value,
+              }))}
+              onToggleControllerOnly={(value) => setGameFilters(prev => ({
+                ...prev,
+                controllerOnly: value,
+              }))}
+              onSetPlatform={(value) => setGameFilters(prev => ({
+                ...prev,
+                platform: value,
+              }))}
+              onSetSortBy={(value) => setGameFilters(prev => ({
+                ...prev,
+                sortBy: value,
               }))}
             />
           </div>

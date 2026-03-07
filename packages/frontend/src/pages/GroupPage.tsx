@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, Vote, Users, Share2, Trophy, Search, X } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Vote, Users, Share2, Trophy, Search, X, History } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
@@ -22,7 +22,7 @@ export function GroupPage() {
   const { currentGroup, fetchGroup } = useGroupStore()
   const [commonGames, setCommonGames] = useState<{ steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number }[]>([])
   const [syncing, setSyncing] = useState(false)
-  const [lastResult, setLastResult] = useState<{ winningGameName: string; closedAt: string } | null>(null)
+  const [voteHistory, setVoteHistory] = useState<{ id: string; winningGameAppId: number; winningGameName: string; closedAt: string }[]>([])
   const [inviteToken, setInviteToken] = useState<string | null>(null)
   const [loadingGames, setLoadingGames] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -57,12 +57,10 @@ export function GroupPage() {
     }
   }, [t])
 
-  const loadLastResult = async (groupId: string) => {
+  const loadVoteHistory = async (groupId: string) => {
     try {
       const history = await api.getVoteHistory(groupId)
-      if (history.length > 0 && history[0]) {
-        setLastResult({ winningGameName: history[0].winningGameName, closedAt: history[0].closedAt })
-      }
+      setVoteHistory(history.filter(h => h.winningGameName).slice(0, 5))
     } catch {
       // Non-critical, fail silently
     }
@@ -72,7 +70,7 @@ export function GroupPage() {
     if (!id) return
     fetchGroup(id)
     loadCommonGames(id)
-    loadLastResult(id)
+    loadVoteHistory(id)
 
     const socket = getSocket()
     socket.emit('group:join', id)
@@ -150,15 +148,33 @@ export function GroupPage() {
       </AppHeader>
 
       <main className="max-w-2xl mx-auto p-4 space-y-6">
-        {/* Last Result */}
-        {lastResult && (
-          <Card className="border-primary/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <Trophy className="w-4 h-4 text-primary" />
-                <span className="text-sm text-muted-foreground">{t('group.lastSession')}</span>
-              </div>
-              <p className="font-semibold text-lg">{lastResult.winningGameName}</p>
+        {/* Vote History */}
+        {voteHistory.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <h2 className="font-semibold flex items-center gap-2">
+                <History className="w-4 h-4" />
+                {t('group.history')}
+              </h2>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {voteHistory.map((session, index) => (
+                <div key={session.id} className="flex items-center gap-3">
+                  <img
+                    src={`https://cdn.akamai.steamstatic.com/steam/apps/${session.winningGameAppId}/header.jpg`}
+                    alt={session.winningGameName}
+                    className="w-16 h-[34px] rounded object-cover shrink-0"
+                    loading="lazy"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${index === 0 ? 'text-primary' : ''}`}>{session.winningGameName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(session.closedAt))}
+                    </p>
+                  </div>
+                  {index === 0 && <Trophy className="w-4 h-4 text-primary shrink-0" />}
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}

@@ -53,7 +53,8 @@
     "syncSuccess": "Sync started!",
     "syncError": "Sync error",
     "startVoteError": "Unable to start vote",
-    "generateInviteError": "Unable to generate invite"
+    "generateInviteError": "Unable to generate invite",
+    "history": "Game night history"
   },
   "vote": {
     "tonightYouPlay": "Tonight you're playing",

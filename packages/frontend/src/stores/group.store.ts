@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { api } from '@/lib/api'
 
 interface GroupState {
-  groups: { id: string; name: string; role: string; createdAt: string }[]
+  groups: { id: string; name: string; role: string; createdAt: string; memberCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null }[]
   currentGroup: {
     id: string; name: string; createdBy: string; commonGameThreshold: number | null; createdAt: string;
     members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string }[]

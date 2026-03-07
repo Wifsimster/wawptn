@@ -53,7 +53,8 @@
     "syncSuccess": "Synchronisation lancee !",
     "syncError": "Erreur de synchronisation",
     "startVoteError": "Impossible de lancer le vote",
-    "generateInviteError": "Impossible de generer l'invitation"
+    "generateInviteError": "Impossible de generer l'invitation",
+    "history": "Historique des soirees"
   },
   "vote": {
     "tonightYouPlay": "Ce soir vous jouez a",

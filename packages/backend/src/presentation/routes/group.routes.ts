@@ -14,12 +14,45 @@ router.get('/', async (req: Request, res: Response) => {
     .where('group_members.user_id', userId)
     .select('groups.*', 'group_members.role')
 
+  const groupIds = groups.map(g => g.id)
+
+  // Get member counts per group
+  const memberCounts = groupIds.length > 0
+    ? await db('group_members')
+        .whereIn('group_id', groupIds)
+        .groupBy('group_id')
+        .select('group_id', db.raw('COUNT(*) as count'))
+    : []
+  const memberCountMap = new Map(memberCounts.map((r: { group_id: string; count: string }) => [r.group_id, Number(r.count)]))
+
+  // Get last closed session per group
+  const lastSessions = groupIds.length > 0
+    ? await db('voting_sessions')
+        .whereIn('group_id', groupIds)
+        .where('status', 'closed')
+        .whereNotNull('winning_game_name')
+        .distinctOn('group_id')
+        .orderBy([
+          { column: 'group_id' },
+          { column: 'closed_at', order: 'desc' },
+        ])
+        .select('group_id', 'winning_game_app_id', 'winning_game_name', 'closed_at')
+    : []
+  const lastSessionMap = new Map(lastSessions.map((s: { group_id: string; winning_game_app_id: number; winning_game_name: string; closed_at: string }) => [s.group_id, s]))
+
   res.json(groups.map(g => ({
     id: g.id,
     name: g.name,
     role: g.role,
     createdAt: g.created_at,
-    memberCount: 0, // will be enriched below
+    memberCount: memberCountMap.get(g.id) || 0,
+    lastSession: lastSessionMap.has(g.id)
+      ? {
+          gameName: lastSessionMap.get(g.id)!.winning_game_name,
+          gameAppId: lastSessionMap.get(g.id)!.winning_game_app_id,
+          closedAt: lastSessionMap.get(g.id)!.closed_at,
+        }
+      : null,
   })))
 })
 

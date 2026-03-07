@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Plus, LogIn, Users, Gamepad2 } from 'lucide-react'
+import { Plus, LogIn, Users, Gamepad2, Trophy } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
@@ -141,11 +141,22 @@ export function GroupsPage() {
               <Link key={group.id} to={`/groups/${group.id}`} className="block">
                 <Card className="p-4 hover:border-primary/50 transition-colors">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <h3 className="font-semibold">{group.name}</h3>
-                      <p className="text-sm text-muted-foreground">{group.role}</p>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Users className="w-3 h-3" />
+                          {group.memberCount}
+                        </span>
+                        {group.lastSession && (
+                          <span className="flex items-center gap-1 truncate">
+                            <Trophy className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{group.lastSession.gameName}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <Gamepad2 className="w-5 h-5 text-muted-foreground" />
+                    <Gamepad2 className="w-5 h-5 text-muted-foreground shrink-0" />
                   </div>
                 </Card>
               </Link>

@@ -94,9 +94,19 @@ export async function up(knex: Knex): Promise<void> {
     table.unique(['session_id', 'user_id', 'steam_app_id'])
     table.index(['session_id'])
   })
+
+  // Game metadata (Steam store enrichment)
+  await knex.schema.createTable('game_metadata', (table) => {
+    table.integer('steam_app_id').primary()
+    table.jsonb('categories').nullable()
+    table.boolean('is_multiplayer').nullable()
+    table.boolean('is_coop').nullable()
+    table.timestamp('enriched_at').nullable()
+  })
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.schema.dropTableIfExists('game_metadata')
   await knex.schema.dropTableIfExists('votes')
   await knex.schema.dropTableIfExists('voting_session_games')
   await knex.schema.dropTableIfExists('voting_sessions')

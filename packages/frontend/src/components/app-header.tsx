@@ -1,9 +1,18 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Gamepad2, LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth.store'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface AppHeaderProps {
   children?: React.ReactNode
@@ -15,6 +24,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { logout } = useAuthStore()
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false)
 
   const handleLogout = async () => {
     await logout()
@@ -44,10 +54,27 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
           </span>
         </button>
         <div className="flex-1" />
-        <Button variant="ghost" size="icon" onClick={handleLogout} aria-label={t('groups.logout')}>
+        <Button variant="ghost" size="icon" onClick={() => setShowLogoutDialog(true)} aria-label={t('groups.logout')}>
           <LogOut className="h-5 w-5" />
         </Button>
       </nav>
+
+      <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('groups.logoutConfirmTitle')}</DialogTitle>
+            <DialogDescription>{t('groups.logoutConfirmDescription')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowLogoutDialog(false)}>
+              {t('groups.logoutCancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleLogout}>
+              {t('groups.logoutConfirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </header>
   )
 }

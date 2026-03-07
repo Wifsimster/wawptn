@@ -30,5 +30,13 @@ export function validateEnv(): void {
     if (env.BETTER_AUTH_SECRET.length < 32) {
       throw new Error('BETTER_AUTH_SECRET must be at least 32 characters')
     }
+
+    if (env.CORS_ORIGIN.includes('localhost')) {
+      throw new Error('CORS_ORIGIN must not contain localhost in production')
+    }
+
+    if (env.API_URL.includes('localhost')) {
+      throw new Error('API_URL must not contain localhost in production')
+    }
   }
 }

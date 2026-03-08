@@ -1,6 +1,6 @@
 {
   "name": "@wawptn/types",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Shared TypeScript types for WAWPTN",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

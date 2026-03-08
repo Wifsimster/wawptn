@@ -326,10 +326,36 @@ async function syncUserLibrary(userId: string, steamId: string): Promise<void> {
   // Upsert all games
   const now = new Date()
   for (const game of games) {
+    // Find or create canonical game entry
+    let gameId: string | null = null
+    const existingMapping = await db('game_platform_ids')
+      .where({ platform: 'steam', platform_game_id: String(game.appid) })
+      .first()
+
+    if (existingMapping) {
+      gameId = existingMapping.game_id
+    } else {
+      // Create canonical game + platform mapping
+      const [newGame] = await db('games')
+        .insert({
+          canonical_name: game.name,
+          cover_image_url: getHeaderImageUrl(game.appid),
+        })
+        .returning('id')
+      gameId = newGame.id
+      await db('game_platform_ids').insert({
+        game_id: gameId,
+        platform: 'steam',
+        platform_game_id: String(game.appid),
+      })
+    }
+
     await db('user_games')
       .insert({
         user_id: userId,
         steam_app_id: game.appid,
+        game_id: gameId,
+        platform: 'steam',
         game_name: game.name,
         header_image_url: getHeaderImageUrl(game.appid),
         synced_at: now,
@@ -337,6 +363,7 @@ async function syncUserLibrary(userId: string, steamId: string): Promise<void> {
       .onConflict(['user_id', 'steam_app_id'])
       .merge({
         game_name: game.name,
+        game_id: gameId,
         header_image_url: getHeaderImageUrl(game.appid),
         synced_at: now,
       })

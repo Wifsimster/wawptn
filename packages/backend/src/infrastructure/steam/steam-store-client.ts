@@ -199,8 +199,14 @@ async function enrichGameMetadata(appIds: number[]): Promise<void> {
     const isMultiplayer = categoryIds.some(id => MULTIPLAYER_CATEGORY_IDS.has(id))
     const isCoop = categoryIds.some(id => COOP_CATEGORY_IDS.has(id))
 
+    // Look up game_id from platform mapping
+    const platformMapping = await db('game_platform_ids')
+      .where({ platform: 'steam', platform_game_id: String(appId) })
+      .first()
+
     const row = {
       steam_app_id: appId,
+      game_id: platformMapping?.game_id || null,
       type: details.type,
       short_description: details.shortDescription,
       is_free: details.isFree,

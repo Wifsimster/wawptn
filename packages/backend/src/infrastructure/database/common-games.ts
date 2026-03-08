@@ -2,6 +2,7 @@ import { db } from './connection.js'
 
 interface CommonGameRow {
   steamAppId: number
+  gameId: string | null
   gameName: string
   headerImageUrl: string | null
   ownerCount: number
@@ -47,10 +48,11 @@ export async function computeCommonGames(
   }
 
   const games = await query
-    .groupBy('user_games.steam_app_id', 'user_games.game_name', 'user_games.header_image_url')
+    .groupBy('user_games.steam_app_id', 'user_games.game_id', 'user_games.game_name', 'user_games.header_image_url')
     .havingRaw('COUNT(DISTINCT user_games.user_id) >= ?', [threshold])
     .select(
       'user_games.steam_app_id as steamAppId',
+      'user_games.game_id as gameId',
       'user_games.game_name as gameName',
       'user_games.header_image_url as headerImageUrl',
       db.raw('COUNT(DISTINCT user_games.user_id) as "ownerCount"'),
@@ -72,6 +74,7 @@ export async function computeCommonGames(
 
   return games.map((g: Record<string, unknown>) => ({
     steamAppId: g.steamAppId as number,
+    gameId: (g.gameId as string | null) ?? null,
     gameName: g.gameName as string,
     headerImageUrl: g.headerImageUrl as string | null,
     ownerCount: Number(g.ownerCount),

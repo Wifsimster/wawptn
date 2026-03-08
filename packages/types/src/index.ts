@@ -49,13 +49,16 @@ export interface GroupWithMembers extends Group {
 export interface UserGame {
   userId: string
   steamAppId: number
+  gameId?: string
   gameName: string
   headerImageUrl: string | null
+  platform?: string
   syncedAt: string
 }
 
 export interface CommonGame {
   steamAppId: number
+  gameId?: string
   gameName: string
   headerImageUrl: string | null
   ownerCount: number
@@ -77,6 +80,7 @@ export interface CommonGame {
 
 export interface GameMetadata {
   steamAppId: number
+  gameId?: string
   type: string | null
   shortDescription: string | null
   isFree: boolean | null
@@ -106,6 +110,7 @@ export interface VotingSession {
   status: VotingSessionStatus
   createdBy: string
   winningGameAppId: number | null
+  winningGameId: string | null
   winningGameName: string | null
   scheduledAt: string | null
   createdAt: string
@@ -116,6 +121,7 @@ export interface Vote {
   sessionId: string
   userId: string
   steamAppId: number
+  gameId?: string
   vote: boolean
   createdAt: string
 }
@@ -129,6 +135,7 @@ export interface VotingSessionWithVotes extends VotingSession {
 
 export interface VoteResult {
   steamAppId: number
+  gameId?: string
   gameName: string
   headerImageUrl: string | null
   yesCount: number

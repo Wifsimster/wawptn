@@ -64,12 +64,12 @@ router.get('/:groupId/vote', async (req: Request, res: Response) => {
   // Get current user's votes
   const myVotes = await db('votes')
     .where({ session_id: session.id, user_id: userId })
-    .select('steam_app_id as steamAppId', 'vote')
+    .select('steam_app_id as steamAppId', 'game_id as gameId', 'vote')
 
   // Get the games in this session
   const games = await db('voting_session_games')
     .where({ session_id: session.id })
-    .select('steam_app_id as steamAppId', 'game_name as gameName', 'header_image_url as headerImageUrl')
+    .select('steam_app_id as steamAppId', 'game_id as gameId', 'game_name as gameName', 'header_image_url as headerImageUrl')
 
   // Get participant IDs
   const participantIds = totalParticipants > 0
@@ -220,6 +220,7 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
     selectedGames.map(g => ({
       session_id: session.id,
       steam_app_id: g.steamAppId,
+      game_id: g.gameId || null,
       game_name: g.gameName,
       header_image_url: g.headerImageUrl,
     }))
@@ -247,6 +248,7 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
     },
     games: selectedGames.map(g => ({
       steamAppId: g.steamAppId,
+      gameId: g.gameId || undefined,
       gameName: g.gameName,
       headerImageUrl: g.headerImageUrl,
     })),
@@ -301,12 +303,18 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
     }
   }
 
+  // Look up game_id from the session games
+  const sessionGame = await db('voting_session_games')
+    .where({ session_id: sessionId, steam_app_id: steamAppId })
+    .first()
+
   // Upsert vote (DB unique constraint prevents duplicates)
   await db('votes')
     .insert({
       session_id: sessionId,
       user_id: userId,
       steam_app_id: steamAppId,
+      game_id: sessionGame?.game_id || null,
       vote,
     })
     .onConflict(['session_id', 'user_id', 'steam_app_id'])
@@ -398,7 +406,7 @@ router.get('/:groupId/vote/history', async (req: Request, res: Response) => {
     .where({ group_id: groupId, status: 'closed' })
     .orderBy('closed_at', 'desc')
     .limit(10)
-    .select('id', 'winning_game_app_id as winningGameAppId', 'winning_game_name as winningGameName', 'closed_at as closedAt')
+    .select('id', 'winning_game_app_id as winningGameAppId', 'winning_game_id as winningGameId', 'winning_game_name as winningGameName', 'closed_at as closedAt')
 
   res.json(sessions)
 })

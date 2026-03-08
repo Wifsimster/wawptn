@@ -29,6 +29,7 @@ export async function closeSession(sessionId: string, groupId: string): Promise<
     .orderBy('yes_count', 'desc')
 
   let winnerAppId: number | null = null
+  let winnerGameId: string | null = null
   let winnerName: string | null = null
 
   if (results.length > 0) {
@@ -41,11 +42,13 @@ export async function closeSession(sessionId: string, groupId: string): Promise<
       .where({ session_id: sessionId, steam_app_id: winnerAppId })
       .first()
     winnerName = gameInfo?.game_name || null
+    winnerGameId = gameInfo?.game_id || null
   }
 
   await db('voting_sessions').where({ id: sessionId }).update({
     winning_game_app_id: winnerAppId,
     winning_game_name: winnerName,
+    winning_game_id: winnerGameId,
   })
 
   const voterCount = await db('votes')
@@ -55,6 +58,7 @@ export async function closeSession(sessionId: string, groupId: string): Promise<
 
   const result: VoteResult = {
     steamAppId: winnerAppId ?? 0,
+    gameId: winnerGameId ?? undefined,
     gameName: winnerName ?? 'Unknown',
     headerImageUrl: winnerAppId ? `https://cdn.akamai.steamstatic.com/steam/apps/${winnerAppId}/header.jpg` : null,
     yesCount: results.length > 0 ? Number(results[0]!.yes_count) : 0,

@@ -14,12 +14,14 @@ import { Progress } from '@/components/ui/progress'
 
 interface Game {
   steamAppId: number
+  gameId?: string
   gameName: string
   headerImageUrl: string
 }
 
 interface VoteResult {
   steamAppId: number
+  gameId?: string
   gameName: string
   headerImageUrl: string | null
   yesCount: number

@@ -28,9 +28,9 @@ export function GroupPage() {
   const navigate = useNavigate()
   const { currentGroup, fetchGroup, leaveGroup, deleteGroup } = useGroupStore()
   const { user } = useAuthStore()
-  const [commonGames, setCommonGames] = useState<{ steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null; type: string | null; shortDescription: string | null; platforms: { windows: boolean; mac: boolean; linux: boolean } | null; recommendationsTotal: number | null; releaseDate: string | null; comingSoon: boolean | null; controllerSupport: string | null; isFree: boolean | null }[]>([])
+  const [commonGames, setCommonGames] = useState<{ steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null; type: string | null; shortDescription: string | null; platforms: { windows: boolean; mac: boolean; linux: boolean } | null; recommendationsTotal: number | null; releaseDate: string | null; comingSoon: boolean | null; controllerSupport: string | null; isFree: boolean | null }[]>([])
   const [syncing, setSyncing] = useState(false)
-  const [voteHistory, setVoteHistory] = useState<{ id: string; winningGameAppId: number; winningGameName: string; closedAt: string }[]>([])
+  const [voteHistory, setVoteHistory] = useState<{ id: string; winningGameAppId: number; winningGameId?: string; winningGameName: string; closedAt: string }[]>([])
   const [inviteToken, setInviteToken] = useState<string | null>(null)
   const [loadingGames, setLoadingGames] = useState(true)
   const [gameFilters, setGameFilters] = useState<GameFilters>({

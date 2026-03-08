@@ -56,7 +56,7 @@ export const api = {
     method: 'DELETE',
   }),
   getCommonGames: (groupId: string, filter?: string) => request<{
-    games: { steamAppId: number; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null; type: string | null; shortDescription: string | null; platforms: { windows: boolean; mac: boolean; linux: boolean } | null; recommendationsTotal: number | null; releaseDate: string | null; comingSoon: boolean | null; controllerSupport: string | null; isFree: boolean | null; contentDescriptors: { ids: number[]; notes: string | null } | null }[];
+    games: { steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null; type: string | null; shortDescription: string | null; platforms: { windows: boolean; mac: boolean; linux: boolean } | null; recommendationsTotal: number | null; releaseDate: string | null; comingSoon: boolean | null; controllerSupport: string | null; isFree: boolean | null; contentDescriptors: { ids: number[]; notes: string | null } | null }[];
     totalMembers: number; threshold: number;
   }>(`/groups/${groupId}/common-games${filter ? `?filter=${filter}` : ''}`),
   syncLibraries: (groupId: string) => request(`/groups/${groupId}/sync`, { method: 'POST' }),
@@ -69,13 +69,13 @@ export const api = {
   // Voting
   getVoteSession: (groupId: string) => request<{
     session: { id: string; groupId: string; status: string; createdBy: string; scheduledAt: string | null; createdAt: string } | null;
-    games: { steamAppId: number; gameName: string; headerImageUrl: string }[];
-    myVotes: { steamAppId: number; vote: boolean }[];
+    games: { steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string }[];
+    myVotes: { steamAppId: number; gameId?: string; vote: boolean }[];
     voterCount: number; totalMembers: number; isParticipant: boolean; participantIds: string[];
   }>(`/groups/${groupId}/vote`),
   createVoteSession: (groupId: string, participantIds: string[], filter?: string, scheduledAt?: string) => request<{
     session: { id: string; groupId: string; status: string; createdBy: string; scheduledAt: string | null; createdAt: string };
-    games: { steamAppId: number; gameName: string; headerImageUrl: string }[];
+    games: { steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string }[];
   }>(`/groups/${groupId}/vote`, {
     method: 'POST',
     body: JSON.stringify({ participantIds, ...(filter ? { filter } : {}), ...(scheduledAt ? { scheduledAt } : {}) }),
@@ -86,10 +86,10 @@ export const api = {
       body: JSON.stringify({ steamAppId, vote }),
     }),
   closeVote: (groupId: string, sessionId: string) =>
-    request<{ result: { steamAppId: number; gameName: string; headerImageUrl: string | null; yesCount: number; totalVoters: number } }>(
+    request<{ result: { steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string | null; yesCount: number; totalVoters: number } }>(
       `/groups/${groupId}/vote/${sessionId}/close`, { method: 'POST' }
     ),
-  getVoteHistory: (groupId: string) => request<{ id: string; winningGameAppId: number; winningGameName: string; closedAt: string }[]>(
+  getVoteHistory: (groupId: string) => request<{ id: string; winningGameAppId: number; winningGameId?: string; winningGameName: string; closedAt: string }[]>(
     `/groups/${groupId}/vote/history`
   ),
 }

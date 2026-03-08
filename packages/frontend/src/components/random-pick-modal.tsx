@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card'
 
 interface Game {
   steamAppId: number
+  gameId?: string
   gameName: string
   headerImageUrl: string | null
 }

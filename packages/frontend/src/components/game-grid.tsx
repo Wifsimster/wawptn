@@ -10,6 +10,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 
 interface Game {
   steamAppId: number
+  gameId?: string
   gameName: string
   headerImageUrl: string
   ownerCount: number

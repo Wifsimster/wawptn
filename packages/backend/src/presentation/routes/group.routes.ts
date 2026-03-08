@@ -399,6 +399,7 @@ router.get('/:id/common-games', async (req: Request, res: Response) => {
     res.json({
       games: commonGames.map(g => ({
         ...g,
+        gameId: g.gameId || undefined,
         totalMembers,
         genres: g.genres ? JSON.parse(g.genres) : null,
         platforms: g.platforms ? JSON.parse(g.platforms) : null,

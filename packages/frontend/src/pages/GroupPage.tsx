@@ -41,7 +41,7 @@ export function GroupPage() {
     gamesOnly: true,
     controllerOnly: false,
     platform: 'all',
-    sortBy: 'owners',
+    sortBy: 'popularity',
   })
   const [voteSetupOpen, setVoteSetupOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
@@ -354,7 +354,7 @@ export function GroupPage() {
                 gamesOnly: true,
                 controllerOnly: false,
                 platform: 'all',
-                sortBy: 'owners',
+                sortBy: 'popularity',
               })}
             />
           </div>

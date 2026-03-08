@@ -5,7 +5,14 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+  ResponsiveDialogFooter,
+} from '@/components/ui/responsive-dialog'
 import { InviteLink } from '@/components/invite-link'
 
 interface Member {
@@ -241,46 +248,46 @@ export function GroupSidebar({ members, syncing, inviteToken, voteHistory, onlin
       )}
 
       {/* Leave confirmation dialog */}
-      <Dialog open={confirmLeave} onOpenChange={setConfirmLeave}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('group.leaveConfirmTitle')}</DialogTitle>
-            <DialogDescription>{t('group.leaveConfirmDescription')}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+      <ResponsiveDialog open={confirmLeave} onOpenChange={setConfirmLeave}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>{t('group.leaveConfirmTitle')}</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>{t('group.leaveConfirmDescription')}</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <ResponsiveDialogFooter>
             <Button variant="outline" onClick={() => setConfirmLeave(false)}>{t('group.cancel')}</Button>
             <Button variant="destructive" onClick={() => { setConfirmLeave(false); onLeaveGroup() }}>{t('group.leaveGroup')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* Delete confirmation dialog */}
-      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('group.deleteConfirmTitle')}</DialogTitle>
-            <DialogDescription>{t('group.deleteConfirmDescription')}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+      <ResponsiveDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>{t('group.deleteConfirmTitle')}</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>{t('group.deleteConfirmDescription')}</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <ResponsiveDialogFooter>
             <Button variant="outline" onClick={() => setConfirmDelete(false)}>{t('group.cancel')}</Button>
             <Button variant="destructive" onClick={() => { setConfirmDelete(false); onDeleteGroup() }}>{t('group.deleteGroup')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* Kick confirmation dialog */}
-      <Dialog open={!!confirmKick} onOpenChange={(open) => !open && setConfirmKick(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('group.kickConfirmTitle')}</DialogTitle>
-            <DialogDescription>{t('group.kickConfirmDescription', { name: confirmKick?.displayName })}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+      <ResponsiveDialog open={!!confirmKick} onOpenChange={(open) => !open && setConfirmKick(null)}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>{t('group.kickConfirmTitle')}</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>{t('group.kickConfirmDescription', { name: confirmKick?.displayName })}</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <ResponsiveDialogFooter>
             <Button variant="outline" onClick={() => setConfirmKick(null)}>{t('group.cancel')}</Button>
             <Button variant="destructive" onClick={() => { if (confirmKick) { onKickMember(confirmKick.id); setConfirmKick(null) } }}>{t('group.kickConfirm')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
     </aside>
   )
 }

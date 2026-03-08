@@ -6,13 +6,13 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth.store'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogFooter,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
 
 interface AppHeaderProps {
   children?: React.ReactNode
@@ -59,22 +59,22 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
         </Button>
       </nav>
 
-      <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('groups.logoutConfirmTitle')}</DialogTitle>
-            <DialogDescription>{t('groups.logoutConfirmDescription')}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+      <ResponsiveDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>{t('groups.logoutConfirmTitle')}</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>{t('groups.logoutConfirmDescription')}</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <ResponsiveDialogFooter>
             <Button variant="secondary" onClick={() => setShowLogoutDialog(false)}>
               {t('groups.logoutCancel')}
             </Button>
             <Button variant="destructive" onClick={handleLogout}>
               {t('groups.logoutConfirm')}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
     </header>
   )
 }

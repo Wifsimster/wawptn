@@ -2,7 +2,11 @@ import { useState, useCallback, useEffect } from 'react'
 import { ExternalLink, RotateCcw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
@@ -141,11 +145,11 @@ export function RandomPickModal({ open, onOpenChange, games }: RandomPickModalPr
   }, [onOpenChange])
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden">
-        <DialogTitle className="sr-only">{t('randomPick.title')}</DialogTitle>
+    <ResponsiveDialog open={open} onOpenChange={handleOpenChange}>
+      <ResponsiveDialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden">
+        <ResponsiveDialogTitle className="sr-only">{t('randomPick.title')}</ResponsiveDialogTitle>
         {open && games.length > 0 && <RandomPickContent key={sessionKey} games={games} />}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

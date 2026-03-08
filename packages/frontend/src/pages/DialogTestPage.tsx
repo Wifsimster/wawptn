@@ -2,13 +2,13 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogFooter,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
 
 /**
  * Visual test page for dialog components at various viewports.
@@ -23,6 +23,7 @@ export function DialogTestPage() {
       <h1 className="text-2xl font-bold">Dialog Test Page</h1>
       <p className="text-sm text-muted-foreground">
         Resize browser or use DevTools device toolbar (375px, 390px, 430px) to test mobile.
+        On mobile: swipe-to-dismiss drawer. On desktop: centered dialog.
       </p>
 
       <div className="flex flex-wrap gap-2">
@@ -34,23 +35,23 @@ export function DialogTestPage() {
       </div>
 
       {/* Simple Dialog */}
-      <Dialog open={activeDialog === 'simple'} onOpenChange={(open) => !open && setActiveDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Simple Dialog</DialogTitle>
-            <DialogDescription>This is a simple dialog with header and description. Check bottom-sheet on mobile and centered on desktop.</DialogDescription>
-          </DialogHeader>
-          <p className="text-sm">Content goes here. The close button should have a 44px touch target.</p>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveDialog open={activeDialog === 'simple'} onOpenChange={(open) => !open && setActiveDialog(null)}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>Simple Dialog</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>This is a simple dialog with header and description. Drawer on mobile, centered on desktop.</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <p className="text-sm">Content goes here. On mobile you can swipe down to dismiss.</p>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* Form Dialog (like Create/Join Group) */}
-      <Dialog open={activeDialog === 'form'} onOpenChange={(open) => !open && setActiveDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Form Dialog</DialogTitle>
-            <DialogDescription>Test input + button layout on mobile.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveDialog open={activeDialog === 'form'} onOpenChange={(open) => !open && setActiveDialog(null)}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>Form Dialog</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>Test input + button layout on mobile.</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
           <div className="mt-4 space-y-2">
             <label htmlFor="test-input" className="text-sm font-medium">Label</label>
             <div className="flex gap-2">
@@ -58,30 +59,30 @@ export function DialogTestPage() {
               <Button>Submit</Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* Footer Dialog (like Logout) */}
-      <Dialog open={activeDialog === 'footer'} onOpenChange={(open) => !open && setActiveDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Footer Dialog</DialogTitle>
-            <DialogDescription>Buttons should stack on mobile with gap, be horizontal on desktop.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+      <ResponsiveDialog open={activeDialog === 'footer'} onOpenChange={(open) => !open && setActiveDialog(null)}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>Footer Dialog</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>Buttons should stack on mobile with gap, be horizontal on desktop.</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <ResponsiveDialogFooter>
             <Button variant="secondary" onClick={() => setActiveDialog(null)}>Cancel</Button>
             <Button variant="destructive" onClick={() => setActiveDialog(null)}>Confirm</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* Long Content Dialog (like Vote Setup) */}
-      <Dialog open={activeDialog === 'long'} onOpenChange={(open) => !open && setActiveDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Long Content Dialog</DialogTitle>
-            <DialogDescription>Content should scroll within 85dvh. Footer should remain visible.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveDialog open={activeDialog === 'long'} onOpenChange={(open) => !open && setActiveDialog(null)}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>Long Content Dialog</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>Content should scroll within the drawer/dialog.</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
           <div className="space-y-3">
             {Array.from({ length: 20 }, (_, i) => (
               <div key={i} className="flex items-center gap-3 py-2.5 px-2 rounded-md hover:bg-accent/50">
@@ -90,17 +91,17 @@ export function DialogTestPage() {
               </div>
             ))}
           </div>
-          <DialogFooter className="sm:justify-between">
+          <ResponsiveDialogFooter className="sm:justify-between">
             <Button variant="ghost" onClick={() => setActiveDialog(null)}>Back</Button>
             <Button onClick={() => setActiveDialog(null)}>Continue</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* No Padding Dialog (like Random Pick) */}
-      <Dialog open={activeDialog === 'no-padding'} onOpenChange={(open) => !open && setActiveDialog(null)}>
-        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden">
-          <DialogTitle className="sr-only">No Padding Dialog</DialogTitle>
+      <ResponsiveDialog open={activeDialog === 'no-padding'} onOpenChange={(open) => !open && setActiveDialog(null)}>
+        <ResponsiveDialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden">
+          <ResponsiveDialogTitle className="sr-only">No Padding Dialog</ResponsiveDialogTitle>
           <div className="w-full aspect-[460/215] bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
             <span className="text-lg font-bold text-muted-foreground">Game Image Area</span>
           </div>
@@ -115,8 +116,8 @@ export function DialogTestPage() {
             </div>
             <p className="text-xs text-muted-foreground text-center">Press Space to reroll</p>
           </div>
-        </DialogContent>
-      </Dialog>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
     </div>
   )
 }

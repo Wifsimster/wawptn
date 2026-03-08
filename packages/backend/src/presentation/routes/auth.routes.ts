@@ -195,6 +195,106 @@ router.get('/me', async (req: Request, res: Response) => {
   }
 })
 
+// Get full profile with platform connections
+router.get('/profile', async (req: Request, res: Response) => {
+  try {
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    })
+
+    if (!session) {
+      res.status(401).json({ error: 'unauthorized', message: 'No session' })
+      return
+    }
+
+    const userId = session.user.id
+    const user = await db('users').where({ id: userId }).first()
+    if (!user) {
+      res.status(404).json({ error: 'not_found', message: 'User not found' })
+      return
+    }
+
+    // Get game count
+    const gameCountResult = await db('user_games')
+      .where({ user_id: userId })
+      .count('* as count')
+      .first()
+    const gameCount = Number(gameCountResult?.count || 0)
+
+    // Get last sync time
+    const lastSync = await db('user_games')
+      .where({ user_id: userId })
+      .max('synced_at as lastSyncedAt')
+      .first()
+
+    // Get connected platforms from accounts table
+    const accounts = await db('accounts')
+      .where({ user_id: userId })
+      .select('provider_id', 'account_id', 'created_at')
+
+    const platforms = [
+      {
+        id: 'steam',
+        name: 'Steam',
+        connected: accounts.some((a: { provider_id: string }) => a.provider_id === 'steam'),
+        accountId: user.steam_id || null,
+        gameCount,
+        lastSyncedAt: lastSync?.lastSyncedAt || null,
+        profileUrl: user.profile_url || null,
+      },
+      { id: 'battlenet', name: 'Battle.net', connected: false, comingSoon: true },
+      { id: 'epic', name: 'Epic Games', connected: false, comingSoon: true },
+      { id: 'gog', name: 'GOG', connected: false, comingSoon: true },
+      { id: 'ubisoft', name: 'Ubisoft Connect', connected: false, comingSoon: true },
+    ]
+
+    res.json({
+      id: user.id,
+      steamId: user.steam_id,
+      displayName: user.display_name,
+      avatarUrl: user.avatar_url,
+      profileUrl: user.profile_url,
+      libraryVisible: user.library_visible,
+      createdAt: user.created_at,
+      platforms,
+    })
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'get profile failed')
+    res.status(500).json({ error: 'internal', message: 'Failed to get profile' })
+  }
+})
+
+// Sync current user's Steam library
+router.post('/profile/sync', async (req: Request, res: Response) => {
+  try {
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    })
+
+    if (!session) {
+      res.status(401).json({ error: 'unauthorized', message: 'No session' })
+      return
+    }
+
+    const userId = session.user.id
+    const user = await db('users').where({ id: userId }).first()
+    if (!user?.steam_id) {
+      res.status(400).json({ error: 'no_steam', message: 'No Steam account connected' })
+      return
+    }
+
+    // Trigger background sync
+    syncUserLibrary(userId, user.steam_id).catch(err => {
+      steamLogger.error({ error: String(err), steamId: user.steam_id }, 'profile sync failed')
+    })
+
+    res.json({ ok: true, message: 'Library sync started' })
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'profile sync failed')
+    res.status(500).json({ error: 'internal', message: 'Failed to start sync' })
+  }
+})
+
 // Logout — uses Better Auth's session revocation
 router.post('/logout', async (req: Request, res: Response) => {
   try {

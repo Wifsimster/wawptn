@@ -22,6 +22,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   getMe: () => request<{ id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean }>('/auth/me'),
   logout: () => request('/auth/logout', { method: 'POST' }),
+  getProfile: () => request<{
+    id: string; steamId: string; displayName: string; avatarUrl: string; profileUrl: string | null;
+    libraryVisible: boolean; createdAt: string;
+    platforms: {
+      id: string; name: string; connected: boolean; comingSoon?: boolean;
+      accountId?: string | null; gameCount?: number; lastSyncedAt?: string | null; profileUrl?: string | null;
+    }[];
+  }>('/auth/profile'),
+  syncProfile: () => request<{ ok: boolean }>('/auth/profile/sync', { method: 'POST' }),
 
   // Groups
   getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null }[]>('/groups'),

@@ -7,6 +7,7 @@ import { GroupsPage } from '@/pages/GroupsPage'
 import { GroupPage } from '@/pages/GroupPage'
 import { VotePage } from '@/pages/VotePage'
 import { JoinPage } from '@/pages/JoinPage'
+import { ProfilePage } from '@/pages/ProfilePage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DialogTestPage } from '@/pages/DialogTestPage'
 
@@ -57,6 +58,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<GroupsPage />} />
+      <Route path="/profile" element={<ProfilePage />} />
       <Route path="/groups/:id" element={<GroupPage />} />
       <Route path="/groups/:id/vote" element={<VotePage />} />
       <Route path="/join/:token" element={<JoinPage />} />

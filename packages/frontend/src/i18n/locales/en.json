@@ -181,5 +181,22 @@
     "copied": "Link copied!",
     "share": "Share",
     "shareText": "Join our group on WAWPTN!"
+  },
+  "profile": {
+    "title": "My Profile",
+    "platforms": "Connected Platforms",
+    "connected": "Connected",
+    "notConnected": "Not connected",
+    "comingSoon": "Coming soon",
+    "gameCount": "{{count}} games",
+    "lastSync": "Last sync: {{date}}",
+    "neverSynced": "Never synced",
+    "syncNow": "Sync",
+    "syncing": "Syncing...",
+    "syncSuccess": "Library synced!",
+    "syncError": "Sync error",
+    "disconnect": "Disconnect",
+    "memberSince": "Member since {{date}}",
+    "steamProfile": "View Steam profile"
   }
 }

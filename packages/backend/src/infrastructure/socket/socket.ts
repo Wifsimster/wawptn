@@ -54,6 +54,7 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
     try {
       const cookieHeader = socket.handshake.headers.cookie
       if (!cookieHeader) {
+        socketLogger.debug('socket auth: no cookie header')
         return next(new Error('unauthorized'))
       }
 
@@ -61,6 +62,7 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
       const cookies = parseCookie(cookieHeader)
       const raw = cookies[SESSION_COOKIE_NAME]
       if (!raw) {
+        socketLogger.debug('socket auth: no session cookie')
         return next(new Error('unauthorized'))
       }
 
@@ -69,6 +71,7 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
         ? unsign(raw.slice(2), env.BETTER_AUTH_SECRET)
         : raw // fallback for unsigned cookies during transition
       if (!token) {
+        socketLogger.info('socket auth: invalid cookie signature')
         return next(new Error('unauthorized'))
       }
 
@@ -78,12 +81,14 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
         .first()
 
       if (!session) {
+        socketLogger.info('socket auth: expired or invalid session')
         return next(new Error('unauthorized'))
       }
 
       socket.data.userId = session.user_id
       next()
-    } catch {
+    } catch (error) {
+      socketLogger.error({ error: String(error) }, 'socket auth: database error')
       next(new Error('unauthorized'))
     }
   })

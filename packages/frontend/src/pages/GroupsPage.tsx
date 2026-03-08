@@ -8,7 +8,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+} from '@/components/ui/responsive-dialog'
 import { AppHeader } from '@/components/app-header'
 import { InviteLink } from '@/components/invite-link'
 
@@ -88,12 +94,12 @@ export function GroupsPage() {
         </div>
 
         {/* Create Group Dialog */}
-        <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) setInviteResult(null) }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t('createGroup.title')}</DialogTitle>
-              <DialogDescription>{t('createGroup.description')}</DialogDescription>
-            </DialogHeader>
+        <ResponsiveDialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) setInviteResult(null) }}>
+          <ResponsiveDialogContent>
+            <ResponsiveDialogHeader>
+              <ResponsiveDialogTitle>{t('createGroup.title')}</ResponsiveDialogTitle>
+              <ResponsiveDialogDescription>{t('createGroup.description')}</ResponsiveDialogDescription>
+            </ResponsiveDialogHeader>
             <div className="mt-4 space-y-2">
               <label htmlFor="group-name" className="text-sm font-medium">
                 {t('createGroup.label')}
@@ -119,16 +125,16 @@ export function GroupsPage() {
               )}
             </div>
             {inviteResult && <InviteLink token={inviteResult} />}
-          </DialogContent>
-        </Dialog>
+          </ResponsiveDialogContent>
+        </ResponsiveDialog>
 
         {/* Join Group Dialog */}
-        <Dialog open={showJoin} onOpenChange={setShowJoin}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t('joinGroup.title')}</DialogTitle>
-              <DialogDescription>{t('joinGroup.description')}</DialogDescription>
-            </DialogHeader>
+        <ResponsiveDialog open={showJoin} onOpenChange={setShowJoin}>
+          <ResponsiveDialogContent>
+            <ResponsiveDialogHeader>
+              <ResponsiveDialogTitle>{t('joinGroup.title')}</ResponsiveDialogTitle>
+              <ResponsiveDialogDescription>{t('joinGroup.description')}</ResponsiveDialogDescription>
+            </ResponsiveDialogHeader>
             <div className="mt-4 space-y-2">
               <label htmlFor="invite-token" className="text-sm font-medium">
                 {t('joinGroup.label')}
@@ -153,8 +159,8 @@ export function GroupsPage() {
                 </p>
               )}
             </div>
-          </DialogContent>
-        </Dialog>
+          </ResponsiveDialogContent>
+        </ResponsiveDialog>
 
         {/* Groups List */}
         {loading ? (

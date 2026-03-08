@@ -10,7 +10,12 @@ import { getSocket } from '@/lib/socket'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
 import { AppHeader } from '@/components/app-header'
 import { GroupSidebar } from '@/components/group-sidebar'
 import { GameGrid, type GameFilters } from '@/components/game-grid'
@@ -355,12 +360,12 @@ export function GroupPage() {
           </div>
         </div>
 
-        {/* Mobile: sidebar as dialog sheet */}
-        <Dialog open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{currentGroup.name}</DialogTitle>
-            </DialogHeader>
+        {/* Mobile: sidebar as responsive dialog sheet */}
+        <ResponsiveDialog open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+          <ResponsiveDialogContent>
+            <ResponsiveDialogHeader>
+              <ResponsiveDialogTitle>{currentGroup.name}</ResponsiveDialogTitle>
+            </ResponsiveDialogHeader>
             <GroupSidebar
               members={currentGroup.members}
               syncing={syncing}
@@ -376,8 +381,8 @@ export function GroupPage() {
               onDeleteGroup={handleDeleteGroup}
               compact
             />
-          </DialogContent>
-        </Dialog>
+          </ResponsiveDialogContent>
+        </ResponsiveDialog>
       </main>
     </div>
   )

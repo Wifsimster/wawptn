@@ -1,7 +1,14 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Vote, Loader2, Users, Calendar } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogFooter,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+} from '@/components/ui/responsive-dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -117,19 +124,19 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+    <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDialogContent className="max-w-md">
         {step === 'select' && (
           <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+            <ResponsiveDialogHeader>
+              <ResponsiveDialogTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-primary" />
                 {t('voteSetup.title')}
-              </DialogTitle>
-              <DialogDescription>
+              </ResponsiveDialogTitle>
+              <ResponsiveDialogDescription>
                 {t('voteSetup.description')}
-              </DialogDescription>
-            </DialogHeader>
+              </ResponsiveDialogDescription>
+            </ResponsiveDialogHeader>
 
             <div className="space-y-3">
               <label htmlFor="select-all" className="flex items-center gap-3 py-2.5 cursor-pointer">
@@ -185,18 +192,18 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
 
         {step === 'confirm' && (
           <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+            <ResponsiveDialogHeader>
+              <ResponsiveDialogTitle className="flex items-center gap-2">
                 <Vote className="w-5 h-5 text-primary" />
                 {t('voteSetup.confirmTitle')}
-              </DialogTitle>
-              <DialogDescription>
+              </ResponsiveDialogTitle>
+              <ResponsiveDialogDescription>
                 {previewCount !== null
                   ? t('voteSetup.confirmDescription', { players: selectedIds.size, games: previewCount })
                   : t('voteSetup.confirmDescriptionNoPreview', { players: selectedIds.size })
                 }
-              </DialogDescription>
-            </DialogHeader>
+              </ResponsiveDialogDescription>
+            </ResponsiveDialogHeader>
 
             <div className="flex items-center gap-2 flex-wrap py-2">
               {members.filter(m => selectedIds.has(m.id)).map((member) => (
@@ -245,7 +252,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
               )}
             </div>
 
-            <DialogFooter className="mt-4 sm:justify-between">
+            <ResponsiveDialogFooter className="mt-4 sm:justify-between">
               <Button variant="ghost" onClick={handleBack}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 {t('voteSetup.back')}
@@ -253,10 +260,10 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
               <Button onClick={handleConfirm} disabled={isScheduled && !scheduledDate}>
                 {isScheduled ? t('voteSetup.scheduleVote') : t('voteSetup.startVote')}
               </Button>
-            </DialogFooter>
+            </ResponsiveDialogFooter>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

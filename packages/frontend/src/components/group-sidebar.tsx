@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut } from 'lucide-react'
+import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -32,6 +33,7 @@ interface VoteHistoryEntry {
 
 interface GroupSidebarProps {
   members: Member[]
+  groupName: string
   syncing: boolean
   inviteToken: string | null
   voteHistory: VoteHistoryEntry[]
@@ -43,15 +45,19 @@ interface GroupSidebarProps {
   onLeaveGroup: () => void
   onKickMember: (userId: string) => void
   onDeleteGroup: () => void
+  onRenameGroup: (name: string) => Promise<void>
   /** When true, renders a compact layout for mobile bottom sheets (no Card wrappers) */
   compact?: boolean
 }
 
-export function GroupSidebar({ members, syncing, inviteToken, voteHistory, onlineMembers, currentUserId, currentUserRole, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, compact = false }: GroupSidebarProps) {
+export function GroupSidebar({ members, groupName, syncing, inviteToken, voteHistory, onlineMembers, currentUserId, currentUserRole, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, compact = false }: GroupSidebarProps) {
   const { t, i18n } = useTranslation()
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmKick, setConfirmKick] = useState<Member | null>(null)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [renameName, setRenameName] = useState('')
+  const [renaming, setRenaming] = useState(false)
 
   const isOwner = currentUserRole === 'owner'
 
@@ -159,6 +165,17 @@ export function GroupSidebar({ members, syncing, inviteToken, voteHistory, onlin
         >
           <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin text-primary' : ''}`} />
           {t('group.syncLibraries')}
+        </Button>
+      )}
+
+      {isOwner && (
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => { setRenameName(groupName); setRenameOpen(true) }}
+        >
+          <Pencil className="w-4 h-4 mr-2" />
+          {t('group.renameGroup')}
         </Button>
       )}
 
@@ -286,6 +303,43 @@ export function GroupSidebar({ members, syncing, inviteToken, voteHistory, onlin
             <Button variant="outline" onClick={() => setConfirmKick(null)}>{t('group.cancel')}</Button>
             <Button variant="destructive" onClick={() => { if (confirmKick) { onKickMember(confirmKick.id); setConfirmKick(null) } }}>{t('group.kickConfirm')}</Button>
           </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+
+      {/* Rename group dialog */}
+      <ResponsiveDialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>{t('group.renameTitle')}</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>{t('group.renameDescription')}</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <form onSubmit={async (e) => {
+            e.preventDefault()
+            if (!renameName.trim() || renaming) return
+            setRenaming(true)
+            try {
+              await onRenameGroup(renameName.trim())
+              setRenameOpen(false)
+            } finally {
+              setRenaming(false)
+            }
+          }}>
+            <div className="px-4 pb-4">
+              <label htmlFor="rename-input" className="text-sm font-medium mb-2 block">{t('group.renameLabel')}</label>
+              <Input
+                id="rename-input"
+                value={renameName}
+                onChange={(e) => setRenameName(e.target.value)}
+                placeholder={t('group.renamePlaceholder')}
+                maxLength={100}
+                autoFocus
+              />
+            </div>
+            <ResponsiveDialogFooter>
+              <Button type="button" variant="outline" onClick={() => setRenameOpen(false)}>{t('group.cancel')}</Button>
+              <Button type="submit" disabled={!renameName.trim() || renameName.trim() === groupName || renaming}>{t('group.renameSubmit')}</Button>
+            </ResponsiveDialogFooter>
+          </form>
         </ResponsiveDialogContent>
       </ResponsiveDialog>
     </aside>

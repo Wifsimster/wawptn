@@ -151,18 +151,18 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
 
               <div className="border-t border-border" />
 
-              <div className="max-h-[40dvh] overflow-y-auto -mx-2">
+              <div className="max-h-[40dvh] overflow-y-auto overflow-x-hidden">
                 {sortedMembers.map((member) => {
                   const isOnline = onlineMembers.has(member.id)
                   return (
-                    <label key={member.id} htmlFor={`member-${member.id}`} className="flex items-center gap-3 py-2.5 px-2 rounded-md cursor-pointer hover:bg-accent/50">
+                    <label key={member.id} htmlFor={`member-${member.id}`} className="flex items-center gap-3 py-2.5 px-2 rounded-md cursor-pointer hover:bg-accent/50 min-w-0">
                       <Checkbox
                         id={`member-${member.id}`}
                         checked={selectedIds.has(member.id)}
                         onCheckedChange={() => toggleMember(member.id)}
-                        className="size-5"
+                        className="size-5 shrink-0"
                       />
-                      <div className="relative">
+                      <div className="relative shrink-0">
                         <Avatar className="w-7 h-7">
                           <AvatarImage src={member.avatarUrl} alt={member.displayName} />
                           <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
@@ -171,14 +171,14 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                           className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-card ${isOnline ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`}
                         />
                       </div>
-                      <span className={`text-sm font-medium ${!isOnline ? 'text-muted-foreground' : ''}`}>{member.displayName}</span>
+                      <span className={`text-sm font-medium truncate ${!isOnline ? 'text-muted-foreground' : ''}`}>{member.displayName}</span>
                     </label>
                   )
                 })}
               </div>
             </div>
 
-            <div className="flex justify-between items-center mt-4">
+            <div className="flex flex-wrap justify-between items-center gap-2 mt-4">
               <span className="text-xs text-muted-foreground">
                 {t('voteSetup.selectedCount', { count: selectedIds.size })}
               </span>
@@ -233,7 +233,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
               </label>
 
               {isScheduled && (
-                <div className="space-y-2 pl-8">
+                <div className="space-y-2 pl-4 sm:pl-8">
                   <label htmlFor="scheduled-date" className="text-xs text-muted-foreground">
                     {t('voteSetup.scheduleDateLabel')}
                   </label>
@@ -252,12 +252,12 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
               )}
             </div>
 
-            <ResponsiveDialogFooter className="mt-4 sm:justify-between">
-              <Button variant="ghost" onClick={handleBack}>
+            <ResponsiveDialogFooter className="mt-4 gap-2 sm:justify-between">
+              <Button variant="ghost" onClick={handleBack} className="w-full sm:w-auto">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 {t('voteSetup.back')}
               </Button>
-              <Button onClick={handleConfirm} disabled={isScheduled && !scheduledDate}>
+              <Button onClick={handleConfirm} disabled={isScheduled && !scheduledDate} className="w-full sm:w-auto">
                 {isScheduled ? t('voteSetup.scheduleVote') : t('voteSetup.startVote')}
               </Button>
             </ResponsiveDialogFooter>

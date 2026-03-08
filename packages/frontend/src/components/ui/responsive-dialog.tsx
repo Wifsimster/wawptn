@@ -82,7 +82,7 @@ const ResponsiveDialogContent = React.forwardRef<
 
   return (
     <DrawerContent ref={ref} className={cn('px-4', className)} {...props}>
-      <div className="overflow-y-auto max-h-[calc(96dvh-4rem)] px-0.5 py-2">
+      <div className="overflow-y-auto overflow-x-hidden max-h-[calc(96dvh-4rem)] px-0.5 py-2 min-w-0">
         {children}
       </div>
     </DrawerContent>

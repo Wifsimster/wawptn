@@ -230,15 +230,9 @@ router.get('/me', async (req: Request, res: Response) => {
 })
 
 // Get full profile with platform connections
-router.get('/profile', async (req: Request, res: Response) => {
+router.get('/profile', requireAuth, async (req: Request, res: Response) => {
   try {
-    const token = req.signedCookies?.[SESSION_COOKIE_NAME]
-    if (!token) {
-      res.status(401).json({ error: 'unauthorized', message: 'No session' })
-      return
-    }
-
-    const userId = await getSessionUserId(token)
+    const userId = req.userId
     if (!userId) {
       res.status(401).json({ error: 'unauthorized', message: 'No session' })
       return
@@ -350,7 +344,7 @@ router.get('/profile', async (req: Request, res: Response) => {
 })
 
 // Sync current user's Steam library
-router.post('/profile/sync', async (req: Request, res: Response) => {
+router.post('/profile/sync', requireAuth, async (req: Request, res: Response) => {
   try {
     const token = req.signedCookies?.[SESSION_COOKIE_NAME]
     if (!token) {

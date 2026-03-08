@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, ExternalLink, Check, Clock, Gamepad2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -48,11 +48,7 @@ export function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
 
-  useEffect(() => {
-    loadProfile()
-  }, [])
-
-  async function loadProfile() {
+  const loadProfile = useCallback(async () => {
     try {
       const data = await api.getProfile()
       setProfile(data)
@@ -61,7 +57,11 @@ export function ProfilePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [t])
+
+  useEffect(() => {
+    loadProfile()
+  }, [loadProfile])
 
   async function handleSync() {
     setSyncing(true)

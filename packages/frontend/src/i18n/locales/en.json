@@ -20,7 +20,10 @@
     "logoutConfirmDescription": "You will be redirected to the login page.",
     "logoutConfirm": "Log out",
     "logoutCancel": "Cancel",
-    "commonGames": "{{count}} common games"
+    "commonGames": "{{count}} common games",
+    "searchGroups": "Search for a group...",
+    "noSearchResults": "No groups match your search.",
+    "clearSearch": "Clear search"
   },
   "createGroup": {
     "title": "Create a group",

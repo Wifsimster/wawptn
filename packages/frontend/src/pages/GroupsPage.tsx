@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Plus, LogIn, Users, Gamepad2, Trophy, Crown } from 'lucide-react'
+import { Plus, LogIn, Users, Gamepad2, Trophy, Crown, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
@@ -29,6 +29,16 @@ export function GroupsPage() {
   const [inviteResult, setInviteResult] = useState<string | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
   const [joinError, setJoinError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const normalize = (s: string) =>
+    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+  const filteredGroups = useMemo(() => {
+    if (!searchQuery.trim()) return groups
+    const q = normalize(searchQuery)
+    return groups.filter((g) => normalize(g.name).includes(q))
+  }, [groups, searchQuery])
 
   useEffect(() => {
     fetchGroups()
@@ -92,6 +102,30 @@ export function GroupsPage() {
             </Button>
           </div>
         </div>
+
+        {/* Search Groups */}
+        {groups.length > 3 && (
+          <div className="relative mb-4" role="search">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('groups.searchGroups')}
+              aria-label={t('groups.searchGroups')}
+              className="pl-9 pr-9"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label={t('groups.clearSearch')}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Create Group Dialog */}
         <ResponsiveDialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) setInviteResult(null) }}>
@@ -175,9 +209,20 @@ export function GroupsPage() {
             <h3 className="text-xl font-semibold mb-2">{t('groups.noGroups')}</h3>
             <p className="text-muted-foreground mb-6">{t('groups.noGroupsHint')}</p>
           </div>
+        ) : filteredGroups.length === 0 && searchQuery ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-muted-foreground mb-2">{t('groups.noSearchResults')}</p>
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="text-sm text-primary hover:underline"
+            >
+              {t('groups.clearSearch')}
+            </button>
+          </div>
         ) : (
           <div className="space-y-3">
-            {groups.map((group) => (
+            {filteredGroups.map((group) => (
               <Link key={group.id} to={`/groups/${group.id}`} className="block">
                 <Card className="p-4 hover:border-primary/50 transition-colors">
                   <div className="flex items-center justify-between">

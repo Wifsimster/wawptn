@@ -81,6 +81,7 @@ export function ProfilePage() {
     const linked = searchParams.get('linked')
     const error = searchParams.get('error')
     const epic = searchParams.get('epic')
+    const gog = searchParams.get('gog')
 
     if (linked) {
       toast.success(t('profile.platformLinked', { platform: PLATFORM_NAMES[linked] || linked }))
@@ -91,6 +92,18 @@ export function ProfilePage() {
       setSearchParams({}, { replace: true })
       loadProfile()
     } else if (epic === 'error') {
+      const reason = searchParams.get('reason')
+      if (reason === 'already_linked') {
+        toast.error(t('profile.accountTaken'))
+      } else {
+        toast.error(t('profile.linkError'))
+      }
+      setSearchParams({}, { replace: true })
+    } else if (gog === 'success') {
+      toast.success(t('profile.platformLinked', { platform: 'GOG' }))
+      setSearchParams({}, { replace: true })
+      loadProfile()
+    } else if (gog === 'error') {
       const reason = searchParams.get('reason')
       if (reason === 'already_linked') {
         toast.error(t('profile.accountTaken'))
@@ -130,10 +143,10 @@ export function ProfilePage() {
   async function handleSync(platformId: string = 'steam') {
     setSyncingPlatform(platformId)
     try {
-      if (platformId === 'epic') {
-        await api.syncEpic()
-      } else {
+      if (platformId === 'steam') {
         await api.syncProfile()
+      } else {
+        await api.syncPlatform(platformId)
       }
       toast.success(t('profile.syncSuccess'))
       setTimeout(loadProfile, 3000)
@@ -277,7 +290,7 @@ export function ProfilePage() {
                     {t('profile.reconnect')}
                   </Button>
                 )}
-                {platform.connected && !platform.needsRelink && (platform.id === 'steam' || platform.id === 'epic') && (
+                {platform.connected && !platform.needsRelink && (platform.id === 'steam' || platform.linkable) && (
                   <Button
                     variant="outline"
                     size="sm"

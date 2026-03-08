@@ -32,10 +32,11 @@ export const api = {
     }[];
   }>('/auth/profile'),
   syncProfile: () => request<{ ok: boolean }>('/auth/profile/sync', { method: 'POST' }),
+  syncPlatform: (platformId: string) => request<{ ok: boolean }>(`/auth/${platformId}/sync`, { method: 'POST' }),
   syncEpic: () => request<{ ok: boolean }>('/auth/epic/sync', { method: 'POST' }),
   unlinkPlatform: (providerId: string) => {
-    if (providerId === 'epic') {
-      return request<{ ok: boolean }>('/auth/epic/unlink', { method: 'POST' })
+    if (providerId === 'epic' || providerId === 'gog') {
+      return request<{ ok: boolean }>(`/auth/${providerId}/unlink`, { method: 'POST' })
     }
     return request<{ ok: boolean }>(`/auth/${providerId}/link`, { method: 'DELETE' })
   },

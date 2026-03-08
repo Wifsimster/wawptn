@@ -20,6 +20,11 @@ export const env = {
   EPIC_CLIENT_ID: process.env['EPIC_CLIENT_ID'] || '',
   EPIC_CLIENT_SECRET: process.env['EPIC_CLIENT_SECRET'] || '',
   EPIC_REDIRECT_URI: process.env['EPIC_REDIRECT_URI'] || '',
+
+  // GOG Galaxy (optional — feature-flagged)
+  GOG_CLIENT_ID: process.env['GOG_CLIENT_ID'] || '',
+  GOG_CLIENT_SECRET: process.env['GOG_CLIENT_SECRET'] || '',
+  GOG_REDIRECT_URI: process.env['GOG_REDIRECT_URI'] || '',
 }
 
 export function validateEnv(): void {

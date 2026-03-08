@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, ExternalLink, Check, Clock, Gamepad2, Link, Unlink } from 'lucide-react'
+import { ArrowLeft, RefreshCw, ExternalLink, Check, Clock, Gamepad2, Link, Unlink, AlertTriangle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AppHeader } from '@/components/app-header'
@@ -43,6 +43,14 @@ const PLATFORM_ICONS: Record<string, string> = {
   ubisoft: '🛡️',
 }
 
+const PLATFORM_NAMES: Record<string, string> = {
+  steam: 'Steam',
+  battlenet: 'Battle.net',
+  epic: 'Epic Games',
+  gog: 'GOG',
+  ubisoft: 'Ubisoft Connect',
+}
+
 export function ProfilePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -75,8 +83,7 @@ export function ProfilePage() {
     const epic = searchParams.get('epic')
 
     if (linked) {
-      const platformName = linked === 'battlenet' ? 'Battle.net' : linked === 'epic' ? 'Epic Games' : linked
-      toast.success(t('profile.platformLinked', { platform: platformName }))
+      toast.success(t('profile.platformLinked', { platform: PLATFORM_NAMES[linked] || linked }))
       setSearchParams({}, { replace: true })
       loadProfile()
     } else if (epic === 'success') {
@@ -111,7 +118,7 @@ export function ProfilePage() {
     setUnlinking(platformId)
     try {
       await api.unlinkPlatform(platformId)
-      toast.success(t('profile.platformUnlinked', { platform: platformId === 'battlenet' ? 'Battle.net' : platformId }))
+      toast.success(t('profile.platformUnlinked', { platform: PLATFORM_NAMES[platformId] || platformId }))
       loadProfile()
     } catch {
       toast.error(t('profile.unlinkError'))
@@ -243,7 +250,7 @@ export function ProfilePage() {
                       </Badge>
                     )}
                   </div>
-                  {platform.connected && (
+                  {platform.connected && !platform.needsRelink && (
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                       {platform.gameCount !== undefined && (
                         <span>{t('profile.gameCount', { count: platform.gameCount })}</span>

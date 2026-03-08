@@ -19,6 +19,11 @@ export const env = {
   // Battle.net (optional — feature-flagged)
   BATTLENET_CLIENT_ID: process.env['BATTLENET_CLIENT_ID'] || '',
   BATTLENET_CLIENT_SECRET: process.env['BATTLENET_CLIENT_SECRET'] || '',
+
+  // Epic Games (optional — feature-flagged)
+  EPIC_CLIENT_ID: process.env['EPIC_CLIENT_ID'] || '',
+  EPIC_CLIENT_SECRET: process.env['EPIC_CLIENT_SECRET'] || '',
+  EPIC_REDIRECT_URI: process.env['EPIC_REDIRECT_URI'] || '',
 }
 
 export function validateEnv(): void {

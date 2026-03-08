@@ -3,7 +3,7 @@ import { env } from '../../config/env.js'
 
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 12
-const TAG_LENGTH = 16
+
 const PREFIX = 'enc:'
 
 function deriveKey(): Buffer {

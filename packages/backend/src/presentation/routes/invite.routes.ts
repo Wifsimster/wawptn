@@ -27,10 +27,10 @@ router.get('/:token', async (req: Request, res: Response) => {
       isValid = true
       groupName = group.name
 
-      const [{ count }] = await db('group_members')
+      const [result] = await db('group_members')
         .where({ group_id: group.id })
         .count('* as count')
-      memberCount = Number(count)
+      memberCount = Number((result as Record<string, unknown>).count)
     }
   } catch {
     // If DB lookup fails, serve generic preview

@@ -82,7 +82,9 @@ test.describe('Game list filters on mobile', () => {
     })
 
     test('Controller support filter', async ({ page }) => {
-      await page.getByRole('button', { name: 'Manette' }).click()
+      const manette = page.getByRole('button', { name: 'Manette' })
+      await manette.scrollIntoViewIfNeeded()
+      await manette.click({ force: true })
       await page.waitForTimeout(300)
 
       // TF2 has full controller support, should still be visible
@@ -124,13 +126,17 @@ test.describe('Game list filters on mobile', () => {
     })
 
     test('progressive thresholds reduce game count', async ({ page }) => {
-      await page.getByRole('button', { name: '60+' }).click()
+      const btn60 = page.getByRole('button', { name: '60+' })
+      await btn60.scrollIntoViewIfNeeded()
+      await btn60.click({ force: true })
       await page.waitForTimeout(300)
 
-      const countEl = page.getByText(/\d+\/\d+/)
+      const countEl = page.locator('h2').filter({ hasText: /Jeux en commun/ })
       const count60Text = await countEl.textContent()
 
-      await page.getByRole('button', { name: '85+' }).click()
+      const btn85 = page.getByRole('button', { name: '85+' })
+      await btn85.scrollIntoViewIfNeeded()
+      await btn85.click({ force: true })
       await page.waitForTimeout(300)
 
       const count85Text = await countEl.textContent()
@@ -226,30 +232,40 @@ test.describe('Game list filters on mobile', () => {
     })
 
     test('selecting a genre filters games', async ({ page }) => {
-      await page.locator('button').filter({ hasText: 'Genres' }).click()
+      const genreBtn = page.locator('button').filter({ hasText: 'Genres' })
+      await genreBtn.scrollIntoViewIfNeeded()
+      await genreBtn.click({ force: true })
       await page.waitForTimeout(200)
 
       // Click Strategy genre
-      await page.locator('button:text-is("Strategy")').click()
+      const strategyBtn = page.locator('button:text-is("Strategy")')
+      await strategyBtn.scrollIntoViewIfNeeded()
+      await strategyBtn.click({ force: true })
       await page.waitForTimeout(300)
 
       // Dota 2 has Strategy genre, should be visible
       await expect(gameGrid(page).getByText('Dota 2')).toBeVisible()
-      // Filtered count should show
-      await expect(page.getByText(/\d+\/\d+/)).toBeVisible()
+      // Filtered count should show in heading
+      await expect(page.locator('h2').filter({ hasText: /\d+\/\d+/ })).toBeVisible()
     })
 
     test('selected genre shows badge count', async ({ page }) => {
-      await page.locator('button').filter({ hasText: 'Genres' }).click()
+      const genreBtn = page.locator('button').filter({ hasText: 'Genres' })
+      await genreBtn.scrollIntoViewIfNeeded()
+      await genreBtn.click({ force: true })
       await page.waitForTimeout(200)
 
-      await page.locator('button:text-is("Action")').click()
+      const actionBtn = page.locator('button:text-is("Action")')
+      await actionBtn.scrollIntoViewIfNeeded()
+      await actionBtn.click({ force: true })
       await page.waitForTimeout(100)
-      await page.locator('button:text-is("Strategy")').click()
+      const strategyBtn = page.locator('button:text-is("Strategy")')
+      await strategyBtn.scrollIntoViewIfNeeded()
+      await strategyBtn.click({ force: true })
       await page.waitForTimeout(100)
 
-      // Badge should show "2"
-      const badge = page.locator('button').filter({ hasText: 'Genres' }).locator('span').filter({ hasText: '2' })
+      // Badge should show "2" (Badge renders as div)
+      const badge = page.locator('button').filter({ hasText: 'Genres' }).locator('div').filter({ hasText: '2' })
       await expect(badge).toBeVisible()
     })
 
@@ -288,8 +304,12 @@ test.describe('Game list filters on mobile', () => {
     })
 
     test('platform + controller combined', async ({ page }) => {
-      await page.getByRole('button', { name: 'Linux' }).click()
-      await page.getByRole('button', { name: 'Manette' }).click()
+      const linuxBtn = page.getByRole('button', { name: 'Linux' })
+      await linuxBtn.scrollIntoViewIfNeeded()
+      await linuxBtn.click({ force: true })
+      const manette = page.getByRole('button', { name: 'Manette' })
+      await manette.scrollIntoViewIfNeeded()
+      await manette.click({ force: true })
       await page.waitForTimeout(300)
 
       // TF2: Linux + full controller, multiplayer

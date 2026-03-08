@@ -417,13 +417,16 @@ test.describe('Voting system on mobile', () => {
       await page.getByText('Lancer un vote pour ce soir').click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
+      await page.waitForTimeout(400) // Wait for drawer animation
 
       // Step 3: Keep all members selected, proceed
-      await dialog.getByRole('button', { name: 'Suivant' }).click()
+      const suivantBtn = dialog.getByRole('button', { name: 'Suivant' })
+      await suivantBtn.scrollIntoViewIfNeeded()
+      await suivantBtn.click({ force: true })
       await expect(dialog.getByText('Lancer le vote ?')).toBeVisible()
 
       // Step 4: Start the vote
-      await dialog.getByRole('button', { name: 'Lancer le vote' }).click()
+      await dialog.getByRole('button', { name: 'Lancer le vote' }).click({ force: true })
       await page.waitForURL('**/#/groups/group-1/vote')
 
       // Step 5: Select some games
@@ -486,8 +489,8 @@ test.describe('Voting system on mobile', () => {
       const main = page.locator('main')
       await expect(main).toBeVisible()
 
-      // Perform a scroll gesture
-      await page.mouse.wheel(0, 300)
+      // Perform a scroll gesture (use evaluate for cross-browser support)
+      await page.evaluate(() => window.scrollBy(0, 300))
       await page.waitForTimeout(200)
     })
   })

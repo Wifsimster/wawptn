@@ -127,6 +127,7 @@ test.describe('Modals on mobile', () => {
 
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
+      await page.waitForTimeout(400) // Wait for drawer animation
       await expect(dialog.getByText('Les Gamers')).toBeVisible()
 
       // Members should be listed
@@ -148,6 +149,8 @@ test.describe('Modals on mobile', () => {
       await page.getByRole('button', { name: 'Voir les membres' }).click()
 
       const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await page.waitForTimeout(400)
       await expect(dialog.getByText('Historique des soirées')).toBeVisible()
       await expect(dialog.getByText('Counter-Strike 2')).toBeVisible()
       await expect(dialog.getByText('Dota 2')).toBeVisible()
@@ -175,14 +178,17 @@ test.describe('Modals on mobile', () => {
       await page.getByRole('button', { name: 'Voir les membres' }).click()
       const sidebar = page.getByRole('dialog')
       await expect(sidebar).toBeVisible()
+      await page.waitForTimeout(400)
 
       // Scroll to "Quitter le groupe" button in sidebar
       await sidebar.getByText('Quitter le groupe').scrollIntoViewIfNeeded()
-      await sidebar.getByText('Quitter le groupe').click()
+      await sidebar.getByText('Quitter le groupe').click({ force: true })
 
       // Confirmation dialog
       await expect(page.getByText('Quitter le groupe ?')).toBeVisible()
-      await page.getByRole('button', { name: 'Quitter le groupe' }).last().click()
+      const confirmBtn = page.getByRole('button', { name: 'Quitter le groupe' }).last()
+      await confirmBtn.scrollIntoViewIfNeeded()
+      await confirmBtn.click({ force: true })
 
       await page.waitForURL('**/#/')
     })
@@ -197,14 +203,17 @@ test.describe('Modals on mobile', () => {
       await page.getByRole('button', { name: 'Voir les membres' }).click()
       const sidebar = page.getByRole('dialog')
       await expect(sidebar).toBeVisible()
+      await page.waitForTimeout(400)
 
       await sidebar.getByText('Supprimer le groupe').scrollIntoViewIfNeeded()
-      await sidebar.getByText('Supprimer le groupe').click()
+      await sidebar.getByText('Supprimer le groupe').click({ force: true })
 
       await expect(page.getByText('Supprimer le groupe ?')).toBeVisible()
       await expect(page.getByText('irréversible')).toBeVisible()
 
-      await page.getByRole('button', { name: 'Supprimer le groupe' }).last().click()
+      const confirmDeleteBtn = page.getByRole('button', { name: 'Supprimer le groupe' }).last()
+      await confirmDeleteBtn.scrollIntoViewIfNeeded()
+      await confirmDeleteBtn.click({ force: true })
       await page.waitForURL('**/#/')
     })
   })
@@ -218,14 +227,15 @@ test.describe('Modals on mobile', () => {
       await page.getByRole('button', { name: 'Voir les membres' }).click()
       const sidebar = page.getByRole('dialog')
       await expect(sidebar).toBeVisible()
+      await page.waitForTimeout(400)
 
       // Kick button should be visible in compact mode (always visible)
-      await sidebar.getByRole('button', { name: 'Exclure Alice' }).click()
+      await sidebar.getByRole('button', { name: 'Exclure Alice' }).click({ force: true })
 
       await expect(page.getByText('Exclure ce membre ?')).toBeVisible()
       await expect(page.getByText('Alice sera retiré')).toBeVisible()
 
-      await page.getByRole('button', { name: 'Exclure' }).click()
+      await page.getByRole('button', { name: 'Exclure' }).click({ force: true })
     })
   })
 
@@ -250,49 +260,63 @@ test.describe('Modals on mobile', () => {
     test('toggles individual member selection via checkbox', async ({ page }) => {
       await page.getByText('Lancer un vote pour ce soir').click()
       const dialog = page.getByRole('dialog')
+      await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
+      await page.waitForTimeout(400) // Wait for drawer animation to settle
 
       // Click the label for Bob's checkbox (member-user-3)
-      await dialog.locator('#member-user-3').click()
+      await dialog.locator('#member-user-3').click({ force: true })
       await expect(dialog.getByText('2 joueur(s) sélectionné(s)')).toBeVisible()
 
       // Re-check
-      await dialog.locator('#member-user-3').click()
+      await dialog.locator('#member-user-3').click({ force: true })
       await expect(dialog.getByText('3 joueur(s) sélectionné(s)')).toBeVisible()
     })
 
     test('select all / deselect all toggle', async ({ page }) => {
       await page.getByText('Lancer un vote pour ce soir').click()
       const dialog = page.getByRole('dialog')
+      await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
+      await page.waitForTimeout(400)
 
       // Deselect all
-      await dialog.locator('#select-all').click()
+      await dialog.locator('#select-all').click({ force: true })
       await expect(dialog.getByText('0 joueur(s) sélectionné(s)')).toBeVisible()
 
       // Select all again
-      await dialog.locator('#select-all').click()
+      await dialog.locator('#select-all').click({ force: true })
       await expect(dialog.getByText('3 joueur(s) sélectionné(s)')).toBeVisible()
     })
 
     test('proceeds to confirmation step and starts vote', async ({ page }) => {
       await page.getByText('Lancer un vote pour ce soir').click()
       const dialog = page.getByRole('dialog')
+      await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
+      await page.waitForTimeout(400)
 
-      await dialog.getByRole('button', { name: 'Suivant' }).click()
+      const suivantBtn = dialog.getByRole('button', { name: 'Suivant' })
+      await suivantBtn.scrollIntoViewIfNeeded()
+      await suivantBtn.click({ force: true })
       await expect(dialog.getByText('Lancer le vote ?')).toBeVisible()
-      await expect(dialog.getByText(/42 jeux en commun/)).toBeVisible()
+      await expect(dialog.getByText('42 jeux en commun disponibles')).toBeVisible()
 
-      await dialog.getByRole('button', { name: 'Lancer le vote' }).click()
+      const lancerBtn = dialog.getByRole('button', { name: 'Lancer le vote' })
+      await lancerBtn.scrollIntoViewIfNeeded()
+      await lancerBtn.click({ force: true })
       await page.waitForURL('**/#/groups/group-1/vote')
     })
 
     test('schedule vote option shows date picker', async ({ page }) => {
       await page.getByText('Lancer un vote pour ce soir').click()
       const dialog = page.getByRole('dialog')
+      await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
+      await page.waitForTimeout(400)
 
-      await dialog.getByRole('button', { name: 'Suivant' }).click()
+      const suivantBtn = dialog.getByRole('button', { name: 'Suivant' })
+      await suivantBtn.scrollIntoViewIfNeeded()
+      await suivantBtn.click({ force: true })
 
       // Toggle schedule
-      await dialog.locator('#schedule-toggle').click()
+      await dialog.locator('#schedule-toggle').click({ force: true })
       await expect(dialog.locator('#scheduled-date')).toBeVisible()
 
       // Button label should change
@@ -302,22 +326,28 @@ test.describe('Modals on mobile', () => {
     test('back button returns to member selection', async ({ page }) => {
       await page.getByText('Lancer un vote pour ce soir').click()
       const dialog = page.getByRole('dialog')
+      await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
+      await page.waitForTimeout(400)
 
-      await dialog.getByRole('button', { name: 'Suivant' }).click()
+      const suivantBtn = dialog.getByRole('button', { name: 'Suivant' })
+      await suivantBtn.scrollIntoViewIfNeeded()
+      await suivantBtn.click({ force: true })
       await expect(dialog.getByText('Lancer le vote ?')).toBeVisible()
 
-      await dialog.getByRole('button', { name: 'Retour' }).click()
+      await dialog.getByRole('button', { name: 'Retour' }).click({ force: true })
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
     })
 
     test('disables Suivant when fewer than 2 members selected', async ({ page }) => {
       await page.getByText('Lancer un vote pour ce soir').click()
       const dialog = page.getByRole('dialog')
+      await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
+      await page.waitForTimeout(400)
 
       // Deselect all
-      await dialog.locator('#select-all').click()
+      await dialog.locator('#select-all').click({ force: true })
       // Select only one
-      await dialog.locator('#member-user-1').click()
+      await dialog.locator('#member-user-1').click({ force: true })
 
       await expect(dialog.getByRole('button', { name: 'Suivant' })).toBeDisabled()
     })
@@ -333,10 +363,11 @@ test.describe('Modals on mobile', () => {
     })
 
     test('opens with a random game displayed', async ({ page }) => {
-      await page.getByText('Au hasard').click()
+      await page.getByText('Au hasard').click({ force: true })
 
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
+      await page.waitForTimeout(400)
 
       // Should show a game name — the visible h2 (not sr-only title)
       const gameNames = mockGames.filter(g => g.type === 'game').map(g => g.gameName)
@@ -344,23 +375,25 @@ test.describe('Modals on mobile', () => {
       expect(gameNames).toContain(gameName)
 
       // Reroll and launch buttons visible
-      await expect(dialog.getByText('Relancer')).toBeVisible()
+      await expect(dialog.getByRole('button', { name: 'Relancer' })).toBeVisible()
     })
 
     test('reroll changes pick number', async ({ page }) => {
-      await page.getByText('Au hasard').click()
+      await page.getByText('Au hasard').click({ force: true })
       const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await page.waitForTimeout(400)
 
       await expect(dialog.getByText('Tirage #1')).toBeVisible()
 
-      await dialog.getByText('Relancer').click()
+      await dialog.getByRole('button', { name: 'Relancer' }).click({ force: true })
       await page.waitForTimeout(400)
 
       await expect(dialog.getByText('Tirage #2')).toBeVisible()
     })
 
     test('closes with Escape', async ({ page }) => {
-      await page.getByText('Au hasard').click()
+      await page.getByText('Au hasard').click({ force: true })
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
 

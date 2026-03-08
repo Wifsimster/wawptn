@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
+import { authLogger } from '../../infrastructure/logger/logger.js'
 import { SESSION_COOKIE_NAME } from '../../config/session.js'
 
 // Extend Express Request
@@ -15,6 +16,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   try {
     const token = req.signedCookies?.[SESSION_COOKIE_NAME]
     if (!token) {
+      authLogger.debug({ path: req.path }, 'auth middleware: no token provided')
       res.status(401).json({ error: 'unauthorized', message: 'Authentication required' })
       return
     }
@@ -25,13 +27,15 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       .first()
 
     if (!session) {
+      authLogger.info({ path: req.path }, 'auth middleware: expired or invalid token')
       res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired session' })
       return
     }
 
     req.userId = session.user_id
     next()
-  } catch {
+  } catch (error) {
+    authLogger.error({ error: String(error), path: req.path }, 'auth middleware: database error')
     res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired session' })
   }
 }

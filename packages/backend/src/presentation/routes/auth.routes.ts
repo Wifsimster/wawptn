@@ -4,7 +4,7 @@ import { db } from '../../infrastructure/database/connection.js'
 import { getSteamLoginUrl, verifySteamLogin, getPlayerSummary, getOwnedGames, getHeaderImageUrl } from '../../infrastructure/steam/steam-client.js'
 import { authLogger, steamLogger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
-import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, SESSION_TOKEN_BYTES } from '../../config/session.js'
+import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, SESSION_TOKEN_BYTES, CSRF_COOKIE_NAME } from '../../config/session.js'
 
 const router = Router()
 
@@ -51,6 +51,17 @@ router.get('/steam/login', (req: Request, res: Response) => {
     })
   }
 
+  // CSRF protection: set a signed nonce cookie, verified on callback
+  const csrfState = crypto.randomBytes(16).toString('hex')
+  res.cookie(CSRF_COOKIE_NAME, csrfState, {
+    httpOnly: true,
+    signed: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 10 * 60 * 1000, // 10 minutes
+    path: '/api/auth/steam/callback',
+  })
+
   const returnUrl = `${env.API_URL}/api/auth/steam/callback`
   const loginUrl = getSteamLoginUrl(returnUrl)
   res.redirect(loginUrl)
@@ -59,13 +70,22 @@ router.get('/steam/login', (req: Request, res: Response) => {
 // Steam OpenID callback
 router.get('/steam/callback', async (req: Request, res: Response) => {
   try {
+    // CSRF verification: ensure the login was initiated from our /steam/login endpoint
+    const csrfState = req.signedCookies?.[CSRF_COOKIE_NAME]
+    res.clearCookie(CSRF_COOKIE_NAME, { path: '/api/auth/steam/callback' })
+    if (!csrfState) {
+      authLogger.warn('steam callback rejected: missing CSRF state cookie')
+      res.redirect(`${env.CORS_ORIGIN}/#/login?error=auth_failed`)
+      return
+    }
+
     const params = req.query as Record<string, string>
 
     // Validate return_to matches our callback URL
     const returnTo = params['openid.return_to']
     const expectedReturnTo = `${env.API_URL}/api/auth/steam/callback`
     if (returnTo !== expectedReturnTo) {
-      authLogger.warn({ returnTo, expected: expectedReturnTo }, 'return_to mismatch')
+      authLogger.warn({ returnTo, expected: expectedReturnTo }, 'steam callback rejected: return_to mismatch')
       res.redirect(`${env.CORS_ORIGIN}/#/login?error=auth_failed`)
       return
     }
@@ -73,6 +93,7 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     // Verify with Steam
     const steamId = await verifySteamLogin(params)
     if (!steamId) {
+      authLogger.warn('steam callback rejected: OpenID verification failed')
       res.redirect(`${env.CORS_ORIGIN}/#/login?error=auth_failed`)
       return
     }
@@ -80,6 +101,7 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     // Get player profile from Steam
     const profile = await getPlayerSummary(steamId)
     if (!profile) {
+      authLogger.warn({ steamId }, 'steam callback rejected: failed to fetch player profile')
       res.redirect(`${env.CORS_ORIGIN}/#/login?error=steam_profile_failed`)
       return
     }
@@ -166,18 +188,21 @@ router.get('/me', async (req: Request, res: Response) => {
   try {
     const token = req.signedCookies?.[SESSION_COOKIE_NAME]
     if (!token) {
+      authLogger.debug('get session: no token provided')
       res.status(401).json({ error: 'unauthorized', message: 'No session' })
       return
     }
 
     const userId = await getSessionUserId(token)
     if (!userId) {
+      authLogger.info('get session: expired or invalid token')
       res.status(401).json({ error: 'unauthorized', message: 'No session' })
       return
     }
 
     const user = await db('users').where({ id: userId }).first()
     if (!user) {
+      authLogger.warn({ userId }, 'get session: user not found for valid session')
       res.status(401).json({ error: 'unauthorized', message: 'No session' })
       return
     }
@@ -190,7 +215,7 @@ router.get('/me', async (req: Request, res: Response) => {
       libraryVisible: user.library_visible ?? true,
     })
   } catch (error) {
-    authLogger.error({ error: String(error) }, 'get session failed')
+    authLogger.error({ error: String(error) }, 'get session: database error')
     res.status(500).json({ error: 'internal', message: 'Failed to get session' })
   }
 })

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, ExternalLink, Check, Clock, Gamepad2 } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, RefreshCw, ExternalLink, Check, Clock, Gamepad2, Link, Unlink, AlertTriangle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AppHeader } from '@/components/app-header'
@@ -16,6 +16,8 @@ interface Platform {
   name: string
   connected: boolean
   comingSoon?: boolean
+  linkable?: boolean
+  needsRelink?: boolean
   accountId?: string | null
   gameCount?: number
   lastSyncedAt?: string | null
@@ -41,12 +43,23 @@ const PLATFORM_ICONS: Record<string, string> = {
   ubisoft: '🛡️',
 }
 
+const PLATFORM_NAMES: Record<string, string> = {
+  steam: 'Steam',
+  battlenet: 'Battle.net',
+  epic: 'Epic Games',
+  gog: 'GOG',
+  ubisoft: 'Ubisoft Connect',
+}
+
 export function ProfilePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
+  const [syncingPlatform, setSyncingPlatform] = useState<string | null>(null)
+  const [unlinking, setUnlinking] = useState<string | null>(null)
+
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const loadProfile = useCallback(async () => {
     try {
@@ -63,17 +76,71 @@ export function ProfilePage() {
     loadProfile()
   }, [loadProfile])
 
-  async function handleSync() {
-    setSyncing(true)
+  // Handle OAuth callback query params
+  useEffect(() => {
+    const linked = searchParams.get('linked')
+    const error = searchParams.get('error')
+    const epic = searchParams.get('epic')
+
+    if (linked) {
+      toast.success(t('profile.platformLinked', { platform: PLATFORM_NAMES[linked] || linked }))
+      setSearchParams({}, { replace: true })
+      loadProfile()
+    } else if (epic === 'success') {
+      toast.success(t('profile.platformLinked', { platform: 'Epic Games' }))
+      setSearchParams({}, { replace: true })
+      loadProfile()
+    } else if (epic === 'error') {
+      const reason = searchParams.get('reason')
+      if (reason === 'already_linked') {
+        toast.error(t('profile.accountTaken'))
+      } else {
+        toast.error(t('profile.linkError'))
+      }
+      setSearchParams({}, { replace: true })
+    } else if (error === 'already_linked') {
+      toast.info(t('profile.alreadyLinked'))
+      setSearchParams({}, { replace: true })
+    } else if (error === 'account_taken') {
+      toast.error(t('profile.accountTaken'))
+      setSearchParams({}, { replace: true })
+    } else if (error === 'link_failed' || error === 'link_denied') {
+      toast.error(t('profile.linkError'))
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams, t, loadProfile])
+
+  function handleConnect(platformId: string) {
+    window.location.href = `/api/auth/${platformId}/link`
+  }
+
+  async function handleUnlink(platformId: string) {
+    setUnlinking(platformId)
     try {
-      await api.syncProfile()
+      await api.unlinkPlatform(platformId)
+      toast.success(t('profile.platformUnlinked', { platform: PLATFORM_NAMES[platformId] || platformId }))
+      loadProfile()
+    } catch {
+      toast.error(t('profile.unlinkError'))
+    } finally {
+      setUnlinking(null)
+    }
+  }
+
+  async function handleSync(platformId: string = 'steam') {
+    setSyncingPlatform(platformId)
+    try {
+      if (platformId === 'epic') {
+        await api.syncEpic()
+      } else {
+        await api.syncProfile()
+      }
       toast.success(t('profile.syncSuccess'))
-      // Reload profile after a short delay to get updated counts
       setTimeout(loadProfile, 3000)
     } catch {
       toast.error(t('profile.syncError'))
     } finally {
-      setSyncing(false)
+      setSyncingPlatform(null)
     }
   }
 
@@ -159,7 +226,12 @@ export function ProfilePage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{platform.name}</span>
-                    {platform.connected ? (
+                    {platform.connected && platform.needsRelink ? (
+                      <Badge variant="destructive" className="text-xs gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        {t('profile.needsRelink')}
+                      </Badge>
+                    ) : platform.connected ? (
                       <Badge variant="default" className="text-xs gap-1">
                         <Check className="w-3 h-3" />
                         {t('profile.connected')}
@@ -174,7 +246,7 @@ export function ProfilePage() {
                       </Badge>
                     )}
                   </div>
-                  {platform.connected && (
+                  {platform.connected && !platform.needsRelink && (
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                       {platform.gameCount !== undefined && (
                         <span>{t('profile.gameCount', { count: platform.gameCount })}</span>
@@ -194,16 +266,50 @@ export function ProfilePage() {
                     </div>
                   )}
                 </div>
-                {platform.connected && platform.id === 'steam' && (
+                {platform.connected && platform.needsRelink && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleSync}
-                    disabled={syncing}
+                    onClick={() => handleConnect(platform.id)}
                     className="shrink-0"
                   >
-                    <RefreshCw className={`w-4 h-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-                    {syncing ? t('profile.syncing') : t('profile.syncNow')}
+                    <Link className="w-4 h-4 mr-1" />
+                    {t('profile.reconnect')}
+                  </Button>
+                )}
+                {platform.connected && !platform.needsRelink && (platform.id === 'steam' || platform.id === 'epic') && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSync(platform.id)}
+                    disabled={syncingPlatform === platform.id}
+                    className="shrink-0"
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-1 ${syncingPlatform === platform.id ? 'animate-spin' : ''}`} />
+                    {syncingPlatform === platform.id ? t('profile.syncing') : t('profile.syncNow')}
+                  </Button>
+                )}
+                {platform.connected && !platform.needsRelink && platform.id !== 'steam' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleUnlink(platform.id)}
+                    disabled={unlinking === platform.id}
+                    className="shrink-0 text-destructive hover:text-destructive"
+                  >
+                    <Unlink className="w-4 h-4 mr-1" />
+                    {t('profile.disconnect')}
+                  </Button>
+                )}
+                {!platform.connected && !platform.comingSoon && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleConnect(platform.id)}
+                    className="shrink-0"
+                  >
+                    <Link className="w-4 h-4 mr-1" />
+                    {t('profile.connect')}
                   </Button>
                 )}
               </div>

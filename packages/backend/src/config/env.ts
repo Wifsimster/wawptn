@@ -15,6 +15,11 @@ export const env = {
 
   // Steam
   STEAM_API_KEY: process.env['STEAM_API_KEY'] || '',
+
+  // Epic Games (optional — feature-flagged)
+  EPIC_CLIENT_ID: process.env['EPIC_CLIENT_ID'] || '',
+  EPIC_CLIENT_SECRET: process.env['EPIC_CLIENT_SECRET'] || '',
+  EPIC_REDIRECT_URI: process.env['EPIC_REDIRECT_URI'] || '',
 }
 
 export function validateEnv(): void {

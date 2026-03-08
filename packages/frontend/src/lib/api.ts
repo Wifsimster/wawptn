@@ -28,9 +28,17 @@ export const api = {
     platforms: {
       id: string; name: string; connected: boolean; comingSoon?: boolean;
       accountId?: string | null; gameCount?: number; lastSyncedAt?: string | null; profileUrl?: string | null;
+      linkable?: boolean; needsRelink?: boolean;
     }[];
   }>('/auth/profile'),
   syncProfile: () => request<{ ok: boolean }>('/auth/profile/sync', { method: 'POST' }),
+  syncEpic: () => request<{ ok: boolean }>('/auth/epic/sync', { method: 'POST' }),
+  unlinkPlatform: (providerId: string) => {
+    if (providerId === 'epic') {
+      return request<{ ok: boolean }>('/auth/epic/unlink', { method: 'POST' })
+    }
+    return request<{ ok: boolean }>(`/auth/${providerId}/link`, { method: 'DELETE' })
+  },
 
   // Groups
   getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null }[]>('/groups'),
@@ -40,6 +48,10 @@ export const api = {
   }>(`/groups/${id}`),
   createGroup: (name: string) => request<{ id: string; name: string; inviteToken: string; inviteExpiresAt: string }>('/groups', {
     method: 'POST',
+    body: JSON.stringify({ name }),
+  }),
+  renameGroup: (groupId: string, name: string) => request<{ id: string; name: string }>(`/groups/${groupId}`, {
+    method: 'PATCH',
     body: JSON.stringify({ name }),
   }),
   joinGroup: (token: string) => request<{ id: string; name: string; alreadyMember: boolean }>('/groups/join', {

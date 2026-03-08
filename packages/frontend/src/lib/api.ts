@@ -38,6 +38,7 @@ export const api = {
     }
     return request<{ ok: boolean }>(`/auth/${providerId}/link`, { method: 'DELETE' })
   },
+  syncPlatform: (platformId: string) => request<{ ok: boolean }>(`/auth/${platformId}/sync`, { method: 'POST' }),
 
   // Groups
   getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null }[]>('/groups'),

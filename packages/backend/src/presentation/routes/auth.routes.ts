@@ -252,6 +252,7 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
 
     const steamStats = gameCounts.find((g: { platform: string }) => g.platform === 'steam')
     const epicStats = gameCounts.find((g: { platform: string }) => g.platform === 'epic')
+    const gogStats = gameCounts.find((g: { platform: string }) => g.platform === 'gog')
 
     // Get connected platforms from accounts table
     const accounts = await db('accounts')
@@ -262,7 +263,10 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
     const epicEnabled = isEpicEnabled()
     const gogAccount = accounts.find((a: { provider_id: string }) => a.provider_id === 'gog')
     const gogEnabled = isGogEnabled()
+<<<<<<< HEAD
     const gogStats = gameCounts.find((g: { platform: string }) => g.platform === 'gog')
+=======
+>>>>>>> 7f89316 (feat(gog): add GOG Galaxy account linking via user profile)
 
     const platforms = [
       {
@@ -324,6 +328,23 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
           }
           : { comingSoon: true }),
       },
+<<<<<<< HEAD
+=======
+      {
+        id: 'gog',
+        name: 'GOG',
+        connected: !!gogAccount,
+        ...(gogEnabled
+          ? {
+              linkable: true,
+              accountId: gogAccount?.account_id || null,
+              gameCount: Number(gogStats?.count || 0),
+              lastSyncedAt: gogStats?.lastSyncedAt || null,
+              needsRelink: gogAccount?.status === 'needs_relink',
+            }
+          : { comingSoon: true }),
+      },
+>>>>>>> 7f89316 (feat(gog): add GOG Galaxy account linking via user profile)
       { id: 'ubisoft', name: 'Ubisoft Connect', connected: false, comingSoon: true },
     ]
 
@@ -756,13 +777,192 @@ router.post('/epic/sync', requireAuth, async (req: Request, res: Response) => {
   }
 })
 
+<<<<<<< HEAD
 // ─── GOG Galaxy Account Linking ──────────────────────────────────────
 
 // Initiate GOG account linking (requires authenticated user)
+=======
+// ─── GOG Galaxy Account Linking ─────────────────────────────────────
+
+// Initiate GOG account linking
+>>>>>>> 7f89316 (feat(gog): add GOG Galaxy account linking via user profile)
 router.get('/gog/link', requireAuth, (req: Request, res: Response) => {
   if (!isGogEnabled()) {
     res.status(404).json({ error: 'not_available', message: 'GOG linking is not configured' })
     return
+<<<<<<< HEAD
+=======
+  }
+
+  // Generate state bound to the authenticated user
+  const nonce = crypto.randomBytes(16).toString('hex')
+  const userHash = crypto.createHmac('sha256', env.BETTER_AUTH_SECRET).update(req.userId!).digest('hex').slice(0, 16)
+  const state = `${nonce}.${userHash}`
+
+  res.cookie(GOG_LINK_STATE_COOKIE, state, {
+    httpOnly: true,
+    signed: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 10 * 60 * 1000,
+    path: '/api/auth/gog/callback',
+  })
+
+  const authUrl = getGogAuthUrl(state)
+  gogLogger.info({ userId: req.userId }, 'initiating GOG account link')
+  res.redirect(authUrl)
+})
+
+// GOG OAuth2 callback
+router.get('/gog/callback', requireAuth, async (req: Request, res: Response) => {
+  try {
+    // Verify CSRF state
+    const storedState = req.signedCookies?.[GOG_LINK_STATE_COOKIE]
+    res.clearCookie(GOG_LINK_STATE_COOKIE, { path: '/api/auth/gog/callback' })
+
+    const queryState = req.query.state as string | undefined
+    if (!storedState || !queryState || storedState !== queryState) {
+      gogLogger.warn('GOG callback rejected: state mismatch')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=error&reason=state_mismatch`)
+      return
+    }
+
+    // Verify state is bound to current user
+    const userHash = crypto.createHmac('sha256', env.BETTER_AUTH_SECRET).update(req.userId!).digest('hex').slice(0, 16)
+    const expectedSuffix = `.${userHash}`
+    if (!storedState.endsWith(expectedSuffix)) {
+      gogLogger.warn('GOG callback rejected: user binding mismatch')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=error&reason=user_mismatch`)
+      return
+    }
+
+    const code = req.query.code as string | undefined
+    if (!code) {
+      gogLogger.warn('GOG callback rejected: no authorization code')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=error&reason=no_code`)
+      return
+    }
+
+    // Exchange code for tokens
+    const tokens = await exchangeGogCode(code)
+    if (!tokens) {
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=error&reason=token_exchange`)
+      return
+    }
+
+    // Check if this GOG account is already linked to another user
+    const existingLink = await db('accounts')
+      .where({ provider_id: 'gog', account_id: tokens.user_id })
+      .whereNot({ user_id: req.userId! })
+      .first()
+
+    if (existingLink) {
+      gogLogger.warn({ gogUserId: tokens.user_id, userId: req.userId }, 'GOG account already linked to another user')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=error&reason=already_linked`)
+      return
+    }
+
+    // Store encrypted tokens in accounts table
+    const now = new Date()
+    const expiresAt = new Date(Date.now() + tokens.expires_in * 1000)
+
+    await db('accounts')
+      .insert({
+        user_id: req.userId!,
+        provider_id: 'gog',
+        account_id: tokens.user_id,
+        access_token: encryptToken(tokens.access_token),
+        refresh_token: encryptToken(tokens.refresh_token),
+        access_token_expires_at: expiresAt,
+        scope: tokens.scope || 'basic_profile',
+        status: 'active',
+        created_at: now,
+        updated_at: now,
+      })
+      .onConflict(['user_id', 'provider_id'])
+      .merge({
+        account_id: tokens.user_id,
+        access_token: encryptToken(tokens.access_token),
+        refresh_token: encryptToken(tokens.refresh_token),
+        access_token_expires_at: expiresAt,
+        scope: tokens.scope || 'basic_profile',
+        status: 'active',
+        updated_at: now,
+      })
+
+    gogLogger.info({ userId: req.userId, gogUserId: tokens.user_id }, 'GOG account linked')
+
+    // Trigger background library sync
+    syncGogLibrary(req.userId!).catch(err => {
+      gogLogger.error({ error: String(err), userId: req.userId }, 'background GOG library sync failed')
+    })
+
+    res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=success`)
+  } catch (error) {
+    gogLogger.error({ error: String(error) }, 'GOG callback failed')
+    res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=error&reason=internal`)
+  }
+})
+
+// Unlink GOG account
+router.post('/gog/unlink', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const deleted = await db('accounts')
+      .where({ user_id: req.userId!, provider_id: 'gog' })
+      .del()
+
+    if (deleted === 0) {
+      res.status(404).json({ error: 'not_found', message: 'No GOG account linked' })
+      return
+    }
+
+    // Remove GOG games from user library
+    await db('user_games')
+      .where({ user_id: req.userId!, platform: 'gog' })
+      .del()
+
+    gogLogger.info({ userId: req.userId }, 'GOG account unlinked')
+    res.json({ ok: true })
+  } catch (error) {
+    gogLogger.error({ error: String(error) }, 'GOG unlink failed')
+    res.status(500).json({ error: 'internal', message: 'Failed to unlink GOG account' })
+  }
+})
+
+// Sync GOG library
+router.post('/gog/sync', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const account = await db('accounts')
+      .where({ user_id: req.userId!, provider_id: 'gog' })
+      .first()
+
+    if (!account) {
+      res.status(400).json({ error: 'no_gog', message: 'No GOG account connected' })
+      return
+    }
+
+    if (account.status === 'needs_relink') {
+      res.status(400).json({ error: 'needs_relink', message: 'GOG connection expired, please reconnect' })
+      return
+    }
+
+    syncGogLibrary(req.userId!).catch(err => {
+      gogLogger.error({ error: String(err), userId: req.userId }, 'GOG sync failed')
+    })
+
+    res.json({ ok: true, message: 'GOG library sync started' })
+  } catch (error) {
+    gogLogger.error({ error: String(error) }, 'GOG sync request failed')
+    res.status(500).json({ error: 'internal', message: 'Failed to start GOG sync' })
+  }
+})
+
+// Logout
+router.post('/logout', async (req: Request, res: Response) => {
+  const token = req.signedCookies?.[SESSION_COOKIE_NAME]
+  if (token) {
+    await db('sessions').where({ token }).del().catch(() => {})
+>>>>>>> 7f89316 (feat(gog): add GOG Galaxy account linking via user profile)
   }
 
   const nonce = crypto.randomBytes(16).toString('hex')
@@ -982,6 +1182,66 @@ async function syncEpicLibrary(userId: string): Promise<void> {
   epicLogger.info({ userId, gameCount: games.length }, 'Epic library synced')
 }
 
+// Background GOG library sync
+async function syncGogLibrary(userId: string): Promise<void> {
+  const games = await getGogOwnedGames(userId)
+  if (!games || games.length === 0) {
+    gogLogger.warn({ userId }, 'no GOG games returned or token issue')
+    return
+  }
+
+  const now = new Date()
+  for (const game of games) {
+    let gameId: string | null = null
+    const normalizedName = normalizeGogGameName(game.title)
+
+    // Check if this GOG game already has a platform mapping
+    const existingMapping = await db('game_platform_ids')
+      .where({ platform: 'gog', platform_game_id: String(game.id) })
+      .first()
+
+    if (existingMapping) {
+      gameId = existingMapping.game_id
+    } else {
+      // Try to find a canonical game with matching normalized name
+      const existingGame = await db('games')
+        .whereRaw('LOWER(REGEXP_REPLACE(canonical_name, \'[^a-zA-Z0-9\\s]\', \'\', \'g\')) = ?', [normalizedName])
+        .first()
+
+      if (existingGame) {
+        gameId = existingGame.id
+      } else {
+        const [newGame] = await db('games')
+          .insert({ canonical_name: game.title })
+          .returning('id')
+        gameId = newGame.id
+      }
+
+      await db('game_platform_ids').insert({
+        game_id: gameId,
+        platform: 'gog',
+        platform_game_id: String(game.id),
+      })
+    }
+
+    await db('user_games')
+      .insert({
+        user_id: userId,
+        game_id: gameId,
+        platform: 'gog',
+        game_name: game.title,
+        synced_at: now,
+      })
+      .onConflict(['user_id', 'game_id', 'platform'])
+      .merge({
+        game_name: game.title,
+        synced_at: now,
+      })
+  }
+
+  gogLogger.info({ userId, gameCount: games.length }, 'GOG library synced')
+}
+
 // Background Steam library sync
 async function syncUserLibrary(userId: string, steamId: string): Promise<void> {
   const games = await getOwnedGames(steamId)
@@ -1046,6 +1306,7 @@ async function syncUserLibrary(userId: string, steamId: string): Promise<void> {
   steamLogger.info({ userId, steamId, gameCount: games.length }, 'library synced')
 }
 
+<<<<<<< HEAD
 // Background GOG library sync
 async function syncGogLibrary(userId: string): Promise<void> {
   const games = await getGogOwnedGames(userId)
@@ -1104,4 +1365,6 @@ async function syncGogLibrary(userId: string): Promise<void> {
   gogLogger.info({ userId, gameCount: games.length }, 'GOG library synced')
 }
 
+=======
+>>>>>>> 7f89316 (feat(gog): add GOG Galaxy account linking via user profile)
 export { router as authRoutes, syncUserLibrary, syncEpicLibrary, syncGogLibrary }

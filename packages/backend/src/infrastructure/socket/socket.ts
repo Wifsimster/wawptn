@@ -1,11 +1,12 @@
 import { Server as HttpServer } from 'http'
 import { Server } from 'socket.io'
+import { parse as parseCookie } from 'cookie'
+import { unsign } from 'cookie-signature'
 import type { ServerToClientEvents, ClientToServerEvents } from '@wawptn/types'
 import { db } from '../database/connection.js'
 import { socketLogger } from '../logger/logger.js'
 import { env } from '../../config/env.js'
-
-const SESSION_COOKIE = 'wawptn.session_token'
+import { SESSION_COOKIE_NAME } from '../../config/session.js'
 
 export type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>
 
@@ -56,14 +57,17 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
         return next(new Error('unauthorized'))
       }
 
-      // Parse session token from cookie header
-      const cookies = cookieHeader.split(';').reduce((acc, c) => {
-        const [key, ...vals] = c.trim().split('=')
-        if (key) acc[key] = vals.join('=')
-        return acc
-      }, {} as Record<string, string>)
+      // Parse and unsign session token from cookie header
+      const cookies = parseCookie(cookieHeader)
+      const raw = cookies[SESSION_COOKIE_NAME]
+      if (!raw) {
+        return next(new Error('unauthorized'))
+      }
 
-      const token = cookies[SESSION_COOKIE]
+      // Signed cookies are prefixed with "s:" by cookie-parser
+      const token = raw.startsWith('s:')
+        ? unsign(raw.slice(2), env.BETTER_AUTH_SECRET)
+        : raw // fallback for unsigned cookies during transition
       if (!token) {
         return next(new Error('unauthorized'))
       }

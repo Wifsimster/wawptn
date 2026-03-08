@@ -4,11 +4,9 @@ import { db } from '../../infrastructure/database/connection.js'
 import { getSteamLoginUrl, verifySteamLogin, getPlayerSummary, getOwnedGames, getHeaderImageUrl } from '../../infrastructure/steam/steam-client.js'
 import { authLogger, steamLogger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
+import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, SESSION_TOKEN_BYTES } from '../../config/session.js'
 
 const router = Router()
-
-const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
-const SESSION_COOKIE = 'wawptn.session_token'
 
 // Validate returnTo path against strict allowlist
 function isAllowedReturnPath(path: string): boolean {
@@ -17,7 +15,7 @@ function isAllowedReturnPath(path: string): boolean {
 
 // Create a session for a user and return the token
 async function createSession(userId: string): Promise<{ token: string; expiresAt: Date }> {
-  const token = crypto.randomBytes(32).toString('hex')
+  const token = crypto.randomBytes(SESSION_TOKEN_BYTES).toString('hex')
   const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_MS)
 
   await db('sessions').insert({
@@ -135,9 +133,10 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     // Create session
     const session = await createSession(user.id)
 
-    // Set session cookie
-    res.cookie(SESSION_COOKIE, session.token, {
+    // Set signed session cookie
+    res.cookie(SESSION_COOKIE_NAME, session.token, {
       httpOnly: true,
+      signed: true,
       secure: env.NODE_ENV === 'production',
       sameSite: 'lax',
       expires: session.expiresAt,
@@ -165,7 +164,7 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
 // Get current session
 router.get('/me', async (req: Request, res: Response) => {
   try {
-    const token = req.cookies?.[SESSION_COOKIE]
+    const token = req.signedCookies?.[SESSION_COOKIE_NAME]
     if (!token) {
       res.status(401).json({ error: 'unauthorized', message: 'No session' })
       return
@@ -290,12 +289,12 @@ router.post('/profile/sync', async (req: Request, res: Response) => {
 
 // Logout
 router.post('/logout', async (req: Request, res: Response) => {
-  const token = req.cookies?.[SESSION_COOKIE]
+  const token = req.signedCookies?.[SESSION_COOKIE_NAME]
   if (token) {
     await db('sessions').where({ token }).del().catch(() => {})
   }
 
-  res.clearCookie(SESSION_COOKIE, { path: '/' })
+  res.clearCookie(SESSION_COOKIE_NAME, { path: '/' })
   res.json({ ok: true })
 })
 

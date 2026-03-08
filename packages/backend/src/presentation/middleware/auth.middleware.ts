@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
+import { SESSION_COOKIE_NAME } from '../../config/session.js'
 
 // Extend Express Request
 declare global {
@@ -10,11 +11,9 @@ declare global {
   }
 }
 
-const SESSION_COOKIE = 'wawptn.session_token'
-
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const token = req.cookies?.[SESSION_COOKIE]
+    const token = req.signedCookies?.[SESSION_COOKIE_NAME]
     if (!token) {
       res.status(401).json({ error: 'unauthorized', message: 'Authentication required' })
       return

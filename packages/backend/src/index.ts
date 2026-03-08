@@ -76,6 +76,15 @@ async function main() {
     }
   })
 
+  // Strict rate limiter for auth callback (heavy endpoint: Steam verification + DB writes)
+  const authCallbackLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+  app.use('/api/auth/steam/callback', authCallbackLimiter)
+
   // API Routes
   app.use('/api/auth', authRoutes)
   app.use('/api/groups', requireAuth, groupRoutes)

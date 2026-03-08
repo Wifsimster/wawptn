@@ -1,10 +1,11 @@
 import { Server as HttpServer } from 'http'
 import { Server } from 'socket.io'
 import type { ServerToClientEvents, ClientToServerEvents } from '@wawptn/types'
-import { auth } from '../auth/auth.js'
 import { db } from '../database/connection.js'
 import { socketLogger } from '../logger/logger.js'
 import { env } from '../../config/env.js'
+
+const SESSION_COOKIE = 'wawptn.session_token'
 
 export type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>
 
@@ -47,7 +48,7 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
     pingInterval: 25000,
   })
 
-  // Auth middleware — verify session via Better Auth on every connection
+  // Auth middleware — verify session cookie on every connection
   io.use(async (socket, next) => {
     try {
       const cookieHeader = socket.handshake.headers.cookie
@@ -55,15 +56,28 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
         return next(new Error('unauthorized'))
       }
 
-      const session = await auth.api.getSession({
-        headers: new Headers({ cookie: cookieHeader }),
-      })
+      // Parse session token from cookie header
+      const cookies = cookieHeader.split(';').reduce((acc, c) => {
+        const [key, ...vals] = c.trim().split('=')
+        if (key) acc[key] = vals.join('=')
+        return acc
+      }, {} as Record<string, string>)
+
+      const token = cookies[SESSION_COOKIE]
+      if (!token) {
+        return next(new Error('unauthorized'))
+      }
+
+      const session = await db('sessions')
+        .where({ token })
+        .where('expires_at', '>', new Date())
+        .first()
 
       if (!session) {
         return next(new Error('unauthorized'))
       }
 
-      socket.data.userId = session.user.id
+      socket.data.userId = session.user_id
       next()
     } catch {
       next(new Error('unauthorized'))

@@ -1,16 +1,42 @@
+import crypto from 'crypto'
 import { Router, type Request, type Response } from 'express'
-import { fromNodeHeaders } from 'better-auth/node'
 import { db } from '../../infrastructure/database/connection.js'
-import { auth } from '../../infrastructure/auth/auth.js'
 import { getSteamLoginUrl, verifySteamLogin, getPlayerSummary, getOwnedGames, getHeaderImageUrl } from '../../infrastructure/steam/steam-client.js'
 import { authLogger, steamLogger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
 
 const router = Router()
 
+const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+const SESSION_COOKIE = 'wawptn.session_token'
+
 // Validate returnTo path against strict allowlist
 function isAllowedReturnPath(path: string): boolean {
   return /^\/join\/[a-f0-9]{64}$/.test(path)
+}
+
+// Create a session for a user and return the token
+async function createSession(userId: string): Promise<{ token: string; expiresAt: Date }> {
+  const token = crypto.randomBytes(32).toString('hex')
+  const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_MS)
+
+  await db('sessions').insert({
+    user_id: userId,
+    token,
+    expires_at: expiresAt,
+  })
+
+  return { token, expiresAt }
+}
+
+// Look up session by token, return user ID if valid
+async function getSessionUserId(token: string): Promise<string | null> {
+  const session = await db('sessions')
+    .where({ token })
+    .where('expires_at', '>', new Date())
+    .first()
+
+  return session?.user_id ?? null
 }
 
 // Initiate Steam OpenID login
@@ -32,7 +58,7 @@ router.get('/steam/login', (req: Request, res: Response) => {
   res.redirect(loginUrl)
 })
 
-// Steam OpenID callback — verify with Steam, then create Better Auth session
+// Steam OpenID callback
 router.get('/steam/callback', async (req: Request, res: Response) => {
   try {
     const params = req.query as Record<string, string>
@@ -60,98 +86,66 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
       return
     }
 
-    // Use Better Auth's internal adapter to find/create user and session
-    const ctx = await auth.$context
-    const placeholderEmail = `${steamId}@steam.wawptn.app`
+    // Find or create user via direct DB queries
+    let user = await db('users').where({ steam_id: steamId }).first()
 
-    // Try to find existing user via OAuth account
-    let existingOAuth = await ctx.internalAdapter.findOAuthUser(
-      placeholderEmail,
-      steamId,
-      'steam'
-    )
-
-    let userId: string
-
-    if (!existingOAuth) {
-      // Also check if user exists by steam_id (pre-migration users)
-      const legacyUser = await db('users').where({ steam_id: steamId }).first()
-
-      if (legacyUser) {
-        // User exists from before Better Auth — update and create account link
-        userId = legacyUser.id
-        await db('users').where({ id: userId }).update({
-          display_name: profile.personaname,
-          avatar_url: profile.avatarfull,
-          profile_url: profile.profileurl,
-          email: legacyUser.email || placeholderEmail,
-          updated_at: db.fn.now(),
-        })
-
-        // Ensure account link exists
-        const existingAccount = await db('accounts')
-          .where({ user_id: userId, provider_id: 'steam' })
-          .first()
-        if (!existingAccount) {
-          await db('accounts').insert({
-            user_id: userId,
-            provider_id: 'steam',
-            account_id: steamId,
-          })
-        }
-      } else {
-        // Brand new user — create via Better Auth
-        const created = await ctx.internalAdapter.createOAuthUser(
-          {
-            name: profile.personaname,
-            email: placeholderEmail,
-            emailVerified: false,
-            image: profile.avatarfull,
-          },
-          {
-            providerId: 'steam',
-            accountId: steamId,
-          }
-        )
-        userId = created.user.id
-
-        // Set custom fields
-        await db('users').where({ id: userId }).update({
-          steam_id: steamId,
-          profile_url: profile.profileurl,
-          library_visible: true,
-        })
-
-        authLogger.info({ steamId, displayName: profile.personaname }, 'new user created')
-      }
-    } else {
-      userId = existingOAuth.user.id
-      // Update profile info
-      await ctx.internalAdapter.updateUser(userId, {
-        name: profile.personaname,
-        image: profile.avatarfull,
-      })
-      await db('users').where({ id: userId }).update({
+    if (user) {
+      // Update existing user profile
+      await db('users').where({ id: user.id }).update({
+        display_name: profile.personaname,
+        avatar_url: profile.avatarfull,
         profile_url: profile.profileurl,
         updated_at: db.fn.now(),
       })
+    } else {
+      // Create new user
+      const [newUser] = await db('users').insert({
+        steam_id: steamId,
+        display_name: profile.personaname,
+        avatar_url: profile.avatarfull,
+        profile_url: profile.profileurl,
+        email: `${steamId}@steam.wawptn.app`,
+        email_verified: false,
+        library_visible: true,
+      }).returning('*')
+      user = newUser
+
+      // Create account link
+      await db('accounts').insert({
+        user_id: user.id,
+        provider_id: 'steam',
+        account_id: steamId,
+      })
+
+      authLogger.info({ steamId, displayName: profile.personaname }, 'new user created')
     }
 
-    // Create Better Auth session
-    const session = await ctx.internalAdapter.createSession(userId)
+    // Ensure account link exists (for pre-migration users)
+    const existingAccount = await db('accounts')
+      .where({ user_id: user.id, provider_id: 'steam' })
+      .first()
+    if (!existingAccount) {
+      await db('accounts').insert({
+        user_id: user.id,
+        provider_id: 'steam',
+        account_id: steamId,
+      })
+    }
 
-    // Set session cookie (matching Better Auth's expected format)
-    const expiresAt = new Date(session.expiresAt)
-    res.cookie('wawptn.session_token', session.token, {
+    // Create session
+    const session = await createSession(user.id)
+
+    // Set session cookie
+    res.cookie(SESSION_COOKIE, session.token, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
       sameSite: 'lax',
-      expires: expiresAt,
+      expires: session.expiresAt,
       path: '/',
     })
 
     // Trigger background library sync
-    syncUserLibrary(userId, steamId).catch(err => {
+    syncUserLibrary(user.id, steamId).catch(err => {
       steamLogger.error({ error: String(err), steamId }, 'background library sync failed')
     })
 
@@ -168,26 +162,33 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
   }
 })
 
-// Get current session — uses Better Auth's session verification
+// Get current session
 router.get('/me', async (req: Request, res: Response) => {
   try {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    })
-
-    if (!session) {
+    const token = req.cookies?.[SESSION_COOKIE]
+    if (!token) {
       res.status(401).json({ error: 'unauthorized', message: 'No session' })
       return
     }
 
-    const user = session.user
+    const userId = await getSessionUserId(token)
+    if (!userId) {
+      res.status(401).json({ error: 'unauthorized', message: 'No session' })
+      return
+    }
+
+    const user = await db('users').where({ id: userId }).first()
+    if (!user) {
+      res.status(401).json({ error: 'unauthorized', message: 'No session' })
+      return
+    }
 
     res.json({
       id: user.id,
-      steamId: (user as Record<string, unknown>).steamId ?? null,
-      displayName: user.name,
-      avatarUrl: user.image,
-      libraryVisible: (user as Record<string, unknown>).libraryVisible ?? true,
+      steamId: user.steam_id ?? null,
+      displayName: user.display_name,
+      avatarUrl: user.avatar_url,
+      libraryVisible: user.library_visible ?? true,
     })
   } catch (error) {
     authLogger.error({ error: String(error) }, 'get session failed')
@@ -198,16 +199,12 @@ router.get('/me', async (req: Request, res: Response) => {
 // Get full profile with platform connections
 router.get('/profile', async (req: Request, res: Response) => {
   try {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    })
-
-    if (!session) {
+    const userId = req.userId
+    if (!userId) {
       res.status(401).json({ error: 'unauthorized', message: 'No session' })
       return
     }
 
-    const userId = session.user.id
     const user = await db('users').where({ id: userId }).first()
     if (!user) {
       res.status(404).json({ error: 'not_found', message: 'User not found' })
@@ -267,16 +264,12 @@ router.get('/profile', async (req: Request, res: Response) => {
 // Sync current user's Steam library
 router.post('/profile/sync', async (req: Request, res: Response) => {
   try {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    })
-
-    if (!session) {
+    const userId = req.userId
+    if (!userId) {
       res.status(401).json({ error: 'unauthorized', message: 'No session' })
       return
     }
 
-    const userId = session.user.id
     const user = await db('users').where({ id: userId }).first()
     if (!user?.steam_id) {
       res.status(400).json({ error: 'no_steam', message: 'No Steam account connected' })
@@ -295,17 +288,14 @@ router.post('/profile/sync', async (req: Request, res: Response) => {
   }
 })
 
-// Logout — uses Better Auth's session revocation
+// Logout
 router.post('/logout', async (req: Request, res: Response) => {
-  try {
-    await auth.api.signOut({
-      headers: fromNodeHeaders(req.headers),
-    })
-  } catch {
-    // If signOut fails (e.g. no session), still clear the cookie
+  const token = req.cookies?.[SESSION_COOKIE]
+  if (token) {
+    await db('sessions').where({ token }).del().catch(() => {})
   }
 
-  res.clearCookie('wawptn.session_token', { path: '/' })
+  res.clearCookie(SESSION_COOKIE, { path: '/' })
   res.json({ ok: true })
 })
 

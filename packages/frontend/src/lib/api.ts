@@ -26,11 +26,18 @@ export const api = {
     id: string; steamId: string; displayName: string; avatarUrl: string; profileUrl: string | null;
     libraryVisible: boolean; createdAt: string;
     platforms: {
-      id: string; name: string; connected: boolean; comingSoon?: boolean;
+      id: string; name: string; connected: boolean; comingSoon?: boolean; linkable?: boolean; needsRelink?: boolean;
       accountId?: string | null; gameCount?: number; lastSyncedAt?: string | null; profileUrl?: string | null;
     }[];
   }>('/auth/profile'),
   syncProfile: () => request<{ ok: boolean }>('/auth/profile/sync', { method: 'POST' }),
+  syncEpic: () => request<{ ok: boolean }>('/auth/epic/sync', { method: 'POST' }),
+  unlinkPlatform: (providerId: string) => {
+    if (providerId === 'epic') {
+      return request<{ ok: boolean }>('/auth/epic/unlink', { method: 'POST' })
+    }
+    return request<{ ok: boolean }>(`/auth/${providerId}/link`, { method: 'DELETE' })
+  },
 
   // Groups
   getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null }[]>('/groups'),

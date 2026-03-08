@@ -211,6 +211,15 @@
     "syncSuccess": "Library synced!",
     "syncError": "Sync error",
     "disconnect": "Disconnect",
+    "connect": "Connect",
+    "platformLinked": "{{platform}} connected!",
+    "platformUnlinked": "{{platform}} disconnected.",
+    "alreadyLinked": "This account is already connected.",
+    "accountTaken": "This account is already linked to another user.",
+    "linkError": "Unable to connect the account.",
+    "unlinkError": "Unable to disconnect the account.",
+    "needsRelink": "Reconnection required",
+    "reconnect": "Reconnect",
     "memberSince": "Member since {{date}}",
     "steamProfile": "View Steam profile"
   }

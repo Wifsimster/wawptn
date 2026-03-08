@@ -2,9 +2,16 @@ import crypto from 'crypto'
 import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
 import { getSteamLoginUrl, verifySteamLogin, getPlayerSummary, getOwnedGames, getHeaderImageUrl } from '../../infrastructure/steam/steam-client.js'
-import { authLogger, steamLogger } from '../../infrastructure/logger/logger.js'
+import { isBattlenetEnabled, getBattlenetAuthUrl, exchangeCodeForTokens as exchangeBattlenetCode, getBattlenetUserInfo } from '../../infrastructure/battlenet/battlenet-client.js'
+import { isEpicEnabled, getEpicAuthUrl, exchangeCodeForTokens as exchangeEpicCode, getOwnedGames as getEpicOwnedGames, normalizeGameName } from '../../infrastructure/epic/epic-client.js'
+import { encryptToken } from '../../infrastructure/crypto/token-cipher.js'
+import { authLogger, steamLogger, battlenetLogger, epicLogger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
+import { requireAuth } from '../middleware/auth.middleware.js'
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, SESSION_TOKEN_BYTES, CSRF_COOKIE_NAME } from '../../config/session.js'
+
+const BATTLENET_LINK_STATE_COOKIE = 'wawptn.battlenet_link_state'
+const EPIC_LINK_STATE_COOKIE = 'wawptn.epic_link_state'
 
 const router = Router()
 
@@ -241,23 +248,22 @@ router.get('/profile', async (req: Request, res: Response) => {
       return
     }
 
-    // Get game count
-    const gameCountResult = await db('user_games')
+    // Get game counts per platform
+    const gameCounts = await db('user_games')
       .where({ user_id: userId })
-      .count('* as count')
-      .first()
-    const gameCount = Number(gameCountResult?.count || 0)
+      .groupBy('platform')
+      .select('platform', db.raw('COUNT(*) as count'), db.raw('MAX(synced_at) as "lastSyncedAt"'))
 
-    // Get last sync time
-    const lastSync = await db('user_games')
-      .where({ user_id: userId })
-      .max('synced_at as lastSyncedAt')
-      .first()
+    const steamStats = gameCounts.find((g: { platform: string }) => g.platform === 'steam')
+    const epicStats = gameCounts.find((g: { platform: string }) => g.platform === 'epic')
 
     // Get connected platforms from accounts table
     const accounts = await db('accounts')
       .where({ user_id: userId })
-      .select('provider_id', 'account_id', 'created_at')
+      .select('provider_id', 'account_id', 'status', 'created_at')
+
+    const epicAccount = accounts.find((a: { provider_id: string }) => a.provider_id === 'epic')
+    const epicEnabled = isEpicEnabled()
 
     const platforms = [
       {
@@ -265,12 +271,33 @@ router.get('/profile', async (req: Request, res: Response) => {
         name: 'Steam',
         connected: accounts.some((a: { provider_id: string }) => a.provider_id === 'steam'),
         accountId: user.steam_id || null,
-        gameCount,
-        lastSyncedAt: lastSync?.lastSyncedAt || null,
+        gameCount: Number(steamStats?.count || 0),
+        lastSyncedAt: steamStats?.lastSyncedAt || null,
         profileUrl: user.profile_url || null,
       },
-      { id: 'battlenet', name: 'Battle.net', connected: false, comingSoon: true },
-      { id: 'epic', name: 'Epic Games', connected: false, comingSoon: true },
+      (() => {
+        const bnetAccount = accounts.find((a: { provider_id: string; account_id: string }) => a.provider_id === 'battlenet')
+        if (bnetAccount) {
+          return { id: 'battlenet', name: 'Battle.net', connected: true, accountId: bnetAccount.account_id, connectedAt: bnetAccount.created_at }
+        }
+        return isBattlenetEnabled()
+          ? { id: 'battlenet', name: 'Battle.net', connected: false }
+          : { id: 'battlenet', name: 'Battle.net', connected: false, comingSoon: true }
+      })(),
+      {
+        id: 'epic',
+        name: 'Epic Games',
+        connected: !!epicAccount,
+        ...(epicEnabled
+          ? {
+              linkable: true,
+              accountId: epicAccount?.account_id || null,
+              gameCount: Number(epicStats?.count || 0),
+              lastSyncedAt: epicStats?.lastSyncedAt || null,
+              needsRelink: epicAccount?.status === 'needs_relink',
+            }
+          : { comingSoon: true }),
+      },
       { id: 'gog', name: 'GOG', connected: false, comingSoon: true },
       { id: 'ubisoft', name: 'Ubisoft Connect', connected: false, comingSoon: true },
     ]
@@ -324,6 +351,358 @@ router.post('/profile/sync', async (req: Request, res: Response) => {
   }
 })
 
+// Initiate Battle.net OAuth account linking
+router.get('/battlenet/link', async (req: Request, res: Response) => {
+  try {
+    if (!isBattlenetEnabled()) {
+      res.status(503).json({ error: 'unavailable', message: 'Battle.net linking is not configured' })
+      return
+    }
+
+    const token = req.signedCookies?.[SESSION_COOKIE_NAME]
+    if (!token) {
+      res.status(401).json({ error: 'unauthorized', message: 'No session' })
+      return
+    }
+
+    const userId = await getSessionUserId(token)
+    if (!userId) {
+      res.status(401).json({ error: 'unauthorized', message: 'No session' })
+      return
+    }
+
+    // Check if already linked
+    const existing = await db('accounts').where({ user_id: userId, provider_id: 'battlenet' }).first()
+    if (existing) {
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=already_linked`)
+      return
+    }
+
+    // CSRF state: signed cookie bound to this user's session
+    const state = crypto.randomBytes(16).toString('hex')
+    res.cookie(BATTLENET_LINK_STATE_COOKIE, state, {
+      httpOnly: true,
+      signed: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 10 * 60 * 1000,
+      path: '/api/auth/battlenet/callback',
+    })
+
+    const redirectUri = `${env.API_URL}/api/auth/battlenet/callback`
+    const authUrl = getBattlenetAuthUrl(state, redirectUri)
+    battlenetLogger.info({ userId }, 'initiating Battle.net account link')
+    res.redirect(authUrl)
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'Battle.net link initiation failed')
+    res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
+  }
+})
+
+// Battle.net OAuth callback
+router.get('/battlenet/callback', async (req: Request, res: Response) => {
+  try {
+    // Verify CSRF state cookie
+    const storedState = req.signedCookies?.[BATTLENET_LINK_STATE_COOKIE]
+    res.clearCookie(BATTLENET_LINK_STATE_COOKIE, { path: '/api/auth/battlenet/callback' })
+    if (!storedState) {
+      battlenetLogger.warn('battlenet callback rejected: missing state cookie')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
+      return
+    }
+
+    const { code, state, error: oauthError } = req.query as Record<string, string>
+
+    if (oauthError) {
+      battlenetLogger.warn({ oauthError }, 'battlenet callback: user denied or error')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_denied`)
+      return
+    }
+
+    if (state !== storedState) {
+      battlenetLogger.warn('battlenet callback rejected: state mismatch')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
+      return
+    }
+
+    if (!code) {
+      battlenetLogger.warn('battlenet callback rejected: no authorization code')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
+      return
+    }
+
+    // Verify user is still authenticated
+    const sessionToken = req.signedCookies?.[SESSION_COOKIE_NAME]
+    if (!sessionToken) {
+      res.redirect(`${env.CORS_ORIGIN}/#/login?error=session_expired`)
+      return
+    }
+    const userId = await getSessionUserId(sessionToken)
+    if (!userId) {
+      res.redirect(`${env.CORS_ORIGIN}/#/login?error=session_expired`)
+      return
+    }
+
+    // Exchange code for tokens
+    const redirectUri = `${env.API_URL}/api/auth/battlenet/callback`
+    const tokens = await exchangeBattlenetCode(code, redirectUri)
+    if (!tokens) {
+      battlenetLogger.error('battlenet callback: token exchange failed')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
+      return
+    }
+
+    // Get Battle.net user info (battletag)
+    const userInfo = await getBattlenetUserInfo(tokens.access_token)
+    if (!userInfo) {
+      battlenetLogger.error('battlenet callback: failed to fetch user info')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
+      return
+    }
+
+    // Check if this Battle.net account is already linked to another user
+    const existingLink = await db('accounts')
+      .where({ provider_id: 'battlenet', account_id: String(userInfo.id) })
+      .first()
+    if (existingLink && existingLink.user_id !== userId) {
+      battlenetLogger.warn({ battlenetId: userInfo.id }, 'Battle.net account already linked to another user')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=account_taken`)
+      return
+    }
+
+    // Upsert account link with encrypted tokens
+    const accountData = {
+      user_id: userId,
+      provider_id: 'battlenet',
+      account_id: String(userInfo.id),
+      access_token: encryptToken(tokens.access_token),
+      access_token_expires_at: new Date(Date.now() + tokens.expires_in * 1000),
+      scope: tokens.scope || 'openid',
+      updated_at: db.fn.now(),
+    }
+
+    const existingAccount = await db('accounts')
+      .where({ user_id: userId, provider_id: 'battlenet' })
+      .first()
+
+    if (existingAccount) {
+      await db('accounts').where({ id: existingAccount.id }).update(accountData)
+    } else {
+      await db('accounts').insert(accountData)
+    }
+
+    battlenetLogger.info({ userId, battlenetId: userInfo.id, battletag: userInfo.battletag }, 'Battle.net account linked')
+    res.redirect(`${env.CORS_ORIGIN}/#/profile?linked=battlenet`)
+  } catch (error) {
+    battlenetLogger.error({ error: String(error) }, 'Battle.net callback failed')
+    res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
+  }
+})
+
+// Unlink Battle.net account
+router.delete('/battlenet/link', async (req: Request, res: Response) => {
+  try {
+    const token = req.signedCookies?.[SESSION_COOKIE_NAME]
+    if (!token) {
+      res.status(401).json({ error: 'unauthorized', message: 'No session' })
+      return
+    }
+
+    const userId = await getSessionUserId(token)
+    if (!userId) {
+      res.status(401).json({ error: 'unauthorized', message: 'No session' })
+      return
+    }
+
+    const deleted = await db('accounts')
+      .where({ user_id: userId, provider_id: 'battlenet' })
+      .del()
+
+    if (!deleted) {
+      res.status(404).json({ error: 'not_found', message: 'No Battle.net account linked' })
+      return
+    }
+
+    battlenetLogger.info({ userId }, 'Battle.net account unlinked')
+    res.json({ ok: true })
+  } catch (error) {
+    battlenetLogger.error({ error: String(error) }, 'Battle.net unlink failed')
+    res.status(500).json({ error: 'internal', message: 'Failed to unlink Battle.net account' })
+  }
+})
+
+// ─── Epic Games Account Linking ─────────────────────────────────────
+
+// Initiate Epic Games account linking
+router.get('/epic/link', requireAuth, (req: Request, res: Response) => {
+  if (!isEpicEnabled()) {
+    res.status(404).json({ error: 'not_available', message: 'Epic Games linking is not configured' })
+    return
+  }
+
+  // Generate state bound to the authenticated user
+  const nonce = crypto.randomBytes(16).toString('hex')
+  const userHash = crypto.createHmac('sha256', env.BETTER_AUTH_SECRET).update(req.userId!).digest('hex').slice(0, 16)
+  const state = `${nonce}.${userHash}`
+
+  res.cookie(EPIC_LINK_STATE_COOKIE, state, {
+    httpOnly: true,
+    signed: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 10 * 60 * 1000,
+    path: '/api/auth/epic/callback',
+  })
+
+  const authUrl = getEpicAuthUrl(state)
+  epicLogger.info({ userId: req.userId }, 'initiating Epic Games account link')
+  res.redirect(authUrl)
+})
+
+// Epic Games OAuth2 callback
+router.get('/epic/callback', requireAuth, async (req: Request, res: Response) => {
+  try {
+    // Verify CSRF state
+    const storedState = req.signedCookies?.[EPIC_LINK_STATE_COOKIE]
+    res.clearCookie(EPIC_LINK_STATE_COOKIE, { path: '/api/auth/epic/callback' })
+
+    const queryState = req.query.state as string | undefined
+    if (!storedState || !queryState || storedState !== queryState) {
+      epicLogger.warn('Epic callback rejected: state mismatch')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=error&reason=state_mismatch`)
+      return
+    }
+
+    // Verify state is bound to current user
+    const userHash = crypto.createHmac('sha256', env.BETTER_AUTH_SECRET).update(req.userId!).digest('hex').slice(0, 16)
+    const expectedSuffix = `.${userHash}`
+    if (!storedState.endsWith(expectedSuffix)) {
+      epicLogger.warn('Epic callback rejected: user binding mismatch')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=error&reason=user_mismatch`)
+      return
+    }
+
+    const code = req.query.code as string | undefined
+    if (!code) {
+      epicLogger.warn('Epic callback rejected: no authorization code')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=error&reason=no_code`)
+      return
+    }
+
+    // Exchange code for tokens
+    const tokens = await exchangeEpicCode(code)
+    if (!tokens) {
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=error&reason=token_exchange`)
+      return
+    }
+
+    // Check if this Epic account is already linked to another user
+    const existingLink = await db('accounts')
+      .where({ provider_id: 'epic', account_id: tokens.account_id })
+      .whereNot({ user_id: req.userId! })
+      .first()
+
+    if (existingLink) {
+      epicLogger.warn({ epicAccountId: tokens.account_id, userId: req.userId }, 'Epic account already linked to another user')
+      res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=error&reason=already_linked`)
+      return
+    }
+
+    // Store encrypted tokens in accounts table
+    const now = new Date()
+    const expiresAt = new Date(Date.now() + tokens.expires_in * 1000)
+
+    await db('accounts')
+      .insert({
+        user_id: req.userId!,
+        provider_id: 'epic',
+        account_id: tokens.account_id,
+        access_token: encryptToken(tokens.access_token),
+        refresh_token: encryptToken(tokens.refresh_token),
+        access_token_expires_at: expiresAt,
+        scope: tokens.scope || 'basic_profile',
+        status: 'active',
+        created_at: now,
+        updated_at: now,
+      })
+      .onConflict(['user_id', 'provider_id'])
+      .merge({
+        account_id: tokens.account_id,
+        access_token: encryptToken(tokens.access_token),
+        refresh_token: encryptToken(tokens.refresh_token),
+        access_token_expires_at: expiresAt,
+        scope: tokens.scope || 'basic_profile',
+        status: 'active',
+        updated_at: now,
+      })
+
+    epicLogger.info({ userId: req.userId, epicAccountId: tokens.account_id }, 'Epic account linked')
+
+    // Trigger background library sync
+    syncEpicLibrary(req.userId!).catch(err => {
+      epicLogger.error({ error: String(err), userId: req.userId }, 'background Epic library sync failed')
+    })
+
+    res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=success`)
+  } catch (error) {
+    epicLogger.error({ error: String(error) }, 'Epic callback failed')
+    res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=error&reason=internal`)
+  }
+})
+
+// Unlink Epic Games account
+router.post('/epic/unlink', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const deleted = await db('accounts')
+      .where({ user_id: req.userId!, provider_id: 'epic' })
+      .del()
+
+    if (deleted === 0) {
+      res.status(404).json({ error: 'not_found', message: 'No Epic account linked' })
+      return
+    }
+
+    // Remove Epic games from user library
+    await db('user_games')
+      .where({ user_id: req.userId!, platform: 'epic' })
+      .del()
+
+    epicLogger.info({ userId: req.userId }, 'Epic account unlinked')
+    res.json({ ok: true })
+  } catch (error) {
+    epicLogger.error({ error: String(error) }, 'Epic unlink failed')
+    res.status(500).json({ error: 'internal', message: 'Failed to unlink Epic account' })
+  }
+})
+
+// Sync Epic library
+router.post('/epic/sync', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const account = await db('accounts')
+      .where({ user_id: req.userId!, provider_id: 'epic' })
+      .first()
+
+    if (!account) {
+      res.status(400).json({ error: 'no_epic', message: 'No Epic account connected' })
+      return
+    }
+
+    if (account.status === 'needs_relink') {
+      res.status(400).json({ error: 'needs_relink', message: 'Epic connection expired, please reconnect' })
+      return
+    }
+
+    syncEpicLibrary(req.userId!).catch(err => {
+      epicLogger.error({ error: String(err), userId: req.userId }, 'Epic sync failed')
+    })
+
+    res.json({ ok: true, message: 'Epic library sync started' })
+  } catch (error) {
+    epicLogger.error({ error: String(error) }, 'Epic sync request failed')
+    res.status(500).json({ error: 'internal', message: 'Failed to start Epic sync' })
+  }
+})
+
 // Logout
 router.post('/logout', async (req: Request, res: Response) => {
   const token = req.signedCookies?.[SESSION_COOKIE_NAME]
@@ -335,7 +714,69 @@ router.post('/logout', async (req: Request, res: Response) => {
   res.json({ ok: true })
 })
 
-// Background library sync
+// ─── Background Library Sync ────────────────────────────────────────
+
+// Background Epic library sync
+async function syncEpicLibrary(userId: string): Promise<void> {
+  const games = await getEpicOwnedGames(userId)
+  if (!games || games.length === 0) {
+    epicLogger.warn({ userId }, 'no Epic games returned or token issue')
+    return
+  }
+
+  const now = new Date()
+  for (const game of games) {
+    let gameId: string | null = null
+    const normalizedName = normalizeGameName(game.displayName)
+
+    // Check if this Epic game already has a platform mapping
+    const existingMapping = await db('game_platform_ids')
+      .where({ platform: 'epic', platform_game_id: game.catalogItemId })
+      .first()
+
+    if (existingMapping) {
+      gameId = existingMapping.game_id
+    } else {
+      // Try to find a canonical game with matching normalized name
+      const existingGame = await db('games')
+        .whereRaw('LOWER(REGEXP_REPLACE(canonical_name, \'[^a-zA-Z0-9\\s]\', \'\', \'g\')) = ?', [normalizedName])
+        .first()
+
+      if (existingGame) {
+        gameId = existingGame.id
+      } else {
+        const [newGame] = await db('games')
+          .insert({ canonical_name: game.displayName })
+          .returning('id')
+        gameId = newGame.id
+      }
+
+      await db('game_platform_ids').insert({
+        game_id: gameId,
+        platform: 'epic',
+        platform_game_id: game.catalogItemId,
+      })
+    }
+
+    await db('user_games')
+      .insert({
+        user_id: userId,
+        game_id: gameId,
+        platform: 'epic',
+        game_name: game.displayName,
+        synced_at: now,
+      })
+      .onConflict(['user_id', 'game_id', 'platform'])
+      .merge({
+        game_name: game.displayName,
+        synced_at: now,
+      })
+  }
+
+  epicLogger.info({ userId, gameCount: games.length }, 'Epic library synced')
+}
+
+// Background Steam library sync
 async function syncUserLibrary(userId: string, steamId: string): Promise<void> {
   const games = await getOwnedGames(steamId)
   if (!games) {
@@ -399,4 +840,4 @@ async function syncUserLibrary(userId: string, steamId: string): Promise<void> {
   steamLogger.info({ userId, steamId, gameCount: games.length }, 'library synced')
 }
 
-export { router as authRoutes, syncUserLibrary }
+export { router as authRoutes, syncUserLibrary, syncEpicLibrary }

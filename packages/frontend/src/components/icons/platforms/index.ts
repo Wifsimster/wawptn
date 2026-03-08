@@ -1,0 +1,6 @@
+export { SteamIcon } from './steam-icon'
+export { BattleNetIcon } from './battlenet-icon'
+export { EpicGamesIcon } from './epic-games-icon'
+export { GogIcon } from './gog-icon'
+export { UbisoftIcon } from './ubisoft-icon'
+export { PlatformIcon } from './platform-icon'

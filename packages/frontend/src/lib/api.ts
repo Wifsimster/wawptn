@@ -42,6 +42,10 @@ export const api = {
     method: 'POST',
     body: JSON.stringify({ name }),
   }),
+  renameGroup: (groupId: string, name: string) => request<{ id: string; name: string }>(`/groups/${groupId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  }),
   joinGroup: (token: string) => request<{ id: string; name: string; alreadyMember: boolean }>('/groups/join', {
     method: 'POST',
     body: JSON.stringify({ token }),

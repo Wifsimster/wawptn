@@ -26,7 +26,7 @@ export function GroupPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { currentGroup, fetchGroup, leaveGroup, deleteGroup } = useGroupStore()
+  const { currentGroup, fetchGroup, leaveGroup, deleteGroup, renameGroup } = useGroupStore()
   const { user } = useAuthStore()
   const [commonGames, setCommonGames] = useState<{ steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null; type: string | null; shortDescription: string | null; platforms: { windows: boolean; mac: boolean; linux: boolean } | null; recommendationsTotal: number | null; releaseDate: string | null; comingSoon: boolean | null; controllerSupport: string | null; isFree: boolean | null }[]>([])
   const [syncing, setSyncing] = useState(false)
@@ -97,6 +97,10 @@ export function GroupPage() {
       toast(t('group.groupDeleted', { name: data.groupName }))
       navigate('/')
     })
+    socket.on('group:renamed', (data) => {
+      fetchGroup(id)
+      toast(t('group.groupRenamed', { name: data.newName }))
+    })
     socket.on('library:synced', () => loadCommonGames(id, activeFilter))
     socket.on('session:created', (data) => {
       // Only show join prompt to participants (or all if no participantIds — legacy)
@@ -126,6 +130,7 @@ export function GroupPage() {
       socket.off('member:left')
       socket.off('member:kicked')
       socket.off('group:deleted')
+      socket.off('group:renamed')
       socket.off('library:synced')
       socket.off('session:created')
     }
@@ -196,6 +201,17 @@ export function GroupPage() {
       navigate('/')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('group.deleteError'))
+    }
+  }
+
+  const handleRenameGroup = async (name: string) => {
+    if (!id) return
+    try {
+      await renameGroup(id, name)
+      toast.success(t('group.renameSuccess'))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('group.renameError'))
+      throw err
     }
   }
 
@@ -368,6 +384,7 @@ export function GroupPage() {
             </ResponsiveDialogHeader>
             <GroupSidebar
               members={currentGroup.members}
+              groupName={currentGroup.name}
               syncing={syncing}
               inviteToken={inviteToken}
               voteHistory={voteHistory}
@@ -379,6 +396,7 @@ export function GroupPage() {
               onLeaveGroup={handleLeaveGroup}
               onKickMember={handleKickMember}
               onDeleteGroup={handleDeleteGroup}
+              onRenameGroup={handleRenameGroup}
               compact
             />
           </ResponsiveDialogContent>

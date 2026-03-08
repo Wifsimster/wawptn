@@ -11,6 +11,7 @@ interface GroupState {
   fetchGroups: () => Promise<void>
   fetchGroup: (id: string) => Promise<void>
   createGroup: (name: string) => Promise<{ id: string; inviteToken: string }>
+  renameGroup: (groupId: string, name: string) => Promise<void>
   joinGroup: (token: string) => Promise<{ id: string; name: string }>
   leaveGroup: (groupId: string, userId: string) => Promise<void>
   deleteGroup: (groupId: string) => Promise<void>
@@ -33,6 +34,13 @@ export const useGroupStore = create<GroupState>((set) => ({
   createGroup: async (name: string) => {
     const result = await api.createGroup(name)
     return { id: result.id, inviteToken: result.inviteToken }
+  },
+  renameGroup: async (groupId: string, name: string) => {
+    const result = await api.renameGroup(groupId, name)
+    set((state) => ({
+      groups: state.groups.map((g) => g.id === groupId ? { ...g, name: result.name } : g),
+      currentGroup: state.currentGroup?.id === groupId ? { ...state.currentGroup, name: result.name } : state.currentGroup,
+    }))
   },
   joinGroup: async (token: string) => {
     const result = await api.joinGroup(token)

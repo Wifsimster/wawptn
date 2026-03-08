@@ -169,6 +169,44 @@ router.post('/', async (req: Request, res: Response) => {
   })
 })
 
+// Rename group (owner only)
+router.patch('/:id', async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const groupId = String(req.params['id'])
+  const { name } = req.body as { name: string }
+
+  if (!name || name.trim().length === 0) {
+    res.status(400).json({ error: 'validation', message: 'Group name is required' })
+    return
+  }
+
+  if (name.trim().length > 100) {
+    res.status(400).json({ error: 'validation', message: 'Group name must be 100 characters or less' })
+    return
+  }
+
+  const membership = await db('group_members')
+    .where({ group_id: groupId, user_id: userId, role: 'owner' })
+    .first()
+
+  if (!membership) {
+    res.status(403).json({ error: 'forbidden', message: 'Only the group owner can rename the group' })
+    return
+  }
+
+  const trimmedName = name.trim()
+
+  await db('groups').where({ id: groupId }).update({
+    name: trimmedName,
+    updated_at: db.fn.now(),
+  })
+
+  getIO().to(`group:${groupId}`).emit('group:renamed', { groupId, newName: trimmedName })
+
+  logger.info({ userId, groupId, newName: trimmedName }, 'group renamed')
+  res.json({ id: groupId, name: trimmedName })
+})
+
 // Generate new invite link (owner only)
 router.post('/:id/invite', async (req: Request, res: Response) => {
   const userId = req.userId!

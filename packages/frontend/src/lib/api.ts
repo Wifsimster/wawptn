@@ -26,14 +26,12 @@ export const api = {
     id: string; steamId: string; displayName: string; avatarUrl: string; profileUrl: string | null;
     libraryVisible: boolean; createdAt: string;
     platforms: {
-      id: string; name: string; connected: boolean; comingSoon?: boolean;
+      id: string; name: string; connected: boolean; comingSoon?: boolean; linkable?: boolean; needsRelink?: boolean;
       accountId?: string | null; gameCount?: number; lastSyncedAt?: string | null; profileUrl?: string | null;
-      linkable?: boolean; needsRelink?: boolean;
     }[];
   }>('/auth/profile'),
   syncProfile: () => request<{ ok: boolean }>('/auth/profile/sync', { method: 'POST' }),
   syncPlatform: (platformId: string) => request<{ ok: boolean }>(`/auth/${platformId}/sync`, { method: 'POST' }),
-  syncEpic: () => request<{ ok: boolean }>('/auth/epic/sync', { method: 'POST' }),
   unlinkPlatform: (providerId: string) => {
     if (providerId === 'epic' || providerId === 'gog') {
       return request<{ ok: boolean }>(`/auth/${providerId}/unlink`, { method: 'POST' })

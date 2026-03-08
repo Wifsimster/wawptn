@@ -5,6 +5,7 @@ import { db } from '../database/connection.js'
 
 const EPIC_AUTH_BASE = 'https://www.epicgames.com/id'
 const EPIC_TOKEN_URL = 'https://api.epicgames.dev/epic/oauth/v2/token'
+const EPIC_ACCOUNT_API = 'https://api.epicgames.dev/epic/id/v2'
 const EPIC_LIBRARY_API = 'https://library-service.live.use1a.on.epicgames.com/library/api/public'
 
 // Rate limiter: 1 request per second
@@ -200,6 +201,30 @@ async function getValidAccessToken(userId: string): Promise<string | null> {
   })
 
   return refreshed.access_token
+}
+
+export async function getEpicProfile(accessToken: string): Promise<{ accountId: string; displayName: string } | null> {
+  if (isCircuitOpen()) return null
+
+  try {
+    const response = await rateLimitedFetch(`${EPIC_ACCOUNT_API}/accounts`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+
+    if (!response.ok) {
+      recordFailure()
+      epicLogger.error({ status: response.status }, 'Epic profile fetch failed')
+      return null
+    }
+
+    const data = await response.json() as { accountId: string; displayName: string }[]
+    recordSuccess()
+    return data[0] ?? null
+  } catch (error) {
+    recordFailure()
+    epicLogger.error({ error: String(error) }, 'Epic profile fetch request failed')
+    return null
+  }
 }
 
 export async function getOwnedGames(userId: string): Promise<EpicOwnedGame[] | null> {

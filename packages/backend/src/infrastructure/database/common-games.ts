@@ -24,6 +24,7 @@ interface CommonGameRow {
 /**
  * Compute common games for a set of user IDs.
  * Returns games owned by at least `threshold` of the provided users.
+ * Groups by game_id (canonical game) to support cross-platform matching.
  */
 export async function computeCommonGames(
   userIds: string[],

@@ -58,7 +58,6 @@ export function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [syncingPlatform, setSyncingPlatform] = useState<string | null>(null)
   const [unlinking, setUnlinking] = useState<string | null>(null)
-
   const [searchParams, setSearchParams] = useSearchParams()
 
   const loadProfile = useCallback(async () => {

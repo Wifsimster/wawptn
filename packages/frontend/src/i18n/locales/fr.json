@@ -116,6 +116,15 @@
     "kickConfirmDescription": "{{name}} sera retiré du groupe et ne pourra plus y accéder.",
     "kickConfirm": "Exclure",
     "kickError": "Impossible d'exclure le membre",
+    "renameGroup": "Renommer le groupe",
+    "renameTitle": "Renommer le groupe",
+    "renameDescription": "Choisis un nouveau nom pour le groupe.",
+    "renameLabel": "Nouveau nom",
+    "renamePlaceholder": "Nom du groupe...",
+    "renameSubmit": "Renommer",
+    "renameSuccess": "Groupe renommé !",
+    "renameError": "Impossible de renommer le groupe",
+    "groupRenamed": "Le groupe a été renommé en « {{name}} »",
     "youWereKicked": "Tu as été exclu du groupe.",
     "voteStartedOthers": "Un vote a été lancé pour d'autres joueurs",
     "voteScheduled": "Une soirée a été planifiée pour le {{date}} !"
@@ -183,7 +192,10 @@
     "copy": "Copier",
     "copied": "Lien copié !",
     "share": "Partager",
-    "shareText": "Rejoins notre groupe sur WAWPTN !"
+    "shareText": "Rejoins notre groupe sur WAWPTN !",
+    "discord": "Partager sur Discord",
+    "discordMessage": "Rejoins notre groupe sur WAWPTN ! Connecte-toi avec Steam et vote pour le jeu de ce soir !",
+    "discordCopied": "Message Discord copié !"
   },
   "profile": {
     "title": "Mon Profil",

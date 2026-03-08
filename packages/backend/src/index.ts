@@ -14,6 +14,7 @@ import { logger } from './infrastructure/logger/logger.js'
 import { authRoutes } from './presentation/routes/auth.routes.js'
 import { groupRoutes } from './presentation/routes/group.routes.js'
 import { voteRoutes } from './presentation/routes/vote.routes.js'
+import { inviteRoutes } from './presentation/routes/invite.routes.js'
 import { requireAuth } from './presentation/middleware/auth.middleware.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -89,6 +90,16 @@ async function main() {
   app.use('/api/auth', authRoutes)
   app.use('/api/groups', requireAuth, groupRoutes)
   app.use('/api/groups', requireAuth, voteLimiter, voteRoutes)
+
+  // Invite preview route (public, no auth) — serves OG meta tags for Discord/social embeds
+  // Must be registered BEFORE the SPA catch-all so it is matched first
+  const inviteLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+  app.use('/invite', inviteLimiter, inviteRoutes)
 
   // Serve frontend in production
   if (env.NODE_ENV === 'production') {

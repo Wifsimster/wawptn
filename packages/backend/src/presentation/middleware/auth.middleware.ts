@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
-import { db } from '../../infrastructure/database/connection.js'
+import { fromNodeHeaders } from 'better-auth/node'
+import { auth } from '../../infrastructure/auth/auth.js'
 
 // Extend Express Request
 declare global {
@@ -11,23 +12,19 @@ declare global {
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const sessionToken = req.cookies?.['wawptn.session_token']
+  try {
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    })
 
-  if (!sessionToken) {
-    res.status(401).json({ error: 'unauthorized', message: 'Authentication required' })
-    return
-  }
+    if (!session) {
+      res.status(401).json({ error: 'unauthorized', message: 'Authentication required' })
+      return
+    }
 
-  const session = await db('sessions')
-    .where({ token: sessionToken })
-    .where('expires_at', '>', new Date())
-    .first()
-
-  if (!session) {
+    req.userId = session.user.id
+    next()
+  } catch {
     res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired session' })
-    return
   }
-
-  req.userId = session.user_id
-  next()
 }

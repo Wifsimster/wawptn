@@ -4,6 +4,7 @@ import { db } from '../../infrastructure/database/connection.js'
 import { getSteamLoginUrl, verifySteamLogin, getPlayerSummary, getOwnedGames, getHeaderImageUrl } from '../../infrastructure/steam/steam-client.js'
 import { authLogger, steamLogger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
+import { requireAuth } from '../middleware/auth.middleware.js'
 
 const router = Router()
 
@@ -197,7 +198,7 @@ router.get('/me', async (req: Request, res: Response) => {
 })
 
 // Get full profile with platform connections
-router.get('/profile', async (req: Request, res: Response) => {
+router.get('/profile', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.userId
     if (!userId) {
@@ -262,7 +263,7 @@ router.get('/profile', async (req: Request, res: Response) => {
 })
 
 // Sync current user's Steam library
-router.post('/profile/sync', async (req: Request, res: Response) => {
+router.post('/profile/sync', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.userId
     if (!userId) {

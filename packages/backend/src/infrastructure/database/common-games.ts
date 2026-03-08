@@ -24,6 +24,7 @@ interface CommonGameRow {
 /**
  * Compute common games for a set of user IDs.
  * Returns games owned by at least `threshold` of the provided users.
+ * Groups by game_id (canonical game) to support cross-platform matching.
  */
 export async function computeCommonGames(
   userIds: string[],
@@ -34,6 +35,7 @@ export async function computeCommonGames(
   let query = db('user_games')
     .leftJoin('game_metadata', 'user_games.steam_app_id', 'game_metadata.steam_app_id')
     .whereIn('user_games.user_id', userIds)
+    .whereNotNull('user_games.game_id')
 
   if (options?.filter === 'multiplayer') {
     query = query.where(function () {
@@ -48,10 +50,10 @@ export async function computeCommonGames(
   }
 
   const games = await query
-    .groupBy('user_games.steam_app_id', 'user_games.game_id', 'user_games.game_name', 'user_games.header_image_url')
+    .groupBy('user_games.game_id', 'user_games.game_name', 'user_games.header_image_url')
     .havingRaw('COUNT(DISTINCT user_games.user_id) >= ?', [threshold])
     .select(
-      'user_games.steam_app_id as steamAppId',
+      db.raw('MIN(user_games.steam_app_id) as "steamAppId"'),
       'user_games.game_id as gameId',
       'user_games.game_name as gameName',
       'user_games.header_image_url as headerImageUrl',
@@ -106,7 +108,8 @@ export async function countCommonGames(
 
   const count = await db('user_games')
     .whereIn('user_id', userIds)
-    .groupBy('steam_app_id')
+    .whereNotNull('game_id')
+    .groupBy('game_id')
     .havingRaw('COUNT(DISTINCT user_id) >= ?', [t])
     .count('* as cnt')
     .then(rows => rows.length)

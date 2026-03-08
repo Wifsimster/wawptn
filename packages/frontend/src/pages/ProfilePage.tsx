@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, ExternalLink, Check, Clock, Gamepad2, Link, Unlink, AlertTriangle } from 'lucide-react'
+import { PlatformIcon } from '@/components/icons/platforms'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AppHeader } from '@/components/app-header'
@@ -33,14 +34,6 @@ interface Profile {
   libraryVisible: boolean
   createdAt: string
   platforms: Platform[]
-}
-
-const PLATFORM_ICONS: Record<string, string> = {
-  steam: '🎮',
-  battlenet: '⚔️',
-  epic: '🏪',
-  gog: '🌌',
-  ubisoft: '🛡️',
 }
 
 const PLATFORM_NAMES: Record<string, string> = {
@@ -232,9 +225,11 @@ export function ProfilePage() {
                 key={platform.id}
                 className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card"
               >
-                <span className="text-2xl" role="img" aria-label={platform.name}>
-                  {PLATFORM_ICONS[platform.id] || '🎮'}
-                </span>
+                <PlatformIcon
+                  platformId={platform.id}
+                  className="w-6 h-6 shrink-0 text-muted-foreground"
+                  aria-label={platform.name}
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{platform.name}</span>

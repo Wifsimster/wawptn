@@ -508,29 +508,62 @@ router.post('/:id/sync', async (req: Request, res: Response) => {
     return
   }
 
-  // Import syncUserLibrary dynamically to avoid circular deps
-  const { syncUserLibrary } = await import('./auth.routes.js')
+  // Import sync functions dynamically to avoid circular deps
+  const { syncUserLibrary, syncEpicLibrary, syncGogLibrary } = await import('./auth.routes.js')
 
   const members = await db('group_members')
     .join('users', 'users.id', 'group_members.user_id')
     .where('group_members.group_id', groupId)
     .select('users.id', 'users.steam_id')
 
-  // Sync in background, one at a time (rate limited)
-  for (const member of members) {
-    syncUserLibrary(member.id, member.steam_id).then(() => {
-      const io = getIO()
-      io.to(`group:${groupId}`).emit('library:synced', {
-        groupId,
-        userId: member.id,
-        gameCount: 0, // will be updated
-      })
-    }).catch(err => {
-      logger.error({ error: String(err), userId: member.id }, 'sync failed for member')
+  // Get linked accounts for all members to sync all platforms
+  const memberIds = members.map((m: { id: string }) => m.id)
+  const linkedAccounts = await db('accounts')
+    .whereIn('user_id', memberIds)
+    .whereIn('provider_id', ['epic', 'gog'])
+    .where('status', 'active')
+    .select('user_id', 'provider_id')
+
+  const emitSynced = (memberId: string) => {
+    const io = getIO()
+    io.to(`group:${groupId}`).emit('library:synced', {
+      groupId,
+      userId: memberId,
+      gameCount: 0, // will be updated
     })
   }
 
-  res.json({ ok: true, message: 'Library sync started for all members' })
+  // Sync in background, one at a time (rate limited)
+  for (const member of members) {
+    // Steam sync
+    syncUserLibrary(member.id, member.steam_id).then(() => {
+      emitSynced(member.id)
+    }).catch(err => {
+      logger.error({ error: String(err), userId: member.id }, 'Steam sync failed for member')
+    })
+
+    // Epic sync (if linked)
+    const hasEpic = linkedAccounts.some((a: { user_id: string; provider_id: string }) => a.user_id === member.id && a.provider_id === 'epic')
+    if (hasEpic) {
+      syncEpicLibrary(member.id).then(() => {
+        emitSynced(member.id)
+      }).catch(err => {
+        logger.error({ error: String(err), userId: member.id }, 'Epic sync failed for member')
+      })
+    }
+
+    // GOG sync (if linked)
+    const hasGog = linkedAccounts.some((a: { user_id: string; provider_id: string }) => a.user_id === member.id && a.provider_id === 'gog')
+    if (hasGog) {
+      syncGogLibrary(member.id).then(() => {
+        emitSynced(member.id)
+      }).catch(err => {
+        logger.error({ error: String(err), userId: member.id }, 'GOG sync failed for member')
+      })
+    }
+  }
+
+  res.json({ ok: true, message: 'Library sync started for all members across all platforms' })
 })
 
 export { router as groupRoutes }

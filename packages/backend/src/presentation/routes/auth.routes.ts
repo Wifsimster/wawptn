@@ -275,6 +275,7 @@ router.get('/profile', async (req: Request, res: Response) => {
         id: 'steam',
         name: 'Steam',
         connected: accounts.some((a: { provider_id: string }) => a.provider_id === 'steam'),
+        syncable: true,
         accountId: user.steam_id || null,
         gameCount: Number(steamStats?.count || 0),
         lastSyncedAt: steamStats?.lastSyncedAt || null,
@@ -282,11 +283,21 @@ router.get('/profile', async (req: Request, res: Response) => {
       },
       (() => {
         const bnetAccount = accounts.find((a: { provider_id: string; account_id: string }) => a.provider_id === 'battlenet')
+        const battlenetEnabled = isBattlenetEnabled()
         if (bnetAccount) {
-          return { id: 'battlenet', name: 'Battle.net', connected: true, accountId: bnetAccount.account_id, connectedAt: bnetAccount.created_at }
+          return {
+            id: 'battlenet',
+            name: 'Battle.net',
+            connected: true,
+            linkable: true,
+            syncable: false, // Battle.net API does not expose a game library endpoint
+            accountId: bnetAccount.account_id,
+            connectedAt: bnetAccount.created_at,
+            needsRelink: bnetAccount.status === 'needs_relink',
+          }
         }
-        return isBattlenetEnabled()
-          ? { id: 'battlenet', name: 'Battle.net', connected: false }
+        return battlenetEnabled
+          ? { id: 'battlenet', name: 'Battle.net', connected: false, linkable: true, syncable: false }
           : { id: 'battlenet', name: 'Battle.net', connected: false, comingSoon: true }
       })(),
       {
@@ -296,6 +307,7 @@ router.get('/profile', async (req: Request, res: Response) => {
         ...(epicEnabled
           ? {
             linkable: true,
+            syncable: true,
             accountId: epicAccount?.account_id || null,
             gameCount: Number(epicStats?.count || 0),
             lastSyncedAt: epicStats?.lastSyncedAt || null,
@@ -310,6 +322,7 @@ router.get('/profile', async (req: Request, res: Response) => {
         ...(gogEnabled
           ? {
             linkable: true,
+            syncable: true,
             accountId: gogAccount?.account_id || null,
             gameCount: Number(gogStats?.count || 0),
             lastSyncedAt: gogStats?.lastSyncedAt || null,
@@ -357,12 +370,30 @@ router.post('/profile/sync', async (req: Request, res: Response) => {
       return
     }
 
-    // Trigger background sync
+    // Trigger background sync for Steam
     syncUserLibrary(userId, user.steam_id).catch(err => {
-      steamLogger.error({ error: String(err), steamId: user.steam_id }, 'profile sync failed')
+      steamLogger.error({ error: String(err), steamId: user.steam_id }, 'profile Steam sync failed')
     })
 
-    res.json({ ok: true, message: 'Library sync started' })
+    // Also sync other connected platforms
+    const linkedAccounts = await db('accounts')
+      .where({ user_id: userId, status: 'active' })
+      .whereIn('provider_id', ['epic', 'gog'])
+      .select('provider_id')
+
+    for (const account of linkedAccounts) {
+      if (account.provider_id === 'epic') {
+        syncEpicLibrary(userId).catch(err => {
+          epicLogger.error({ error: String(err), userId }, 'profile Epic sync failed')
+        })
+      } else if (account.provider_id === 'gog') {
+        syncGogLibrary(userId).catch(err => {
+          gogLogger.error({ error: String(err), userId }, 'profile GOG sync failed')
+        })
+      }
+    }
+
+    res.json({ ok: true, message: 'Library sync started for all connected platforms' })
   } catch (error) {
     authLogger.error({ error: String(error) }, 'profile sync failed')
     res.status(500).json({ error: 'internal', message: 'Failed to start sync' })

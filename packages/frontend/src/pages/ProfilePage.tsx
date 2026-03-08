@@ -18,6 +18,7 @@ interface Platform {
   connected: boolean
   comingSoon?: boolean
   linkable?: boolean
+  syncable?: boolean
   needsRelink?: boolean
   accountId?: string | null
   gameCount?: number
@@ -284,7 +285,7 @@ export function ProfilePage() {
                     {t('profile.reconnect')}
                   </Button>
                 )}
-                {platform.connected && !platform.needsRelink && (platform.id === 'steam' || platform.linkable) && (
+                {platform.connected && !platform.needsRelink && platform.syncable !== false && (platform.id === 'steam' || platform.linkable) && (
                   <Button
                     variant="outline"
                     size="sm"

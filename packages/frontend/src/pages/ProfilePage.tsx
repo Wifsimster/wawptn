@@ -256,20 +256,26 @@ export function ProfilePage() {
                   </div>
                   {platform.connected && !platform.needsRelink && (
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                      {platform.gameCount !== undefined && (
-                        <span>{t('profile.gameCount', { count: platform.gameCount })}</span>
-                      )}
-                      {platform.lastSyncedAt ? (
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {t('profile.lastSync', {
-                            date: new Date(platform.lastSyncedAt).toLocaleDateString('fr-FR', {
-                              day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-                            }),
-                          })}
-                        </span>
+                      {platform.syncable === false ? (
+                        <span className="italic">{t('profile.noLibraryApi')}</span>
                       ) : (
-                        <span>{t('profile.neverSynced')}</span>
+                        <>
+                          {platform.gameCount !== undefined && (
+                            <span>{t('profile.gameCount', { count: platform.gameCount })}</span>
+                          )}
+                          {platform.lastSyncedAt ? (
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {t('profile.lastSync', {
+                                date: new Date(platform.lastSyncedAt).toLocaleDateString('fr-FR', {
+                                  day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                                }),
+                              })}
+                            </span>
+                          ) : (
+                            <span>{t('profile.neverSynced')}</span>
+                          )}
+                        </>
                       )}
                     </div>
                   )}

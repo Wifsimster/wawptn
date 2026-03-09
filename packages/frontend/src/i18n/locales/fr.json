@@ -221,6 +221,7 @@
     "linkError": "Impossible de connecter le compte.",
     "unlinkError": "Impossible de déconnecter le compte.",
     "memberSince": "Membre depuis {{date}}",
-    "steamProfile": "Voir le profil Steam"
+    "steamProfile": "Voir le profil Steam",
+    "noLibraryApi": "Cette plateforme ne propose pas d'API pour synchroniser la bibliothèque de jeux."
   }
 }

@@ -221,6 +221,7 @@
     "linkError": "Unable to connect the account.",
     "unlinkError": "Unable to disconnect the account.",
     "memberSince": "Member since {{date}}",
-    "steamProfile": "View Steam profile"
+    "steamProfile": "View Steam profile",
+    "noLibraryApi": "This platform does not provide an API to sync the game library."
   }
 }

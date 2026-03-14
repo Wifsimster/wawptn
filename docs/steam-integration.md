@@ -85,12 +85,11 @@ Une clé API Steam est obligatoire. Elle se configure via la variable d'environn
 
 ## Autres plateformes
 
-WAWPTN supporte également **Epic Games**, **GOG Galaxy** et **Battle.net** en complément de Steam. Ces plateformes sont optionnelles et activées par variables d'environnement.
+WAWPTN supporte également **Epic Games** et **GOG Galaxy** en complément de Steam. Ces plateformes sont optionnelles et activées par variables d'environnement.
 
 | Plateforme | Protocole | Bibliothèque |
 |------------|-----------|-------------|
 | Steam | OpenID 2.0 | API GetOwnedGames |
-| Battle.net | OAuth 2.0 | Profil uniquement |
 | Epic Games | OAuth 2.0 | API bibliothèque |
 | GOG Galaxy | OAuth 2.0 | API bibliothèque |
 

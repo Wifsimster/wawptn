@@ -56,12 +56,12 @@ Sessions d'authentification liées aux utilisateurs.
 
 ### accounts
 
-Comptes de plateformes de jeux liés (Battle.net, Epic Games, GOG Galaxy).
+Comptes de plateformes de jeux liés (Epic Games, GOG Galaxy).
 
 | Colonne | Type | Contrainte | Description |
 |---------|------|------------|-------------|
 | `user_id` | UUID | FK → users, CASCADE | Utilisateur |
-| `provider_id` | VARCHAR | NOT NULL | Plateforme (`steam`, `battlenet`, `epic`, `gog`) |
+| `provider_id` | VARCHAR | NOT NULL | Plateforme (`steam`, `epic`, `gog`) |
 | `account_id` | VARCHAR | NOT NULL | Identifiant sur la plateforme |
 | `access_token` | TEXT | — | Token d'accès chiffré |
 | `refresh_token` | TEXT | — | Token de rafraîchissement chiffré |

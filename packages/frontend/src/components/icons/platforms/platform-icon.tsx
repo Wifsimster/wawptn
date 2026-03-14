@@ -1,14 +1,12 @@
 import type { ComponentType, SVGProps } from 'react'
 import { Gamepad2 } from 'lucide-react'
 import { SteamIcon } from './steam-icon'
-import { BattleNetIcon } from './battlenet-icon'
 import { EpicGamesIcon } from './epic-games-icon'
 import { GogIcon } from './gog-icon'
 import { UbisoftIcon } from './ubisoft-icon'
 
 const PLATFORM_ICON_MAP: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   steam: SteamIcon,
-  battlenet: BattleNetIcon,
   epic: EpicGamesIcon,
   gog: GogIcon,
   ubisoft: UbisoftIcon,

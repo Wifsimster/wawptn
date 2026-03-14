@@ -25,8 +25,7 @@ Application web qui aide un groupe d'amis à choisir ensemble à quel jeu vidéo
 ## À quoi sert ce produit ?
 
 - **Trouver un jeu commun** parmi les bibliothèques de tous les membres du groupe
-- **Supporter plusieurs plateformes** — Steam, Epic Games, GOG Galaxy, Battle.net
-- **Créer des groupes** et inviter vos amis via un lien sécurisé à usage limité
+- **Supporter plusieurs plateformes** — Steam, Epic Games, GOG Galaxy- **Créer des groupes** et inviter vos amis via un lien sécurisé à usage limité
 - **Voter** pour ou contre chaque jeu proposé, depuis le site ou depuis Discord
 - **Suivre en temps réel** l'avancement des votes de chaque participant
 - **Lancer le jeu choisi** directement depuis Steam une fois le résultat révélé
@@ -34,7 +33,7 @@ Application web qui aide un groupe d'amis à choisir ensemble à quel jeu vidéo
 ## Fonctionnalités principales
 
 - **Connexion via Steam** — Authentification unique par votre compte Steam
-- **Multi-plateforme** — Liez vos comptes Epic Games, GOG et Battle.net pour élargir la liste de jeux
+- **Multi-plateforme** — Liez vos comptes Epic Games et GOG pour élargir la liste de jeux
 - **Gestion de groupes** — Création, invitation par lien sécurisé avec expiration
 - **Détection des jeux communs** — Calcul automatique des jeux partagés entre les membres
 - **Sessions de vote** — Vote pouce haut / pouce bas sur chaque jeu commun
@@ -106,7 +105,7 @@ L'image Docker contient le backend, le frontend et le bot Discord. En production
 ## Stack technique
 
 - **Frontend :** React 19, TypeScript, TailwindCSS v4, Zustand, Framer Motion
-- **Backend :** Node.js 24, Express 5, Better Auth, Socket.io, Zod
+- **Backend :** Node.js 24, Express 5, Socket.io, Zod
 - **Bot Discord :** Discord.js 14, TypeScript
 - **Base de données :** PostgreSQL 16, Knex.js
 - **Infrastructure :** Docker, Docker Compose, Traefik, GitHub Actions CI/CD

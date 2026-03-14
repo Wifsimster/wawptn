@@ -2,7 +2,7 @@
 
 ## Résumé du projet
 
-WAWPTN (What Are We Playing Tonight?) est une application web permettant à un groupe d'amis de choisir ensemble un jeu vidéo à jouer, en se basant sur l'intersection de leurs bibliothèques de jeux (Steam, Epic Games, GOG, Battle.net). Le projet utilise une architecture monorepo avec npm workspaces. Un bot Discord permet de voter directement depuis Discord.
+WAWPTN (What Are We Playing Tonight?) est une application web permettant à un groupe d'amis de choisir ensemble un jeu vidéo à jouer, en se basant sur l'intersection de leurs bibliothèques de jeux (Steam, Epic Games, GOG). Le projet utilise une architecture monorepo avec npm workspaces. Un bot Discord permet de voter directement depuis Discord.
 
 ## Structure du monorepo
 
@@ -41,7 +41,7 @@ docker compose -f compose.local.yml up -d   # Démarrer PostgreSQL local
 - **Alias de chemins :** `@/` correspond à `./src/` dans le backend et le frontend.
 - **Pas de Redis :** cache en mémoire dans le client Steam, `node-cron` si besoin.
 - **Contraintes en base :** unicité des votes et intégrité des sessions gérées au niveau SQL.
-- **Feature flags :** les intégrations optionnelles (Discord, Battle.net, Epic, GOG) sont désactivées si les variables d'environnement ne sont pas définies.
+- **Feature flags :** les intégrations optionnelles (Discord, Epic, GOG) sont désactivées si les variables d'environnement ne sont pas définies.
 
 ## Workflow de développement
 

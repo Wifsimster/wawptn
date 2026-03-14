@@ -16,10 +16,6 @@ export const env = {
   // Steam
   STEAM_API_KEY: process.env['STEAM_API_KEY'] || '',
 
-  // Battle.net (optional — feature-flagged)
-  BATTLENET_CLIENT_ID: process.env['BATTLENET_CLIENT_ID'] || '',
-  BATTLENET_CLIENT_SECRET: process.env['BATTLENET_CLIENT_SECRET'] || '',
-
   // Epic Games (optional — feature-flagged)
   EPIC_CLIENT_ID: process.env['EPIC_CLIENT_ID'] || '',
   EPIC_CLIENT_SECRET: process.env['EPIC_CLIENT_SECRET'] || '',

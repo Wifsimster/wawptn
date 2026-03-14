@@ -39,7 +39,6 @@ interface Profile {
 
 const PLATFORM_NAMES: Record<string, string> = {
   steam: 'Steam',
-  battlenet: 'Battle.net',
   epic: 'Epic Games',
   gog: 'GOG',
   ubisoft: 'Ubisoft Connect',

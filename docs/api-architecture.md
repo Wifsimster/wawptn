@@ -14,8 +14,6 @@ Toutes les routes sont préfixées par `/api`.
 | GET | `/api/auth/steam/callback` | Callback après authentification Steam |
 | GET | `/api/auth/me` | Récupère l'utilisateur connecté et ses plateformes liées |
 | POST | `/api/auth/logout` | Déconnexion et suppression de la session |
-| GET | `/api/auth/battlenet/link` | Initie la liaison du compte Battle.net |
-| GET | `/api/auth/battlenet/callback` | Callback après liaison Battle.net |
 | GET | `/api/auth/epic/link` | Initie la liaison du compte Epic Games |
 | GET | `/api/auth/epic/callback` | Callback après liaison Epic Games |
 | GET | `/api/auth/gog/link` | Initie la liaison du compte GOG Galaxy |

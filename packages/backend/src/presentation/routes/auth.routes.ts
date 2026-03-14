@@ -3,15 +3,13 @@ import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
 import { getSteamLoginUrl, verifySteamLogin, getPlayerSummary, getOwnedGames, getHeaderImageUrl } from '../../infrastructure/steam/steam-client.js'
 import { isEpicEnabled, getEpicAuthUrl, exchangeCodeForTokens, getOwnedGames as getEpicOwnedGames, normalizeGameName } from '../../infrastructure/epic/epic-client.js'
-import { isBattlenetEnabled, getBattlenetAuthUrl, exchangeCodeForTokens as exchangeBattlenetCode, getBattlenetUserInfo } from '../../infrastructure/battlenet/battlenet-client.js'
 import { isGogEnabled, getGogAuthUrl, exchangeCodeForTokens as exchangeGogCode, getOwnedGames as getGogOwnedGames, normalizeGameName as normalizeGogGameName } from '../../infrastructure/gog/gog-client.js'
 import { encryptToken } from '../../infrastructure/crypto/token-cipher.js'
-import { authLogger, steamLogger, battlenetLogger, epicLogger, gogLogger } from '../../infrastructure/logger/logger.js'
+import { authLogger, steamLogger, epicLogger, gogLogger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
 import { requireAuth } from '../middleware/auth.middleware.js'
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, SESSION_TOKEN_BYTES, CSRF_COOKIE_NAME } from '../../config/session.js'
 
-const BATTLENET_LINK_STATE_COOKIE = 'wawptn.battlenet_link_state'
 const EPIC_LINK_STATE_COOKIE = 'wawptn.epic_link_state'
 const GOG_LINK_STATE_COOKIE = 'wawptn.gog_link_state'
 
@@ -275,25 +273,6 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
         lastSyncedAt: steamStats?.lastSyncedAt || null,
         profileUrl: user.profile_url || null,
       },
-      (() => {
-        const bnetAccount = accounts.find((a: { provider_id: string; account_id: string }) => a.provider_id === 'battlenet')
-        const battlenetEnabled = isBattlenetEnabled()
-        if (bnetAccount) {
-          return {
-            id: 'battlenet',
-            name: 'Battle.net',
-            connected: true,
-            linkable: true,
-            syncable: false, // Battle.net API does not expose a game library endpoint
-            accountId: bnetAccount.account_id,
-            connectedAt: bnetAccount.created_at,
-            needsRelink: bnetAccount.status === 'needs_relink',
-          }
-        }
-        return battlenetEnabled
-          ? { id: 'battlenet', name: 'Battle.net', connected: false, linkable: true, syncable: false }
-          : { id: 'battlenet', name: 'Battle.net', connected: false, comingSoon: true }
-      })(),
       {
         id: 'epic',
         name: 'Epic Games',
@@ -391,186 +370,6 @@ router.post('/profile/sync', requireAuth, async (req: Request, res: Response) =>
   } catch (error) {
     authLogger.error({ error: String(error) }, 'profile sync failed')
     res.status(500).json({ error: 'internal', message: 'Failed to start sync' })
-  }
-})
-
-// Initiate Battle.net OAuth account linking
-router.get('/battlenet/link', async (req: Request, res: Response) => {
-  try {
-    if (!isBattlenetEnabled()) {
-      res.status(503).json({ error: 'unavailable', message: 'Battle.net linking is not configured' })
-      return
-    }
-
-    const token = req.signedCookies?.[SESSION_COOKIE_NAME]
-    if (!token) {
-      res.status(401).json({ error: 'unauthorized', message: 'No session' })
-      return
-    }
-
-    const userId = await getSessionUserId(token)
-    if (!userId) {
-      res.status(401).json({ error: 'unauthorized', message: 'No session' })
-      return
-    }
-
-    // Check if already linked
-    const existing = await db('accounts').where({ user_id: userId, provider_id: 'battlenet' }).first()
-    if (existing) {
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=already_linked`)
-      return
-    }
-
-    // CSRF state: signed cookie bound to this user's session
-    const state = crypto.randomBytes(16).toString('hex')
-    res.cookie(BATTLENET_LINK_STATE_COOKIE, state, {
-      httpOnly: true,
-      signed: true,
-      secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 10 * 60 * 1000,
-      path: '/api/auth/battlenet/callback',
-    })
-
-    const redirectUri = `${env.API_URL}/api/auth/battlenet/callback`
-    const authUrl = getBattlenetAuthUrl(state, redirectUri)
-    battlenetLogger.info({ userId }, 'initiating Battle.net account link')
-    res.redirect(authUrl)
-  } catch (error) {
-    authLogger.error({ error: String(error) }, 'Battle.net link initiation failed')
-    res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
-  }
-})
-
-// Battle.net OAuth callback
-router.get('/battlenet/callback', async (req: Request, res: Response) => {
-  try {
-    // Verify CSRF state cookie
-    const storedState = req.signedCookies?.[BATTLENET_LINK_STATE_COOKIE]
-    res.clearCookie(BATTLENET_LINK_STATE_COOKIE, { path: '/api/auth/battlenet/callback' })
-    if (!storedState) {
-      battlenetLogger.warn('battlenet callback rejected: missing state cookie')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
-      return
-    }
-
-    const { code, state, error: oauthError } = req.query as Record<string, string>
-
-    if (oauthError) {
-      battlenetLogger.warn({ oauthError }, 'battlenet callback: user denied or error')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_denied`)
-      return
-    }
-
-    if (state !== storedState) {
-      battlenetLogger.warn('battlenet callback rejected: state mismatch')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
-      return
-    }
-
-    if (!code) {
-      battlenetLogger.warn('battlenet callback rejected: no authorization code')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
-      return
-    }
-
-    // Verify user is still authenticated
-    const sessionToken = req.signedCookies?.[SESSION_COOKIE_NAME]
-    if (!sessionToken) {
-      res.redirect(`${env.CORS_ORIGIN}/#/login?error=session_expired`)
-      return
-    }
-    const userId = await getSessionUserId(sessionToken)
-    if (!userId) {
-      res.redirect(`${env.CORS_ORIGIN}/#/login?error=session_expired`)
-      return
-    }
-
-    // Exchange code for tokens
-    const redirectUri = `${env.API_URL}/api/auth/battlenet/callback`
-    const tokens = await exchangeBattlenetCode(code, redirectUri)
-    if (!tokens) {
-      battlenetLogger.error('battlenet callback: token exchange failed')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
-      return
-    }
-
-    // Get Battle.net user info (battletag)
-    const userInfo = await getBattlenetUserInfo(tokens.access_token)
-    if (!userInfo) {
-      battlenetLogger.error('battlenet callback: failed to fetch user info')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
-      return
-    }
-
-    // Check if this Battle.net account is already linked to another user
-    const existingLink = await db('accounts')
-      .where({ provider_id: 'battlenet', account_id: String(userInfo.id) })
-      .first()
-    if (existingLink && existingLink.user_id !== userId) {
-      battlenetLogger.warn({ battlenetId: userInfo.id }, 'Battle.net account already linked to another user')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?error=account_taken`)
-      return
-    }
-
-    // Upsert account link with encrypted tokens
-    const accountData = {
-      user_id: userId,
-      provider_id: 'battlenet',
-      account_id: String(userInfo.id),
-      access_token: encryptToken(tokens.access_token),
-      access_token_expires_at: new Date(Date.now() + tokens.expires_in * 1000),
-      scope: tokens.scope || 'openid',
-      updated_at: db.fn.now(),
-    }
-
-    const existingAccount = await db('accounts')
-      .where({ user_id: userId, provider_id: 'battlenet' })
-      .first()
-
-    if (existingAccount) {
-      await db('accounts').where({ id: existingAccount.id }).update(accountData)
-    } else {
-      await db('accounts').insert(accountData)
-    }
-
-    battlenetLogger.info({ userId, battlenetId: userInfo.id, battletag: userInfo.battletag }, 'Battle.net account linked')
-    res.redirect(`${env.CORS_ORIGIN}/#/profile?linked=battlenet`)
-  } catch (error) {
-    battlenetLogger.error({ error: String(error) }, 'Battle.net callback failed')
-    res.redirect(`${env.CORS_ORIGIN}/#/profile?error=link_failed`)
-  }
-})
-
-// Unlink Battle.net account
-router.delete('/battlenet/link', async (req: Request, res: Response) => {
-  try {
-    const token = req.signedCookies?.[SESSION_COOKIE_NAME]
-    if (!token) {
-      res.status(401).json({ error: 'unauthorized', message: 'No session' })
-      return
-    }
-
-    const userId = await getSessionUserId(token)
-    if (!userId) {
-      res.status(401).json({ error: 'unauthorized', message: 'No session' })
-      return
-    }
-
-    const deleted = await db('accounts')
-      .where({ user_id: userId, provider_id: 'battlenet' })
-      .del()
-
-    if (!deleted) {
-      res.status(404).json({ error: 'not_found', message: 'No Battle.net account linked' })
-      return
-    }
-
-    battlenetLogger.info({ userId }, 'Battle.net account unlinked')
-    res.json({ ok: true })
-  } catch (error) {
-    battlenetLogger.error({ error: String(error) }, 'Battle.net unlink failed')
-    res.status(500).json({ error: 'internal', message: 'Failed to unlink Battle.net account' })
   }
 })
 

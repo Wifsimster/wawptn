@@ -87,7 +87,6 @@ async function main() {
     legacyHeaders: false,
   })
   app.use('/api/auth/steam/callback', authCallbackLimiter)
-  app.use('/api/auth/battlenet/callback', authCallbackLimiter)
 
   // API Routes
   app.use('/api/auth', authRoutes)

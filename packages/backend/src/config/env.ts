@@ -29,6 +29,9 @@ export const env = {
   GOG_CLIENT_ID: process.env['GOG_CLIENT_ID'] || '',
   GOG_CLIENT_SECRET: process.env['GOG_CLIENT_SECRET'] || '',
   GOG_REDIRECT_URI: process.env['GOG_REDIRECT_URI'] || '',
+
+  // Discord Bot (optional — feature-flagged)
+  DISCORD_BOT_API_SECRET: process.env['DISCORD_BOT_API_SECRET'] || '',
 }
 
 export function validateEnv(): void {

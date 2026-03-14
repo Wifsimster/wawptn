@@ -1,6 +1,7 @@
 import { db } from '../infrastructure/database/connection.js'
 import { getIO } from '../infrastructure/socket/socket.js'
 import { logger } from '../infrastructure/logger/logger.js'
+import { notifyVoteClosed } from '../infrastructure/discord/notifier.js'
 import type { VoteResult } from '@wawptn/types'
 
 /**
@@ -67,6 +68,11 @@ export async function closeSession(sessionId: string, groupId: string): Promise<
 
   // Broadcast result
   getIO().to(`group:${groupId}`).emit('vote:closed', { sessionId, result })
+
+  // Notify Discord channel (non-blocking)
+  notifyVoteClosed(groupId, result).catch(err =>
+    logger.warn({ error: String(err), groupId }, 'Discord notification failed')
+  )
 
   logger.info({ sessionId, groupId, winner: winnerName, winnerAppId }, 'voting session closed')
 

@@ -110,11 +110,12 @@ export function VotePage() {
     setSubmitting(true)
 
     try {
-      // Send a vote for each game: selected = true, not selected = false
-      const promises = games.map(game =>
-        api.castVote(id, session.id, game.steamAppId, selectedGames.has(game.steamAppId))
-      )
-      await Promise.all(promises)
+      // Send all votes in a single request: selected = true, not selected = false
+      const votes = games.map(game => ({
+        steamAppId: game.steamAppId,
+        vote: selectedGames.has(game.steamAppId),
+      }))
+      await api.castVotes(id, session.id, votes)
       setHasVoted(true)
     } catch (err) {
       toast.error(t('vote.voteError'))

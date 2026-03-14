@@ -265,15 +265,27 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
   })
 })
 
-// Cast a vote (yes/no per game)
+// Cast votes (batch: all games in one request)
 router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['groupId'])
   const sessionId = String(req.params['sessionId'])
-  const { steamAppId, vote } = req.body as { steamAppId: number; vote: boolean }
 
-  if (steamAppId === undefined || vote === undefined) {
-    res.status(400).json({ error: 'validation', message: 'steamAppId and vote are required' })
+  // Support both single vote { steamAppId, vote } and batch { votes: [{ steamAppId, vote }] }
+  const body = req.body as { steamAppId?: number; vote?: boolean; votes?: { steamAppId: number; vote: boolean }[] }
+
+  let voteEntries: { steamAppId: number; vote: boolean }[]
+  if (Array.isArray(body.votes)) {
+    voteEntries = body.votes
+  } else if (body.steamAppId !== undefined && body.vote !== undefined) {
+    voteEntries = [{ steamAppId: body.steamAppId, vote: body.vote }]
+  } else {
+    res.status(400).json({ error: 'validation', message: 'votes array or steamAppId+vote are required' })
+    return
+  }
+
+  if (voteEntries.length === 0) {
+    res.status(400).json({ error: 'validation', message: 'At least one vote is required' })
     return
   }
 
@@ -313,22 +325,29 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
     }
   }
 
-  // Look up game_id from the session games
-  const sessionGame = await db('voting_session_games')
-    .where({ session_id: sessionId, steam_app_id: steamAppId })
-    .first()
+  // Look up game_ids from the session games
+  const sessionGames = await db('voting_session_games')
+    .where({ session_id: sessionId })
+    .whereIn('steam_app_id', voteEntries.map(v => v.steamAppId))
+    .select('steam_app_id', 'game_id')
 
-  // Upsert vote (DB unique constraint prevents duplicates)
-  await db('votes')
-    .insert({
-      session_id: sessionId,
-      user_id: userId,
-      steam_app_id: steamAppId,
-      game_id: sessionGame?.game_id || null,
-      vote,
-    })
-    .onConflict(['session_id', 'user_id', 'steam_app_id'])
-    .merge({ vote, created_at: db.fn.now() })
+  const gameIdMap = new Map(sessionGames.map(g => [g.steam_app_id, g.game_id]))
+
+  // Upsert all votes in a single transaction
+  await db.transaction(async (trx) => {
+    for (const entry of voteEntries) {
+      await trx('votes')
+        .insert({
+          session_id: sessionId,
+          user_id: userId,
+          steam_app_id: entry.steamAppId,
+          game_id: gameIdMap.get(entry.steamAppId) || null,
+          vote: entry.vote,
+        })
+        .onConflict(['session_id', 'user_id', 'steam_app_id'])
+        .merge({ vote: entry.vote, created_at: trx.fn.now() })
+    }
+  })
 
   // Get voter count
   const voterCount = await db('votes')

@@ -96,6 +96,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ steamAppId, vote }),
     }),
+  castVotes: (groupId: string, sessionId: string, votes: { steamAppId: number; vote: boolean }[]) =>
+    request(`/groups/${groupId}/vote/${sessionId}`, {
+      method: 'POST',
+      body: JSON.stringify({ votes }),
+    }),
   closeVote: (groupId: string, sessionId: string) =>
     request<{ result: { steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string | null; yesCount: number; totalVoters: number } }>(
       `/groups/${groupId}/vote/${sessionId}/close`, { method: 'POST' }

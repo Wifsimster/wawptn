@@ -1,6 +1,6 @@
 # Architecture API
 
-Vue d'ensemble des routes REST et des événements WebSocket de WAWPTN. Ce document s'adresse aux développeurs et au Product Owner souhaitant comprendre les interactions entre le frontend et le backend.
+Vue d'ensemble des routes REST, des événements WebSocket et de l'API Discord de WAWPTN. Ce document s'adresse aux développeurs et au Product Owner souhaitant comprendre les interactions entre le frontend, le backend et le bot Discord.
 
 ## Routes REST
 
@@ -12,8 +12,15 @@ Toutes les routes sont préfixées par `/api`.
 |---------|-------|-------------|
 | GET | `/api/auth/steam/login` | Redirige vers la page de connexion Steam |
 | GET | `/api/auth/steam/callback` | Callback après authentification Steam |
-| GET | `/api/auth/me` | Récupère l'utilisateur connecté |
+| GET | `/api/auth/me` | Récupère l'utilisateur connecté et ses plateformes liées |
 | POST | `/api/auth/logout` | Déconnexion et suppression de la session |
+| GET | `/api/auth/battlenet/link` | Initie la liaison du compte Battle.net |
+| GET | `/api/auth/battlenet/callback` | Callback après liaison Battle.net |
+| GET | `/api/auth/epic/link` | Initie la liaison du compte Epic Games |
+| GET | `/api/auth/epic/callback` | Callback après liaison Epic Games |
+| GET | `/api/auth/gog/link` | Initie la liaison du compte GOG Galaxy |
+| GET | `/api/auth/gog/callback` | Callback après liaison GOG Galaxy |
+| DELETE | `/api/auth/:provider/unlink` | Supprime la liaison d'un compte plateforme |
 
 ### Groupes
 
@@ -22,21 +29,43 @@ Toutes les routes sont préfixées par `/api`.
 | GET | `/api/groups` | Liste les groupes de l'utilisateur |
 | GET | `/api/groups/:id` | Détail d'un groupe avec ses membres |
 | POST | `/api/groups` | Crée un nouveau groupe |
+| PATCH | `/api/groups/:id` | Renomme un groupe |
+| DELETE | `/api/groups/:id` | Supprime un groupe |
 | POST | `/api/groups/:id/invite` | Génère un nouveau lien d'invitation |
 | POST | `/api/groups/join` | Rejoint un groupe via un token d'invitation |
 | DELETE | `/api/groups/:id/members/:userId` | Quitte un groupe ou exclut un membre |
 | GET | `/api/groups/:id/common-games` | Liste les jeux communs du groupe |
-| POST | `/api/groups/:id/sync` | Synchronise les bibliothèques Steam des membres |
+| POST | `/api/groups/:id/sync` | Synchronise les bibliothèques de tous les membres |
 
 ### Vote
 
 | Méthode | Route | Description |
 |---------|-------|-------------|
 | GET | `/api/groups/:groupId/vote` | Session de vote active du groupe |
-| POST | `/api/groups/:groupId/vote` | Crée une nouvelle session de vote |
+| POST | `/api/groups/:groupId/vote` | Crée une session de vote avec participants sélectionnés |
 | POST | `/api/groups/:groupId/vote/:sessionId` | Enregistre un vote (pour ou contre) |
 | POST | `/api/groups/:groupId/vote/:sessionId/close` | Clôture le vote et calcule le gagnant |
 | GET | `/api/groups/:groupId/vote/history` | Historique des 10 dernières sessions |
+
+### Discord (feature-flagged)
+
+Routes activées uniquement si `DISCORD_BOT_API_SECRET` est configuré. Authentification via header `Authorization: Bot <secret>`.
+
+| Méthode | Route | Auth | Description |
+|---------|-------|------|-------------|
+| POST | `/api/discord/setup` | Bot | Lie un canal Discord à un groupe |
+| GET | `/api/discord/link/status` | Bot | Vérifie si un utilisateur Discord est lié |
+| POST | `/api/discord/link` | Bot | Génère un code de liaison temporaire |
+| POST | `/api/discord/link/confirm` | Utilisateur | Confirme la liaison avec un code |
+| POST | `/api/discord/vote` | Bot | Enregistre un vote depuis Discord |
+| GET | `/api/discord/games` | Bot | Liste les jeux communs d'un canal lié |
+| POST | `/api/discord/webhook` | Utilisateur | Configure le webhook Discord d'un groupe |
+
+### Invitation (public)
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| GET | `/invite/:token` | Prévisualisation du lien d'invitation (meta OG pour Discord) |
 
 ## Flux d'une session de vote
 
@@ -45,11 +74,13 @@ sequenceDiagram
     participant J as Joueur
     participant API as API REST
     participant WS as WebSocket
+    participant D as Discord
     participant BDD as Base de données
 
     J->>API: POST /vote (créer session)
-    API->>BDD: Sélection de 20 jeux communs
+    API->>BDD: Sélection des jeux communs
     API->>WS: session:created
+    API->>D: Webhook embed avec jeux
     WS-->>J: Notification nouvelle session
     J->>API: POST /vote/:id (voter)
     API->>BDD: Enregistrer le vote
@@ -58,10 +89,11 @@ sequenceDiagram
     J->>API: POST /vote/:id/close
     API->>BDD: Calcul du gagnant
     API->>WS: vote:closed (résultat)
+    API->>D: Webhook embed résultat
     WS-->>J: Révélation du résultat
 ```
 
-Le créateur de la session ou le propriétaire du groupe peut clôturer le vote. Le jeu ayant le plus de votes positifs gagne. En cas d'égalité, un tirage au sort départage les candidats.
+Le créateur de la session ou le propriétaire du groupe peut clôturer le vote. Le jeu ayant le plus de votes positifs gagne. En cas d'égalité, un tirage au sort départage les candidats. Les notifications Discord sont envoyées en parallèle, sans bloquer le flux principal.
 
 ## Événements WebSocket
 
@@ -80,15 +112,26 @@ Le serveur WebSocket utilise Socket.io sur le chemin `/socket.io`. L'authentific
 |-----------|---------|-------------|
 | `member:joined` | `{ groupId, user }` | Un membre a rejoint le groupe |
 | `member:left` | `{ groupId, userId }` | Un membre a quitté le groupe |
-| `library:synced` | `{ groupId, userId }` | Bibliothèque Steam synchronisée |
-| `session:created` | `{ sessionId, groupId, createdBy }` | Nouvelle session de vote créée |
-| `vote:cast` | `{ sessionId, userId, voterCount }` | Vote enregistré (compteur uniquement) |
+| `member:kicked` | `{ groupId, userId }` | Un membre a été exclu |
+| `group:deleted` | `{ groupId, groupName }` | Le groupe a été supprimé |
+| `group:renamed` | `{ groupId, newName }` | Le groupe a été renommé |
+| `library:synced` | `{ groupId, userId, gameCount }` | Bibliothèque synchronisée |
+| `session:created` | `{ sessionId, groupId, createdBy, participantIds, scheduledAt }` | Nouvelle session de vote |
+| `vote:cast` | `{ sessionId, userId, voterCount, totalParticipants }` | Vote enregistré (compteur) |
 | `vote:closed` | `{ sessionId, result }` | Session clôturée avec le résultat |
+| `group:presence` | `{ onlineUserIds }` | Liste des membres connectés |
+| `member:online` | `{ groupId, userId }` | Un membre s'est connecté |
+| `member:offline` | `{ groupId, userId }` | Un membre s'est déconnecté |
 
 > **Détail technique** — Les votes individuels ne sont jamais diffusés. Seul le compteur de votants est transmis pour préserver le secret du vote jusqu'à la révélation.
 
 ## Authentification des requêtes
 
-- **REST** — Cookie `wawptn.session_token` vérifié par le middleware d'authentification
-- **WebSocket** — Cookie transmis via le handshake, vérifié à chaque connexion
-- **Session** — Durée de 7 jours, renouvelée quotidiennement
+| Canal | Mécanisme | Détail |
+|-------|-----------|--------|
+| REST (utilisateur) | Cookie signé `wawptn.session_token` | Vérifié par le middleware `requireAuth` |
+| WebSocket | Cookie transmis via le handshake | Vérifié à chaque connexion |
+| REST (bot Discord) | Header `Authorization: Bot <secret>` | Vérifié par le middleware `requireBotAuth` |
+| Session | Durée de 7 jours | Token de 32 octets aléatoires |
+
+> **Détail technique** — Le middleware bot résout automatiquement le header `X-Discord-User-Id` vers un `userId` WAWPTN via la table `discord_links`.

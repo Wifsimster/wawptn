@@ -82,3 +82,16 @@ Les réponses de l'API Steam sont mises en cache pendant **6 heures**. Cela réd
 ## Clé API Steam
 
 Une clé API Steam est obligatoire. Elle se configure via la variable d'environnement `STEAM_API_KEY`. Vous pouvez obtenir une clé sur [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey).
+
+## Autres plateformes
+
+WAWPTN supporte également **Epic Games**, **GOG Galaxy** et **Battle.net** en complément de Steam. Ces plateformes sont optionnelles et activées par variables d'environnement.
+
+| Plateforme | Protocole | Bibliothèque |
+|------------|-----------|-------------|
+| Steam | OpenID 2.0 | API GetOwnedGames |
+| Battle.net | OAuth 2.0 | Profil uniquement |
+| Epic Games | OAuth 2.0 | API bibliothèque |
+| GOG Galaxy | OAuth 2.0 | API bibliothèque |
+
+Les jeux de toutes les plateformes sont stockés dans `user_games` avec un champ `platform`. Le calcul des jeux en commun s'effectue sur l'ensemble des bibliothèques liées.

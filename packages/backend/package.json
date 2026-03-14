@@ -1,6 +1,6 @@
 {
   "name": "@wawptn/backend",
-  "version": "0.10.3",
+  "version": "0.10.4",
   "description": "Backend API for WAWPTN",
   "type": "module",
   "main": "dist/index.js",

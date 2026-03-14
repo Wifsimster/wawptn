@@ -3,6 +3,7 @@ import { db } from '../../infrastructure/database/connection.js'
 import { computeCommonGames } from '../../infrastructure/database/common-games.js'
 import { getIO } from '../../infrastructure/socket/socket.js'
 import { closeSession } from '../../domain/close-session.js'
+import { notifySessionCreated } from '../../infrastructure/discord/notifier.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 
 const router = Router()
@@ -234,6 +235,15 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
     participantIds: validMembers,
     ...(parsedScheduledAt ? { scheduledAt: parsedScheduledAt.toISOString() } : {}),
   })
+
+  // Notify Discord channel (non-blocking)
+  notifySessionCreated(groupId, session.id, selectedGames.map(g => ({
+    gameName: g.gameName,
+    steamAppId: g.steamAppId,
+    headerImageUrl: g.headerImageUrl,
+  }))).catch(err =>
+    logger.warn({ error: String(err), groupId }, 'Discord session notification failed')
+  )
 
   logger.info({ sessionId: session.id, groupId, gameCount: selectedGames.length, participants: validMembers.length }, 'voting session created')
 

@@ -159,6 +159,23 @@ export interface SteamLibrarySyncStatus {
 }
 
 // ============================================
+// Discord
+// ============================================
+
+export interface DiscordLink {
+  userId: string
+  discordId: string
+  discordUsername: string
+  linkedAt: string
+}
+
+export interface DiscordGroupConfig {
+  discordChannelId: string | null
+  discordGuildId: string | null
+  discordWebhookUrl: string | null
+}
+
+// ============================================
 // Socket.io Events
 // ============================================
 

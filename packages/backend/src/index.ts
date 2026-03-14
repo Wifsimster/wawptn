@@ -16,6 +16,8 @@ import { groupRoutes } from './presentation/routes/group.routes.js'
 import { voteRoutes } from './presentation/routes/vote.routes.js'
 import { inviteRoutes } from './presentation/routes/invite.routes.js'
 import { requireAuth } from './presentation/middleware/auth.middleware.js'
+import { requireBotAuth } from './presentation/middleware/bot-auth.middleware.js'
+import { discordRoutes } from './presentation/routes/discord.routes.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -91,6 +93,11 @@ async function main() {
   app.use('/api/auth', authRoutes)
   app.use('/api/groups', requireAuth, groupRoutes)
   app.use('/api/groups', requireAuth, voteLimiter, voteRoutes)
+
+  // Discord bot API routes (bot auth for bot-originated requests, user auth handled per-route)
+  if (env.DISCORD_BOT_API_SECRET) {
+    app.use('/api/discord', requireBotAuth, discordRoutes)
+  }
 
   // Invite preview route (public, no auth) — serves OG meta tags for Discord/social embeds
   // Must be registered BEFORE the SPA catch-all so it is matched first

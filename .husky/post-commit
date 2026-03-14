@@ -1,0 +1,29 @@
+# Auto-bump version based on conventional commit type
+# Skip if this is already a version bump commit or if HUSKY=0
+if [ "$HUSKY" = "0" ]; then
+  exit 0
+fi
+
+COMMIT_MSG=$(git log -1 --pretty=%B)
+
+# Skip version bump commits to avoid infinite loop
+if echo "$COMMIT_MSG" | grep -qE "^chore: bump version"; then
+  exit 0
+fi
+
+# Determine bump type from conventional commit
+if echo "$COMMIT_MSG" | grep -qE "^(feat|feature)(\(.+\))?!:|^BREAKING CHANGE:"; then
+  VERSION_TYPE="major"
+elif echo "$COMMIT_MSG" | grep -qE "^(feat|feature)(\(.+\))?:"; then
+  VERSION_TYPE="minor"
+elif echo "$COMMIT_MSG" | grep -qE "^fix(\(.+\))?:"; then
+  VERSION_TYPE="patch"
+else
+  exit 0
+fi
+
+# Bump version and create a follow-up commit
+HUSKY=0 npm run version:$VERSION_TYPE 2>/dev/null
+NEW_VERSION=$(node -p "require('./package.json').version")
+HUSKY=0 git add package.json packages/*/package.json package-lock.json 2>/dev/null
+HUSKY=0 git commit --no-verify -m "chore: bump version to $NEW_VERSION"

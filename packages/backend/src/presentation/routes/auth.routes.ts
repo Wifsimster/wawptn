@@ -18,6 +18,7 @@ const router = Router()
 // Validate returnTo path against strict allowlist
 function isAllowedReturnPath(path: string): boolean {
   return /^\/join\/[a-f0-9]{64}$/.test(path)
+    || /^\/discord\/link\?code=[A-Za-z0-9]+$/.test(path)
 }
 
 // Create a session for a user and return the token

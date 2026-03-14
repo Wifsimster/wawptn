@@ -8,6 +8,7 @@ import { GroupPage } from '@/pages/GroupPage'
 import { VotePage } from '@/pages/VotePage'
 import { JoinPage } from '@/pages/JoinPage'
 import { ProfilePage } from '@/pages/ProfilePage'
+import { DiscordLinkPage } from '@/pages/DiscordLinkPage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DialogTestPage } from '@/pages/DialogTestPage'
 
@@ -50,6 +51,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/join/:token" element={<JoinPage />} />
+        <Route path="/discord/link" element={<DiscordLinkPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )
@@ -62,6 +64,7 @@ function App() {
       <Route path="/groups/:id" element={<GroupPage />} />
       <Route path="/groups/:id/vote" element={<VotePage />} />
       <Route path="/join/:token" element={<JoinPage />} />
+      <Route path="/discord/link" element={<DiscordLinkPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

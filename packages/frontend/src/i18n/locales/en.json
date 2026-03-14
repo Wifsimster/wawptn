@@ -197,6 +197,19 @@
     "discordMessage": "Join our group on WAWPTN! Connect with Steam and vote for tonight's game!",
     "discordCopied": "Discord message copied!"
   },
+  "discordLink": {
+    "title": "Link your Discord account",
+    "loginPrompt": "Sign in with Steam to link your Discord account.",
+    "linking": "Linking...",
+    "linked": "Account linked!",
+    "linkedDescription": "Your Discord account ({{username}}) is now linked to WAWPTN.",
+    "success": "Discord account ({{username}}) linked successfully!",
+    "error": "Unable to link Discord account.",
+    "failed": "Link failed",
+    "invalidCode": "Invalid code",
+    "noCode": "No link code found in the URL.",
+    "goHome": "Back to home"
+  },
   "profile": {
     "title": "My Profile",
     "platforms": "Connected Platforms",

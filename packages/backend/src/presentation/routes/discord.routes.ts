@@ -342,10 +342,14 @@ router.get('/random', async (req: Request, res: Response) => {
   })
 })
 
+export { router as discordRoutes }
+
 // ─── User-authenticated routes (called from web frontend) ─────────────────────
 
+const userRouter = Router()
+
 // Confirm Discord link: User enters code on web frontend to confirm the link
-router.post('/link/confirm', requireAuth, async (req: Request, res: Response) => {
+userRouter.post('/link/confirm', requireAuth, async (req: Request, res: Response) => {
   const userId = req.userId!
   const { code } = req.body as { code: string }
 
@@ -387,7 +391,7 @@ router.post('/link/confirm', requireAuth, async (req: Request, res: Response) =>
 })
 
 // Set webhook URL for a group (group owner only)
-router.post('/webhook', requireAuth, async (req: Request, res: Response) => {
+userRouter.post('/webhook', requireAuth, async (req: Request, res: Response) => {
   const userId = req.userId!
   const { groupId, webhookUrl } = req.body as { groupId: string; webhookUrl: string }
 
@@ -410,4 +414,4 @@ router.post('/webhook', requireAuth, async (req: Request, res: Response) => {
   res.json({ ok: true })
 })
 
-export { router as discordRoutes }
+export { userRouter as discordUserRoutes }

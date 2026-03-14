@@ -39,6 +39,12 @@ export const api = {
     return request<{ ok: boolean }>(`/auth/${providerId}/link`, { method: 'DELETE' })
   },
 
+  // Discord
+  confirmDiscordLink: (code: string) => request<{ ok: boolean; discordUsername: string }>('/discord/link/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  }),
+
   // Groups
   getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null }[]>('/groups'),
   getGroup: (id: string) => request<{

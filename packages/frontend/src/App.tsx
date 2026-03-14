@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 import { connectSocket, disconnectSocket } from '@/lib/socket'
 import { LoginPage } from '@/pages/LoginPage'
@@ -9,6 +9,7 @@ import { VotePage } from '@/pages/VotePage'
 import { JoinPage } from '@/pages/JoinPage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { DiscordLinkPage } from '@/pages/DiscordLinkPage'
+import { NotFoundPage } from '@/pages/NotFoundPage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DialogTestPage } from '@/pages/DialogTestPage'
 
@@ -52,7 +53,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/join/:token" element={<JoinPage />} />
         <Route path="/discord/link" element={<DiscordLinkPage />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     )
   }
@@ -65,7 +66,7 @@ function App() {
       <Route path="/groups/:id/vote" element={<VotePage />} />
       <Route path="/join/:token" element={<JoinPage />} />
       <Route path="/discord/link" element={<DiscordLinkPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

@@ -210,6 +210,11 @@
     "noCode": "Aucun code de liaison trouvé dans l'URL.",
     "goHome": "Retour à l'accueil"
   },
+  "notFound": {
+    "title": "Page introuvable",
+    "description": "La page que tu cherches n'existe pas ou a été déplacée.",
+    "backHome": "Retour à l'accueil"
+  },
   "profile": {
     "title": "Mon Profil",
     "platforms": "Plateformes connectées",

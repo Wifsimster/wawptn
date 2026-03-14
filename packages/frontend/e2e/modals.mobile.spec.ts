@@ -5,7 +5,7 @@ test.describe('Modals on mobile', () => {
 
   test.describe('Create Group modal', () => {
     test('opens as drawer, accepts input, and submits', async ({ page }) => {
-      await page.goto('/#/')
+      await page.goto('/')
       await page.getByRole('button', { name: 'Créer' }).click()
 
       const dialog = page.getByRole('dialog')
@@ -21,7 +21,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('shows validation error when name is empty', async ({ page }) => {
-      await page.goto('/#/')
+      await page.goto('/')
       await page.getByRole('button', { name: 'Créer' }).click()
 
       const dialog = page.getByRole('dialog')
@@ -32,7 +32,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('submits with Enter key', async ({ page }) => {
-      await page.goto('/#/')
+      await page.goto('/')
       await page.getByRole('button', { name: 'Créer' }).click()
 
       const dialog = page.getByRole('dialog')
@@ -43,7 +43,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('closes with Escape', async ({ page }) => {
-      await page.goto('/#/')
+      await page.goto('/')
       await page.getByRole('button', { name: 'Créer' }).click()
 
       const dialog = page.getByRole('dialog')
@@ -56,7 +56,7 @@ test.describe('Modals on mobile', () => {
 
   test.describe('Join Group modal', () => {
     test('opens as drawer, accepts token, and submits', async ({ page }) => {
-      await page.goto('/#/')
+      await page.goto('/')
       await page.getByRole('button', { name: 'Rejoindre' }).click()
 
       const dialog = page.getByRole('dialog')
@@ -66,11 +66,11 @@ test.describe('Modals on mobile', () => {
       await dialog.getByPlaceholder("Token d'invitation...").fill('valid-token')
       await dialog.getByRole('button', { name: 'Rejoindre' }).click()
 
-      await page.waitForURL('**/#/groups/group-1')
+      await page.waitForURL('**/groups/group-1')
     })
 
     test('shows validation error with empty token', async ({ page }) => {
-      await page.goto('/#/')
+      await page.goto('/')
       await page.getByRole('button', { name: 'Rejoindre' }).click()
 
       const dialog = page.getByRole('dialog')
@@ -84,7 +84,7 @@ test.describe('Modals on mobile', () => {
 
   test.describe('Logout confirmation modal', () => {
     test('opens from user menu and confirms logout', async ({ page }) => {
-      await page.goto('/#/')
+      await page.goto('/')
       await page.waitForTimeout(500)
 
       await page.getByRole('button', { name: 'Mon Profil' }).click()
@@ -96,11 +96,11 @@ test.describe('Modals on mobile', () => {
       await expect(dialog.getByText('Se déconnecter ?')).toBeVisible()
 
       await dialog.getByRole('button', { name: 'Se déconnecter' }).click()
-      await page.waitForURL('**/#/login')
+      await page.waitForURL('**/login')
     })
 
     test('cancels logout and keeps user on page', async ({ page }) => {
-      await page.goto('/#/')
+      await page.goto('/')
       await page.waitForTimeout(500)
 
       await page.getByRole('button', { name: 'Mon Profil' }).click()
@@ -117,7 +117,7 @@ test.describe('Modals on mobile', () => {
 
   test.describe('Mobile sidebar drawer', () => {
     test('opens on tap and shows members + actions', async ({ page }) => {
-      await page.goto('/#/groups/group-1')
+      await page.goto('/groups/group-1')
       await page.waitForTimeout(500)
       // Wait for group page to load
       await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 10000 })
@@ -142,7 +142,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('shows vote history in sidebar', async ({ page }) => {
-      await page.goto('/#/groups/group-1')
+      await page.goto('/groups/group-1')
       await page.waitForTimeout(500)
       await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 10000 })
 
@@ -171,7 +171,7 @@ test.describe('Modals on mobile', () => {
         }) })
       })
 
-      await page.goto('/#/groups/group-2')
+      await page.goto('/groups/group-2')
       await page.waitForTimeout(500)
       await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 10000 })
 
@@ -190,13 +190,13 @@ test.describe('Modals on mobile', () => {
       await confirmBtn.scrollIntoViewIfNeeded()
       await confirmBtn.click({ force: true })
 
-      await page.waitForURL('**/#/')
+      await page.waitForURL('**/')
     })
   })
 
   test.describe('Delete Group confirmation', () => {
     test('opens from sidebar and confirms deletion', async ({ page }) => {
-      await page.goto('/#/groups/group-1')
+      await page.goto('/groups/group-1')
       await page.waitForTimeout(500)
       await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 10000 })
 
@@ -214,13 +214,13 @@ test.describe('Modals on mobile', () => {
       const confirmDeleteBtn = page.getByRole('button', { name: 'Supprimer le groupe' }).last()
       await confirmDeleteBtn.scrollIntoViewIfNeeded()
       await confirmDeleteBtn.click({ force: true })
-      await page.waitForURL('**/#/')
+      await page.waitForURL('**/')
     })
   })
 
   test.describe('Kick Member confirmation', () => {
     test('shows kick dialog for non-self members (owner view)', async ({ page }) => {
-      await page.goto('/#/groups/group-1')
+      await page.goto('/groups/group-1')
       await page.waitForTimeout(500)
       await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 10000 })
 
@@ -243,7 +243,7 @@ test.describe('Modals on mobile', () => {
 
   test.describe('Vote Setup modal', () => {
     test.beforeEach(async ({ page }) => {
-      await page.goto('/#/groups/group-1')
+      await page.goto('/groups/group-1')
       await page.waitForTimeout(500)
       await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 10000 })
     })
@@ -302,7 +302,7 @@ test.describe('Modals on mobile', () => {
       const lancerBtn = dialog.getByRole('button', { name: 'Lancer le vote' })
       await lancerBtn.scrollIntoViewIfNeeded()
       await lancerBtn.click({ force: true })
-      await page.waitForURL('**/#/groups/group-1/vote')
+      await page.waitForURL('**/groups/group-1/vote')
     })
 
     test('schedule vote option shows date picker', async ({ page }) => {
@@ -357,7 +357,7 @@ test.describe('Modals on mobile', () => {
 
   test.describe('Random Pick modal', () => {
     test.beforeEach(async ({ page }) => {
-      await page.goto('/#/groups/group-1')
+      await page.goto('/groups/group-1')
       await page.waitForTimeout(500)
       await expect(page.getByText('Au hasard')).toBeVisible({ timeout: 10000 })
     })

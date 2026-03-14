@@ -2,7 +2,7 @@ import { test, expect } from './fixtures'
 
 test.describe('Game list filters on mobile', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/#/groups/group-1')
+    await page.goto('/groups/group-1')
     // Wait for game grid to fully render (avoid networkidle due to socket.io)
     await expect(page.getByPlaceholder('Rechercher un jeu...')).toBeVisible({ timeout: 15000 })
   })

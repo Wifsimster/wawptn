@@ -46,7 +46,7 @@ router.get('/:token', async (req: Request, res: Response) => {
     : 'Connecte-toi avec Steam, rejoins un groupe et votez pour le jeu de ce soir !'
 
   const baseUrl = `${req.protocol}://${req.get('host')}`
-  const spaUrl = `${baseUrl}/#/join/${token}`
+  const spaUrl = `${baseUrl}/join/${token}`
   const ogImageUrl = `${baseUrl}/og-image.png`
 
   // Minimal HTML with OG tags for crawlers + meta refresh redirect for humans

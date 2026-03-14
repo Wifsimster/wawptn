@@ -5,7 +5,7 @@ test.describe('Voting system on mobile', () => {
 
   test.describe('Game selection interface', () => {
     test('shows all votable games in 2-column grid', async ({ page }) => {
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       await expect(page.getByText('Choisis tes jeux')).toBeVisible()
@@ -22,7 +22,7 @@ test.describe('Voting system on mobile', () => {
     })
 
     test('tapping a game selects it with visual feedback', async ({ page }) => {
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       const firstGame = page.locator('.grid button').first()
@@ -43,7 +43,7 @@ test.describe('Voting system on mobile', () => {
     })
 
     test('tapping a selected game deselects it', async ({ page }) => {
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       const firstGame = page.locator('.grid button').first()
@@ -57,7 +57,7 @@ test.describe('Voting system on mobile', () => {
     })
 
     test('selecting multiple games updates counter', async ({ page }) => {
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       const games = page.locator('.grid button')
@@ -76,7 +76,7 @@ test.describe('Voting system on mobile', () => {
 
   test.describe('Vote page search', () => {
     test('filters games by name in vote view', async ({ page }) => {
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       const searchInput = page.getByPlaceholder('Rechercher un jeu...')
@@ -88,7 +88,7 @@ test.describe('Voting system on mobile', () => {
     })
 
     test('search preserves selection state', async ({ page }) => {
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       // Select a game
@@ -109,7 +109,7 @@ test.describe('Voting system on mobile', () => {
 
   test.describe('Vote submission', () => {
     test('submit button is disabled when no games selected', async ({ page }) => {
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       const submitBtn = page.getByRole('button', { name: 'Valider ma sélection' })
@@ -117,7 +117,7 @@ test.describe('Voting system on mobile', () => {
     })
 
     test('submit button is enabled when games are selected', async ({ page }) => {
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       await page.locator('.grid button').first().click()
@@ -127,7 +127,7 @@ test.describe('Voting system on mobile', () => {
     })
 
     test('submitting votes shows waiting screen', async ({ page }) => {
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       // Select 2 games
@@ -143,7 +143,7 @@ test.describe('Voting system on mobile', () => {
     })
 
     test('floating action bar sticks to bottom of viewport', async ({ page }) => {
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       const actionBar = page.locator('.fixed.bottom-0')
@@ -183,7 +183,7 @@ test.describe('Voting system on mobile', () => {
         return route.continue()
       })
 
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       // Should show waiting screen since user already voted
@@ -212,7 +212,7 @@ test.describe('Voting system on mobile', () => {
         return route.continue()
       })
 
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       await expect(page.getByText('Clôturer le vote')).toBeVisible()
@@ -234,7 +234,7 @@ test.describe('Voting system on mobile', () => {
         return route.continue()
       })
 
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       await expect(page.getByText('Clôturer le vote')).not.toBeVisible()
@@ -256,11 +256,11 @@ test.describe('Voting system on mobile', () => {
         return route.continue()
       })
 
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       await page.getByText('Retour au groupe').click()
-      await page.waitForURL('**/#/groups/group-1')
+      await page.waitForURL('**/groups/group-1')
     })
   })
 
@@ -283,7 +283,7 @@ test.describe('Voting system on mobile', () => {
         return route.continue()
       })
 
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       // Close the vote
@@ -314,7 +314,7 @@ test.describe('Voting system on mobile', () => {
         return route.continue()
       })
 
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
       await page.getByText('Clôturer le vote').click()
 
@@ -338,13 +338,13 @@ test.describe('Voting system on mobile', () => {
         return route.continue()
       })
 
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
       await page.getByText('Clôturer le vote').click()
 
       await expect(page.getByText('Counter-Strike 2')).toBeVisible({ timeout: 5000 })
       await page.getByText('Retour au groupe').click()
-      await page.waitForURL('**/#/groups/group-1')
+      await page.waitForURL('**/groups/group-1')
     })
   })
 
@@ -367,7 +367,7 @@ test.describe('Voting system on mobile', () => {
         return route.continue()
       })
 
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       await expect(page.getByText('Vote en cours')).toBeVisible()
@@ -396,7 +396,7 @@ test.describe('Voting system on mobile', () => {
         return route.continue()
       })
 
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       // Should show waiting screen with countdown
@@ -410,7 +410,7 @@ test.describe('Voting system on mobile', () => {
   test.describe('Full voting flow', () => {
     test('complete flow: start vote -> select games -> submit -> close -> result', async ({ page }) => {
       // Step 1: Start from group page
-      await page.goto('/#/groups/group-1')
+      await page.goto('/groups/group-1')
       await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 15000 })
 
       // Step 2: Open vote setup
@@ -427,7 +427,7 @@ test.describe('Voting system on mobile', () => {
 
       // Step 4: Start the vote
       await dialog.getByRole('button', { name: 'Lancer le vote' }).click({ force: true })
-      await page.waitForURL('**/#/groups/group-1/vote')
+      await page.waitForURL('**/groups/group-1/vote')
 
       // Step 5: Select some games
       await expect(page.getByText('Choisis tes jeux')).toBeVisible()
@@ -451,7 +451,7 @@ test.describe('Voting system on mobile', () => {
 
       // Step 10: Back to group
       await page.getByText('Retour au groupe').click()
-      await page.waitForURL('**/#/groups/group-1')
+      await page.waitForURL('**/groups/group-1')
     })
   })
 
@@ -459,7 +459,7 @@ test.describe('Voting system on mobile', () => {
 
   test.describe('Mobile touch interactions', () => {
     test('game cards have touch-friendly tap targets', async ({ page }) => {
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       const firstGame = page.locator('.grid button').first()
@@ -474,15 +474,15 @@ test.describe('Voting system on mobile', () => {
     })
 
     test('back button navigates to group page', async ({ page }) => {
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       await page.getByRole('button', { name: 'Retour' }).click()
-      await page.waitForURL('**/#/groups/group-1')
+      await page.waitForURL('**/groups/group-1')
     })
 
     test('scrolling the game list works properly', async ({ page }) => {
-      await page.goto('/#/groups/group-1/vote')
+      await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
       // Content should be scrollable

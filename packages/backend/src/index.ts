@@ -101,12 +101,6 @@ async function main() {
     app.use('/api/discord', requireBotAuth, discordRoutes)
   }
 
-  // Redirect bare /discord/link to SPA hash route (for Discord bot URLs without /#/)
-  app.get('/discord/link', (req, res) => {
-    const qs = new URLSearchParams(req.query as Record<string, string>).toString()
-    res.redirect(302, `${env.CORS_ORIGIN}/#/discord/link${qs ? `?${qs}` : ''}`)
-  })
-
   // Invite preview route (public, no auth) — serves OG meta tags for Discord/social embeds
   // Must be registered BEFORE the SPA catch-all so it is matched first
   const inviteLimiter = rateLimit({

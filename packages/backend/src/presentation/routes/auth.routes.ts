@@ -83,7 +83,7 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     res.clearCookie(CSRF_COOKIE_NAME, { path: '/api/auth/steam/callback' })
     if (!csrfState) {
       authLogger.warn('steam callback rejected: missing CSRF state cookie')
-      res.redirect(`${env.CORS_ORIGIN}/#/login?error=auth_failed`)
+      res.redirect(`${env.CORS_ORIGIN}/login?error=auth_failed`)
       return
     }
 
@@ -94,7 +94,7 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     const expectedReturnTo = `${env.API_URL}/api/auth/steam/callback`
     if (returnTo !== expectedReturnTo) {
       authLogger.warn({ returnTo, expected: expectedReturnTo }, 'steam callback rejected: return_to mismatch')
-      res.redirect(`${env.CORS_ORIGIN}/#/login?error=auth_failed`)
+      res.redirect(`${env.CORS_ORIGIN}/login?error=auth_failed`)
       return
     }
 
@@ -102,7 +102,7 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     const steamId = await verifySteamLogin(params)
     if (!steamId) {
       authLogger.warn('steam callback rejected: OpenID verification failed')
-      res.redirect(`${env.CORS_ORIGIN}/#/login?error=auth_failed`)
+      res.redirect(`${env.CORS_ORIGIN}/login?error=auth_failed`)
       return
     }
 
@@ -110,7 +110,7 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     const profile = await getPlayerSummary(steamId)
     if (!profile) {
       authLogger.warn({ steamId }, 'steam callback rejected: failed to fetch player profile')
-      res.redirect(`${env.CORS_ORIGIN}/#/login?error=steam_profile_failed`)
+      res.redirect(`${env.CORS_ORIGIN}/login?error=steam_profile_failed`)
       return
     }
 
@@ -184,10 +184,10 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     const redirectPath = typeof inviteReturn === 'string' && isAllowedReturnPath(inviteReturn)
       ? inviteReturn
       : '/'
-    res.redirect(`${env.CORS_ORIGIN}/#${redirectPath}`)
+    res.redirect(`${env.CORS_ORIGIN}${redirectPath}`)
   } catch (error) {
     authLogger.error({ error: String(error) }, 'Steam callback failed')
-    res.redirect(`${env.CORS_ORIGIN}/#/login?error=auth_failed`)
+    res.redirect(`${env.CORS_ORIGIN}/login?error=auth_failed`)
   }
 })
 
@@ -422,7 +422,7 @@ router.get('/epic/callback', requireAuth, async (req: Request, res: Response) =>
     const queryState = req.query.state as string | undefined
     if (!storedState || !queryState || storedState !== queryState) {
       authLogger.warn('Epic callback rejected: state mismatch')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=error&reason=state_mismatch`)
+      res.redirect(`${env.CORS_ORIGIN}/profile?epic=error&reason=state_mismatch`)
       return
     }
 
@@ -431,21 +431,21 @@ router.get('/epic/callback', requireAuth, async (req: Request, res: Response) =>
     const expectedSuffix = `.${userHash}`
     if (!storedState.endsWith(expectedSuffix)) {
       authLogger.warn('Epic callback rejected: user binding mismatch')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=error&reason=user_mismatch`)
+      res.redirect(`${env.CORS_ORIGIN}/profile?epic=error&reason=user_mismatch`)
       return
     }
 
     const code = req.query.code as string | undefined
     if (!code) {
       authLogger.warn('Epic callback rejected: no authorization code')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=error&reason=no_code`)
+      res.redirect(`${env.CORS_ORIGIN}/profile?epic=error&reason=no_code`)
       return
     }
 
     // Exchange code for tokens
     const tokens = await exchangeCodeForTokens(code)
     if (!tokens) {
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=error&reason=token_exchange`)
+      res.redirect(`${env.CORS_ORIGIN}/profile?epic=error&reason=token_exchange`)
       return
     }
 
@@ -457,7 +457,7 @@ router.get('/epic/callback', requireAuth, async (req: Request, res: Response) =>
 
     if (existingLink) {
       authLogger.warn({ epicAccountId: tokens.account_id, userId: req.userId }, 'Epic account already linked to another user')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=error&reason=already_linked`)
+      res.redirect(`${env.CORS_ORIGIN}/profile?epic=error&reason=already_linked`)
       return
     }
 
@@ -496,10 +496,10 @@ router.get('/epic/callback', requireAuth, async (req: Request, res: Response) =>
       epicLogger.error({ error: String(err), userId: req.userId }, 'background Epic library sync failed')
     })
 
-    res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=success`)
+    res.redirect(`${env.CORS_ORIGIN}/profile?epic=success`)
   } catch (error) {
     authLogger.error({ error: String(error) }, 'Epic callback failed')
-    res.redirect(`${env.CORS_ORIGIN}/#/profile?epic=error&reason=internal`)
+    res.redirect(`${env.CORS_ORIGIN}/profile?epic=error&reason=internal`)
   }
 })
 
@@ -591,7 +591,7 @@ router.get('/gog/callback', requireAuth, async (req: Request, res: Response) => 
     const queryState = req.query.state as string | undefined
     if (!storedState || !queryState || storedState !== queryState) {
       authLogger.warn('GOG callback rejected: state mismatch')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=error&reason=state_mismatch`)
+      res.redirect(`${env.CORS_ORIGIN}/profile?gog=error&reason=state_mismatch`)
       return
     }
 
@@ -599,20 +599,20 @@ router.get('/gog/callback', requireAuth, async (req: Request, res: Response) => 
     const expectedSuffix = `.${userHash}`
     if (!storedState.endsWith(expectedSuffix)) {
       authLogger.warn('GOG callback rejected: user binding mismatch')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=error&reason=user_mismatch`)
+      res.redirect(`${env.CORS_ORIGIN}/profile?gog=error&reason=user_mismatch`)
       return
     }
 
     const code = req.query.code as string | undefined
     if (!code) {
       authLogger.warn('GOG callback rejected: no authorization code')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=error&reason=no_code`)
+      res.redirect(`${env.CORS_ORIGIN}/profile?gog=error&reason=no_code`)
       return
     }
 
     const tokens = await exchangeGogCode(code)
     if (!tokens) {
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=error&reason=token_exchange`)
+      res.redirect(`${env.CORS_ORIGIN}/profile?gog=error&reason=token_exchange`)
       return
     }
 
@@ -624,7 +624,7 @@ router.get('/gog/callback', requireAuth, async (req: Request, res: Response) => 
 
     if (existingLink) {
       authLogger.warn({ gogUserId: tokens.user_id, userId: req.userId }, 'GOG account already linked to another user')
-      res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=error&reason=already_linked`)
+      res.redirect(`${env.CORS_ORIGIN}/profile?gog=error&reason=already_linked`)
       return
     }
 
@@ -661,10 +661,10 @@ router.get('/gog/callback', requireAuth, async (req: Request, res: Response) => 
       gogLogger.error({ error: String(err), userId: req.userId }, 'background GOG library sync failed')
     })
 
-    res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=success`)
+    res.redirect(`${env.CORS_ORIGIN}/profile?gog=success`)
   } catch (error) {
     authLogger.error({ error: String(error) }, 'GOG callback failed')
-    res.redirect(`${env.CORS_ORIGIN}/#/profile?gog=error&reason=internal`)
+    res.redirect(`${env.CORS_ORIGIN}/profile?gog=error&reason=internal`)
   }
 })
 

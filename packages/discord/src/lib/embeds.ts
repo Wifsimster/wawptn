@@ -72,6 +72,27 @@ export function buildVoteClosedEmbed(result: VoteResult, groupName: string): Emb
   return [embed]
 }
 
+export function buildRandomGameEmbed(
+  game: { gameName: string; steamAppId: number; headerImageUrl: string | null },
+  groupName: string,
+): EmbedBuilder {
+  const embed = new EmbedBuilder()
+    .setTitle('🎲 La roue a parlé !')
+    .setDescription(`Le groupe **${groupName}** va jouer à :\n\n# ${game.gameName}`)
+    .setColor(0xFEE75C)
+    .setTimestamp()
+
+  if (game.headerImageUrl) {
+    embed.setImage(game.headerImageUrl)
+  }
+
+  if (game.steamAppId) {
+    embed.setURL(`https://store.steampowered.com/app/${game.steamAppId}`)
+  }
+
+  return embed
+}
+
 export function buildLinkEmbed(linkCode: string, frontendUrl: string): EmbedBuilder[] {
   const embed = new EmbedBuilder()
     .setTitle('🔗 Lier votre compte WAWPTN')

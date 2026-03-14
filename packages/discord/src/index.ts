@@ -4,6 +4,8 @@ import { backendApi } from './lib/api.js'
 import * as setupCommand from './commands/setup.js'
 import * as linkCommand from './commands/link.js'
 import * as gamesCommand from './commands/games.js'
+import * as voteCommand from './commands/vote.js'
+import * as randomCommand from './commands/random.js'
 
 validateEnv()
 
@@ -15,6 +17,8 @@ const commands = new Map([
   ['wawptn-setup', setupCommand],
   ['wawptn-link', linkCommand],
   ['wawptn-games', gamesCommand],
+  ['wawptn-vote', voteCommand],
+  ['wawptn-random', randomCommand],
 ])
 
 client.once(Events.ClientReady, (c) => {

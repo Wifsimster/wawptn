@@ -6,6 +6,7 @@ import { getIO } from '../../infrastructure/socket/socket.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
 import { requireAuth } from '../middleware/auth.middleware.js'
+import { createVotingSession } from '../../domain/create-session.js'
 
 const router = Router()
 
@@ -216,6 +217,128 @@ router.get('/games', async (req: Request, res: Response) => {
       ownerCount: g.ownerCount,
       totalMembers: memberIds.length,
     })),
+  })
+})
+
+// Get groups for the linked Discord user
+router.get('/groups', async (req: Request, res: Response) => {
+  const userId = req.userId
+
+  if (!userId) {
+    res.status(403).json({ error: 'forbidden', message: 'Discord account not linked. Use /wawptn-link first.' })
+    return
+  }
+
+  const groups = await db('group_members')
+    .join('groups', 'group_members.group_id', 'groups.id')
+    .where({ 'group_members.user_id': userId })
+    .select('groups.id', 'groups.name')
+
+  res.json({ groups })
+})
+
+// Start a voting session from Discord
+router.post('/vote/start', async (req: Request, res: Response) => {
+  const userId = req.userId
+
+  if (!userId) {
+    res.status(403).json({ error: 'forbidden', message: 'Discord account not linked. Use /wawptn-link first.' })
+    return
+  }
+
+  const { groupId } = req.body as { groupId: string }
+
+  if (!groupId) {
+    res.status(400).json({ error: 'validation', message: 'groupId is required' })
+    return
+  }
+
+  // Verify user is a member of this group
+  const membership = await db('group_members')
+    .where({ group_id: groupId, user_id: userId })
+    .first()
+
+  if (!membership) {
+    res.status(403).json({ error: 'forbidden', message: 'Vous n\'êtes pas membre de ce groupe' })
+    return
+  }
+
+  // Get all group members as participants
+  const memberIds = await db('group_members')
+    .where({ group_id: groupId })
+    .pluck('user_id')
+
+  try {
+    const result = await createVotingSession({
+      groupId,
+      createdBy: userId,
+      participantIds: memberIds,
+    })
+
+    res.status(201).json(result)
+  } catch (error) {
+    const err = error as Error & { statusCode?: number; errorCode?: string }
+    const status = err.statusCode || 500
+    res.status(status).json({
+      error: err.errorCode || 'internal',
+      message: err.message,
+    })
+  }
+})
+
+// Pick a random common game for a group
+router.get('/random', async (req: Request, res: Response) => {
+  const userId = req.userId
+
+  if (!userId) {
+    res.status(403).json({ error: 'forbidden', message: 'Discord account not linked. Use /wawptn-link first.' })
+    return
+  }
+
+  const groupId = req.query['groupId'] as string
+
+  if (!groupId) {
+    res.status(400).json({ error: 'validation', message: 'groupId query parameter required' })
+    return
+  }
+
+  // Verify user is a member
+  const membership = await db('group_members')
+    .where({ group_id: groupId, user_id: userId })
+    .first()
+
+  if (!membership) {
+    res.status(403).json({ error: 'forbidden', message: 'Vous n\'êtes pas membre de ce groupe' })
+    return
+  }
+
+  const group = await db('groups').where({ id: groupId }).first()
+  if (!group) {
+    res.status(404).json({ error: 'not_found', message: 'Group not found' })
+    return
+  }
+
+  const memberIds = await db('group_members')
+    .where({ group_id: groupId })
+    .pluck('user_id')
+
+  const games = await computeCommonGames(memberIds, { threshold: memberIds.length })
+
+  if (games.length === 0) {
+    res.status(422).json({ error: 'no_common_games', message: 'Aucun jeu en commun trouvé pour ce groupe.' })
+    return
+  }
+
+  const randomIndex = Math.floor(Math.random() * games.length)
+  const game = games[randomIndex]!
+
+  res.json({
+    groupName: group.name,
+    game: {
+      gameName: game.gameName,
+      steamAppId: game.steamAppId,
+      headerImageUrl: game.headerImageUrl,
+    },
   })
 })
 

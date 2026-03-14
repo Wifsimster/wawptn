@@ -170,3 +170,11 @@ jobs:
           body_path: ${{ steps.changelog.outputs.changelog_file }}
           draft: false
           prerelease: false
+
+      - name: Deploy to production
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: deploy
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: /home/deploy/deploy-wawptn.sh

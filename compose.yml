@@ -35,7 +35,6 @@ services:
       - "traefik.http.routers.wawptn.tls=true"
       - "traefik.http.routers.wawptn.tls.certresolver=letsencrypt"
       - "traefik.http.services.wawptn.loadBalancer.server.port=8080"
-      - com.centurylinklabs.watchtower.enable=true
     security_opt:
       - no-new-privileges:true
     cap_drop:

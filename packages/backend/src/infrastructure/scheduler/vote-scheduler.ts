@@ -24,5 +24,17 @@ export function startVoteScheduler(): void {
     }
   })
 
+  // Clean up expired Discord link codes every 5 minutes
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      const deleted = await db('discord_link_codes').where('expires_at', '<', db.fn.now()).del()
+      if (deleted > 0) {
+        schedulerLogger.info({ deleted }, 'cleaned up expired Discord link codes')
+      }
+    } catch (err) {
+      schedulerLogger.error({ error: String(err) }, 'Discord link code cleanup failed')
+    }
+  })
+
   schedulerLogger.info('vote scheduler started (polling every 15s)')
 }

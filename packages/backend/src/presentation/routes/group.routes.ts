@@ -255,12 +255,7 @@ router.post('/join', async (req: Request, res: Response) => {
     return
   }
 
-  if (group.invite_use_count >= group.invite_max_uses) {
-    res.status(410).json({ error: 'expired', message: 'This invite link has reached its maximum uses' })
-    return
-  }
-
-  // Check if already a member
+  // Check if already a member (before claiming an invite use)
   const existing = await db('group_members')
     .where({ group_id: group.id, user_id: userId })
     .first()
@@ -270,15 +265,28 @@ router.post('/join', async (req: Request, res: Response) => {
     return
   }
 
-  // Add member
-  await db('group_members').insert({
-    group_id: group.id,
-    user_id: userId,
-    role: 'member',
+  // Atomic: claim an invite use and add member in a single transaction (race-safe)
+  const joined = await db.transaction(async (trx) => {
+    const claimed = await trx('groups')
+      .where({ id: group.id })
+      .whereRaw('invite_use_count < invite_max_uses')
+      .increment('invite_use_count', 1)
+
+    if (claimed === 0) return false
+
+    await trx('group_members').insert({
+      group_id: group.id,
+      user_id: userId,
+      role: 'member',
+    })
+
+    return true
   })
 
-  // Increment use count
-  await db('groups').where({ id: group.id }).increment('invite_use_count', 1)
+  if (!joined) {
+    res.status(410).json({ error: 'expired', message: 'This invite link has reached its maximum uses' })
+    return
+  }
 
   // Notify group via Socket.io
   const user = await db('users').where({ id: userId }).first()
@@ -524,20 +532,20 @@ router.post('/:id/sync', async (req: Request, res: Response) => {
     .where('status', 'active')
     .select('user_id', 'provider_id')
 
-  const emitSynced = (memberId: string) => {
+  const emitSynced = (memberId: string, gameCount: number) => {
     const io = getIO()
     io.to(`group:${groupId}`).emit('library:synced', {
       groupId,
       userId: memberId,
-      gameCount: 0, // will be updated
+      gameCount,
     })
   }
 
   // Sync in background, one at a time (rate limited)
   for (const member of members) {
     // Steam sync
-    syncUserLibrary(member.id, member.steam_id).then(() => {
-      emitSynced(member.id)
+    syncUserLibrary(member.id, member.steam_id).then((count) => {
+      emitSynced(member.id, count)
     }).catch(err => {
       logger.error({ error: String(err), userId: member.id }, 'Steam sync failed for member')
     })
@@ -545,8 +553,8 @@ router.post('/:id/sync', async (req: Request, res: Response) => {
     // Epic sync (if linked)
     const hasEpic = linkedAccounts.some((a: { user_id: string; provider_id: string }) => a.user_id === member.id && a.provider_id === 'epic')
     if (hasEpic) {
-      syncEpicLibrary(member.id).then(() => {
-        emitSynced(member.id)
+      syncEpicLibrary(member.id).then((count) => {
+        emitSynced(member.id, count)
       }).catch(err => {
         logger.error({ error: String(err), userId: member.id }, 'Epic sync failed for member')
       })
@@ -555,8 +563,8 @@ router.post('/:id/sync', async (req: Request, res: Response) => {
     // GOG sync (if linked)
     const hasGog = linkedAccounts.some((a: { user_id: string; provider_id: string }) => a.user_id === member.id && a.provider_id === 'gog')
     if (hasGog) {
-      syncGogLibrary(member.id).then(() => {
-        emitSynced(member.id)
+      syncGogLibrary(member.id).then((count) => {
+        emitSynced(member.id, count)
       }).catch(err => {
         logger.error({ error: String(err), userId: member.id }, 'GOG sync failed for member')
       })

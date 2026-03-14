@@ -723,11 +723,11 @@ router.post('/gog/sync', requireAuth, async (req: Request, res: Response) => {
 // ─── Background Library Sync ────────────────────────────────────────
 
 // Background Epic library sync
-async function syncEpicLibrary(userId: string): Promise<void> {
+async function syncEpicLibrary(userId: string): Promise<number> {
   const games = await getEpicOwnedGames(userId)
   if (!games || games.length === 0) {
     epicLogger.warn({ userId }, 'no Epic games returned or token issue')
-    return
+    return 0
   }
 
   const now = new Date()
@@ -780,20 +780,21 @@ async function syncEpicLibrary(userId: string): Promise<void> {
   }
 
   epicLogger.info({ userId, gameCount: games.length }, 'Epic library synced')
+  return games.length
 }
 
 // Background Steam library sync
-async function syncUserLibrary(userId: string, steamId: string): Promise<void> {
+async function syncUserLibrary(userId: string, steamId: string): Promise<number> {
   const games = await getOwnedGames(steamId)
   if (!games) {
     await db('users').where({ id: userId }).update({ library_visible: false })
-    return
+    return 0
   }
 
   if (games.length === 0) {
     steamLogger.warn({ steamId }, 'no games returned — profile may be private')
     await db('users').where({ id: userId }).update({ library_visible: false })
-    return
+    return 0
   }
 
   // Upsert all games
@@ -844,14 +845,15 @@ async function syncUserLibrary(userId: string, steamId: string): Promise<void> {
 
   await db('users').where({ id: userId }).update({ library_visible: true, updated_at: now })
   steamLogger.info({ userId, steamId, gameCount: games.length }, 'library synced')
+  return games.length
 }
 
 // Background GOG library sync
-async function syncGogLibrary(userId: string): Promise<void> {
+async function syncGogLibrary(userId: string): Promise<number> {
   const games = await getGogOwnedGames(userId)
   if (!games || games.length === 0) {
     gogLogger.warn({ userId }, 'no GOG games returned or token issue')
-    return
+    return 0
   }
 
   const now = new Date()
@@ -902,6 +904,7 @@ async function syncGogLibrary(userId: string): Promise<void> {
   }
 
   gogLogger.info({ userId, gameCount: games.length }, 'GOG library synced')
+  return games.length
 }
 
 export { router as authRoutes, syncUserLibrary, syncEpicLibrary, syncGogLibrary }

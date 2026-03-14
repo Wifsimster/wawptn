@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Events, type Interaction } from 'discord.js'
+import { Client, GatewayIntentBits, Events, REST, Routes, type Interaction } from 'discord.js'
 import { validateEnv, env } from './env.js'
 import { backendApi } from './lib/api.js'
 import * as setupCommand from './commands/setup.js'
@@ -21,8 +21,23 @@ const commands = new Map([
   ['wawptn-random', randomCommand],
 ])
 
-client.once(Events.ClientReady, (c) => {
+client.once(Events.ClientReady, async (c) => {
   console.log(`Discord bot ready as ${c.user.tag}`)
+
+  // Auto-register slash commands on startup
+  try {
+    const rest = new REST({ version: '10' }).setToken(env.DISCORD_BOT_TOKEN)
+    const commandData = [...commands.values()].map(cmd => cmd.data.toJSON())
+
+    await rest.put(
+      Routes.applicationCommands(env.DISCORD_APPLICATION_ID),
+      { body: commandData },
+    )
+
+    console.log(`Registered ${commandData.length} slash commands`)
+  } catch (error) {
+    console.error('Failed to register slash commands:', error)
+  }
 })
 
 client.on(Events.InteractionCreate, async (interaction: Interaction) => {

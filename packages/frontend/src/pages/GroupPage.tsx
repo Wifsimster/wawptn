@@ -103,6 +103,9 @@ export function GroupPage() {
     })
     socket.on('library:synced', () => loadCommonGames(id, activeFilter))
     socket.on('session:created', (data) => {
+      // Don't notify the user who started the vote
+      if (data.createdBy === user?.id) return
+
       // Only show join prompt to participants (or all if no participantIds — legacy)
       const isParticipant = !data.participantIds || !user?.id || data.participantIds.includes(user.id)
       const toastMessage = data.scheduledAt

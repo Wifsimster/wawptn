@@ -68,7 +68,7 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
 
       // Signed cookies are prefixed with "s:" by cookie-parser
       const token = raw.startsWith('s:')
-        ? unsign(raw.slice(2), env.BETTER_AUTH_SECRET)
+        ? unsign(raw.slice(2), env.APP_SECRET)
         : raw // fallback for unsigned cookies during transition
       if (!token) {
         socketLogger.info('socket auth: invalid cookie signature')

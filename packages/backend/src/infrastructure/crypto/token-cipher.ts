@@ -7,7 +7,7 @@ const PREFIX = 'enc:'
 
 function deriveKey(): Buffer {
   return Buffer.from(
-    crypto.hkdfSync('sha256', env.BETTER_AUTH_SECRET, 'wawptn-token-encryption', '', 32)
+    crypto.hkdfSync('sha256', env.APP_SECRET, 'wawptn-token-encryption', '', 32)
   )
 }
 

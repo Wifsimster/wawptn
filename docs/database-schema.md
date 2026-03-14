@@ -243,7 +243,7 @@ Les migrations sont gérées par **Knex.js** dans `packages/backend/migrations/`
 | Fichier | Description |
 |---------|-------------|
 | `20260306_initial_schema.ts` | Création des tables de base |
-| `20260308_better_auth_migration.ts` | Adaptation du schéma d'authentification |
+| `20260308_better_auth_migration.ts` | Adaptation du schéma d'authentification (legacy name) |
 | `20260308_games_schema_generalization.ts` | Catalogue de jeux canonique et multi-plateforme |
 | `20260308_add_scheduled_at.ts` | Votes planifiés avec clôture automatique |
 | `20260308_accounts_unique_constraints.ts` | Contraintes de liaison multi-plateforme |

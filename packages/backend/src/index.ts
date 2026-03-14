@@ -50,7 +50,7 @@ async function main() {
     credentials: true,
   }))
   app.use(express.json({ limit: '10kb' }))
-  app.use(cookieParser(env.BETTER_AUTH_SECRET))
+  app.use(cookieParser(env.APP_SECRET))
 
   // Rate limiting
   const apiLimiter = rateLimit({

@@ -395,7 +395,7 @@ router.get('/epic/link', requireAuth, (req: Request, res: Response) => {
 
   // Generate state bound to the authenticated user
   const nonce = crypto.randomBytes(16).toString('hex')
-  const userHash = crypto.createHmac('sha256', env.BETTER_AUTH_SECRET).update(req.userId!).digest('hex').slice(0, 16)
+  const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex').slice(0, 16)
   const state = `${nonce}.${userHash}`
 
   res.cookie(EPIC_LINK_STATE_COOKIE, state, {
@@ -426,7 +426,7 @@ router.get('/epic/callback', requireAuth, async (req: Request, res: Response) =>
     }
 
     // Verify state is bound to current user
-    const userHash = crypto.createHmac('sha256', env.BETTER_AUTH_SECRET).update(req.userId!).digest('hex').slice(0, 16)
+    const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex').slice(0, 16)
     const expectedSuffix = `.${userHash}`
     if (!storedState.endsWith(expectedSuffix)) {
       authLogger.warn('Epic callback rejected: user binding mismatch')
@@ -565,7 +565,7 @@ router.get('/gog/link', requireAuth, (req: Request, res: Response) => {
   }
 
   const nonce = crypto.randomBytes(16).toString('hex')
-  const userHash = crypto.createHmac('sha256', env.BETTER_AUTH_SECRET).update(req.userId!).digest('hex').slice(0, 16)
+  const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex').slice(0, 16)
   const state = `${nonce}.${userHash}`
 
   res.cookie(GOG_LINK_STATE_COOKIE, state, {
@@ -594,7 +594,7 @@ router.get('/gog/callback', requireAuth, async (req: Request, res: Response) => 
       return
     }
 
-    const userHash = crypto.createHmac('sha256', env.BETTER_AUTH_SECRET).update(req.userId!).digest('hex').slice(0, 16)
+    const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex').slice(0, 16)
     const expectedSuffix = `.${userHash}`
     if (!storedState.endsWith(expectedSuffix)) {
       authLogger.warn('GOG callback rejected: user binding mismatch')

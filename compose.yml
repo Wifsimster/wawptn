@@ -19,7 +19,7 @@ services:
       - TZ=Europe/Paris
       - NODE_ENV=production
       - DATABASE_URL=postgresql://${DB_USER:-wawptn}:${DB_PASSWORD:-wawptn}@wawptn-postgres:5432/${DB_NAME:-wawptn}
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - APP_SECRET=${APP_SECRET}
       - STEAM_API_KEY=${STEAM_API_KEY}
       - API_URL=https://wawptn.battistella.ovh
       - CORS_ORIGIN=https://wawptn.battistella.ovh

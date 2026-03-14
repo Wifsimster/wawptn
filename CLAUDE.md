@@ -11,7 +11,7 @@ WAWPTN (What Are We Playing Tonight?) is a web application that helps groups of 
 | Layer | Technology |
 |-------|------------|
 | Frontend | React 19, Vite, TypeScript, TailwindCSS v4, Zustand, Framer Motion |
-| Backend | Node.js, Express 5, Better Auth, Socket.io |
+| Backend | Node.js, Express 5, Socket.io |
 | Database | PostgreSQL 16, Knex.js |
 | Monorepo | npm workspaces |
 | Deployment | Docker (single image), Docker Compose, Traefik, GitHub Actions CI/CD |
@@ -37,7 +37,7 @@ docker compose -f compose.local.yml up -d   # Start PostgreSQL locally
 - `packages/types/` — `@wawptn/types` shared TypeScript interfaces
 - `packages/backend/` — `@wawptn/backend` Express API (Clean Architecture)
   - `src/config/env.ts` — Environment variables
-  - `src/infrastructure/auth/` — Better Auth + Steam OpenID 2.0
+  - `src/infrastructure/auth/` — Steam OpenID 2.0
   - `src/infrastructure/steam/` — Steam Web API client with rate limiter + circuit breaker
   - `src/infrastructure/database/` — Knex.js PostgreSQL connection
   - `src/infrastructure/socket/` — Socket.io server with auth middleware

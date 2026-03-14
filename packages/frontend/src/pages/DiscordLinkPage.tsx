@@ -56,7 +56,7 @@ export function DiscordLinkPage() {
         <h1 className="text-2xl font-bold mb-2">{t('discordLink.title')}</h1>
         <p className="text-muted-foreground mb-6">{t('discordLink.loginPrompt')}</p>
         <Button variant="steam" size="lg" asChild>
-          <a href={`/api/auth/steam/login?returnTo=/discord/link?code=${code}`}>{t('login.signIn')}</a>
+          <a href={`/api/auth/steam/login?returnTo=${encodeURIComponent(`/discord/link?code=${code}`)}`}>{t('login.signIn')}</a>
         </Button>
       </div>
     )

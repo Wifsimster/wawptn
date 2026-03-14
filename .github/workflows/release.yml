@@ -25,14 +25,54 @@ permissions:
   packages: write
 
 jobs:
+  detect-release:
+    name: Detect Release Type
+    runs-on: ubuntu-latest
+    # Skip CI's own version bump commits (belt-and-suspenders with GITHUB_TOKEN behavior)
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (
+        github.event_name == 'push'
+        && github.actor != 'github-actions[bot]'
+        && !startsWith(github.event.head_commit.message, 'chore: bump version')
+      )
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      bump_type: ${{ steps.check.outputs.bump_type }}
+    steps:
+      - name: Analyze commit for release type
+        id: check
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          EVENT_NAME: ${{ github.event_name }}
+          VERSION_INPUT: ${{ inputs.version_type }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "bump_type=$VERSION_INPUT" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          FIRST_LINE=$(echo "$COMMIT_MSG" | head -1)
+
+          if echo "$FIRST_LINE" | grep -qE "^(feat|feature)(\(.+\))?!:|^BREAKING CHANGE:"; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "bump_type=major" >> $GITHUB_OUTPUT
+          elif echo "$FIRST_LINE" | grep -qE "^(feat|feature)(\(.+\))?:"; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "bump_type=minor" >> $GITHUB_OUTPUT
+          elif echo "$FIRST_LINE" | grep -qE "^fix(\(.+\))?:"; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "bump_type=patch" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
-    # Run on version bump commits (from post-commit hook) and workflow_dispatch
-    # Skip other commits (refactor, chore, docs, etc. that don't bump version)
-    if: >-
-      startsWith(github.event.head_commit.message, 'chore: bump version')
-      || github.event_name == 'workflow_dispatch'
+    needs: [detect-release]
+    if: needs.detect-release.outputs.should_release == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -55,7 +95,7 @@ jobs:
   release:
     name: Create Release & Publish Docker Image
     runs-on: ubuntu-latest
-    needs: [lint]
+    needs: [lint, detect-release]
 
     steps:
       - name: Checkout code
@@ -78,11 +118,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # For workflow_dispatch: bump version in CI
-      # For push: version is already bumped by the post-commit hook
-      - name: Bump version (manual release only)
-        if: github.event_name == 'workflow_dispatch'
-        run: npm run version:${{ inputs.version_type }}
+      - name: Bump version
+        env:
+          HUSKY: "0"
+        run: npm run version:${{ needs.detect-release.outputs.bump_type }}
 
       - name: Read version
         id: version
@@ -103,9 +142,7 @@ jobs:
           fi
           echo "changelog_file=CHANGELOG_TEMP.md" >> $GITHUB_OUTPUT
 
-      # Only commit for workflow_dispatch (push events already have the bump committed)
-      - name: Commit version bump (manual release only)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Commit version bump
         env:
           HUSKY: "0"
         run: |
@@ -157,9 +194,7 @@ jobs:
         env:
           HUSKY: "0"
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            git push origin main
-          fi
+          git push origin main
           git push origin "v${{ steps.version.outputs.new_version }}" --force
 
       - name: Create GitHub Release

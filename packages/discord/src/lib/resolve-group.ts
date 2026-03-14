@@ -25,6 +25,7 @@ interface GroupsResponse {
  */
 export async function resolveGroup(
   interaction: ChatInputCommandInteraction,
+  options?: { skipChannelLink?: boolean },
 ): Promise<{ groupId: string; groupName: string } | null> {
   // Check if Discord user is linked
   const status = await backendApi<{ linked: boolean }>(`/api/discord/link/status`, {
@@ -38,21 +39,23 @@ export async function resolveGroup(
     return null
   }
 
-  // Check if the channel is linked to a group
-  try {
-    const gamesResult = await backendApi<{ groupName: string; games: unknown[] }>(
-      `/api/discord/games?channelId=${interaction.channelId}`,
-    )
-    // Channel is linked — find the groupId
-    const groupsResult = await backendApi<GroupsResponse>(`/api/discord/groups`, {
-      discordUserId: interaction.user.id,
-    })
-    const linkedGroup = groupsResult.groups.find(g => g.name === gamesResult.groupName)
-    if (linkedGroup) {
-      return { groupId: linkedGroup.id, groupName: linkedGroup.name }
+  // Check if the channel is linked to a group (skip for setup command)
+  if (!options?.skipChannelLink) {
+    try {
+      const gamesResult = await backendApi<{ groupName: string; games: unknown[] }>(
+        `/api/discord/games?channelId=${interaction.channelId}`,
+      )
+      // Channel is linked — find the groupId
+      const groupsResult = await backendApi<GroupsResponse>(`/api/discord/groups`, {
+        discordUserId: interaction.user.id,
+      })
+      const linkedGroup = groupsResult.groups.find(g => g.name === gamesResult.groupName)
+      if (linkedGroup) {
+        return { groupId: linkedGroup.id, groupName: linkedGroup.name }
+      }
+    } catch {
+      // Channel not linked — continue to group selection
     }
-  } catch {
-    // Channel not linked — continue to group selection
   }
 
   // Fetch user's groups

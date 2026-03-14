@@ -23,6 +23,7 @@ services:
       - STEAM_API_KEY=${STEAM_API_KEY}
       - API_URL=https://wawptn.battistella.ovh
       - CORS_ORIGIN=https://wawptn.battistella.ovh
+      - DISCORD_BOT_API_SECRET=${DISCORD_BOT_API_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,6 +36,30 @@ services:
       - "traefik.http.routers.wawptn.tls.certresolver=letsencrypt"
       - "traefik.http.services.wawptn.loadBalancer.server.port=8080"
       - com.centurylinklabs.watchtower.enable=true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      lan:
+
+  wawptn-discord:
+    image: wifsimster/wawptn:latest
+    container_name: wawptn-discord
+    restart: unless-stopped
+    command: ["node", "packages/discord/dist/index.js"]
+    env_file:
+      - .env
+    environment:
+      - TZ=Europe/Paris
+      - NODE_ENV=production
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_APPLICATION_ID=${DISCORD_APPLICATION_ID}
+      - DISCORD_BOT_API_SECRET=${DISCORD_BOT_API_SECRET}
+      - BACKEND_URL=http://wawptn:8080
+    depends_on:
+      wawptn:
+        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     cap_drop:

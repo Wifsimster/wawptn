@@ -12,6 +12,7 @@ COPY package.json package-lock.json ./
 COPY packages/types/package.json ./packages/types/
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/frontend/package.json ./packages/frontend/
+COPY packages/discord/package.json ./packages/discord/
 
 # Install all dependencies
 RUN npm ci
@@ -38,7 +39,14 @@ RUN cd packages/backend && npx tsc -p tsconfig.migrations.json
 # Compile knexfile to JS for production CLI usage (rollback, migrate, etc.)
 RUN cd packages/backend && npx tsc knexfile.ts --target ES2022 --module NodeNext --moduleResolution NodeNext --esModuleInterop --skipLibCheck --declaration false --outDir .
 
-# Stage 3b: Build frontend (parallel with backend)
+# Stage 3b: Build discord bot (parallel with frontend)
+FROM types-builder AS discord-builder
+
+COPY packages/discord ./packages/discord
+
+RUN npm run build:discord
+
+# Stage 3c: Build frontend (parallel with backend)
 FROM types-builder AS frontend-builder
 
 COPY packages/frontend ./packages/frontend
@@ -76,6 +84,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY package.json package-lock.json ./
 COPY packages/types/package.json ./packages/types/
 COPY packages/backend/package.json ./packages/backend/
+COPY packages/discord/package.json ./packages/discord/
 
 # Install production dependencies only
 # --ignore-scripts skips lifecycle scripts like prepare (which runs husky)
@@ -90,6 +99,9 @@ COPY --from=backend-builder /app/packages/backend/migrations-compiled ./packages
 
 # Copy compiled knexfile for CLI usage (rollback, migrate, etc.)
 COPY --from=backend-builder /app/packages/backend/knexfile.js ./packages/backend/knexfile.js
+
+# Copy built discord bot
+COPY --from=discord-builder /app/packages/discord/dist ./packages/discord/dist
 
 # Copy built frontend to be served by Node.js
 COPY --from=frontend-builder /app/packages/frontend/dist ./packages/frontend/dist

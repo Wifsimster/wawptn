@@ -27,6 +27,10 @@ export const env = {
 
   // Discord Bot (optional — feature-flagged)
   DISCORD_BOT_API_SECRET: process.env['DISCORD_BOT_API_SECRET'] || '',
+
+  // LLM (optional — enables Discord bot conversational mode)
+  LLM_API_KEY: process.env['LLM_API_KEY'] || '',
+  LLM_MODEL: process.env['LLM_MODEL'] || 'claude-sonnet-4-20250514',
 }
 
 export function validateEnv(): void {

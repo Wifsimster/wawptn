@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Events, REST, Routes, type Interaction } from 'discord.js'
+import { Client, GatewayIntentBits, Events, REST, Routes, type Interaction, type Message } from 'discord.js'
 import { validateEnv, env } from './env.js'
 import { backendApi } from './lib/api.js'
 import { startScheduler } from './scheduler.js'
@@ -11,7 +11,11 @@ import * as randomCommand from './commands/random.js'
 validateEnv()
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
 })
 
 const commands = new Map([
@@ -104,6 +108,71 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
         content: `❌ ${error instanceof Error ? error.message : 'Erreur lors du vote'}`,
       })
     }
+  }
+})
+
+// ─── Conversational message handler (@mention) ──────────────────────────────
+
+// Per-channel cooldown to prevent spam (5s between bot responses)
+const channelCooldowns = new Map<string, number>()
+const COOLDOWN_MS = 5_000
+
+client.on(Events.MessageCreate, async (message: Message) => {
+  // Ignore bot messages
+  if (message.author.bot) return
+
+  // Only respond when the bot is @mentioned
+  if (!client.user || !message.mentions.has(client.user)) return
+
+  // Channel cooldown
+  const now = Date.now()
+  const lastResponse = channelCooldowns.get(message.channelId)
+  if (lastResponse && now - lastResponse < COOLDOWN_MS) return
+  channelCooldowns.set(message.channelId, now)
+
+  // Strip the bot mention from the message to get the actual question
+  const cleanContent = message.content
+    .replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '')
+    .trim()
+
+  // If empty after stripping mention, send a hint
+  if (!cleanContent) {
+    await message.reply('Yo ! Tu voulais me dire quelque chose ? Pose-moi une question sur tes jeux ou ton groupe !')
+    return
+  }
+
+  try {
+    // Show typing indicator while waiting for the LLM
+    if ('sendTyping' in message.channel) {
+      await message.channel.sendTyping()
+    }
+
+    const response = await backendApi<{ reply: string }>('/api/discord/chat', {
+      method: 'POST',
+      discordUserId: message.author.id,
+      body: {
+        channelId: message.channelId,
+        message: cleanContent,
+      },
+    })
+
+    await message.reply(response.reply)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
+
+    // Rate limited
+    if (errorMessage.includes('trop de questions') || errorMessage.includes('rate')) {
+      await message.reply('Doucement ! Je suis rapide mais pas infini. Réessaie dans quelques minutes.')
+      return
+    }
+
+    // LLM not configured
+    if (errorMessage.includes('not_configured') || errorMessage.includes('not enabled')) {
+      return // Silently ignore if LLM is not set up
+    }
+
+    await message.reply('Oups, mon cerveau a bugué. Réessaie dans un instant !')
+    console.error('[chat] Error handling message:', error)
   }
 })
 

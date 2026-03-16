@@ -15,6 +15,7 @@
     "db:make-migration": "knex migrate:make --knexfile knexfile.ts -x ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@wawptn/types": "*",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

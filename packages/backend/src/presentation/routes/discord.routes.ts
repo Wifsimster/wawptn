@@ -7,6 +7,7 @@ import { logger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
 import { requireAuth } from '../middleware/auth.middleware.js'
 import { createVotingSession } from '../../domain/create-session.js'
+import { isLLMEnabled, generateChatResponse, type ChatContext } from '../../infrastructure/llm/client.js'
 
 const router = Router()
 
@@ -340,6 +341,125 @@ router.get('/random', async (req: Request, res: Response) => {
       headerImageUrl: game.headerImageUrl,
     },
   })
+})
+
+// ─── Conversational chat (LLM-powered) ──────────────────────────────────────
+
+// In-memory rate limiter: 5 requests per 5 minutes per user
+const chatRateLimits = new Map<string, { count: number; resetAt: number }>()
+const CHAT_RATE_LIMIT = 5
+const CHAT_RATE_WINDOW_MS = 5 * 60 * 1000
+
+router.post('/chat', async (req: Request, res: Response) => {
+  if (!isLLMEnabled()) {
+    res.status(501).json({ error: 'not_configured', message: 'Conversational mode is not enabled (LLM_API_KEY not set)' })
+    return
+  }
+
+  const discordUserId = req.headers['x-discord-user-id'] as string | undefined
+  const { channelId, message } = req.body as {
+    channelId?: string
+    message?: string
+  }
+
+  if (!message || message.trim().length === 0) {
+    res.status(400).json({ error: 'validation', message: 'message is required' })
+    return
+  }
+
+  // Rate limiting
+  if (discordUserId) {
+    const now = Date.now()
+    const userLimit = chatRateLimits.get(discordUserId)
+
+    if (userLimit && now < userLimit.resetAt) {
+      if (userLimit.count >= CHAT_RATE_LIMIT) {
+        res.status(429).json({ error: 'rate_limited', message: 'Doucement ! Tu me poses trop de questions. Réessaie dans quelques minutes.' })
+        return
+      }
+      userLimit.count++
+    } else {
+      chatRateLimits.set(discordUserId, { count: 1, resetAt: now + CHAT_RATE_WINDOW_MS })
+    }
+  }
+
+  // Build context from the channel-linked group
+  const context: ChatContext = {}
+
+  // Resolve user name
+  if (req.userId) {
+    const user = await db('users').where({ id: req.userId }).first()
+    if (user) {
+      context.userName = user.display_name || user.steam_persona_name
+    }
+  }
+
+  // Resolve group from channel
+  if (channelId) {
+    const group = await db('groups').where({ discord_channel_id: channelId }).first()
+
+    if (group) {
+      context.groupName = group.name
+
+      const memberIds = await db('group_members').where({ group_id: group.id }).pluck('user_id')
+      context.memberCount = memberIds.length
+
+      if (memberIds.length > 0) {
+        const games = await computeCommonGames(memberIds, { threshold: memberIds.length })
+        context.commonGamesCount = games.length
+        context.commonGames = games.slice(0, 20).map(g => g.gameName)
+      }
+
+      // Recent vote sessions (last 3)
+      const recentSessions = await db('voting_sessions')
+        .where({ group_id: group.id })
+        .orderBy('created_at', 'desc')
+        .limit(3)
+        .select('id', 'status', 'created_at')
+
+      if (recentSessions.length > 0) {
+        const sessions: Array<{ date: string; winner?: string }> = []
+        for (const session of recentSessions) {
+          const topVote = await db('votes')
+            .where({ session_id: session.id, vote: true })
+            .groupBy('steam_app_id')
+            .count('* as vote_count')
+            .orderBy('vote_count', 'desc')
+            .first()
+
+          let winner: string | undefined
+          if (topVote) {
+            const game = await db('user_games')
+              .where({ steam_app_id: topVote.steam_app_id })
+              .first()
+            winner = game?.game_name
+          }
+
+          sessions.push({
+            date: new Date(session.created_at).toLocaleDateString('fr-FR'),
+            winner,
+          })
+        }
+        context.recentVoteSessions = sessions
+      }
+    }
+  }
+
+  try {
+    const reply = await generateChatResponse(message.slice(0, 1000), context)
+
+    // Sanitize: strip @everyone, @here, and role mentions
+    const sanitized = reply
+      .replace(/@everyone/g, '@\u200Beveryone')
+      .replace(/@here/g, '@\u200Bhere')
+
+    res.json({ reply: sanitized })
+  } catch (error) {
+    res.status(503).json({
+      error: 'llm_error',
+      message: error instanceof Error ? error.message : 'Erreur lors de la génération de la réponse',
+    })
+  }
 })
 
 export { router as discordRoutes }

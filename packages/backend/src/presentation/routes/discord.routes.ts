@@ -344,6 +344,17 @@ router.get('/random', async (req: Request, res: Response) => {
 
 export { router as discordRoutes }
 
+// ─── Bot-only utility routes ──────────────────────────────────────────────────
+
+// Get all Discord channels linked to a group (for scheduled messages)
+router.get('/linked-channels', async (_req: Request, res: Response) => {
+  const channels = await db('groups')
+    .whereNotNull('discord_channel_id')
+    .select('discord_channel_id as channelId', 'name as groupName')
+
+  res.json(channels)
+})
+
 // ─── User-authenticated routes (called from web frontend) ─────────────────────
 
 const userRouter = Router()

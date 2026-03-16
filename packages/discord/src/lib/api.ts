@@ -31,3 +31,12 @@ export async function backendApi<T>(path: string, options: ApiOptions = {}): Pro
 
   return res.json() as Promise<T>
 }
+
+export interface LinkedChannel {
+  channelId: string
+  groupName: string
+}
+
+export async function getLinkedChannels(): Promise<LinkedChannel[]> {
+  return backendApi<LinkedChannel[]>('/api/discord/linked-channels')
+}

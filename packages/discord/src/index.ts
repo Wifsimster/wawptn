@@ -1,6 +1,7 @@
 import { Client, GatewayIntentBits, Events, REST, Routes, type Interaction } from 'discord.js'
 import { validateEnv, env } from './env.js'
 import { backendApi } from './lib/api.js'
+import { startScheduler } from './scheduler.js'
 import * as setupCommand from './commands/setup.js'
 import * as linkCommand from './commands/link.js'
 import * as gamesCommand from './commands/games.js'
@@ -38,6 +39,9 @@ client.once(Events.ClientReady, async (c) => {
   } catch (error) {
     console.error('Failed to register slash commands:', error)
   }
+
+  // Start scheduled reminder messages
+  startScheduler(c)
 })
 
 client.on(Events.InteractionCreate, async (interaction: Interaction) => {

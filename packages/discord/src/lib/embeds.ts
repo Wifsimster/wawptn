@@ -20,8 +20,8 @@ export function buildSessionCreatedEmbed(
     .join('\n')
 
   const embed = new EmbedBuilder()
-    .setTitle('🎮 Nouvelle session de vote !')
-    .setDescription(`**${creatorName}** a lancé un vote dans le groupe **${groupName}**.\n\nUtilisez les boutons ci-dessous pour voter 👍 ou 👎 sur chaque jeu.\n\n${gameList}`)
+    .setTitle('⚔️ Alerte frag — vote lancé !')
+    .setDescription(`**${creatorName}** a lancé un vote dans le groupe **${groupName}**.\n\nVotez 👍 ou 👎 sur chaque jeu. Pas de camping, on tranche ce soir !\n\n${gameList}`)
     .setColor(0x5865F2)
     .setTimestamp()
 
@@ -52,7 +52,7 @@ export function buildSessionCreatedEmbed(
 
 export function buildVoteClosedEmbed(result: VoteResult, groupName: string): EmbedBuilder[] {
   const embed = new EmbedBuilder()
-    .setTitle('🏆 Résultat du vote !')
+    .setTitle('🏆 GG — le clan a tranché !')
     .setDescription(`Le groupe **${groupName}** a choisi :\n\n# ${result.gameName}`)
     .addFields(
       { name: 'Votes pour', value: `${result.yesCount}`, inline: true },
@@ -77,7 +77,7 @@ export function buildRandomGameEmbed(
   groupName: string,
 ): EmbedBuilder {
   const embed = new EmbedBuilder()
-    .setTitle('🎲 La roue a parlé !')
+    .setTitle('🎲 Random pick — la RNG a parlé !')
     .setDescription(`Le groupe **${groupName}** va jouer à :\n\n# ${game.gameName}`)
     .setColor(0xFEE75C)
     .setTimestamp()

@@ -30,7 +30,7 @@ export function GroupPage() {
   const { user } = useAuthStore()
   const [commonGames, setCommonGames] = useState<{ steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null; type: string | null; shortDescription: string | null; platforms: { windows: boolean; mac: boolean; linux: boolean } | null; recommendationsTotal: number | null; releaseDate: string | null; comingSoon: boolean | null; controllerSupport: string | null; isFree: boolean | null }[]>([])
   const [syncing, setSyncing] = useState(false)
-  const [voteHistory, setVoteHistory] = useState<{ id: string; winningGameAppId: number; winningGameId?: string; winningGameName: string; closedAt: string }[]>([])
+  const [voteHistory, setVoteHistory] = useState<{ id: string; winningGameAppId: number; winningGameId?: string; winningGameName: string; closedAt: string; createdBy: string }[]>([])
   const [inviteToken, setInviteToken] = useState<string | null>(null)
   const [loadingGames, setLoadingGames] = useState(true)
   const [gameFilters, setGameFilters] = useState<GameFilters>({
@@ -218,6 +218,17 @@ export function GroupPage() {
     }
   }
 
+  const handleDeleteHistory = async (sessionId: string) => {
+    if (!id) return
+    try {
+      await api.deleteVoteSession(id, sessionId)
+      setVoteHistory((prev) => prev.filter((h) => h.id !== sessionId))
+      toast.success(t('group.deleteHistorySuccess'))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('group.deleteHistoryError'))
+    }
+  }
+
   const onlineMembers = useMemo(() => new Set(onlineUserIds), [onlineUserIds])
   const currentUserRole = currentGroup?.members.find(m => m.id === user?.id)?.role || 'member'
 
@@ -283,6 +294,7 @@ export function GroupPage() {
               onKickMember={handleKickMember}
               onDeleteGroup={handleDeleteGroup}
               onRenameGroup={handleRenameGroup}
+              onDeleteHistory={handleDeleteHistory}
             />
           </div>
 
@@ -402,6 +414,7 @@ export function GroupPage() {
               onKickMember={handleKickMember}
               onDeleteGroup={handleDeleteGroup}
               onRenameGroup={handleRenameGroup}
+              onDeleteHistory={handleDeleteHistory}
               compact
             />
           </ResponsiveDialogContent>

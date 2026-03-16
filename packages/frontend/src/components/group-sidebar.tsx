@@ -29,6 +29,7 @@ interface VoteHistoryEntry {
   winningGameAppId: number
   winningGameName: string
   closedAt: string
+  createdBy: string
 }
 
 interface GroupSidebarProps {
@@ -46,15 +47,17 @@ interface GroupSidebarProps {
   onKickMember: (userId: string) => void
   onDeleteGroup: () => void
   onRenameGroup: (name: string) => Promise<void>
+  onDeleteHistory: (sessionId: string) => void
   /** When true, renders a compact layout for mobile bottom sheets (no Card wrappers) */
   compact?: boolean
 }
 
-export function GroupSidebar({ members, groupName, syncing, inviteToken, voteHistory, onlineMembers, currentUserId, currentUserRole, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, compact = false }: GroupSidebarProps) {
+export function GroupSidebar({ members, groupName, syncing, inviteToken, voteHistory, onlineMembers, currentUserId, currentUserRole, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, compact = false }: GroupSidebarProps) {
   const { t, i18n } = useTranslation()
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmKick, setConfirmKick] = useState<Member | null>(null)
+  const [confirmDeleteHistory, setConfirmDeleteHistory] = useState<VoteHistoryEntry | null>(null)
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameName, setRenameName] = useState('')
   const [renaming, setRenaming] = useState(false)
@@ -73,7 +76,7 @@ export function GroupSidebar({ members, groupName, syncing, inviteToken, voteHis
   const historySection = voteHistory.length > 0 && (
     <div className="space-y-2">
       {voteHistory.map((session, index) => (
-        <div key={session.id} className="flex items-center gap-3">
+        <div key={session.id} className="flex items-center gap-3 group/history">
           <img
             src={`https://cdn.akamai.steamstatic.com/steam/apps/${session.winningGameAppId}/header.jpg`}
             alt={session.winningGameName}
@@ -86,7 +89,24 @@ export function GroupSidebar({ members, groupName, syncing, inviteToken, voteHis
               {new Intl.DateTimeFormat(i18n.language, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(session.closedAt))}
             </p>
           </div>
-          {index === 0 && <Trophy className="w-4 h-4 text-primary shrink-0" />}
+          {session.createdBy === currentUserId || currentUserRole === 'owner' ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-7 w-7 text-muted-foreground hover:text-destructive ${compact ? 'opacity-100' : 'opacity-0 group-hover/history:opacity-100'} transition-opacity shrink-0`}
+                  onClick={() => setConfirmDeleteHistory(session)}
+                  aria-label={t('group.deleteHistory')}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('group.deleteHistory')}</TooltipContent>
+            </Tooltip>
+          ) : index === 0 ? (
+            <Trophy className="w-4 h-4 text-primary shrink-0" />
+          ) : null}
         </div>
       ))}
     </div>
@@ -340,6 +360,20 @@ export function GroupSidebar({ members, groupName, syncing, inviteToken, voteHis
               <Button type="submit" disabled={!renameName.trim() || renameName.trim() === groupName || renaming}>{t('group.renameSubmit')}</Button>
             </ResponsiveDialogFooter>
           </form>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+
+      {/* Delete history entry confirmation dialog */}
+      <ResponsiveDialog open={!!confirmDeleteHistory} onOpenChange={(open) => !open && setConfirmDeleteHistory(null)}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>{t('group.deleteHistoryConfirmTitle')}</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>{t('group.deleteHistoryConfirmDescription', { name: confirmDeleteHistory?.winningGameName })}</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <ResponsiveDialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteHistory(null)}>{t('group.cancel')}</Button>
+            <Button variant="destructive" onClick={() => { if (confirmDeleteHistory) { onDeleteHistory(confirmDeleteHistory.id); setConfirmDeleteHistory(null) } }}>{t('group.deleteHistoryConfirm')}</Button>
+          </ResponsiveDialogFooter>
         </ResponsiveDialogContent>
       </ResponsiveDialog>
     </aside>

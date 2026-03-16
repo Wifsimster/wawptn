@@ -127,7 +127,13 @@
     "groupRenamed": "Le groupe a été renommé en « {{name}} »",
     "youWereKicked": "Tu as été exclu du groupe.",
     "voteStartedOthers": "Un vote a été lancé pour d'autres joueurs",
-    "voteScheduled": "Une soirée a été planifiée pour le {{date}} !"
+    "voteScheduled": "Une soirée a été planifiée pour le {{date}} !",
+    "deleteHistory": "Supprimer cette soirée",
+    "deleteHistoryConfirmTitle": "Supprimer cette soirée ?",
+    "deleteHistoryConfirmDescription": "La soirée « {{name}} » sera définitivement supprimée de l'historique.",
+    "deleteHistoryConfirm": "Supprimer",
+    "deleteHistorySuccess": "Soirée supprimée de l'historique.",
+    "deleteHistoryError": "Impossible de supprimer la soirée"
   },
   "voteSetup": {
     "title": "Qui joue ce soir ?",

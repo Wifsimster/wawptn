@@ -314,6 +314,35 @@ router.post('/:groupId/vote/:sessionId/close', async (req: Request, res: Respons
   res.json({ result })
 })
 
+// Delete a closed voting session (creator or group owner only)
+router.delete('/:groupId/vote/:sessionId', async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const groupId = String(req.params['groupId'])
+  const sessionId = String(req.params['sessionId'])
+
+  const session = await db('voting_sessions')
+    .where({ id: sessionId, group_id: groupId, status: 'closed' })
+    .first()
+
+  if (!session) {
+    res.status(404).json({ error: 'not_found', message: 'No closed session found' })
+    return
+  }
+
+  const membership = await db('group_members')
+    .where({ group_id: groupId, user_id: userId })
+    .first()
+
+  if (!membership || (session.created_by !== userId && membership.role !== 'owner')) {
+    res.status(403).json({ error: 'forbidden', message: 'Only session creator or group owner can delete' })
+    return
+  }
+
+  await db('voting_sessions').where({ id: sessionId }).del()
+
+  res.json({ ok: true })
+})
+
 // Get past voting sessions for a group
 router.get('/:groupId/vote/history', async (req: Request, res: Response) => {
   const userId = req.userId!
@@ -332,7 +361,7 @@ router.get('/:groupId/vote/history', async (req: Request, res: Response) => {
     .where({ group_id: groupId, status: 'closed' })
     .orderBy('closed_at', 'desc')
     .limit(10)
-    .select('id', 'winning_game_app_id as winningGameAppId', 'winning_game_id as winningGameId', 'winning_game_name as winningGameName', 'closed_at as closedAt')
+    .select('id', 'winning_game_app_id as winningGameAppId', 'winning_game_id as winningGameId', 'winning_game_name as winningGameName', 'closed_at as closedAt', 'created_by as createdBy')
 
   res.json(sessions)
 })

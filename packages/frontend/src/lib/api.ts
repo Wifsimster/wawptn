@@ -111,7 +111,9 @@ export const api = {
     request<{ result: { steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string | null; yesCount: number; totalVoters: number } }>(
       `/groups/${groupId}/vote/${sessionId}/close`, { method: 'POST' }
     ),
-  getVoteHistory: (groupId: string) => request<{ id: string; winningGameAppId: number; winningGameId?: string; winningGameName: string; closedAt: string }[]>(
+  getVoteHistory: (groupId: string) => request<{ id: string; winningGameAppId: number; winningGameId?: string; winningGameName: string; closedAt: string; createdBy: string }[]>(
     `/groups/${groupId}/vote/history`
   ),
+  deleteVoteSession: (groupId: string, sessionId: string) =>
+    request<{ ok: boolean }>(`/groups/${groupId}/vote/${sessionId}`, { method: 'DELETE' }),
 }

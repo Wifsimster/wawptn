@@ -55,6 +55,11 @@ jobs:
 
           FIRST_LINE=$(echo "$COMMIT_MSG" | head -1)
 
+          # If this is a merge commit, use the PR title (3rd line) instead
+          if echo "$FIRST_LINE" | grep -qE "^Merge pull request #"; then
+            FIRST_LINE=$(echo "$COMMIT_MSG" | sed -n '3p')
+          fi
+
           if echo "$FIRST_LINE" | grep -qE "^(feat|feature)(\(.+\))?!:|^BREAKING CHANGE:"; then
             echo "should_release=true" >> $GITHUB_OUTPUT
             echo "bump_type=major" >> $GITHUB_OUTPUT

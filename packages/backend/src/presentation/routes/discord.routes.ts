@@ -407,7 +407,7 @@ router.post('/chat', async (req: Request, res: Response) => {
       if (memberIds.length > 0) {
         const games = await computeCommonGames(memberIds, { threshold: memberIds.length })
         context.commonGamesCount = games.length
-        context.commonGames = games.slice(0, 20).map(g => g.gameName)
+        context.commonGames = games.slice(0, 20).map(g => ({ name: g.gameName, steamAppId: g.steamAppId }))
       }
 
       // Recent vote sessions (last 3)

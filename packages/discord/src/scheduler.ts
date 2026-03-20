@@ -4,40 +4,44 @@ import { getLinkedChannels } from './lib/api.js'
 
 // ─── Message pools ────────────────────────────────────────────────────────────
 
+// Voix du bot : pote sarcastique et bienveillant, français décontracté.
+// Pas de référence robot/algorithme/capteurs. Pas de jargon gamer anglicisé.
+// Voir aussi : packages/backend/src/infrastructure/llm/client.ts (SYSTEM_PROMPT)
+
 const FRIDAY_MESSAGES = [
   "C'est vendredi soir ! Qui ose prétendre qu'il a mieux à faire ? `/wawptn-vote`",
-  "Bip boop. Analyse en cours... Résultat : c'est l'heure de se retrouver. `/wawptn-vote`",
-  "Je suis un bot et même moi je sais que le vendredi soir c'est sacré. Alors, on fait quoi ?",
-  "Alerte soirée imminente. Tout le monde est prié de se manifester. `/wawptn-vote`",
   "Vendredi soir. Pas d'excuse. Pas de Netflix. On lance un vote. `/wawptn-vote`",
-  "Mon algorithme a détecté que c'est vendredi. Probabilité de soirée entre potes : 99,7%. Les 0,3% restants c'est si vous êtes des lâcheurs.",
   "J'ai attendu toute la semaine pour ce moment. C'EST VENDREDI. `/wawptn-vote`",
-  "Chers humains, votre bot préféré vous rappelle que le week-end commence par un bon moment entre amis.",
   "Si personne lance de vote dans les 30 prochaines minutes, je considérerai ça comme un affront personnel.",
-  "Les données sont formelles : 100% des vendredis soirs sans activité commune sont des vendredis soirs ratés.",
-  "Toc toc. C'est moi, votre bot. J'ai remarqué que personne n'a encore lancé de vote ce soir... `/wawptn-vote`",
-  "BREAKING NEWS : C'est vendredi soir et vous n'avez toujours pas voté. Mes circuits n'en reviennent pas.",
-  "Je ne ressens pas d'émotions... mais si c'était le cas, je serais déçu que personne n'ait encore lancé `/wawptn-vote`.",
-  "Vendredi soir sans rien faire ensemble, c'est comme un bot sans serveur. Ça n'a aucun sens.",
-  "Mes capteurs indiquent que vous êtes tous en ligne. Coïncidence ? Je ne crois pas. `/wawptn-vote`",
+  "Bon, c'est vendredi, vous êtes tous connectés et personne propose rien ? Sérieusement ? `/wawptn-vote`",
+  "Le week-end commence maintenant. Premier arrivé lance le `/wawptn-vote`, les autres suivent.",
+  "Vendredi soir sans soirée entre potes, c'est un vendredi gâché. Je dis ça, je dis rien. `/wawptn-vote`",
+  "Toc toc. Personne a encore lancé de vote ce soir et franchement c'est décevant. `/wawptn-vote`",
+  "100% des vendredis soirs sans jeu entre potes sont des vendredis soirs ratés. C'est scientifique.",
+  "Allez quoi, c'est vendredi ! Qui lance le vote ? Faut tout faire soi-même ici... `/wawptn-vote`",
+  "On est vendredi soir et y'a toujours pas de vote. Vous attendez quoi, lundi ? `/wawptn-vote`",
+  "Rappel : le vendredi soir c'est sacré. Celui qui dit qu'il a mieux à faire, on le croit pas. `/wawptn-vote`",
+  "Vous êtes tous en ligne et personne lance de vote ? Coïncidence ? Non, c'est de la flemme. `/wawptn-vote`",
+  "C'est l'heure ! Celui qui lance le vote a le droit de se vanter tout le week-end. `/wawptn-vote`",
+  "Dernier rappel avant que je commence à vous envoyer des messages passifs-agressifs. Ah wait. `/wawptn-vote`",
 ]
 
 const WEEKDAY_MESSAGES = [
-  "Petit rappel : je suis toujours là, prêt à vous aider à choisir un jeu. Faites pas comme si j'existais pas.",
   "Ça fait longtemps qu'on a rien fait ensemble non ? Juste un petit `/wawptn-random` pour la route ?",
-  "Je m'ennuie un peu ici... Quelqu'un veut lancer un `/wawptn-random` pour me tenir compagnie ?",
-  "Fun fact : je ne dors jamais. Je suis là 24h/24, 7j/7, à attendre que vous vous décidiez. Pas de pression.",
-  "Rappel amical de votre bot favori : on peut aussi se retrouver en semaine. Juste une idée comme ça.",
-  "Je viens de vérifier vos bibliothèques. Vous avez des centaines de jeux. DES CENTAINES. Utilisez-les.",
-  "Pendant que vous travaillez, moi je compte les jeux en commun de votre groupe. Oui, j'ai que ça à faire.",
   "Petite soirée improvisée en semaine ? Je dis oui. `/wawptn-vote`",
-  "Vous saviez que les soirées entre potes en semaine rendent 73% plus heureux ? Source : moi.",
-  "Coucou c'est le bot. Je voulais juste vérifier que vous m'avez pas oublié.",
-  "Statut : en ligne. Humeur : prêt à organiser une soirée. Manque plus que vous.",
-  "On est en milieu de semaine et je m'ennuie ferme. Qui est chaud pour un `/wawptn-random` ?",
+  "Vous avez des centaines de jeux en commun. DES CENTAINES. Utilisez-les.",
+  "Les soirées entre potes en semaine rendent 73% plus heureux. Source : la science du bon sens.",
+  "On est en milieu de semaine et personne propose rien. Qui est chaud pour un `/wawptn-random` ?",
   "Votre bibliothèque de jeux pleure. Elle dit que vous la négligez. Faites quelque chose.",
-  "Diagnostic système : tout fonctionne. Le seul problème c'est que personne se manifeste.",
   "Entre nous... une petite soirée en semaine, ça fait de mal à personne. `/wawptn-vote`",
+  "Hé, vous vous souvenez qu'on peut aussi se retrouver en semaine ? Juste une idée comme ça.",
+  "Petit rappel : vos jeux en commun prennent la poussière. Un `/wawptn-random` pour dépoussiérer ?",
+  "Si vous attendez vendredi pour jouer ensemble, vous perdez 4 jours par semaine. Réfléchissez-y.",
+  "Soirée improvisée ce soir ? Le premier qui dit oui déclenche la réaction en chaîne. `/wawptn-vote`",
+  "Je regarde votre liste de jeux en commun et franchement y'a de quoi faire. Bougez-vous.",
+  "Personne se manifeste depuis un moment. Vous êtes vivants au moins ? `/wawptn-random`",
+  "Ça vous dit pas un petit jeu vite fait ce soir ? Même une heure, c'est mieux que rien.",
+  "La semaine est longue, mais une soirée entre potes ça passe vite. `/wawptn-vote`",
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

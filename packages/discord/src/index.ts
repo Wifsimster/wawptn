@@ -137,7 +137,7 @@ client.on(Events.MessageCreate, async (message: Message) => {
 
   // If empty after stripping mention, send a hint
   if (!cleanContent) {
-    await message.reply('Yo ! Tu voulais me dire quelque chose ? Pose-moi une question sur tes jeux ou ton groupe !')
+    await message.reply('Hé ! Tu voulais me dire quelque chose ? Pose-moi une question sur tes jeux ou ton groupe !')
     return
   }
 
@@ -162,7 +162,7 @@ client.on(Events.MessageCreate, async (message: Message) => {
 
     // Rate limited
     if (errorMessage.includes('trop de questions') || errorMessage.includes('rate')) {
-      await message.reply('Doucement ! Je suis rapide mais pas infini. Réessaie dans quelques minutes.')
+      await message.reply('Doucement ! Laisse-moi respirer deux secondes. Réessaie dans quelques minutes.')
       return
     }
 
@@ -171,7 +171,7 @@ client.on(Events.MessageCreate, async (message: Message) => {
       return // Silently ignore if LLM is not set up
     }
 
-    await message.reply('Oups, mon cerveau a bugué. Réessaie dans un instant !')
+    await message.reply('Oups, j\'ai perdu le fil. Réessaie dans un instant !')
     console.error('[chat] Error handling message:', error)
   }
 })

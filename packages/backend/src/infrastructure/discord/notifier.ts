@@ -72,15 +72,25 @@ export async function notifyVoteClosed(
   const group = await db('groups').where({ id: groupId }).first()
   if (!group?.discord_webhook_url) return
 
+  const fields = [
+    { name: 'Votes pour', value: `${result.yesCount}`, inline: true },
+    { name: 'Votants', value: `${result.totalVoters}`, inline: true },
+  ]
+
+  if (result.steamAppId) {
+    fields.push({
+      name: '🚀 Lancer sur Steam',
+      value: `[Ouvrir dans Steam](steam://run/${result.steamAppId})`,
+      inline: false,
+    })
+  }
+
   await postWebhook(group.discord_webhook_url, {
     embeds: [{
       title: '🏆 Résultat du vote !',
       description: `Le groupe **${group.name}** a choisi :\n\n# ${result.gameName}`,
       color: 0x57F287,
-      fields: [
-        { name: 'Votes pour', value: `${result.yesCount}`, inline: true },
-        { name: 'Votants', value: `${result.totalVoters}`, inline: true },
-      ],
+      fields,
       image: result.headerImageUrl ? { url: result.headerImageUrl } : undefined,
       url: result.steamAppId ? `https://store.steampowered.com/app/${result.steamAppId}` : undefined,
       timestamp: new Date().toISOString(),

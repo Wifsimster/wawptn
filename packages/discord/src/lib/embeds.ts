@@ -50,7 +50,13 @@ export function buildSessionCreatedEmbed(
   return { embeds: [embed], components: rows }
 }
 
-export function buildVoteClosedEmbed(result: VoteResult, groupName: string): EmbedBuilder[] {
+export function buildVoteClosedEmbed(
+  result: VoteResult,
+  groupName: string,
+  options?: { personaName?: string; embedColor?: number },
+): { embeds: EmbedBuilder[]; components: ActionRowBuilder<ButtonBuilder>[] } {
+  const color = options?.embedColor ?? 0x57F287
+
   const embed = new EmbedBuilder()
     .setTitle('🏆 Le groupe a choisi !')
     .setDescription(`Le groupe **${groupName}** a choisi :\n\n# ${result.gameName}`)
@@ -58,8 +64,12 @@ export function buildVoteClosedEmbed(result: VoteResult, groupName: string): Emb
       { name: 'Votes pour', value: `${result.yesCount}`, inline: true },
       { name: 'Votants', value: `${result.totalVoters}`, inline: true },
     )
-    .setColor(0x57F287)
+    .setColor(color)
     .setTimestamp()
+
+  if (options?.personaName) {
+    embed.setFooter({ text: `WAWPTN — ${options.personaName}` })
+  }
 
   if (result.headerImageUrl) {
     embed.setImage(result.headerImageUrl)
@@ -69,7 +79,20 @@ export function buildVoteClosedEmbed(result: VoteResult, groupName: string): Emb
     embed.setURL(`https://store.steampowered.com/app/${result.steamAppId}`)
   }
 
-  return [embed]
+  // Steam launch button (Link-style buttons work in bot messages)
+  const components: ActionRowBuilder<ButtonBuilder>[] = []
+  if (result.steamAppId) {
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setLabel('Lancer sur Steam')
+        .setStyle(ButtonStyle.Link)
+        .setURL(`steam://run/${result.steamAppId}`)
+        .setEmoji('🚀'),
+    )
+    components.push(row)
+  }
+
+  return { embeds: [embed], components }
 }
 
 export function buildRandomGameEmbed(

@@ -46,10 +46,16 @@ export function validateEnv(): void {
   const required = ['STEAM_API_KEY']
 
   if (env.NODE_ENV === 'production') {
+    required.push('APP_SECRET')
+
     for (const key of required) {
       if (!process.env[key]) {
         throw new Error(`Missing required environment variable: ${key}`)
       }
+    }
+
+    if (!process.env['APP_SECRET'] || process.env['APP_SECRET'].length < 32) {
+      throw new Error('APP_SECRET must be at least 32 characters in production')
     }
 
     if (env.CORS_ORIGIN.includes('localhost')) {

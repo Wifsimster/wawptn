@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import type { Request, Response, NextFunction } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
 import { authLogger } from '../../infrastructure/logger/logger.js'
@@ -27,7 +28,9 @@ export async function requireBotAuth(req: Request, res: Response, next: NextFunc
     }
 
     const secret = authHeader.slice(4)
-    if (secret !== env.DISCORD_BOT_API_SECRET) {
+    const secretBuf = Buffer.from(secret)
+    const expectedBuf = Buffer.from(env.DISCORD_BOT_API_SECRET)
+    if (secretBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(secretBuf, expectedBuf)) {
       authLogger.info({ path: req.path }, 'bot auth: invalid secret')
       res.status(401).json({ error: 'unauthorized', message: 'Invalid bot credentials' })
       return

@@ -466,7 +466,7 @@ export function AdminPage() {
                       {persona.name}
                     </label>
                     {persona.isDefault && (
-                      <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" title="Persona par défaut" />
+                      <span title="Persona par défaut"><Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" /></span>
                     )}
                     <Button
                       variant="ghost"

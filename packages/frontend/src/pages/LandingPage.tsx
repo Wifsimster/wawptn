@@ -1,9 +1,10 @@
-import { Gamepad2, Users, Vote, Sparkles, Check, Crown, Zap } from 'lucide-react'
+import { Users, Vote, Sparkles, Check, Crown, Zap } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { WawptnLogo } from '@/components/icons/wawptn-logo'
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -27,8 +28,8 @@ export function LandingPage() {
           animate="visible"
           variants={stagger}
         >
-          <motion.div variants={fadeUp} className="flex items-center justify-center gap-3 mb-6">
-            <Gamepad2 className="w-16 h-16 text-primary" />
+          <motion.div variants={fadeUp} className="flex items-center justify-center gap-4 mb-6">
+            <WawptnLogo size={64} variant="color" />
             <h1 className="text-5xl sm:text-6xl font-bold tracking-tight">WAWPTN</h1>
           </motion.div>
           <motion.p variants={fadeUp} className="text-2xl sm:text-3xl text-muted-foreground mb-4">
@@ -157,13 +158,13 @@ export function LandingPage() {
 
             {/* Premium Tier */}
             <motion.div variants={fadeUp}>
-              <Card className="h-full border-primary/50 relative">
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2" variant="default">
+              <Card className="h-full border-reward/50 bg-gradient-to-br from-reward/[0.06] to-transparent relative">
+                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-reward text-reward-foreground hover:bg-reward/90">
                   {t('landing.premiumBadge')}
                 </Badge>
                 <CardHeader>
                   <div className="flex items-center gap-2 mb-2">
-                    <Crown className="w-6 h-6 text-yellow-500" />
+                    <Crown className="w-6 h-6 text-reward" />
                     <CardTitle className="text-xl">{t('landing.premiumTierName')}</CardTitle>
                   </div>
                   <p className="text-3xl font-bold">
@@ -175,7 +176,7 @@ export function LandingPage() {
                   <ul className="space-y-3">
                     {(['premiumFeature1', 'premiumFeature2', 'premiumFeature3', 'premiumFeature4', 'premiumFeature5'] as const).map((key) => (
                       <li key={key} className="flex items-start gap-2">
-                        <Check className="w-5 h-5 text-yellow-500 mt-0.5 shrink-0" />
+                        <Check className="w-5 h-5 text-reward mt-0.5 shrink-0" />
                         <span className="text-sm">{t(`landing.${key}`)}</span>
                       </li>
                     ))}
@@ -191,10 +192,12 @@ export function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border px-4 py-6 text-center text-sm text-muted-foreground">
-        <p>
-          WAWPTN — {t('app.tagline')} — v{__APP_VERSION__}
-        </p>
+      <footer className="border-t border-border px-4 py-8 text-center text-sm text-muted-foreground">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <WawptnLogo size={20} className="text-muted-foreground" />
+          <span className="font-semibold">WAWPTN</span>
+        </div>
+        <p>{t('app.tagline')} — v{__APP_VERSION__}</p>
         <p className="mt-1 text-xs text-muted-foreground/50">
           {t('login.privacy')}
         </p>

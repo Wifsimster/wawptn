@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Gamepad2, LogOut, User, Shield, Crown } from 'lucide-react'
+import { LogOut, User, Shield, Crown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth.store'
@@ -16,6 +16,7 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
+import { WawptnLogo } from '@/components/icons/wawptn-logo'
 
 interface AppHeaderProps {
   children?: React.ReactNode
@@ -52,7 +53,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           aria-label={t('app.name') + ' — ' + t('app.tagline')}
         >
-          <Gamepad2 className="h-6 w-6 text-primary" />
+          <WawptnLogo size={28} className="text-primary" />
           <span className="font-bold text-lg tracking-tight">WAWPTN</span>
           <span className="ml-2 text-xs text-muted-foreground/60 leading-tight hidden sm:inline">
             v{__APP_VERSION__} — {new Date(__BUILD_TIME__).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -103,7 +104,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
                   className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
                   onClick={() => { setShowMenu(false); navigate('/subscription') }}
                 >
-                  <Crown className={cn('w-4 h-4', tier === 'premium' ? 'text-yellow-500' : 'text-muted-foreground')} />
+                  <Crown className={cn('w-4 h-4', tier === 'premium' ? 'text-reward' : 'text-muted-foreground')} />
                   {tier === 'premium' ? t('subscription.premium') : t('subscription.upgrade')}
                 </button>
                 {user?.isAdmin && (

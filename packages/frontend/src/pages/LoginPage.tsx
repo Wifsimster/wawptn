@@ -1,6 +1,6 @@
-import { Gamepad2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { WawptnLogo } from '@/components/icons/wawptn-logo'
 
 export function LoginPage() {
   const { t } = useTranslation()
@@ -9,7 +9,7 @@ export function LoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center px-4">
       <div className="text-center mb-12">
         <div className="flex items-center justify-center gap-3 mb-4">
-          <Gamepad2 className="w-12 h-12 text-primary" />
+          <WawptnLogo size={48} variant="color" />
           <h1 className="text-4xl font-bold tracking-tight">WAWPTN</h1>
         </div>
         <p className="text-xl text-muted-foreground max-w-md">

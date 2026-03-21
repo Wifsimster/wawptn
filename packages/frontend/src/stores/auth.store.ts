@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { api } from '@/lib/api'
+import { useSubscriptionStore } from '@/stores/subscription.store'
 
 interface AuthState {
   user: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; isAdmin: boolean } | null
@@ -15,6 +16,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const user = await api.getMe()
       set({ user, loading: false })
+      // Fetch subscription state after successful auth
+      useSubscriptionStore.getState().fetchSubscription()
     } catch {
       set({ user: null, loading: false })
     }

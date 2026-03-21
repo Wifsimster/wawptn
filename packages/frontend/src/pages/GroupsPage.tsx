@@ -4,6 +4,7 @@ import { Plus, LogIn, Users, Gamepad2, Trophy, Crown, Search, X } from 'lucide-r
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
+import { ApiError } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -57,6 +58,11 @@ export function GroupsPage() {
       fetchGroups()
       toast.success(t('createGroup.success'))
     } catch (err) {
+      if (err instanceof ApiError && err.code === 'premium_required') {
+        toast.error(t('premium.groupLimitReached', { max: 2 }))
+        navigate('/subscription')
+        return
+      }
       const msg = err instanceof Error ? err.message : t('createGroup.error')
       setCreateError(msg)
       toast.error(msg)
@@ -77,6 +83,10 @@ export function GroupsPage() {
       navigate(`/groups/${result.id}`)
       toast.success(t('joinGroup.success'))
     } catch (err) {
+      if (err instanceof ApiError && err.code === 'premium_required') {
+        toast.error(t('premium.memberLimitReached', { max: 8 }))
+        return
+      }
       const msg = err instanceof Error ? err.message : t('joinGroup.error')
       setJoinError(msg)
       toast.error(msg)

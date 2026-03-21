@@ -91,6 +91,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check for leaked secrets in frontend
+        run: |
+          if grep -r 'STRIPE_SECRET_KEY\|STRIPE_WEBHOOK_SECRET' packages/frontend/; then
+            echo "::error::Stripe secrets found in frontend code!"
+            exit 1
+          fi
+
       - name: Run linter
         run: npm run lint
 

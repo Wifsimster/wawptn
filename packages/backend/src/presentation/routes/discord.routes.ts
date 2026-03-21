@@ -6,8 +6,16 @@ import { getIO } from '../../infrastructure/socket/socket.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
 import { requireAuth } from '../middleware/auth.middleware.js'
+import { isUserPremium } from '../middleware/tier.middleware.js'
 import { createVotingSession } from '../../domain/create-session.js'
 import { isLLMEnabled, generateChatResponse, type ChatContext } from '../../infrastructure/llm/client.js'
+
+/** Check if a group's owner has premium. Returns false if no owner found. */
+async function isGroupOwnerPremium(groupId: string): Promise<boolean> {
+  const owner = await db('group_members').where({ group_id: groupId, role: 'owner' }).select('user_id').first()
+  if (!owner) return false
+  return isUserPremium(owner.user_id)
+}
 
 const router = Router()
 
@@ -29,6 +37,13 @@ router.post('/setup', async (req: Request, res: Response) => {
   const group = await db('groups').where({ id: groupId }).first()
   if (!group) {
     res.status(404).json({ error: 'not_found', message: 'Group not found' })
+    return
+  }
+
+  // Discord bot integration requires premium
+  const ownerPremium = await isGroupOwnerPremium(groupId)
+  if (!ownerPremium) {
+    res.status(403).json({ error: 'premium_required', message: 'Discord bot integration requires a premium subscription' })
     return
   }
 
@@ -264,6 +279,13 @@ router.post('/vote/start', async (req: Request, res: Response) => {
     return
   }
 
+  // Discord bot actions require group owner premium
+  const ownerPremium = await isGroupOwnerPremium(groupId)
+  if (!ownerPremium) {
+    res.status(403).json({ error: 'premium_required', message: 'Discord bot integration requires a premium subscription' })
+    return
+  }
+
   // Get all group members as participants
   const memberIds = await db('group_members')
     .where({ group_id: groupId })
@@ -400,6 +422,13 @@ router.post('/chat', async (req: Request, res: Response) => {
     const group = await db('groups').where({ discord_channel_id: channelId }).first()
 
     if (group) {
+      // LLM chat via Discord requires group owner premium
+      const ownerPremium = await isGroupOwnerPremium(group.id)
+      if (!ownerPremium) {
+        res.status(403).json({ error: 'premium_required', message: 'Discord bot chat requires a premium subscription' })
+        return
+      }
+
       context.groupName = group.name
 
       const memberIds = await db('group_members').where({ group_id: group.id }).pluck('user_id')
@@ -573,6 +602,13 @@ userRouter.post('/webhook', requireAuth, async (req: Request, res: Response) => 
 
   if (!membership) {
     res.status(403).json({ error: 'forbidden', message: 'Only group owners can set the webhook URL' })
+    return
+  }
+
+  // Discord webhook requires premium
+  const premium = await isUserPremium(userId)
+  if (!premium) {
+    res.status(403).json({ error: 'premium_required', message: 'Discord webhook requires a premium subscription' })
     return
   }
 

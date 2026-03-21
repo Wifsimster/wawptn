@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil, Bell, BellOff, CalendarClock } from 'lucide-react'
+import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil, Bell, BellOff, CalendarClock, Lock } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +18,7 @@ import {
 import { InviteLink } from '@/components/invite-link'
 import { GroupStats } from '@/components/group-stats'
 import { GameRecommendations } from '@/components/game-recommendations'
+import { useSubscriptionStore } from '@/stores/subscription.store'
 
 interface Member {
   id: string
@@ -75,6 +76,8 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
   const [autoVoteCron, setAutoVoteCron] = useState(autoVoteSchedule || '')
   const [autoVoteDuration, setAutoVoteDuration] = useState(autoVoteDurationMinutes)
   const [autoVoteSaving, setAutoVoteSaving] = useState(false)
+  const { tier, status } = useSubscriptionStore()
+  const isPremium = tier === 'premium' && status === 'active'
 
   const isOwner = currentUserRole === 'owner'
 
@@ -246,23 +249,31 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
         )
       })()}
 
-      {/* Auto-vote settings (owner only) */}
+      {/* Auto-vote settings (owner only, premium feature) */}
       {isOwner && (
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => {
-            setAutoVoteCron(autoVoteSchedule || '')
-            setAutoVoteDuration(autoVoteDurationMinutes)
-            setAutoVoteOpen(true)
-          }}
-        >
-          <CalendarClock className="w-4 h-4 mr-2" />
-          {t('group.autoVote')}
-          {autoVoteSchedule && (
-            <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('group.autoVoteEnabled')}</Badge>
-          )}
-        </Button>
+        isPremium ? (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              setAutoVoteCron(autoVoteSchedule || '')
+              setAutoVoteDuration(autoVoteDurationMinutes)
+              setAutoVoteOpen(true)
+            }}
+          >
+            <CalendarClock className="w-4 h-4 mr-2" />
+            {t('group.autoVote')}
+            {autoVoteSchedule && (
+              <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('group.autoVoteEnabled')}</Badge>
+            )}
+          </Button>
+        ) : (
+          <Button variant="outline" className="w-full opacity-60" onClick={() => window.location.href = '/subscription'}>
+            <Lock className="w-4 h-4 mr-2 text-muted-foreground" />
+            {t('group.autoVote')}
+            <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('premium.featureLocked')}</Badge>
+          </Button>
+        )
       )}
 
       <div className="pt-2 border-t space-y-2">

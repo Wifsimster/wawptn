@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Vote, Loader2, Users, Calendar, Handshake, CircleDollarSign } from 'lucide-react'
+import { ArrowLeft, Vote, Loader2, Users, Calendar, Handshake, CircleDollarSign, Lock } from 'lucide-react'
+import { useSubscriptionStore } from '@/stores/subscription.store'
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -41,6 +42,8 @@ type Step = 'select' | 'confirm'
 
 export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMembers, activeFilter, onStartVote }: VoteSetupDialogProps) {
   const { t } = useTranslation()
+  const { tier, status } = useSubscriptionStore()
+  const isPremium = tier === 'premium' && status === 'active'
   const [step, setStep] = useState<Step>('select')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [previewCount, setPreviewCount] = useState<number | null>(null)
@@ -273,15 +276,17 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
             </div>
 
             <div className="mt-4 space-y-3 border-t border-border pt-4">
-              <label htmlFor="schedule-toggle" className="flex items-center gap-3 py-1 cursor-pointer">
+              <label htmlFor="schedule-toggle" className={`flex items-center gap-3 py-1 ${isPremium ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
                 <Checkbox
                   id="schedule-toggle"
                   checked={isScheduled}
-                  onCheckedChange={(checked) => setIsScheduled(checked === true)}
+                  onCheckedChange={(checked) => isPremium && setIsScheduled(checked === true)}
+                  disabled={!isPremium}
                   className="size-5"
                 />
                 <Calendar className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm font-medium">{t('voteSetup.scheduleLater')}</span>
+                {!isPremium && <Lock className="w-3.5 h-3.5 text-muted-foreground" />}
               </label>
 
               {isScheduled && (

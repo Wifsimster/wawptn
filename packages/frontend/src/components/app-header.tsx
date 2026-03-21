@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Gamepad2, LogOut, User, Shield } from 'lucide-react'
+import { Gamepad2, LogOut, User, Shield, Crown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth.store'
+import { useSubscriptionStore } from '@/stores/subscription.store'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -25,6 +26,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+  const { tier } = useSubscriptionStore()
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
 
@@ -92,6 +94,13 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
                 >
                   <User className="w-4 h-4" />
                   {t('profile.title')}
+                </button>
+                <button
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                  onClick={() => { setShowMenu(false); navigate('/subscription') }}
+                >
+                  <Crown className={cn('w-4 h-4', tier === 'premium' ? 'text-yellow-500' : 'text-muted-foreground')} />
+                  {tier === 'premium' ? t('subscription.premium') : t('subscription.upgrade')}
                 </button>
                 {user?.isAdmin && (
                   <button

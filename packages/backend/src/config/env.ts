@@ -35,6 +35,11 @@ export const env = {
   LLM_API_KEY: process.env['LLM_API_KEY'] || '',
   LLM_BASE_URL: process.env['LLM_BASE_URL'] || 'https://models.inference.ai.azure.com',
   LLM_MODEL: process.env['LLM_MODEL'] || 'gpt-4o',
+
+  // Stripe (optional — enables premium subscriptions)
+  STRIPE_SECRET_KEY: process.env['STRIPE_SECRET_KEY'] || '',
+  STRIPE_WEBHOOK_SECRET: process.env['STRIPE_WEBHOOK_SECRET'] || '',
+  STRIPE_PRICE_ID: process.env['STRIPE_PRICE_ID'] || '',
 }
 
 export function validateEnv(): void {

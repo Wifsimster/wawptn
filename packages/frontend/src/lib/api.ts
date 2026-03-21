@@ -1,5 +1,15 @@
 const API_BASE = '/api'
 
+export class ApiError extends Error {
+  code: string
+  status: number
+  constructor(message: string, code: string, status: number) {
+    super(message)
+    this.code = code
+    this.status = status
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
@@ -11,8 +21,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   })
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }))
-    throw new Error(error.message || `Request failed: ${res.status}`)
+    const error = await res.json().catch(() => ({ message: res.statusText, error: 'unknown' }))
+    throw new ApiError(
+      error.message || `Request failed: ${res.status}`,
+      error.error || 'unknown',
+      res.status,
+    )
   }
 
   return res.json()
@@ -162,6 +176,11 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ isAdmin }),
     }),
+
+  // Subscription
+  getSubscription: () => request<{ tier: 'free' | 'premium'; status: string; currentPeriodEnd: string | null }>('/subscription/me'),
+  createCheckout: () => request<{ url: string }>('/subscription/checkout', { method: 'POST' }),
+  createPortal: () => request<{ url: string }>('/subscription/portal', { method: 'POST' }),
 
   // Personas
   getAdminPersonas: () => request<{

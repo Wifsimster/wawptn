@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 import { connectSocket, disconnectSocket } from '@/lib/socket'
+import { LandingPage } from '@/pages/LandingPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { GroupsPage } from '@/pages/GroupsPage'
 import { GroupPage } from '@/pages/GroupPage'
@@ -11,6 +12,7 @@ import { ProfilePage } from '@/pages/ProfilePage'
 import { DiscordLinkPage } from '@/pages/DiscordLinkPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { AdminPage } from '@/pages/AdminPage'
+import { SubscriptionPage } from '@/pages/SubscriptionPage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DialogTestPage } from '@/pages/DialogTestPage'
 
@@ -51,10 +53,11 @@ function App() {
   if (!user) {
     return (
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/join/:token" element={<JoinPage />} />
         <Route path="/discord/link" element={<DiscordLinkPage />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     )
   }
@@ -64,6 +67,7 @@ function App() {
       <Route path="/" element={<GroupsPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/admin" element={<AdminPage />} />
+      <Route path="/subscription" element={<SubscriptionPage />} />
       <Route path="/groups/:id" element={<GroupPage />} />
       <Route path="/groups/:id/vote" element={<VotePage />} />
       <Route path="/join/:token" element={<JoinPage />} />

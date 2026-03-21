@@ -1,7 +1,20 @@
-import cron from 'node-cron'
+import cron, { type ScheduledTask } from 'node-cron'
 import { EmbedBuilder, type Client, type TextChannel } from 'discord.js'
-import { getLinkedChannels } from './lib/api.js'
-import { getTodayPersona } from './personas.js'
+import { getLinkedChannels, getBotSettings, type BotSettings } from './lib/api.js'
+import { getTodayPersona, getDefaultPersona } from './personas.js'
+
+// ─── State ────────────────────────────────────────────────────────────────────
+
+let currentSettings: BotSettings | null = null
+let fridayTask: ScheduledTask | null = null
+let weekdayTask: ScheduledTask | null = null
+
+function getPersona() {
+  if (currentSettings && !currentSettings.persona_rotation_enabled) {
+    return getDefaultPersona()
+  }
+  return getTodayPersona()
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -10,7 +23,7 @@ function pickRandom(pool: string[]): string {
 }
 
 function buildReminderEmbed(message: string): EmbedBuilder {
-  const persona = getTodayPersona()
+  const persona = getPersona()
   return new EmbedBuilder()
     .setDescription(message)
     .setColor(persona.embedColor)
@@ -48,31 +61,76 @@ async function sendToLinkedChannels(client: Client, pool: string[]): Promise<voi
 // ─── Back online notification ─────────────────────────────────────────────────
 
 export async function notifyBackOnline(client: Client): Promise<void> {
-  const persona = getTodayPersona()
+  const persona = getPersona()
   console.log(`[persona] Today's persona: ${persona.name} (${persona.id})`)
   await sendToLinkedChannels(client, persona.backOnlineMessages)
 }
 
-// ─── Cron jobs ────────────────────────────────────────────────────────────────
+// ─── Dynamic cron scheduling ──────────────────────────────────────────────────
 
-export function startScheduler(client: Client): void {
-  // Friday at 21:00 Europe/Paris with random 0-15 min jitter
-  cron.schedule('0 21 * * 5', () => {
-    const persona = getTodayPersona()
-    console.log(`[scheduler] Friday reminder triggered with persona: ${persona.name}`)
-    const jitterMs = Math.floor(Math.random() * 15 * 60 * 1000)
-    console.log(`[scheduler] Sending in ${Math.round(jitterMs / 1000)}s`)
-    setTimeout(() => sendToLinkedChannels(client, persona.fridayMessages), jitterMs)
-  }, { timezone: 'Europe/Paris' })
+function scheduleCrons(client: Client, settings: BotSettings): void {
+  // Stop existing tasks
+  fridayTask?.stop()
+  weekdayTask?.stop()
 
-  // Wednesday at 17:00 Europe/Paris (weekday nudge)
-  cron.schedule('0 17 * * 3', () => {
-    const persona = getTodayPersona()
-    console.log(`[scheduler] Weekday nudge triggered with persona: ${persona.name}`)
-    const jitterMs = Math.floor(Math.random() * 15 * 60 * 1000)
-    console.log(`[scheduler] Sending in ${Math.round(jitterMs / 1000)}s`)
-    setTimeout(() => sendToLinkedChannels(client, persona.weekdayMessages), jitterMs)
-  }, { timezone: 'Europe/Paris' })
+  const timezone = settings.schedule_timezone || 'Europe/Paris'
 
-  console.log('[scheduler] Scheduled reminders: Friday 21:00 + Wednesday 17:00 (Europe/Paris)')
+  // Friday reminder
+  if (cron.validate(settings.friday_schedule)) {
+    fridayTask = cron.schedule(settings.friday_schedule, () => {
+      const persona = getPersona()
+      console.log(`[scheduler] Friday reminder triggered with persona: ${persona.name}`)
+      const jitterMs = Math.floor(Math.random() * 15 * 60 * 1000)
+      console.log(`[scheduler] Sending in ${Math.round(jitterMs / 1000)}s`)
+      setTimeout(() => sendToLinkedChannels(client, persona.fridayMessages), jitterMs)
+    }, { timezone })
+    console.log(`[scheduler] Friday reminder: ${settings.friday_schedule} (${timezone})`)
+  } else {
+    console.error(`[scheduler] Invalid friday cron: ${settings.friday_schedule}`)
+  }
+
+  // Weekday reminder
+  if (cron.validate(settings.wednesday_schedule)) {
+    weekdayTask = cron.schedule(settings.wednesday_schedule, () => {
+      const persona = getPersona()
+      console.log(`[scheduler] Weekday nudge triggered with persona: ${persona.name}`)
+      const jitterMs = Math.floor(Math.random() * 15 * 60 * 1000)
+      console.log(`[scheduler] Sending in ${Math.round(jitterMs / 1000)}s`)
+      setTimeout(() => sendToLinkedChannels(client, persona.weekdayMessages), jitterMs)
+    }, { timezone })
+    console.log(`[scheduler] Weekday reminder: ${settings.wednesday_schedule} (${timezone})`)
+  } else {
+    console.error(`[scheduler] Invalid weekday cron: ${settings.wednesday_schedule}`)
+  }
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+export async function startScheduler(client: Client): Promise<void> {
+  // Fetch settings from backend
+  currentSettings = await getBotSettings()
+  console.log(`[scheduler] Loaded settings: persona_rotation=${currentSettings.persona_rotation_enabled}`)
+
+  // Schedule crons with dynamic settings
+  scheduleCrons(client, currentSettings)
+
+  // Refresh settings every 5 minutes to pick up admin changes
+  setInterval(async () => {
+    try {
+      const newSettings = await getBotSettings()
+      const changed =
+        newSettings.friday_schedule !== currentSettings!.friday_schedule ||
+        newSettings.wednesday_schedule !== currentSettings!.wednesday_schedule ||
+        newSettings.schedule_timezone !== currentSettings!.schedule_timezone
+
+      currentSettings = newSettings
+
+      if (changed) {
+        console.log('[scheduler] Settings changed, rescheduling crons')
+        scheduleCrons(client, newSettings)
+      }
+    } catch (err) {
+      console.error('[scheduler] Failed to refresh settings:', err)
+    }
+  }, 5 * 60 * 1000)
 }

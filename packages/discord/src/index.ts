@@ -2,7 +2,17 @@ import { Client, GatewayIntentBits, Events, REST, Routes, type Interaction, type
 import { validateEnv, env } from './env.js'
 import { backendApi } from './lib/api.js'
 import { startScheduler, notifyBackOnline } from './scheduler.js'
-import { getTodayPersona } from './personas.js'
+import { getTodayPersona, getDefaultPersona, type Persona } from './personas.js'
+import { getBotSettings } from './lib/api.js'
+
+async function getActivePersona(): Promise<Persona> {
+  try {
+    const settings = await getBotSettings()
+    return settings.persona_rotation_enabled ? getTodayPersona() : getDefaultPersona()
+  } catch {
+    return getTodayPersona()
+  }
+}
 import * as setupCommand from './commands/setup.js'
 import * as linkCommand from './commands/link.js'
 import * as gamesCommand from './commands/games.js'
@@ -45,8 +55,10 @@ client.once(Events.ClientReady, async (c) => {
     console.error('Failed to register slash commands:', error)
   }
 
-  // Start scheduled reminder messages
-  startScheduler(c)
+  // Start scheduled reminder messages (fetches settings from backend)
+  startScheduler(c).catch(err => {
+    console.error('[startup] Failed to start scheduler:', err)
+  })
 
   // Notify linked channels that the bot is back online
   notifyBackOnline(c).catch(err => {
@@ -143,7 +155,7 @@ client.on(Events.MessageCreate, async (message: Message) => {
 
   // If empty after stripping mention, send a hint
   if (!cleanContent) {
-    const persona = getTodayPersona()
+    const persona = await getActivePersona()
     await message.reply(persona.emptyMentionReply)
     return
   }
@@ -154,7 +166,7 @@ client.on(Events.MessageCreate, async (message: Message) => {
       await message.channel.sendTyping()
     }
 
-    const persona = getTodayPersona()
+    const persona = await getActivePersona()
     const response = await backendApi<{ reply: string }>('/api/discord/chat', {
       method: 'POST',
       discordUserId: message.author.id,

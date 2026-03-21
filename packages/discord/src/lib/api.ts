@@ -40,3 +40,27 @@ export interface LinkedChannel {
 export async function getLinkedChannels(): Promise<LinkedChannel[]> {
   return backendApi<LinkedChannel[]>('/api/discord/linked-channels')
 }
+
+export interface BotSettings {
+  persona_rotation_enabled: boolean
+  friday_schedule: string
+  wednesday_schedule: string
+  schedule_timezone: string
+}
+
+const DEFAULT_SETTINGS: BotSettings = {
+  persona_rotation_enabled: true,
+  friday_schedule: '0 21 * * 5',
+  wednesday_schedule: '0 17 * * 3',
+  schedule_timezone: 'Europe/Paris',
+}
+
+export async function getBotSettings(): Promise<BotSettings> {
+  try {
+    const settings = await backendApi<Partial<BotSettings>>('/api/discord/bot-settings')
+    return { ...DEFAULT_SETTINGS, ...settings }
+  } catch (err) {
+    console.error('[api] Failed to fetch bot settings, using defaults:', err)
+    return DEFAULT_SETTINGS
+  }
+}

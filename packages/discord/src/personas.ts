@@ -355,3 +355,11 @@ export function getPersonaForDate(dateStr: string): Persona {
   const index = hashCode(dateStr) % PERSONAS.length
   return PERSONAS[index]!
 }
+
+/**
+ * Returns the default persona (index 0 — Le Pote Sarcastique).
+ * Used when persona rotation is disabled.
+ */
+export function getDefaultPersona(): Persona {
+  return PERSONAS[0]!
+}

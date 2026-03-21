@@ -467,6 +467,21 @@ export { router as discordRoutes }
 
 // ─── Bot-only utility routes ──────────────────────────────────────────────────
 
+// Get bot settings from app_settings table (for scheduler config)
+router.get('/bot-settings', async (_req: Request, res: Response) => {
+  const rows = await db('app_settings')
+    .where('key', 'like', 'bot.%')
+    .select('key', 'value')
+
+  const settings: Record<string, unknown> = {}
+  for (const row of rows) {
+    const shortKey = row.key.replace(/^bot\./, '')
+    settings[shortKey] = row.value
+  }
+
+  res.json(settings)
+})
+
 // Get all Discord channels linked to a group (for scheduled messages)
 router.get('/linked-channels', async (_req: Request, res: Response) => {
   const channels = await db('groups')

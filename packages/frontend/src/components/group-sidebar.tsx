@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { InviteLink } from '@/components/invite-link'
 import { GroupStats } from '@/components/group-stats'
+import { GameRecommendations } from '@/components/game-recommendations'
 
 interface Member {
   id: string
@@ -52,11 +53,12 @@ interface GroupSidebarProps {
   onRenameGroup: (name: string) => Promise<void>
   onDeleteHistory: (sessionId: string) => void
   onToggleNotifications: (enabled: boolean) => void
+  onStartVote: () => void
   /** When true, renders a compact layout for mobile bottom sheets (no Card wrappers) */
   compact?: boolean
 }
 
-export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, onlineMembers, currentUserId, currentUserRole, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, compact = false }: GroupSidebarProps) {
+export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, onlineMembers, currentUserId, currentUserRole, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onStartVote, compact = false }: GroupSidebarProps) {
   const { t, i18n } = useTranslation()
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -275,6 +277,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
               {historySection}
             </div>
           )}
+          <GameRecommendations groupId={groupId} onStartVote={onStartVote} compact />
           <GroupStats groupId={groupId} compact />
           {membersHeader}
           {membersList}
@@ -296,6 +299,8 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
               </CardContent>
             </Card>
           )}
+
+          <GameRecommendations groupId={groupId} onStartVote={onStartVote} />
 
           <GroupStats groupId={groupId} />
 

@@ -89,6 +89,9 @@ export const api = {
       body: JSON.stringify({ enabled }),
     }),
   syncLibraries: (groupId: string) => request(`/groups/${groupId}/sync`, { method: 'POST' }),
+  getRecommendations: (groupId: string) => request<{
+    recommendations: { gameName: string; steamAppId: number; headerImageUrl: string; reason: string }[];
+  }>(`/groups/${groupId}/recommendations`),
   previewCommonGames: (groupId: string, memberIds: string[], filter?: string, filters?: { multiplayer?: boolean; coop?: boolean; free?: boolean }) =>
     request<{ gameCount: number; totalMembers: number }>(`/groups/${groupId}/common-games/preview`, {
       method: 'POST',

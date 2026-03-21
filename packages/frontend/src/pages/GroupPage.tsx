@@ -309,6 +309,7 @@ export function GroupPage() {
               onRenameGroup={handleRenameGroup}
               onDeleteHistory={handleDeleteHistory}
               onToggleNotifications={handleToggleNotifications}
+              onStartVote={() => setVoteSetupOpen(true)}
             />
           </div>
 
@@ -431,6 +432,7 @@ export function GroupPage() {
               onRenameGroup={handleRenameGroup}
               onDeleteHistory={handleDeleteHistory}
               onToggleNotifications={handleToggleNotifications}
+              onStartVote={() => setVoteSetupOpen(true)}
               compact
             />
           </ResponsiveDialogContent>

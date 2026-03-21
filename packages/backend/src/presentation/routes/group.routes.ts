@@ -719,4 +719,121 @@ router.post('/:id/sync', async (req: Request, res: Response) => {
   res.json({ ok: true, message: 'Library sync started for all members across all platforms' })
 })
 
+// Get smart game recommendations based on vote history
+router.get('/:id/recommendations', async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!
+    const groupId = String(req.params['id'])
+
+    const membership = await db('group_members')
+      .where({ group_id: groupId, user_id: userId })
+      .first()
+
+    if (!membership) {
+      res.status(403).json({ error: 'forbidden', message: 'Not a member' })
+      return
+    }
+
+    const group = await db('groups').where({ id: groupId }).first()
+    const memberIds = await db('group_members').where({ group_id: groupId }).pluck('user_id')
+    const totalMembers = memberIds.length
+    const threshold = group?.common_game_threshold || totalMembers
+
+    // Get all common games for the group
+    const commonGames = await computeCommonGames(memberIds, { threshold })
+
+    if (commonGames.length === 0) {
+      res.json({ recommendations: [] })
+      return
+    }
+
+    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+
+    // Get win history for this group: last win date per game (by game_id or steam_app_id)
+    const winHistory = await db('voting_sessions')
+      .where({ group_id: groupId, status: 'closed' })
+      .whereNotNull('winning_game_app_id')
+      .select(
+        'winning_game_app_id',
+        'winning_game_id',
+        db.raw('MAX(closed_at) as last_won_at'),
+        db.raw('COUNT(*) as win_count')
+      )
+      .groupBy('winning_game_app_id', 'winning_game_id') as unknown as { winning_game_app_id: number; winning_game_id: string | null; last_won_at: string; win_count: string }[]
+
+    const winMap = new Map<number, { lastWonAt: Date; winCount: number }>(
+      winHistory.map((w) => [
+        w.winning_game_app_id,
+        { lastWonAt: new Date(w.last_won_at), winCount: Number(w.win_count) }
+      ])
+    )
+
+    // Get positive vote counts per game across all closed sessions in this group
+    const positiveVotes = await db('votes')
+      .join('voting_sessions', 'voting_sessions.id', 'votes.session_id')
+      .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed', 'votes.vote': true })
+      .select('votes.steam_app_id')
+      .count('* as positive_count')
+      .groupBy('votes.steam_app_id') as unknown as { steam_app_id: number; positive_count: string }[]
+
+    const positiveVoteMap = new Map<number, number>(
+      positiveVotes.map((v) => [
+        v.steam_app_id, Number(v.positive_count)
+      ])
+    )
+
+    // Score and filter games
+    const now = Date.now()
+    const scored = commonGames
+      .map(game => {
+        const win = winMap.get(game.steamAppId)
+        const positiveCount = positiveVoteMap.get(game.steamAppId) || 0
+
+        // Exclude games that won in the last 2 weeks
+        if (win && win.lastWonAt > twoWeeksAgo) {
+          return null
+        }
+
+        let score = 0
+        let reason: string
+
+        if (!win) {
+          // Never won — highest priority
+          score = 1000 + positiveCount
+          reason = 'never_played'
+        } else {
+          // Time since last win in days
+          const daysSinceWin = Math.floor((now - win.lastWonAt.getTime()) / (1000 * 60 * 60 * 24))
+
+          if (positiveCount >= 3 && daysSinceWin > 30) {
+            // Popular but forgotten
+            score = 500 + daysSinceWin + positiveCount * 10
+            reason = 'popular_forgotten'
+          } else {
+            // Not played in a while
+            score = daysSinceWin + positiveCount
+            reason = 'not_played_long'
+          }
+        }
+
+        return {
+          gameName: game.gameName,
+          steamAppId: game.steamAppId,
+          headerImageUrl: game.headerImageUrl || `https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/header.jpg`,
+          reason,
+          score,
+        }
+      })
+      .filter((g): g is NonNullable<typeof g> => g !== null)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map(({ score: _score, ...rest }) => rest)
+
+    res.json({ recommendations: scored })
+  } catch (error) {
+    logger.error({ error: String(error), groupId: req.params['id'] }, 'failed to load recommendations')
+    res.status(500).json({ error: 'internal', message: 'Failed to load recommendations' })
+  }
+})
+
 export { router as groupRoutes }

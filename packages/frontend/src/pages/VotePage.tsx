@@ -11,6 +11,7 @@ import { getSocket } from '@/lib/socket'
 import { useAuthStore } from '@/stores/auth.store'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Progress } from '@/components/ui/progress'
 import {
   ResponsiveDialog,
@@ -404,16 +405,23 @@ export function VotePage() {
                 )}
                 <div className="flex items-center justify-between p-2">
                   <p className="text-xs font-medium truncate flex-1 min-w-0">{game.gameName}</p>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setDetailGame(game)
-                    }}
-                    className="ml-1 shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                    aria-label={t('vote.gameDetails')}
-                  >
-                    <Info className="w-3.5 h-3.5" />
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDetailGame(game)
+                        }}
+                        className="ml-1 shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        aria-label={t('vote.gameDetails')}
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      {t('vote.gameDetails')}
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             )
@@ -530,19 +538,19 @@ function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }: GameD
             <span className="text-xs text-muted-foreground">{t('vote.platforms')}:</span>
             <div className="flex gap-2">
               {game.platforms.windows && (
-                <span className="flex items-center gap-1 text-xs text-foreground" title="Windows">
+                <span className="flex items-center gap-1 text-xs text-foreground">
                   <Monitor className="w-3.5 h-3.5" />
                   Windows
                 </span>
               )}
               {game.platforms.mac && (
-                <span className="flex items-center gap-1 text-xs text-foreground" title="macOS">
+                <span className="flex items-center gap-1 text-xs text-foreground">
                   <Apple className="w-3.5 h-3.5" />
                   Mac
                 </span>
               )}
               {game.platforms.linux && (
-                <span className="flex items-center gap-1 text-xs text-foreground" title="Linux">
+                <span className="flex items-center gap-1 text-xs text-foreground">
                   <Monitor className="w-3.5 h-3.5" />
                   Linux
                 </span>

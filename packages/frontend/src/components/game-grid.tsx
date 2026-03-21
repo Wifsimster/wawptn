@@ -471,13 +471,20 @@ function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<s
         )}
       </Tooltip>
       {game.metacriticScore !== null && (
-        <span className={`absolute top-1 left-1 text-xs font-bold px-1.5 py-0.5 rounded ${
-          game.metacriticScore >= 75 ? 'bg-emerald-600 text-white' :
-          game.metacriticScore >= 50 ? 'bg-amber-500 text-white' :
-          'bg-red-600 text-white'
-        }`}>
-          {game.metacriticScore}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={`absolute top-1 left-1 text-xs font-bold px-1.5 py-0.5 rounded cursor-default ${
+              game.metacriticScore >= 75 ? 'bg-emerald-600 text-white' :
+              game.metacriticScore >= 50 ? 'bg-amber-500 text-white' :
+              'bg-red-600 text-white'
+            }`}>
+              {game.metacriticScore}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">
+            {t('group.metacriticTooltip', { score: game.metacriticScore })}
+          </TooltipContent>
+        </Tooltip>
       )}
       {game.ownerCount < game.totalMembers && (
         <Tooltip>

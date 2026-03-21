@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { api } from '@/lib/api'
 
 interface GroupStatsData {
@@ -79,7 +80,14 @@ export function GroupStats({ groupId, compact = false }: GroupStatsProps) {
                   className="w-12 h-[22px] rounded object-cover shrink-0"
                   loading="lazy"
                 />
-                <span className="text-sm truncate flex-1">{game.gameName}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-sm truncate flex-1">{game.gameName}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    {game.gameName}
+                  </TooltipContent>
+                </Tooltip>
                 <Badge variant="secondary" className="shrink-0 text-xs">
                   {game.winCount} {game.winCount > 1 ? t('stats.wins') : t('stats.win')}
                 </Badge>
@@ -103,7 +111,14 @@ export function GroupStats({ groupId, compact = false }: GroupStatsProps) {
                   <AvatarImage src={member.avatarUrl} alt={member.displayName} />
                   <AvatarFallback className="text-xs">{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <span className="text-sm truncate flex-1">{member.displayName}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-sm truncate flex-1">{member.displayName}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    {member.displayName}
+                  </TooltipContent>
+                </Tooltip>
                 <span className="text-xs text-muted-foreground shrink-0">
                   {t('stats.memberVotes', { count: member.voteCount })}
                 </span>
@@ -129,7 +144,14 @@ export function GroupStats({ groupId, compact = false }: GroupStatsProps) {
                   className="w-12 h-[22px] rounded object-cover shrink-0"
                   loading="lazy"
                 />
-                <span className="text-sm truncate flex-1">{winner.gameName}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-sm truncate flex-1">{winner.gameName}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    {winner.gameName}
+                  </TooltipContent>
+                </Tooltip>
                 <span className="text-xs text-muted-foreground shrink-0">
                   {new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short' }).format(new Date(winner.closedAt))}
                 </span>

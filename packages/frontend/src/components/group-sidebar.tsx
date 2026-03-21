@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil, Bell, BellOff } from 'lucide-react'
+import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil, Bell, BellOff, CalendarClock } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
@@ -45,6 +46,8 @@ interface GroupSidebarProps {
   onlineMembers: Set<string>
   currentUserId: string
   currentUserRole: string
+  autoVoteSchedule: string | null
+  autoVoteDurationMinutes: number
   onSync: () => void
   onGenerateInvite: () => void
   onLeaveGroup: () => void
@@ -53,12 +56,13 @@ interface GroupSidebarProps {
   onRenameGroup: (name: string) => Promise<void>
   onDeleteHistory: (sessionId: string) => void
   onToggleNotifications: (enabled: boolean) => void
+  onUpdateAutoVote: (schedule: string | null, durationMinutes: number) => Promise<void>
   onStartVote: () => void
   /** When true, renders a compact layout for mobile bottom sheets (no Card wrappers) */
   compact?: boolean
 }
 
-export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, onlineMembers, currentUserId, currentUserRole, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onStartVote, compact = false }: GroupSidebarProps) {
+export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, onlineMembers, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onStartVote, compact = false }: GroupSidebarProps) {
   const { t, i18n } = useTranslation()
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -67,6 +71,10 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameName, setRenameName] = useState('')
   const [renaming, setRenaming] = useState(false)
+  const [autoVoteOpen, setAutoVoteOpen] = useState(false)
+  const [autoVoteCron, setAutoVoteCron] = useState(autoVoteSchedule || '')
+  const [autoVoteDuration, setAutoVoteDuration] = useState(autoVoteDurationMinutes)
+  const [autoVoteSaving, setAutoVoteSaving] = useState(false)
 
   const isOwner = currentUserRole === 'owner'
 
@@ -238,6 +246,25 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
         )
       })()}
 
+      {/* Auto-vote settings (owner only) */}
+      {isOwner && (
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => {
+            setAutoVoteCron(autoVoteSchedule || '')
+            setAutoVoteDuration(autoVoteDurationMinutes)
+            setAutoVoteOpen(true)
+          }}
+        >
+          <CalendarClock className="w-4 h-4 mr-2" />
+          {t('group.autoVote')}
+          {autoVoteSchedule && (
+            <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('group.autoVoteEnabled')}</Badge>
+          )}
+        </Button>
+      )}
+
       <div className="pt-2 border-t space-y-2">
         {!isOwner && (
           <Button
@@ -406,6 +433,86 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
             <Button variant="outline" onClick={() => setConfirmDeleteHistory(null)}>{t('group.cancel')}</Button>
             <Button variant="destructive" onClick={() => { if (confirmDeleteHistory) { onDeleteHistory(confirmDeleteHistory.id); setConfirmDeleteHistory(null) } }}>{t('group.deleteHistoryConfirm')}</Button>
           </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+
+      {/* Auto-vote settings dialog */}
+      <ResponsiveDialog open={autoVoteOpen} onOpenChange={setAutoVoteOpen}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>{t('group.autoVote')}</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>{t('group.autoVoteHint')}</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <form onSubmit={async (e) => {
+            e.preventDefault()
+            if (autoVoteSaving) return
+            setAutoVoteSaving(true)
+            try {
+              await onUpdateAutoVote(autoVoteCron.trim() || null, autoVoteDuration)
+              setAutoVoteOpen(false)
+            } finally {
+              setAutoVoteSaving(false)
+            }
+          }}>
+            <div className="px-4 pb-4 space-y-4">
+              <div>
+                <label htmlFor="auto-vote-cron" className="text-sm font-medium mb-2 block">{t('group.autoVoteSchedule')}</label>
+                <Input
+                  id="auto-vote-cron"
+                  value={autoVoteCron}
+                  onChange={(e) => setAutoVoteCron(e.target.value)}
+                  placeholder={t('group.autoVotePlaceholder')}
+                  autoFocus
+                />
+                <p className="text-xs text-muted-foreground mt-1">{t('group.autoVoteHint')}</p>
+              </div>
+              <div>
+                <label htmlFor="auto-vote-duration" className="text-sm font-medium mb-2 block">{t('group.autoVoteDuration')}</label>
+                <div className="flex gap-2">
+                  {[
+                    { value: 30, label: t('group.autoVoteDuration30') },
+                    { value: 60, label: t('group.autoVoteDuration60') },
+                    { value: 120, label: t('group.autoVoteDuration120') },
+                    { value: 180, label: t('group.autoVoteDuration180') },
+                  ].map((option) => (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      variant={autoVoteDuration === option.value ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setAutoVoteDuration(option.value)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <ResponsiveDialogFooter>
+              {autoVoteCron.trim() && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive"
+                  onClick={async () => {
+                    setAutoVoteSaving(true)
+                    try {
+                      await onUpdateAutoVote(null, autoVoteDuration)
+                      setAutoVoteCron('')
+                      setAutoVoteOpen(false)
+                    } finally {
+                      setAutoVoteSaving(false)
+                    }
+                  }}
+                  disabled={autoVoteSaving}
+                >
+                  {t('group.autoVoteDisabled')}
+                </Button>
+              )}
+              <Button type="button" variant="outline" onClick={() => setAutoVoteOpen(false)}>{t('group.cancel')}</Button>
+              <Button type="submit" disabled={!autoVoteCron.trim() || autoVoteSaving}>{t('group.autoVoteSave')}</Button>
+            </ResponsiveDialogFooter>
+          </form>
         </ResponsiveDialogContent>
       </ResponsiveDialog>
     </aside>

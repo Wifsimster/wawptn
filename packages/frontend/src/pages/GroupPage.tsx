@@ -241,6 +241,18 @@ export function GroupPage() {
     }
   }
 
+  const handleUpdateAutoVote = async (schedule: string | null, durationMinutes: number) => {
+    if (!id) return
+    try {
+      await api.updateAutoVote(id, schedule, durationMinutes)
+      toast.success(t('group.autoVoteSuccess'))
+      fetchGroup(id)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('group.autoVoteError'))
+      throw err
+    }
+  }
+
   const onlineMembers = useMemo(() => new Set(onlineUserIds), [onlineUserIds])
   const currentUserRole = currentGroup?.members.find(m => m.id === user?.id)?.role || 'member'
 
@@ -301,6 +313,8 @@ export function GroupPage() {
               onlineMembers={onlineMembers}
               currentUserId={user?.id || ''}
               currentUserRole={currentUserRole}
+              autoVoteSchedule={currentGroup.autoVoteSchedule}
+              autoVoteDurationMinutes={currentGroup.autoVoteDurationMinutes}
               onSync={handleSync}
               onGenerateInvite={handleGenerateInvite}
               onLeaveGroup={handleLeaveGroup}
@@ -309,6 +323,7 @@ export function GroupPage() {
               onRenameGroup={handleRenameGroup}
               onDeleteHistory={handleDeleteHistory}
               onToggleNotifications={handleToggleNotifications}
+              onUpdateAutoVote={handleUpdateAutoVote}
               onStartVote={() => setVoteSetupOpen(true)}
             />
           </div>
@@ -424,6 +439,8 @@ export function GroupPage() {
               onlineMembers={onlineMembers}
               currentUserId={user?.id || ''}
               currentUserRole={currentUserRole}
+              autoVoteSchedule={currentGroup.autoVoteSchedule}
+              autoVoteDurationMinutes={currentGroup.autoVoteDurationMinutes}
               onSync={handleSync}
               onGenerateInvite={handleGenerateInvite}
               onLeaveGroup={handleLeaveGroup}
@@ -432,6 +449,7 @@ export function GroupPage() {
               onRenameGroup={handleRenameGroup}
               onDeleteHistory={handleDeleteHistory}
               onToggleNotifications={handleToggleNotifications}
+              onUpdateAutoVote={handleUpdateAutoVote}
               onStartVote={() => setVoteSetupOpen(true)}
               compact
             />

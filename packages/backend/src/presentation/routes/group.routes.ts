@@ -1,9 +1,11 @@
 import { Router, type Request, type Response } from 'express'
+import cron from 'node-cron'
 import { db } from '../../infrastructure/database/connection.js'
 import { computeCommonGames, countCommonGames } from '../../infrastructure/database/common-games.js'
 import { generateInviteToken, hashInviteToken } from '../../infrastructure/steam/steam-client.js'
 import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-store-client.js'
 import { getIO, forceLeaveRoom } from '../../infrastructure/socket/socket.js'
+import { updateGroupSchedule } from '../../infrastructure/scheduler/auto-vote-scheduler.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 
 const router = Router()
@@ -123,6 +125,8 @@ router.get('/:id', async (req: Request, res: Response) => {
     name: group.name,
     createdBy: group.created_by,
     commonGameThreshold: group.common_game_threshold,
+    autoVoteSchedule: group.auto_vote_schedule || null,
+    autoVoteDurationMinutes: group.auto_vote_duration_minutes || 120,
     createdAt: group.created_at,
     members,
   })
@@ -233,6 +237,53 @@ router.patch('/:id/notifications', async (req: Request, res: Response) => {
     .update({ notifications_enabled: enabled })
 
   logger.info({ userId, groupId, notificationsEnabled: enabled }, 'notifications preference updated')
+  res.json({ ok: true })
+})
+
+// Configure auto-vote schedule (owner only)
+router.patch('/:id/auto-vote', async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const groupId = String(req.params['id'])
+  const { schedule, durationMinutes } = req.body as { schedule: string | null; durationMinutes?: number }
+
+  const membership = await db('group_members')
+    .where({ group_id: groupId, user_id: userId, role: 'owner' })
+    .first()
+
+  if (!membership) {
+    res.status(403).json({ error: 'forbidden', message: 'Only the group owner can configure auto-vote' })
+    return
+  }
+
+  // Validate cron expression if provided
+  if (schedule !== null && schedule !== undefined) {
+    if (typeof schedule !== 'string' || schedule.trim().length === 0) {
+      res.status(400).json({ error: 'validation', message: 'schedule must be a non-empty string or null' })
+      return
+    }
+    if (!cron.validate(schedule)) {
+      res.status(400).json({ error: 'validation', message: 'Invalid cron expression' })
+      return
+    }
+  }
+
+  // Validate duration
+  const duration = durationMinutes ?? 120
+  if (typeof duration !== 'number' || duration < 5 || duration > 1440) {
+    res.status(400).json({ error: 'validation', message: 'durationMinutes must be between 5 and 1440' })
+    return
+  }
+
+  await db('groups').where({ id: groupId }).update({
+    auto_vote_schedule: schedule || null,
+    auto_vote_duration_minutes: duration,
+    updated_at: db.fn.now(),
+  })
+
+  // Immediately update the scheduler
+  updateGroupSchedule(groupId, schedule || null, duration)
+
+  logger.info({ userId, groupId, schedule, durationMinutes: duration }, 'auto-vote schedule updated')
   res.json({ ok: true })
 })
 

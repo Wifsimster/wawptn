@@ -49,6 +49,7 @@ export const api = {
   getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null }[]>('/groups'),
   getGroup: (id: string) => request<{
     id: string; name: string; createdBy: string; commonGameThreshold: number | null; createdAt: string;
+    autoVoteSchedule: string | null; autoVoteDurationMinutes: number;
     members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string; notificationsEnabled: boolean }[]
   }>(`/groups/${id}`),
   createGroup: (name: string) => request<{ id: string; name: string; inviteToken: string; inviteExpiresAt: string }>('/groups', {
@@ -87,6 +88,11 @@ export const api = {
     request<{ ok: boolean }>(`/groups/${groupId}/notifications`, {
       method: 'PATCH',
       body: JSON.stringify({ enabled }),
+    }),
+  updateAutoVote: (groupId: string, schedule: string | null, durationMinutes?: number) =>
+    request<{ ok: boolean }>(`/groups/${groupId}/auto-vote`, {
+      method: 'PATCH',
+      body: JSON.stringify({ schedule, ...(durationMinutes !== undefined ? { durationMinutes } : {}) }),
     }),
   syncLibraries: (groupId: string) => request(`/groups/${groupId}/sync`, { method: 'POST' }),
   getRecommendations: (groupId: string) => request<{

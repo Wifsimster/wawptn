@@ -10,6 +10,7 @@ import { env, validateEnv } from './config/env.js'
 import { testConnection, runMigrations } from './infrastructure/database/connection.js'
 import { createSocketServer } from './infrastructure/socket/socket.js'
 import { startVoteScheduler } from './infrastructure/scheduler/vote-scheduler.js'
+import { startAutoVoteScheduler } from './infrastructure/scheduler/auto-vote-scheduler.js'
 import { logger } from './infrastructure/logger/logger.js'
 import { authRoutes } from './presentation/routes/auth.routes.js'
 import { groupRoutes } from './presentation/routes/group.routes.js'
@@ -144,6 +145,9 @@ async function main() {
 
   // Vote scheduler (auto-close scheduled sessions)
   startVoteScheduler()
+
+  // Auto-vote scheduler (recurring auto-created sessions)
+  startAutoVoteScheduler()
 
   // Start server
   httpServer.listen(env.PORT, () => {

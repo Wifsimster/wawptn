@@ -341,11 +341,16 @@ function hashCode(str: string): number {
 /**
  * Returns today's persona based on a deterministic hash of the date.
  * Uses Europe/Paris timezone so the persona changes at midnight local time.
+ * Filters out disabled personas if provided.
  */
-export function getTodayPersona(): Persona {
+export function getTodayPersona(disabledIds: string[] = []): Persona {
+  const available = disabledIds.length > 0
+    ? PERSONAS.filter(p => !disabledIds.includes(p.id))
+    : PERSONAS
+  const pool = available.length > 0 ? available : PERSONAS // fallback if all disabled
   const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }) // YYYY-MM-DD
-  const index = hashCode(dateStr) % PERSONAS.length
-  return PERSONAS[index]!
+  const index = hashCode(dateStr) % pool.length
+  return pool[index]!
 }
 
 /**
@@ -362,4 +367,11 @@ export function getPersonaForDate(dateStr: string): Persona {
  */
 export function getDefaultPersona(): Persona {
   return PERSONAS[0]!
+}
+
+/**
+ * Returns all personas with their IDs and names (for admin UI).
+ */
+export function getAllPersonas(): Pick<Persona, 'id' | 'name' | 'embedColor'>[] {
+  return PERSONAS.map(p => ({ id: p.id, name: p.name, embedColor: p.embedColor }))
 }

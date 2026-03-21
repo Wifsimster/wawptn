@@ -8,7 +8,8 @@ import { getBotSettings } from './lib/api.js'
 async function getActivePersona(): Promise<Persona> {
   try {
     const settings = await getBotSettings()
-    return settings.persona_rotation_enabled ? getTodayPersona() : getDefaultPersona()
+    if (!settings.persona_rotation_enabled) return getDefaultPersona()
+    return getTodayPersona(settings.disabled_personas ?? [])
   } catch {
     return getTodayPersona()
   }

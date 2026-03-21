@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bot, Users, BarChart3, Save, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Bot, Users, BarChart3, Save, RefreshCw, ShieldCheck, ShieldOff, Theater } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppHeader } from '@/components/app-header'
 import { Button } from '@/components/ui/button'
@@ -13,11 +13,22 @@ import { Badge } from '@/components/ui/badge'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/lib/api'
 
+const ALL_PERSONAS = [
+  { id: 'pote-sarcastique', name: 'Le Pote Sarcastique', color: '#5865F2' },
+  { id: 'narrateur-dramatique', name: 'Le Narrateur Dramatique', color: '#9B59B6' },
+  { id: 'coach-motivation', name: 'Le Coach Motivation', color: '#F1C40F' },
+  { id: 'pince-sans-rire', name: 'Le Pince-Sans-Rire', color: '#95A5A6' },
+  { id: 'nostalgique-retro', name: 'Le Nostalgique Rétro', color: '#E67E22' },
+  { id: 'competiteur', name: 'Le Compétiteur', color: '#E74C3C' },
+  { id: 'philosophe-zen', name: 'Le Philosophe Zen', color: '#2ECC71' },
+]
+
 interface BotSettings {
   persona_rotation_enabled: boolean
   friday_schedule: string
   wednesday_schedule: string
   schedule_timezone: string
+  disabled_personas: string[]
 }
 
 interface AdminStats {
@@ -59,7 +70,10 @@ export function AdminPage() {
         api.getAdminStats(),
         api.getAdminUsers(),
       ])
-      setSettings(settingsData as unknown as BotSettings)
+      const s = settingsData as unknown as BotSettings
+      // Ensure disabled_personas is always an array
+      if (!Array.isArray(s.disabled_personas)) s.disabled_personas = []
+      setSettings(s)
       setStats(statsData)
       setUsers(usersData)
     } catch {
@@ -80,6 +94,25 @@ export function AdminPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleToggleAdmin(targetUser: AdminUser) {
+    const newIsAdmin = !targetUser.isAdmin
+    try {
+      await api.setAdminUserRole(targetUser.id, newIsAdmin)
+      setUsers(users.map(u => u.id === targetUser.id ? { ...u, isAdmin: newIsAdmin } : u))
+      toast.success(newIsAdmin ? `${targetUser.displayName} promu admin` : `${targetUser.displayName} n'est plus admin`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur lors du changement de rôle')
+    }
+  }
+
+  function togglePersona(personaId: string) {
+    if (!settings) return
+    const disabled = settings.disabled_personas.includes(personaId)
+      ? settings.disabled_personas.filter(id => id !== personaId)
+      : [...settings.disabled_personas, personaId]
+    setSettings({ ...settings, disabled_personas: disabled })
   }
 
   if (!user?.isAdmin) return null
@@ -210,6 +243,55 @@ export function AdminPage() {
           </CardContent>
         </Card>
 
+        {/* Personas */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Theater className="h-5 w-5" />
+              Personas ({ALL_PERSONAS.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-10" />)}
+              </div>
+            ) : settings && (
+              <div className="space-y-2">
+                {ALL_PERSONAS.map((persona) => {
+                  const isDisabled = settings.disabled_personas.includes(persona.id)
+                  return (
+                    <div
+                      key={persona.id}
+                      className="flex items-center gap-3 rounded-md border border-border p-3"
+                    >
+                      <Checkbox
+                        id={`persona-${persona.id}`}
+                        checked={!isDisabled}
+                        onCheckedChange={() => togglePersona(persona.id)}
+                        disabled={!settings.persona_rotation_enabled}
+                      />
+                      <div
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: persona.color }}
+                      />
+                      <label
+                        htmlFor={`persona-${persona.id}`}
+                        className={`text-sm font-medium cursor-pointer flex-1 ${isDisabled ? 'text-muted-foreground line-through' : ''}`}
+                      >
+                        {persona.name}
+                      </label>
+                    </div>
+                  )
+                })}
+                <p className="text-xs text-muted-foreground pt-1">
+                  Décochez un persona pour l'exclure de la rotation. Sauvegardez pour appliquer.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Users List */}
         <Card>
           <CardHeader>
@@ -237,8 +319,28 @@ export function AdminPage() {
                         Inscrit le {new Date(u.createdAt).toLocaleDateString('fr-FR')}
                       </div>
                     </div>
-                    {u.isAdmin && (
-                      <Badge variant="default">Admin</Badge>
+                    {u.isAdmin ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-destructive hover:text-destructive"
+                        onClick={() => handleToggleAdmin(u)}
+                        disabled={u.id === user?.id}
+                        title={u.id === user?.id ? 'Vous ne pouvez pas révoquer votre propre accès' : undefined}
+                      >
+                        <ShieldOff className="h-3.5 w-3.5" />
+                        Révoquer
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => handleToggleAdmin(u)}
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        Promouvoir
+                      </Button>
                     )}
                   </div>
                 ))}

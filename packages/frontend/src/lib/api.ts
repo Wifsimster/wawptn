@@ -126,4 +126,9 @@ export const api = {
     }),
   getAdminStats: () => request<{ users: number; groups: number; votingSessions: number }>('/admin/stats'),
   getAdminUsers: () => request<{ id: string; steamId: string; displayName: string; avatarUrl: string; isAdmin: boolean; createdAt: string }[]>('/admin/users'),
+  setAdminUserRole: (userId: string, isAdmin: boolean) =>
+    request<{ ok: boolean }>(`/admin/users/${userId}/admin`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isAdmin }),
+    }),
 }

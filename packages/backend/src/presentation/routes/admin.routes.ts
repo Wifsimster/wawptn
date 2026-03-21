@@ -35,6 +35,7 @@ router.patch('/bot-settings', async (req: Request, res: Response) => {
     'friday_schedule',
     'wednesday_schedule',
     'schedule_timezone',
+    'disabled_personas',
   ])
 
   const invalidKeys = Object.keys(updates).filter(k => !allowedKeys.has(k))
@@ -45,11 +46,9 @@ router.patch('/bot-settings', async (req: Request, res: Response) => {
 
   for (const [key, value] of Object.entries(updates)) {
     await db('app_settings')
-      .where({ key: `bot.${key}` })
-      .update({
-        value: JSON.stringify(value),
-        updated_at: db.fn.now(),
-      })
+      .insert({ key: `bot.${key}`, value: JSON.stringify(value), updated_at: db.fn.now() })
+      .onConflict('key')
+      .merge({ value: JSON.stringify(value), updated_at: db.fn.now() })
   }
 
   authLogger.info({ userId: req.userId, keys: Object.keys(updates) }, 'admin updated bot settings')
@@ -72,6 +71,34 @@ router.get('/users', async (_req: Request, res: Response) => {
     isAdmin: u.is_admin,
     createdAt: u.created_at,
   })))
+})
+
+// Toggle admin status for a user
+router.patch('/users/:id/admin', async (req: Request, res: Response) => {
+  const targetId = req.params['id']
+  const { isAdmin } = req.body as { isAdmin?: boolean }
+
+  if (typeof isAdmin !== 'boolean') {
+    res.status(400).json({ error: 'validation', message: 'isAdmin (boolean) is required' })
+    return
+  }
+
+  // Prevent self-demotion
+  if (targetId === req.userId && !isAdmin) {
+    res.status(400).json({ error: 'validation', message: 'Vous ne pouvez pas révoquer votre propre accès admin' })
+    return
+  }
+
+  const target = await db('users').where({ id: targetId }).first()
+  if (!target) {
+    res.status(404).json({ error: 'not_found', message: 'Utilisateur introuvable' })
+    return
+  }
+
+  await db('users').where({ id: targetId }).update({ is_admin: isAdmin })
+  authLogger.warn({ userId: req.userId, targetId, isAdmin }, 'admin role changed')
+
+  res.json({ ok: true })
 })
 
 // ─── Stats ────────────────────────────────────────────────────────────────────

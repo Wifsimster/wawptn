@@ -46,6 +46,7 @@ export interface BotSettings {
   friday_schedule: string
   wednesday_schedule: string
   schedule_timezone: string
+  disabled_personas: string[]
 }
 
 const DEFAULT_SETTINGS: BotSettings = {
@@ -53,6 +54,7 @@ const DEFAULT_SETTINGS: BotSettings = {
   friday_schedule: '0 21 * * 5',
   wednesday_schedule: '0 17 * * 3',
   schedule_timezone: 'Europe/Paris',
+  disabled_personas: [],
 }
 
 export async function getBotSettings(): Promise<BotSettings> {

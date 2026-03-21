@@ -13,7 +13,8 @@ function getPersona() {
   if (currentSettings && !currentSettings.persona_rotation_enabled) {
     return getDefaultPersona()
   }
-  return getTodayPersona()
+  const disabled = currentSettings?.disabled_personas ?? []
+  return getTodayPersona(disabled)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

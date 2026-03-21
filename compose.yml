@@ -24,6 +24,7 @@ services:
       - API_URL=https://wawptn.battistella.ovh
       - CORS_ORIGIN=https://wawptn.battistella.ovh
       - DISCORD_BOT_API_SECRET=${DISCORD_BOT_API_SECRET}
+      - ADMIN_STEAM_ID=${ADMIN_STEAM_ID:-}
     depends_on:
       postgres:
         condition: service_healthy

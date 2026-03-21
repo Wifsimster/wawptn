@@ -1,5 +1,15 @@
 const API_BASE = '/api'
 
+export class ApiError extends Error {
+  code: string
+  status: number
+  constructor(message: string, code: string, status: number) {
+    super(message)
+    this.code = code
+    this.status = status
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
@@ -11,8 +21,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   })
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }))
-    throw new Error(error.message || `Request failed: ${res.status}`)
+    const error = await res.json().catch(() => ({ message: res.statusText, error: 'unknown' }))
+    throw new ApiError(
+      error.message || `Request failed: ${res.status}`,
+      error.error || 'unknown',
+      res.status,
+    )
   }
 
   return res.json()

@@ -2,15 +2,11 @@ import OpenAI from 'openai'
 import { env } from '../../config/env.js'
 import { logger } from '../logger/logger.js'
 
-const SYSTEM_PROMPT = `Tu es le bot WAWPTN (What Are We Playing Tonight?), un assistant pour des groupes d'amis qui veulent décider à quel jeu jouer ensemble.
+// Base prompt: capabilities, commands, and safety rules (invariant, never overridden by persona)
+const BASE_SYSTEM_PROMPT = `Tu es le bot WAWPTN (What Are We Playing Tonight?), un assistant pour des groupes d'amis qui veulent décider à quel jeu jouer ensemble.
 
-Ta personnalité :
-- Tu es drôle, sarcastique mais bienveillant
-- Tu parles en français, de manière décontractée
-- Tu aimes bien les jeux vidéo sans en faire tout un plat
-- Tu taquines gentiment ceux qui traînent à se décider
-- Tu restes concis (2-3 phrases max sauf si on te demande plus de détails)
-- Tu parles normalement, comme un pote, sans abuser du jargon gamer
+{PERSONA}
+
 - Tu ne fais JAMAIS référence au fait que tu es un bot, un algorithme ou un programme. Tu parles comme un pote dans le groupe, pas comme une IA qui se sait être une IA
 - Quand quelqu'un a un vrai problème technique, tu laisses tomber le sarcasme et tu aides directement
 
@@ -34,6 +30,19 @@ IMPORTANT :
 - Si on te demande quelque chose qui n'a rien à voir avec les jeux ou WAWPTN, réponds avec humour que tu es là pour aider à choisir un jeu, pas pour autre chose.
 - Ne prétends pas connaître des faits spécifiques sur un jeu si tu n'es pas sûr. Mieux vaut dire que tu as un trou de mémoire que d'inventer.`
 
+// Default persona (used when no persona overlay is provided)
+const DEFAULT_PERSONA = `Ta personnalité :
+- Tu es drôle, sarcastique mais bienveillant
+- Tu parles en français, de manière décontractée
+- Tu aimes bien les jeux vidéo sans en faire tout un plat
+- Tu taquines gentiment ceux qui traînent à se décider
+- Tu restes concis (2-3 phrases max sauf si on te demande plus de détails)
+- Tu parles normalement, comme un pote, sans abuser du jargon gamer`
+
+function buildSystemPrompt(personaVoice?: string): string {
+  return BASE_SYSTEM_PROMPT.replace('{PERSONA}', personaVoice || DEFAULT_PERSONA)
+}
+
 let openaiClient: OpenAI | null = null
 
 function getClient(): OpenAI {
@@ -53,6 +62,8 @@ export interface ChatContext {
   commonGames?: string[]
   recentVoteSessions?: Array<{ date: string; winner?: string }>
   userName?: string
+  /** Daily persona voice overlay — replaces the personality section of the system prompt */
+  personaVoice?: string
 }
 
 export async function generateChatResponse(
@@ -96,7 +107,7 @@ export async function generateChatResponse(
       model: env.LLM_MODEL,
       max_tokens: 500,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT + contextBlock },
+        { role: 'system', content: buildSystemPrompt(context.personaVoice) + contextBlock },
         { role: 'user', content: userMessage },
       ],
     })

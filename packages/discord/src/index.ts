@@ -2,6 +2,7 @@ import { Client, GatewayIntentBits, Events, REST, Routes, type Interaction, type
 import { validateEnv, env } from './env.js'
 import { backendApi } from './lib/api.js'
 import { startScheduler, notifyBackOnline } from './scheduler.js'
+import { getTodayPersona } from './personas.js'
 import * as setupCommand from './commands/setup.js'
 import * as linkCommand from './commands/link.js'
 import * as gamesCommand from './commands/games.js'
@@ -142,7 +143,8 @@ client.on(Events.MessageCreate, async (message: Message) => {
 
   // If empty after stripping mention, send a hint
   if (!cleanContent) {
-    await message.reply('Hé ! Tu voulais me dire quelque chose ? Pose-moi une question sur tes jeux ou ton groupe !')
+    const persona = getTodayPersona()
+    await message.reply(persona.emptyMentionReply)
     return
   }
 
@@ -152,12 +154,14 @@ client.on(Events.MessageCreate, async (message: Message) => {
       await message.channel.sendTyping()
     }
 
+    const persona = getTodayPersona()
     const response = await backendApi<{ reply: string }>('/api/discord/chat', {
       method: 'POST',
       discordUserId: message.author.id,
       body: {
         channelId: message.channelId,
         message: cleanContent,
+        personaVoice: persona.systemPromptOverlay,
       },
     })
 

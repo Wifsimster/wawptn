@@ -221,6 +221,17 @@
     "description": "The page you are looking for does not exist or has been moved.",
     "backHome": "Back to home"
   },
+  "stats": {
+    "title": "Statistics",
+    "sessions": "sessions",
+    "votes": "votes",
+    "topGames": "Top games",
+    "wins": "wins",
+    "win": "win",
+    "participation": "Participation",
+    "memberVotes": "{{count}} votes",
+    "recentWinners": "Recent winners"
+  },
   "profile": {
     "title": "My Profile",
     "platforms": "Connected Platforms",

@@ -502,6 +502,122 @@ router.post('/:id/common-games/preview', async (req: Request, res: Response) => 
   }
 })
 
+// Get group voting stats dashboard
+router.get('/:id/stats', async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!
+    const groupId = String(req.params['id'])
+
+    const membership = await db('group_members')
+      .where({ group_id: groupId, user_id: userId })
+      .first()
+
+    if (!membership) {
+      res.status(403).json({ error: 'forbidden', message: 'Not a member' })
+      return
+    }
+
+    // Total closed sessions
+    const totalSessionsResult = await db('voting_sessions')
+      .where({ group_id: groupId, status: 'closed' })
+      .count('* as count')
+      .first()
+    const totalSessions = Number(totalSessionsResult?.count || 0)
+
+    // Total individual votes cast across all sessions in this group
+    const totalVotesResult = await db('votes')
+      .join('voting_sessions', 'voting_sessions.id', 'votes.session_id')
+      .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed' })
+      .count('* as count')
+      .first()
+    const totalVotes = Number(totalVotesResult?.count || 0)
+
+    // Top 5 most winning games (by win count, with total nominations)
+    const topGames = await db('voting_sessions')
+      .where({ group_id: groupId, status: 'closed' })
+      .whereNotNull('winning_game_name')
+      .select(
+        'winning_game_name as gameName',
+        'winning_game_app_id as steamAppId',
+      )
+      .count('* as winCount')
+      .groupBy('winning_game_name', 'winning_game_app_id')
+      .orderBy('winCount', 'desc')
+      .limit(5) as unknown as { gameName: string; steamAppId: number; winCount: string }[]
+
+    // Count total nominations per game (how many sessions each game appeared in)
+    const topGameAppIds = topGames.map(g => g.steamAppId).filter(Boolean)
+    let nominationMap = new Map<number, number>()
+    if (topGameAppIds.length > 0) {
+      const nominations = await db('voting_session_games')
+        .join('voting_sessions', 'voting_sessions.id', 'voting_session_games.session_id')
+        .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed' })
+        .whereIn('voting_session_games.steam_app_id', topGameAppIds)
+        .select('voting_session_games.steam_app_id')
+        .count('* as totalNominations')
+        .groupBy('voting_session_games.steam_app_id') as unknown as { steam_app_id: number; totalNominations: string }[]
+      nominationMap = new Map(nominations.map(n => [n.steam_app_id, Number(n.totalNominations)]))
+    }
+
+    // Member participation: per member vote count and sessions participated
+    const memberParticipation = await db('votes')
+      .join('voting_sessions', 'voting_sessions.id', 'votes.session_id')
+      .join('users', 'users.id', 'votes.user_id')
+      .join('group_members', function () {
+        this.on('group_members.user_id', '=', 'votes.user_id')
+            .andOn('group_members.group_id', '=', 'voting_sessions.group_id')
+      })
+      .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed' })
+      .select(
+        'votes.user_id as userId',
+        'users.display_name as displayName',
+        'users.avatar_url as avatarUrl',
+      )
+      .count('* as voteCount')
+      .countDistinct('votes.session_id as sessionsParticipated')
+      .groupBy('votes.user_id', 'users.display_name', 'users.avatar_url')
+      .orderBy('voteCount', 'desc') as unknown as { userId: string; displayName: string; avatarUrl: string; voteCount: string; sessionsParticipated: string }[]
+
+    // Recent 5 winners with dates
+    const recentWinners = await db('voting_sessions')
+      .where({ group_id: groupId, status: 'closed' })
+      .whereNotNull('winning_game_name')
+      .select(
+        'winning_game_name as gameName',
+        'winning_game_app_id as steamAppId',
+        'closed_at as closedAt',
+      )
+      .orderBy('closed_at', 'desc')
+      .limit(5) as unknown as { gameName: string; steamAppId: number; closedAt: string }[]
+
+    res.json({
+      totalSessions,
+      totalVotes,
+      topGames: topGames.map(g => ({
+        gameName: g.gameName,
+        steamAppId: g.steamAppId,
+        winCount: Number(g.winCount),
+        totalNominations: nominationMap.get(g.steamAppId) || 0,
+      })),
+      memberParticipation: memberParticipation.map(m => ({
+        userId: m.userId,
+        displayName: m.displayName,
+        avatarUrl: m.avatarUrl,
+        voteCount: Number(m.voteCount),
+        sessionsParticipated: Number(m.sessionsParticipated),
+      })),
+      recentWinners: recentWinners.map(w => ({
+        gameName: w.gameName,
+        steamAppId: w.steamAppId,
+        closedAt: w.closedAt,
+      })),
+    })
+  } catch (error) {
+    logger.error({ error: String(error), groupId: req.params['id'] }, 'failed to load group stats')
+    res.status(500).json({ error: 'internal', message: 'Failed to load group stats' })
+  }
+})
+
 // Trigger library sync for all group members (owner only)
 router.post('/:id/sync', async (req: Request, res: Response) => {
   const userId = req.userId!

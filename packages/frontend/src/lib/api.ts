@@ -76,6 +76,13 @@ export const api = {
     games: { steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null; type: string | null; shortDescription: string | null; platforms: { windows: boolean; mac: boolean; linux: boolean } | null; recommendationsTotal: number | null; releaseDate: string | null; comingSoon: boolean | null; controllerSupport: string | null; isFree: boolean | null; contentDescriptors: { ids: number[]; notes: string | null } | null }[];
     totalMembers: number; threshold: number;
   }>(`/groups/${groupId}/common-games${filter ? `?filter=${filter}` : ''}`),
+  getGroupStats: (groupId: string) => request<{
+    totalSessions: number;
+    totalVotes: number;
+    topGames: { gameName: string; steamAppId: number; winCount: number; totalNominations: number }[];
+    memberParticipation: { userId: string; displayName: string; avatarUrl: string; voteCount: number; sessionsParticipated: number }[];
+    recentWinners: { gameName: string; steamAppId: number; closedAt: string }[];
+  }>(`/groups/${groupId}/stats`),
   syncLibraries: (groupId: string) => request(`/groups/${groupId}/sync`, { method: 'POST' }),
   previewCommonGames: (groupId: string, memberIds: string[], filter?: string, filters?: { multiplayer?: boolean; coop?: boolean; free?: boolean }) =>
     request<{ gameCount: number; totalMembers: number }>(`/groups/${groupId}/common-games/preview`, {

@@ -85,6 +85,23 @@ async function sendToLinkedChannels(client: Client, pool: string[]): Promise<voi
   }
 }
 
+// ─── Back online notification ─────────────────────────────────────────────────
+
+const BACK_ONLINE_MESSAGES = [
+  "C'est bon, je suis de retour ! Vous m'avez manqué... ou pas. `/wawptn-vote`",
+  "Me revoilà ! Qu'est-ce que j'ai raté ? Ah oui, rien, comme d'hab.",
+  "Mise à jour terminée, je suis de nouveau opérationnel. Qui est chaud ce soir ? `/wawptn-vote`",
+  "Désolé pour l'absence, j'avais des trucs à régler. On reprend où on en était ?",
+  "Je suis de retour et en pleine forme. Quelqu'un pour un `/wawptn-random` ?",
+  "Hop, je suis là ! Vous avez essayé de jouer sans moi ? Mauvaise idée.",
+  "Redémarrage terminé. Bon, on fait quoi ce soir du coup ? `/wawptn-vote`",
+  "Me revoilà les amis ! J'espère que personne a lancé de vote sans moi.",
+]
+
+export async function notifyBackOnline(client: Client): Promise<void> {
+  await sendToLinkedChannels(client, BACK_ONLINE_MESSAGES)
+}
+
 // ─── Cron jobs ────────────────────────────────────────────────────────────────
 
 export function startScheduler(client: Client): void {

@@ -1,7 +1,7 @@
 import { Client, GatewayIntentBits, Events, REST, Routes, type Interaction, type Message } from 'discord.js'
 import { validateEnv, env } from './env.js'
 import { backendApi } from './lib/api.js'
-import { startScheduler } from './scheduler.js'
+import { startScheduler, notifyBackOnline } from './scheduler.js'
 import * as setupCommand from './commands/setup.js'
 import * as linkCommand from './commands/link.js'
 import * as gamesCommand from './commands/games.js'
@@ -46,6 +46,11 @@ client.once(Events.ClientReady, async (c) => {
 
   // Start scheduled reminder messages
   startScheduler(c)
+
+  // Notify linked channels that the bot is back online
+  notifyBackOnline(c).catch(err => {
+    console.error('[startup] Failed to send back-online notification:', err)
+  })
 })
 
 client.on(Events.InteractionCreate, async (interaction: Interaction) => {

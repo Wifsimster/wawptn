@@ -99,6 +99,10 @@
     background-color: var(--background);
     min-height: 100vh;
     padding-bottom: env(safe-area-inset-bottom);
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, a, [role="button"] {
+    touch-action: manipulation;
   }
   body::before {
     content: '';

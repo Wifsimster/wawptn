@@ -413,7 +413,7 @@ export function VotePage() {
         />
 
         {/* Floating submit button */}
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-sm border-t border-border">
+        <div className="fixed bottom-0 left-0 right-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-background/80 backdrop-blur-sm border-t border-border">
           <div className="max-w-2xl mx-auto flex items-center justify-between">
             <span className="text-sm text-muted-foreground">
               {t('vote.gamesSelected', { count: selectedGames.size })}

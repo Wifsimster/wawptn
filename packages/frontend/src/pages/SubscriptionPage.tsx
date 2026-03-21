@@ -49,7 +49,7 @@ export function SubscriptionPage() {
     }
   }
 
-  const isPremium = tier === 'premium' && status === 'active'
+  const isPremium = tier === 'premium' && (status === 'active' || status === 'canceled')
 
   return (
     <div className="min-h-screen bg-background">

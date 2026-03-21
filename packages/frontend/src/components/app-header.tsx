@@ -67,7 +67,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
         <div className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-primary/20 transition-all p-0.5"
+            className="flex items-center justify-center rounded-full hover:ring-2 hover:ring-primary/20 transition-all p-1.5 -m-1 min-h-[44px] min-w-[44px]"
             aria-label={t('profile.title')}
           >
             {user ? (
@@ -86,7 +86,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
             <>
               {/* Backdrop to close menu */}
               <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-              <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-md border border-border bg-popover p-1 shadow-md">
+              <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] max-w-[calc(100vw-2rem)] rounded-md border border-border bg-popover p-1 shadow-md">
                 {user && (
                   <div className="px-2 py-1.5 text-sm font-medium truncate border-b border-border mb-1 pb-1.5">
                     {user.displayName}

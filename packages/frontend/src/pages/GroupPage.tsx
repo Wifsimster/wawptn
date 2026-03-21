@@ -288,10 +288,10 @@ export function GroupPage() {
           onClick={() => setMobileSidebarOpen(true)}
           aria-label={t('group.openSidebar')}
         >
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">{t('group.members', { count: currentGroup.members.length })}</span>
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scroll-smooth snap-x">
+            <span className="text-xs text-muted-foreground whitespace-nowrap snap-start">{t('group.members', { count: currentGroup.members.length })}</span>
             {currentGroup.members.map((member) => (
-              <Avatar key={member.id} className="w-8 h-8 shrink-0">
+              <Avatar key={member.id} className="w-8 h-8 shrink-0 snap-start">
                 <AvatarImage src={member.avatarUrl} alt={member.displayName} />
                 <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>

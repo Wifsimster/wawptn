@@ -17,10 +17,10 @@ const buttonVariants = cva(
         steam: 'bg-steam text-steam-foreground hover:bg-steam-light shadow-lg hover:shadow-xl transition-shadow',
       },
       size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-8 px-3 text-xs',
+        default: 'h-10 px-4 py-2 min-h-[44px]',
+        sm: 'h-9 px-3 text-xs min-h-[44px]',
         lg: 'h-12 px-8 text-lg',
-        icon: 'h-9 w-9',
+        icon: 'h-10 w-10 min-h-[44px] min-w-[44px]',
       },
     },
     defaultVariants: {

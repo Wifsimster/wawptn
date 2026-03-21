@@ -193,58 +193,75 @@ export function VotePage() {
 
   // Result screen
   if (result) {
+    const resultStagger = {
+      visible: { transition: { staggerChildren: prefersReducedMotion ? 0 : 0.15 } },
+    }
+    const resultFade = {
+      hidden: { opacity: 0, y: prefersReducedMotion ? 0 : 12 },
+      visible: { opacity: 1, y: 0, transition: { duration: prefersReducedMotion ? 0.2 : 0.5 } },
+    }
+
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <AnimatePresence>
           <motion.div
-            initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0.5, opacity: 0 }}
-            animate={prefersReducedMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }}
-            transition={prefersReducedMotion ? { duration: 0.2 } : { type: 'spring', duration: 0.6 }}
+            initial="hidden"
+            animate="visible"
+            variants={resultStagger}
             className="text-center max-w-md w-full"
           >
-            <p className="text-sm text-muted-foreground mb-4 uppercase tracking-wide">{t('vote.tonightYouPlay')}</p>
+            <motion.p variants={resultFade} className="text-sm text-muted-foreground mb-4 uppercase tracking-widest">{t('vote.tonightYouPlay')}</motion.p>
             {result.headerImageUrl && (
-              <img
-                src={result.headerImageUrl}
-                alt={result.gameName}
-                className="w-full rounded-lg shadow-2xl mb-6"
-              />
+              <motion.div
+                variants={resultFade}
+                className="relative mb-6"
+              >
+                {/* Reward glow behind the image */}
+                <div className="absolute -inset-4 bg-reward/20 blur-3xl rounded-3xl pointer-events-none" aria-hidden="true" />
+                <img
+                  src={result.headerImageUrl}
+                  alt={result.gameName}
+                  className="relative w-full rounded-lg shadow-2xl ring-1 ring-reward/20"
+                />
+              </motion.div>
             )}
-            <h1 className="text-3xl font-bold mb-2">{result.gameName}</h1>
-            <p className="text-muted-foreground mb-8">
+            <motion.h1 variants={resultFade} className="text-3xl font-bold mb-2">{result.gameName}</motion.h1>
+            <motion.p variants={resultFade} className="text-muted-foreground mb-8">
               {t('vote.votedFor', { yes: result.yesCount, total: result.totalVoters })}
-            </p>
+            </motion.p>
 
-            {Number.isInteger(result.steamAppId) && result.steamAppId > 0 && (
-              <Button variant="steam" size="lg" asChild>
-                <a href={`steam://run/${result.steamAppId}`} className="gap-2">
-                  <ExternalLink className="w-5 h-5" />
-                  {t('vote.launchSteam')}
-                </a>
-              </Button>
-            )}
-
-            <Button
-              variant="secondary"
-              className="block mx-auto mt-4"
-              onClick={handleRematch}
-              disabled={rematching}
-            >
-              {rematching ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4" />
+            <motion.div variants={resultFade}>
+              {Number.isInteger(result.steamAppId) && result.steamAppId > 0 && (
+                <Button variant="steam" size="lg" asChild>
+                  <a href={`steam://run/${result.steamAppId}`} className="gap-2">
+                    <ExternalLink className="w-5 h-5" />
+                    {t('vote.launchSteam')}
+                  </a>
+                </Button>
               )}
-              {t('vote.rematch')}
-            </Button>
 
-            <Button
-              variant="ghost"
-              className="block mx-auto mt-4"
-              onClick={() => navigate(`/groups/${id}`)}
-            >
-              {t('vote.backToGroup')}
-            </Button>
+              <Button
+                variant="secondary"
+                className="block mx-auto mt-4"
+                onClick={handleRematch}
+                disabled={rematching}
+              >
+                {rematching ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                {t('vote.rematch')}
+              </Button>
+
+              <Button
+                variant="ghost"
+                className="block mx-auto mt-4"
+                onClick={() => navigate(`/groups/${id}`)}
+              >
+                {t('vote.backToGroup')}
+              </Button>
+            </motion.div>
           </motion.div>
         </AnimatePresence>
       </div>

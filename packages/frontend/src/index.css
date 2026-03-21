@@ -40,6 +40,8 @@
   --steam-light: oklch(0.317 0.034 238);
   --steam-foreground: oklch(0.985 0 0);
   --success: oklch(0.723 0.191 142.5);
+  --reward: oklch(0.795 0.160 75);
+  --reward-foreground: oklch(0.25 0.05 75);
 }
 
 @theme inline {
@@ -80,6 +82,8 @@
   --color-steam-light: var(--steam-light);
   --color-steam-foreground: var(--steam-foreground);
   --color-success: var(--success);
+  --color-reward: var(--reward);
+  --color-reward-foreground: var(--reward-foreground);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);

@@ -90,6 +90,15 @@ async function main() {
     }
   })
 
+  // Rate limiter for auth login initiation (prevent brute force / enumeration)
+  const authLoginLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+  app.use('/api/auth/steam/login', authLoginLimiter)
+
   // Strict rate limiter for auth callback (heavy endpoint: Steam verification + DB writes)
   const authCallbackLimiter = rateLimit({
     windowMs: 60 * 1000,

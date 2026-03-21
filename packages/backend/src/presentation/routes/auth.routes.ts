@@ -388,7 +388,13 @@ router.post('/logout', async (req: Request, res: Response) => {
     await db('sessions').where({ token }).del().catch(() => { })
   }
 
-  res.clearCookie(SESSION_COOKIE_NAME, { path: '/' })
+  res.clearCookie(SESSION_COOKIE_NAME, {
+    path: '/',
+    httpOnly: true,
+    signed: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax',
+  })
   res.json({ ok: true })
 })
 
@@ -401,9 +407,9 @@ router.get('/epic/link', requireAuth, (req: Request, res: Response) => {
     return
   }
 
-  // Generate state bound to the authenticated user
-  const nonce = crypto.randomBytes(16).toString('hex')
-  const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex').slice(0, 16)
+  // Generate state bound to the authenticated user (256-bit entropy)
+  const nonce = crypto.randomBytes(32).toString('hex')
+  const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex')
   const state = `${nonce}.${userHash}`
 
   res.cookie(EPIC_LINK_STATE_COOKIE, state, {
@@ -433,10 +439,10 @@ router.get('/epic/callback', requireAuth, async (req: Request, res: Response) =>
       return
     }
 
-    // Verify state is bound to current user
-    const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex').slice(0, 16)
-    const expectedSuffix = `.${userHash}`
-    if (!storedState.endsWith(expectedSuffix)) {
+    // Verify state is bound to current user (constant-time)
+    const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex')
+    const storedUserHash = storedState.split('.')[1] || ''
+    if (!storedUserHash || storedUserHash.length !== userHash.length || !crypto.timingSafeEqual(Buffer.from(storedUserHash), Buffer.from(userHash))) {
       authLogger.warn('Epic callback rejected: user binding mismatch')
       res.redirect(`${env.CORS_ORIGIN}/profile?epic=error&reason=user_mismatch`)
       return
@@ -602,9 +608,10 @@ router.get('/gog/callback', requireAuth, async (req: Request, res: Response) => 
       return
     }
 
-    const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex').slice(0, 16)
-    const expectedSuffix = `.${userHash}`
-    if (!storedState.endsWith(expectedSuffix)) {
+    // Verify state is bound to current user (constant-time)
+    const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex')
+    const storedUserHash = storedState.split('.')[1] || ''
+    if (!storedUserHash || storedUserHash.length !== userHash.length || !crypto.timingSafeEqual(Buffer.from(storedUserHash), Buffer.from(userHash))) {
       authLogger.warn('GOG callback rejected: user binding mismatch')
       res.redirect(`${env.CORS_ORIGIN}/profile?gog=error&reason=user_mismatch`)
       return

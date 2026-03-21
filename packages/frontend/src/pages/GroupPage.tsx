@@ -297,6 +297,7 @@ export function GroupPage() {
               onDeleteGroup={handleDeleteGroup}
               onRenameGroup={handleRenameGroup}
               onDeleteHistory={handleDeleteHistory}
+              onStartVote={() => setVoteSetupOpen(true)}
             />
           </div>
 
@@ -418,6 +419,7 @@ export function GroupPage() {
               onDeleteGroup={handleDeleteGroup}
               onRenameGroup={handleRenameGroup}
               onDeleteHistory={handleDeleteHistory}
+              onStartVote={() => setVoteSetupOpen(true)}
               compact
             />
           </ResponsiveDialogContent>

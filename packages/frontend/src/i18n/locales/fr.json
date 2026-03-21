@@ -272,5 +272,13 @@
     "memberSince": "Membre depuis {{date}}",
     "steamProfile": "Voir le profil Steam",
     "noLibraryApi": "Cette plateforme ne propose pas d'API pour synchroniser la bibliothèque de jeux."
+  },
+  "recommendations": {
+    "title": "Suggestions",
+    "neverPlayed": "Jamais joué ensemble",
+    "notPlayedLong": "Pas joué depuis longtemps",
+    "popularForgotten": "Populaire mais oublié",
+    "startVote": "Lancer un vote",
+    "startVoteHint": "Lancer un vote pour ce soir"
   }
 }

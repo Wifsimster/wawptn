@@ -163,6 +163,11 @@ export const api = {
       body: JSON.stringify({ isAdmin }),
     }),
 
+  // Subscription
+  getSubscription: () => request<{ tier: 'free' | 'premium'; status: string; currentPeriodEnd: string | null }>('/subscription/me'),
+  createCheckout: () => request<{ url: string }>('/subscription/checkout', { method: 'POST' }),
+  createPortal: () => request<{ url: string }>('/subscription/portal', { method: 'POST' }),
+
   // Personas
   getAdminPersonas: () => request<{
     id: string; name: string; systemPromptOverlay: string;

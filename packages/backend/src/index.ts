@@ -21,6 +21,8 @@ import { requireBotAuth } from './presentation/middleware/bot-auth.middleware.js
 import { requireAdmin } from './presentation/middleware/admin.middleware.js'
 import { discordRoutes, discordUserRoutes } from './presentation/routes/discord.routes.js'
 import { adminRoutes } from './presentation/routes/admin.routes.js'
+import { subscriptionRoutes, subscriptionWebhookRouter } from './presentation/routes/subscription.routes.js'
+import { isStripeEnabled } from './infrastructure/stripe/stripe-client.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -46,6 +48,11 @@ async function main() {
     },
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   }))
+
+  // Stripe webhook — must be registered BEFORE express.json() to receive raw body
+  if (isStripeEnabled()) {
+    app.use('/api/subscription/webhook', express.raw({ type: 'application/json' }), subscriptionWebhookRouter)
+  }
 
   // Middleware
   app.use(cors({
@@ -105,6 +112,11 @@ async function main() {
   // Discord bot API routes (bot auth for bot-originated requests)
   if (env.DISCORD_BOT_API_SECRET) {
     app.use('/api/discord', requireBotAuth, discordRoutes)
+  }
+
+  // Stripe subscription routes (feature-flagged)
+  if (isStripeEnabled()) {
+    app.use('/api/subscription', requireAuth, subscriptionRoutes)
   }
 
   // Invite preview route (public, no auth) — serves OG meta tags for Discord/social embeds

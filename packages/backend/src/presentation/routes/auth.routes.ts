@@ -148,6 +148,12 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
       authLogger.info({ steamId, displayName: profile.personaname }, 'new user created')
     }
 
+    // Admin promotion: set is_admin based on ADMIN_STEAM_ID env var
+    if (env.ADMIN_STEAM_ID && steamId === env.ADMIN_STEAM_ID && !user.is_admin) {
+      await db('users').where({ id: user.id }).update({ is_admin: true })
+      authLogger.info({ steamId }, 'admin status granted on login')
+    }
+
     // Ensure account link exists (for pre-migration users)
     const existingAccount = await db('accounts')
       .where({ user_id: user.id, provider_id: 'steam' })
@@ -221,6 +227,7 @@ router.get('/me', async (req: Request, res: Response) => {
       displayName: user.display_name,
       avatarUrl: user.avatar_url,
       libraryVisible: user.library_visible ?? true,
+      isAdmin: user.is_admin ?? false,
     })
   } catch (error) {
     authLogger.error({ error: String(error) }, 'get session: database error')

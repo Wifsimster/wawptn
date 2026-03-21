@@ -25,6 +25,9 @@ export const env = {
   GOG_CLIENT_SECRET: process.env['GOG_CLIENT_SECRET'] || '',
   GOG_REDIRECT_URI: process.env['GOG_REDIRECT_URI'] || '',
 
+  // Admin (optional — Steam ID of the default admin user)
+  ADMIN_STEAM_ID: process.env['ADMIN_STEAM_ID'] || '',
+
   // Discord Bot (optional — feature-flagged)
   DISCORD_BOT_API_SECRET: process.env['DISCORD_BOT_API_SECRET'] || '',
 

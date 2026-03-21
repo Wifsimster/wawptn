@@ -17,7 +17,9 @@ import { voteRoutes } from './presentation/routes/vote.routes.js'
 import { inviteRoutes } from './presentation/routes/invite.routes.js'
 import { requireAuth } from './presentation/middleware/auth.middleware.js'
 import { requireBotAuth } from './presentation/middleware/bot-auth.middleware.js'
+import { requireAdmin } from './presentation/middleware/admin.middleware.js'
 import { discordRoutes, discordUserRoutes } from './presentation/routes/discord.routes.js'
+import { adminRoutes } from './presentation/routes/admin.routes.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -92,6 +94,9 @@ async function main() {
   app.use('/api/auth', authRoutes)
   app.use('/api/groups', requireAuth, groupRoutes)
   app.use('/api/groups', requireAuth, voteLimiter, voteRoutes)
+
+  // Admin routes (requires authenticated admin user)
+  app.use('/api/admin', requireAuth, requireAdmin, adminRoutes)
 
   // Discord user-facing routes (session auth, no bot auth required)
   app.use('/api/discord', discordUserRoutes)

@@ -23,7 +23,10 @@
     "commonGames": "{{count}} jeux en commun",
     "searchGroups": "Rechercher un groupe...",
     "noSearchResults": "Aucun groupe ne correspond à ta recherche.",
-    "clearSearch": "Effacer la recherche"
+    "clearSearch": "Effacer la recherche",
+    "pullToRefresh": "Tirer pour actualiser",
+    "releaseToRefresh": "Relâcher pour actualiser",
+    "refreshing": "Actualisation..."
   },
   "createGroup": {
     "title": "Créer un groupe",

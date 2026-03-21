@@ -281,22 +281,32 @@ export function GroupPage() {
       </AppHeader>
 
       <main id="main-content" className="max-w-6xl mx-auto p-4">
-        {/* Mobile: tappable avatar bar that opens sidebar sheet */}
+        {/* Mobile: mini-bar that opens sidebar sheet */}
         <button
           type="button"
-          className="lg:hidden mb-4 w-full"
+          className="lg:hidden mb-4 w-full rounded-lg border border-border bg-card/50 p-3 active:bg-card/80 transition-colors"
           onClick={() => setMobileSidebarOpen(true)}
           aria-label={t('group.openSidebar')}
         >
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scroll-smooth snap-x">
-            <span className="text-xs text-muted-foreground whitespace-nowrap snap-start">{t('group.members', { count: currentGroup.members.length })}</span>
-            {currentGroup.members.map((member) => (
-              <Avatar key={member.id} className="w-8 h-8 shrink-0 snap-start">
-                <AvatarImage src={member.avatarUrl} alt={member.displayName} />
-                <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-            ))}
-            <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0 ml-auto" />
+          <div className="flex items-center gap-3">
+            <div className="flex -space-x-2 shrink-0">
+              {currentGroup.members.slice(0, 5).map((member) => (
+                <Avatar key={member.id} className="w-7 h-7 ring-2 ring-background">
+                  <AvatarImage src={member.avatarUrl} alt={member.displayName} />
+                  <AvatarFallback className="text-[10px]">{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+              ))}
+              {currentGroup.members.length > 5 && (
+                <div className="w-7 h-7 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-[10px] text-muted-foreground font-medium">
+                  +{currentGroup.members.length - 5}
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-medium truncate">{currentGroup.name}</p>
+              <p className="text-xs text-muted-foreground">{t('group.members', { count: currentGroup.members.length })}</p>
+            </div>
+            <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
           </div>
         </button>
 
@@ -423,8 +433,8 @@ export function GroupPage() {
           </div>
         </div>
 
-        {/* Mobile: sidebar as responsive dialog sheet */}
-        <ResponsiveDialog open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+        {/* Mobile: sidebar as responsive dialog sheet with snap points */}
+        <ResponsiveDialog open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen} snapPoints={[0.55, 1]}>
           <ResponsiveDialogContent>
             <ResponsiveDialogHeader>
               <ResponsiveDialogTitle>{currentGroup.name}</ResponsiveDialogTitle>

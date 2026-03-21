@@ -133,7 +133,11 @@
     "deleteHistoryConfirmDescription": "La soirée « {{name}} » sera définitivement supprimée de l'historique.",
     "deleteHistoryConfirm": "Supprimer",
     "deleteHistorySuccess": "Soirée supprimée de l'historique.",
-    "deleteHistoryError": "Impossible de supprimer la soirée"
+    "deleteHistoryError": "Impossible de supprimer la soirée",
+    "notificationsDiscord": "Notifications Discord",
+    "notificationsEnabled": "Notifications activées",
+    "notificationsDisabled": "Notifications désactivées",
+    "notificationsError": "Impossible de modifier les notifications"
   },
   "voteSetup": {
     "title": "Qui joue ce soir ?",

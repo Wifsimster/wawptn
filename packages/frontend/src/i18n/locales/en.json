@@ -127,7 +127,11 @@
     "groupRenamed": "The group has been renamed to \"{{name}}\"",
     "youWereKicked": "You have been kicked from the group.",
     "voteStartedOthers": "A vote has been started for other players",
-    "voteScheduled": "A gaming night has been scheduled for {{date}}!"
+    "voteScheduled": "A gaming night has been scheduled for {{date}}!",
+    "notificationsDiscord": "Discord Notifications",
+    "notificationsEnabled": "Notifications enabled",
+    "notificationsDisabled": "Notifications disabled",
+    "notificationsError": "Unable to update notifications"
   },
   "voteSetup": {
     "title": "Who's playing tonight?",

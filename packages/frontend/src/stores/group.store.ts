@@ -5,7 +5,7 @@ interface GroupState {
   groups: { id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null }[]
   currentGroup: {
     id: string; name: string; createdBy: string; commonGameThreshold: number | null; createdAt: string;
-    members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string }[]
+    members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string; notificationsEnabled: boolean }[]
   } | null
   loading: boolean
   fetchGroups: () => Promise<void>

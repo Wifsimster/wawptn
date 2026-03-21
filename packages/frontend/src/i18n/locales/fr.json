@@ -190,7 +190,15 @@
     "scheduledCountdown": "La soirée commence dans...",
     "scheduledDate": "{{date}}",
     "rematch": "Relancer un vote",
-    "rematchError": "Impossible de relancer le vote"
+    "rematchError": "Impossible de relancer le vote",
+    "gameDetails": "Voir les détails du jeu",
+    "gameDetailsFor": "Détails de {{name}}",
+    "viewOnSteam": "Voir sur Steam",
+    "select": "Sélectionner",
+    "deselect": "Désélectionner",
+    "platforms": "Plateformes",
+    "free": "Gratuit",
+    "controllerSupport": "Manette : {{level}}"
   },
   "join": {
     "invited": "Tu as été invité !",

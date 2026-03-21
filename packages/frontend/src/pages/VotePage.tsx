@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, ExternalLink, Loader2, RefreshCw, Vote, Search, Send } from 'lucide-react'
+import { ArrowLeft, Check, ExternalLink, Loader2, RefreshCw, Vote, Search, Send, Info, Monitor, Apple, Gamepad2, Star } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -10,13 +10,30 @@ import { CountdownTimer } from '@/components/countdown-timer'
 import { getSocket } from '@/lib/socket'
 import { useAuthStore } from '@/stores/auth.store'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+  ResponsiveDialogFooter,
+} from '@/components/ui/responsive-dialog'
 
 interface Game {
   steamAppId: number
   gameId?: string
   gameName: string
   headerImageUrl: string
+  shortDescription?: string | null
+  genres?: { id: string; description: string }[] | null
+  metacriticScore?: number | null
+  platforms?: { windows: boolean; mac: boolean; linux: boolean } | null
+  releaseDate?: string | null
+  controllerSupport?: string | null
+  isFree?: boolean | null
+  type?: string | null
 }
 
 interface VoteResult {
@@ -45,6 +62,7 @@ export function VotePage() {
   const [isParticipant, setIsParticipant] = useState(true)
   const [rematching, setRematching] = useState(false)
   const [search, setSearch] = useState('')
+  const [detailGame, setDetailGame] = useState<Game | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -333,34 +351,66 @@ export function VotePage() {
           {filteredGames.map(game => {
             const isSelected = selectedGames.has(game.steamAppId)
             return (
-              <button
+              <div
                 key={game.steamAppId}
-                onClick={() => toggleGame(game.steamAppId)}
                 className={`relative rounded-lg overflow-hidden border-2 transition-all ${
                   isSelected
                     ? 'border-primary ring-2 ring-primary/30 shadow-lg'
                     : 'border-border hover:border-muted-foreground/40'
                 }`}
               >
-                <img
-                  src={game.headerImageUrl}
-                  alt={game.gameName}
-                  className={`w-full aspect-[460/215] object-cover transition-opacity ${
-                    isSelected ? 'opacity-100' : 'opacity-60 hover:opacity-90'
-                  }`}
-                />
+                <button
+                  onClick={() => toggleGame(game.steamAppId)}
+                  className="w-full text-left"
+                >
+                  <img
+                    src={game.headerImageUrl}
+                    alt={game.gameName}
+                    className={`w-full aspect-[460/215] object-cover transition-opacity ${
+                      isSelected ? 'opacity-100' : 'opacity-60 hover:opacity-90'
+                    }`}
+                  />
+                </button>
                 {isSelected && (
-                  <div className="absolute top-1.5 right-1.5 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                  <div className="absolute top-1.5 right-1.5 w-6 h-6 bg-primary rounded-full flex items-center justify-center pointer-events-none">
                     <Check className="w-4 h-4 text-primary-foreground" />
                   </div>
                 )}
-                <div className="p-2">
-                  <p className="text-xs font-medium truncate">{game.gameName}</p>
+                {game.metacriticScore != null && (
+                  <span className={`absolute top-1.5 left-1.5 text-xs font-bold px-1.5 py-0.5 rounded pointer-events-none ${
+                    game.metacriticScore >= 75 ? 'bg-emerald-600 text-white' :
+                    game.metacriticScore >= 50 ? 'bg-amber-500 text-white' :
+                    'bg-red-600 text-white'
+                  }`}>
+                    {game.metacriticScore}
+                  </span>
+                )}
+                <div className="flex items-center justify-between p-2">
+                  <p className="text-xs font-medium truncate flex-1 min-w-0">{game.gameName}</p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDetailGame(game)
+                    }}
+                    className="ml-1 shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    aria-label={t('vote.gameDetails')}
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              </button>
+              </div>
             )
           })}
         </div>
+
+        {/* Game detail dialog */}
+        <GameDetailDialog
+          game={detailGame}
+          isSelected={detailGame ? selectedGames.has(detailGame.steamAppId) : false}
+          onOpenChange={(open) => { if (!open) setDetailGame(null) }}
+          onToggle={(steamAppId) => toggleGame(steamAppId)}
+          t={t}
+        />
 
         {/* Floating submit button */}
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-sm border-t border-border">
@@ -380,5 +430,153 @@ export function VotePage() {
         </div>
       </main>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Game Detail Dialog
+// ---------------------------------------------------------------------------
+
+interface GameDetailDialogProps {
+  game: Game | null
+  isSelected: boolean
+  onOpenChange: (open: boolean) => void
+  onToggle: (steamAppId: number) => void
+  t: (key: string, options?: Record<string, unknown>) => string
+}
+
+function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }: GameDetailDialogProps) {
+  if (!game) return null
+
+  const steamStoreUrl = `https://store.steampowered.com/app/${game.steamAppId}`
+
+  return (
+    <ResponsiveDialog open={!!game} onOpenChange={onOpenChange}>
+      <ResponsiveDialogContent className="sm:max-w-lg">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>{game.gameName}</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription className="sr-only">
+            {t('vote.gameDetailsFor', { name: game.gameName })}
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
+
+        {/* Header image */}
+        <img
+          src={game.headerImageUrl}
+          alt={game.gameName}
+          className="w-full rounded-lg aspect-[460/215] object-cover"
+        />
+
+        {/* Metadata badges row */}
+        <div className="flex flex-wrap gap-2">
+          {/* Metacritic */}
+          {game.metacriticScore != null && (
+            <Badge
+              variant="outline"
+              className={`gap-1 ${
+                game.metacriticScore >= 75 ? 'border-emerald-600 text-emerald-600' :
+                game.metacriticScore >= 50 ? 'border-amber-500 text-amber-500' :
+                'border-red-600 text-red-600'
+              }`}
+            >
+              <Star className="w-3 h-3" />
+              Metacritic {game.metacriticScore}
+            </Badge>
+          )}
+
+          {/* Free badge */}
+          {game.isFree && (
+            <Badge variant="secondary" className="bg-emerald-600/10 text-emerald-600 border-emerald-600/20">
+              {t('vote.free')}
+            </Badge>
+          )}
+
+          {/* Controller support */}
+          {game.controllerSupport && (
+            <Badge variant="secondary" className="gap-1">
+              <Gamepad2 className="w-3 h-3" />
+              {t('vote.controllerSupport', { level: game.controllerSupport })}
+            </Badge>
+          )}
+
+          {/* Release date */}
+          {game.releaseDate && (
+            <Badge variant="outline">
+              {game.releaseDate}
+            </Badge>
+          )}
+        </div>
+
+        {/* Platforms */}
+        {game.platforms && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">{t('vote.platforms')}:</span>
+            <div className="flex gap-2">
+              {game.platforms.windows && (
+                <span className="flex items-center gap-1 text-xs text-foreground" title="Windows">
+                  <Monitor className="w-3.5 h-3.5" />
+                  Windows
+                </span>
+              )}
+              {game.platforms.mac && (
+                <span className="flex items-center gap-1 text-xs text-foreground" title="macOS">
+                  <Apple className="w-3.5 h-3.5" />
+                  Mac
+                </span>
+              )}
+              {game.platforms.linux && (
+                <span className="flex items-center gap-1 text-xs text-foreground" title="Linux">
+                  <Monitor className="w-3.5 h-3.5" />
+                  Linux
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Genres */}
+        {game.genres && game.genres.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {game.genres.map(genre => (
+              <Badge key={genre.id} variant="secondary" className="text-xs">
+                {genre.description}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* Short description */}
+        {game.shortDescription && (
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {game.shortDescription}
+          </p>
+        )}
+
+        {/* Footer actions */}
+        <ResponsiveDialogFooter className="flex flex-col sm:flex-row gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="gap-1.5"
+          >
+            <a href={steamStoreUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="w-4 h-4" />
+              {t('vote.viewOnSteam')}
+            </a>
+          </Button>
+
+          <Button
+            variant={isSelected ? 'secondary' : 'default'}
+            size="sm"
+            onClick={() => onToggle(game.steamAppId)}
+            className="gap-1.5"
+          >
+            <Check className={`w-4 h-4 ${isSelected ? '' : 'opacity-0'}`} />
+            {isSelected ? t('vote.deselect') : t('vote.select')}
+          </Button>
+        </ResponsiveDialogFooter>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

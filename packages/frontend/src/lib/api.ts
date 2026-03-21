@@ -93,7 +93,12 @@ export const api = {
   // Voting
   getVoteSession: (groupId: string) => request<{
     session: { id: string; groupId: string; status: string; createdBy: string; scheduledAt: string | null; createdAt: string } | null;
-    games: { steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string }[];
+    games: {
+      steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string;
+      shortDescription: string | null; genres: { id: string; description: string }[] | null;
+      metacriticScore: number | null; platforms: { windows: boolean; mac: boolean; linux: boolean } | null;
+      releaseDate: string | null; controllerSupport: string | null; isFree: boolean | null; type: string | null;
+    }[];
     myVotes: { steamAppId: number; gameId?: string; vote: boolean }[];
     voterCount: number; totalMembers: number; isParticipant: boolean; participantIds: string[];
   }>(`/groups/${groupId}/vote`),

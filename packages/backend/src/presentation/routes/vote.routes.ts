@@ -65,10 +65,24 @@ router.get('/:groupId/vote', async (req: Request, res: Response) => {
     .where({ session_id: session.id, user_id: userId })
     .select('steam_app_id as steamAppId', 'game_id as gameId', 'vote')
 
-  // Get the games in this session
+  // Get the games in this session, joined with metadata for detail view
   const games = await db('voting_session_games')
+    .leftJoin('game_metadata', 'voting_session_games.steam_app_id', 'game_metadata.steam_app_id')
     .where({ session_id: session.id })
-    .select('steam_app_id as steamAppId', 'game_id as gameId', 'game_name as gameName', 'header_image_url as headerImageUrl')
+    .select(
+      'voting_session_games.steam_app_id as steamAppId',
+      'voting_session_games.game_id as gameId',
+      'voting_session_games.game_name as gameName',
+      'voting_session_games.header_image_url as headerImageUrl',
+      'game_metadata.short_description as shortDescription',
+      'game_metadata.genres',
+      'game_metadata.metacritic_score as metacriticScore',
+      'game_metadata.platforms',
+      'game_metadata.release_date as releaseDate',
+      'game_metadata.controller_support as controllerSupport',
+      'game_metadata.is_free as isFree',
+      'game_metadata.type'
+    )
 
   // Get participant IDs
   const participantIds = totalParticipants > 0

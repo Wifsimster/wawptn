@@ -184,7 +184,15 @@
     "scheduledCountdown": "Gaming night starts in...",
     "scheduledDate": "{{date}}",
     "rematch": "Start a rematch",
-    "rematchError": "Unable to start rematch"
+    "rematchError": "Unable to start rematch",
+    "gameDetails": "View game details",
+    "gameDetailsFor": "Details for {{name}}",
+    "viewOnSteam": "View on Steam",
+    "select": "Select",
+    "deselect": "Deselect",
+    "platforms": "Platforms",
+    "free": "Free",
+    "controllerSupport": "Controller: {{level}}"
   },
   "join": {
     "invited": "You've been invited!",

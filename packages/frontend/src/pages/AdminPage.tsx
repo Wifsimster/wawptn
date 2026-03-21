@@ -29,6 +29,7 @@ interface BotSettings {
   wednesday_schedule: string
   schedule_timezone: string
   disabled_personas: string[]
+  announce_persona_change: boolean
 }
 
 interface AdminStats {
@@ -187,6 +188,20 @@ export function AdminPage() {
                   />
                   <label htmlFor="persona-rotation" className="text-sm font-medium cursor-pointer">
                     Rotation des personas activée
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id="announce-persona-change"
+                    checked={settings.announce_persona_change}
+                    onCheckedChange={(checked) =>
+                      setSettings({ ...settings, announce_persona_change: checked === true })
+                    }
+                    disabled={!settings.persona_rotation_enabled}
+                  />
+                  <label htmlFor="announce-persona-change" className={`text-sm font-medium cursor-pointer ${!settings.persona_rotation_enabled ? 'text-muted-foreground' : ''}`}>
+                    Annoncer le changement de persona à minuit
                   </label>
                 </div>
 

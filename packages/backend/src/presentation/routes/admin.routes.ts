@@ -36,6 +36,7 @@ router.patch('/bot-settings', async (req: Request, res: Response) => {
     'wednesday_schedule',
     'schedule_timezone',
     'disabled_personas',
+    'announce_persona_change',
   ])
 
   const invalidKeys = Object.keys(updates).filter(k => !allowedKeys.has(k))

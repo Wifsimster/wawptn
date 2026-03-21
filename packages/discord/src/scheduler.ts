@@ -8,6 +8,7 @@ import { getTodayPersona, getDefaultPersona } from './personas.js'
 let currentSettings: BotSettings | null = null
 let fridayTask: ScheduledTask | null = null
 let weekdayTask: ScheduledTask | null = null
+let personaAnnounceTask: ScheduledTask | null = null
 
 function getPersona() {
   if (currentSettings && !currentSettings.persona_rotation_enabled) {
@@ -29,6 +30,37 @@ function buildReminderEmbed(message: string): EmbedBuilder {
     .setDescription(message)
     .setColor(persona.embedColor)
     .setFooter({ text: `WAWPTN — ${persona.name}` })
+}
+
+async function sendPersonaAnnouncement(client: Client): Promise<void> {
+  try {
+    const channels = await getLinkedChannels()
+
+    if (channels.length === 0) {
+      console.log('[scheduler] No linked channels found, skipping persona announcement')
+      return
+    }
+
+    const persona = getPersona()
+    const embed = new EmbedBuilder()
+      .setDescription(persona.introMessage)
+      .setColor(persona.embedColor)
+      .setFooter({ text: `WAWPTN — Persona du jour : ${persona.name}` })
+
+    for (const { channelId, groupName } of channels) {
+      try {
+        const channel = await client.channels.fetch(channelId)
+        if (channel?.isTextBased()) {
+          await (channel as TextChannel).send({ embeds: [embed] })
+          console.log(`[scheduler] Sent persona announcement to channel ${channelId} (${groupName})`)
+        }
+      } catch (err) {
+        console.error(`[scheduler] Failed to send persona announcement to channel ${channelId} (${groupName}):`, err)
+      }
+    }
+  } catch (err) {
+    console.error('[scheduler] Failed to send persona announcement:', err)
+  }
 }
 
 async function sendToLinkedChannels(client: Client, pool: string[]): Promise<void> {
@@ -73,6 +105,7 @@ function scheduleCrons(client: Client, settings: BotSettings): void {
   // Stop existing tasks
   fridayTask?.stop()
   weekdayTask?.stop()
+  personaAnnounceTask?.stop()
 
   const timezone = settings.schedule_timezone || 'Europe/Paris'
 
@@ -103,6 +136,18 @@ function scheduleCrons(client: Client, settings: BotSettings): void {
   } else {
     console.error(`[scheduler] Invalid weekday cron: ${settings.wednesday_schedule}`)
   }
+
+  // Persona change announcement at midnight
+  if (settings.announce_persona_change && settings.persona_rotation_enabled) {
+    personaAnnounceTask = cron.schedule('0 0 * * *', () => {
+      console.log('[scheduler] Midnight persona announcement triggered')
+      void sendPersonaAnnouncement(client)
+    }, { timezone })
+    console.log(`[scheduler] Persona announcement: 0 0 * * * (${timezone})`)
+  } else {
+    personaAnnounceTask = null
+    console.log('[scheduler] Persona announcement: disabled')
+  }
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -122,7 +167,9 @@ export async function startScheduler(client: Client): Promise<void> {
       const changed =
         newSettings.friday_schedule !== currentSettings!.friday_schedule ||
         newSettings.wednesday_schedule !== currentSettings!.wednesday_schedule ||
-        newSettings.schedule_timezone !== currentSettings!.schedule_timezone
+        newSettings.schedule_timezone !== currentSettings!.schedule_timezone ||
+        newSettings.announce_persona_change !== currentSettings!.announce_persona_change ||
+        newSettings.persona_rotation_enabled !== currentSettings!.persona_rotation_enabled
 
       currentSettings = newSettings
 

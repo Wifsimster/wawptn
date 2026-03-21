@@ -1,10 +1,10 @@
 # Bot Discord
 
-Architecture, commandes et flux de vote du bot Discord WAWPTN. Ce document s'adresse aux développeurs et au Product Owner souhaitant comprendre l'intégration Discord.
+Architecture, commandes, personas IA et flux de vote du bot Discord WAWPTN. Ce document s'adresse aux développeurs et au Product Owner souhaitant comprendre l'intégration Discord.
 
 ## Vue d'ensemble
 
-Le bot Discord permet aux joueurs de voter sur les jeux et de consulter les résultats directement dans un canal Discord, sans ouvrir le site web.
+Le bot Discord permet aux joueurs de voter sur les jeux et de consulter les résultats directement dans un canal Discord, sans ouvrir le site web. Il adopte une personnalité différente grâce à un système de **personas IA**.
 
 ```mermaid
 graph LR
@@ -26,6 +26,8 @@ Le bot vit dans `packages/discord/` comme workspace séparé du monorepo.
 | Bot Discord.js | Gère les commandes slash et les interactions boutons |
 | Backend API | Traite les votes et gère les données |
 | Webhooks Discord | Envoient les notifications dans les canaux |
+| Personas IA | Personnalités interchangeables du bot |
+| Planificateur | Envoie des rappels et crée des sessions automatiques |
 
 > **Détail technique** — Le bot et le backend partagent un secret (`DISCORD_BOT_API_SECRET`). Le bot envoie ce secret via le header `Authorization: Bot <secret>` et l'identifiant Discord via `X-Discord-User-Id`. Le middleware backend résout automatiquement l'utilisateur WAWPTN correspondant.
 
@@ -85,6 +87,77 @@ sequenceDiagram
 ```
 
 Les votes Discord sont traités exactement comme les votes web. Le même utilisateur peut voter depuis les deux canaux sans conflit, grâce à la contrainte d'unicité en base de données.
+
+## Personas IA
+
+Le bot dispose d'un système de **personas** qui lui confèrent des personnalités distinctes. Chaque persona définit un ton, des messages contextuels et une couleur d'embed.
+
+### Personas par défaut
+
+| Persona | Style | Couleur |
+|---------|-------|---------|
+| **Le Pote Sarcastique** | Drôle et taquin, mais bienveillant | Bleu Discord |
+| **Le Narrateur Dramatique** | Épique et théâtral, chaque vote est une quête | Violet |
+| **Le Coach Motivation** | Ultra-positif et encourageant | Jaune |
+| **Le Pince-Sans-Rire** | Humour sec, air blasé mais investi | Gris |
+| **Le Nostalgique Rétro** | Références aux classiques, ton chaleureux | Orange |
+| **Le Compétiteur** | Challengeur et fair-play, tout est un défi | Rouge |
+| **Le Philosophe Zen** | Calme et contemplatif, proverbes inventés | Vert |
+
+### Rotation des personas
+
+La rotation est automatique et configurable via le panneau d'administration :
+
+- **Activation/désactivation** de la rotation
+- **Exclusion** de personas spécifiques
+- **Annonce** optionnelle du changement de persona dans les canaux
+
+### Messages contextuels
+
+Chaque persona possède des banques de messages adaptées au contexte :
+
+| Contexte | Déclencheur |
+|----------|------------|
+| **Vendredi soir** | Rappel planifié (par défaut 21h) |
+| **En semaine** | Rappel planifié (par défaut mercredi 17h) |
+| **Retour en ligne** | Après un redémarrage du bot |
+| **Mention vide** | Quand un utilisateur mentionne le bot sans message |
+
+### Personas personnalisées
+
+Les administrateurs peuvent créer de nouvelles personas via le panneau d'administration (`/api/admin/personas`). Une persona personnalisée définit :
+
+- Un identifiant unique (kebab-case)
+- Un nom affiché
+- Un prompt de personnalité pour le LLM
+- Des banques de messages pour chaque contexte
+- Une couleur d'embed Discord
+
+> **Détail technique** — Les personas par défaut ne peuvent pas être supprimées. Elles peuvent être désactivées pour les exclure de la rotation.
+
+## Planification automatique
+
+Le bot intègre un planificateur pour les rappels et les sessions automatiques.
+
+### Rappels Discord
+
+Le planificateur envoie des messages de rappel dans les canaux liés :
+
+| Planning | Par défaut | Description |
+|----------|-----------|-------------|
+| Vendredi soir | `0 21 * * 5` (21h) | Rappel pour lancer un vote |
+| En semaine | `0 17 * * 3` (mercredi 17h) | Suggestion de session improvisée |
+
+Ces plannings sont configurables via le panneau d'administration.
+
+### Votes automatiques par groupe
+
+Chaque groupe peut configurer un **planning de vote automatique** :
+
+- **Expression cron** — Définit quand la session est créée (ex : `0 20 * * 5`)
+- **Durée** — Temps avant clôture automatique (défaut : 120 minutes)
+
+Le planificateur crée automatiquement la session et la clôture à l'échéance.
 
 ## Notifications automatiques
 

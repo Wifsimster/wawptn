@@ -20,13 +20,15 @@ Application web qui aide un groupe d'amis à choisir ensemble à quel jeu vidéo
 | [Architecture API](docs/api-architecture.md) | Routes REST, événements WebSocket, API Discord et flux de vote |
 | [Schéma de base de données](docs/database-schema.md) | Structure des tables et leurs relations |
 | [Intégration Steam](docs/steam-integration.md) | Authentification OpenID 2.0, synchronisation et protections |
-| [Bot Discord](docs/discord-bot.md) | Architecture du bot, commandes slash et flux de vote Discord |
+| [Bot Discord](docs/discord-bot.md) | Architecture du bot, commandes slash, personas IA et flux de vote |
 
 ## À quoi sert ce produit ?
 
 - **Trouver un jeu commun** parmi les bibliothèques de tous les membres du groupe
-- **Supporter plusieurs plateformes** — Steam, Epic Games, GOG Galaxy- **Créer des groupes** et inviter vos amis via un lien sécurisé à usage limité
+- **Supporter plusieurs plateformes** — Steam, Epic Games, GOG Galaxy
+- **Créer des groupes** et inviter vos amis via un lien sécurisé à usage limité
 - **Voter** pour ou contre chaque jeu proposé, depuis le site ou depuis Discord
+- **Recevoir des recommandations** de jeux basées sur l'historique de votes du groupe
 - **Suivre en temps réel** l'avancement des votes de chaque participant
 - **Lancer le jeu choisi** directement depuis Steam une fois le résultat révélé
 
@@ -36,11 +38,20 @@ Application web qui aide un groupe d'amis à choisir ensemble à quel jeu vidéo
 - **Multi-plateforme** — Liez vos comptes Epic Games et GOG pour élargir la liste de jeux
 - **Gestion de groupes** — Création, invitation par lien sécurisé avec expiration
 - **Détection des jeux communs** — Calcul automatique des jeux partagés entre les membres
+- **Filtres de jeux** — Affinez la sélection par catégorie (multijoueur, coopératif) lors du vote
 - **Sessions de vote** — Vote pouce haut / pouce bas sur chaque jeu commun
 - **Votes planifiés** — Programmez une session qui se clôture automatiquement
+- **Votes automatiques** — Configurez un planning récurrent par groupe (ex : chaque vendredi soir)
+- **Recommandations IA** — Suggestions de jeux basées sur l'historique de votes du groupe
+- **Historique et statistiques** — Consultez les résultats passés et les tendances du groupe
+- **Fiche de jeu détaillée** — Description, métadonnées et image pour chaque jeu
 - **Bot Discord** — Votez et consultez les résultats directement dans un canal Discord
+- **Personas IA** — Le bot Discord change de personnalité (7 personas par défaut, personnalisables)
 - **Temps réel** — Suivi en direct de la progression des votes via WebSocket
 - **Révélation du résultat** — Affichage du jeu gagnant avec lancement Steam en un clic
+- **Notifications configurables** — Désactivez les notifications par groupe si souhaité
+- **Application installable** — PWA (Progressive Web App) pour un accès rapide depuis mobile ou bureau
+- **Panneau d'administration** — Gestion des utilisateurs, des personas et des paramètres du bot
 
 ## Comment ça fonctionne
 
@@ -61,7 +72,7 @@ Le joueur se connecte via Steam. L'application récupère ses bibliothèques de 
 
 ## Bot Discord
 
-Le bot Discord permet de voter et de consulter les résultats sans quitter Discord.
+Le bot Discord permet de voter et de consulter les résultats sans quitter Discord. Il adopte une personnalité différente chaque jour grâce à un système de personas IA.
 
 ```mermaid
 graph LR
@@ -77,6 +88,7 @@ graph LR
 - `/wawptn-games` — Affiche les jeux en commun du groupe
 - **Vote par boutons** — Votez directement sur les embeds Discord
 - **Notifications automatiques** — Le canal reçoit les créations de session et les résultats
+- **Personas rotatives** — Le bot change de personnalité automatiquement (sarcastique, dramatique, coach, zen…)
 
 ## Environnements
 
@@ -98,16 +110,16 @@ graph LR
     C -->|Non| H[Notification erreur]
 ```
 
-Le pipeline CI/CD (Intégration et Déploiement Continus) se déclenche à chaque push sur `main`. GitHub Actions vérifie le code, incrémente la version, construit l'image Docker multi-architecture et la publie sur Docker Hub. Watchtower met à jour automatiquement les conteneurs en production. Traefik gère le routage HTTPS.
+Le pipeline CI/CD (Intégration et Déploiement Continus) se déclenche à chaque push sur `main`. GitHub Actions vérifie le code, incrémente la version, construit l'image Docker et la publie sur Docker Hub. Le déploiement en production est automatique via un runner dédié. Traefik gère le routage HTTPS.
 
 L'image Docker contient le backend, le frontend et le bot Discord. En production, deux services tournent : le serveur principal et le bot Discord (sidecar).
 
 ## Stack technique
 
-- **Frontend :** React 19, TypeScript, TailwindCSS v4, Zustand, Framer Motion
-- **Backend :** Node.js 24, Express 5, Socket.io, Zod
-- **Bot Discord :** Discord.js 14, TypeScript
-- **Base de données :** PostgreSQL 16, Knex.js
+- **Frontend :** React 19, TypeScript, TailwindCSS v4, Zustand, Framer Motion, i18next, PWA
+- **Backend :** Node.js 24, Express 5, Socket.io, Zod, Knex.js
+- **Bot Discord :** Discord.js 14, TypeScript, Personas IA
+- **Base de données :** PostgreSQL 16
 - **Infrastructure :** Docker, Docker Compose, Traefik, GitHub Actions CI/CD
 
 ## Documentation complémentaire
@@ -115,4 +127,4 @@ L'image Docker contient le backend, le frontend et le bot Discord. En production
 - [Architecture API](docs/api-architecture.md) — Routes REST, événements WebSocket, API Discord et flux de vote
 - [Schéma de base de données](docs/database-schema.md) — Structure des tables et leurs relations
 - [Intégration Steam](docs/steam-integration.md) — Authentification OpenID 2.0, synchronisation et protections
-- [Bot Discord](docs/discord-bot.md) — Architecture du bot, commandes slash et flux de vote Discord
+- [Bot Discord](docs/discord-bot.md) — Architecture du bot, commandes slash, personas IA et flux de vote Discord

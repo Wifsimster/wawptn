@@ -37,6 +37,7 @@ Utilisateurs authentifiés via Steam.
 | `profile_url` | VARCHAR | — | URL du profil Steam |
 | `email` | VARCHAR | — | Email (optionnel) |
 | `library_visible` | BOOLEAN | défaut `true` | Bibliothèque accessible |
+| `is_admin` | BOOLEAN | défaut `false` | Rôle administrateur |
 | `created_at` | TIMESTAMP | auto | Date de création |
 | `updated_at` | TIMESTAMP | auto | Dernière modification |
 
@@ -86,6 +87,8 @@ Groupes de joueurs.
 | `invite_use_count` | INTEGER | défaut `0` | Nombre d'utilisations |
 | `invite_max_uses` | INTEGER | défaut `10` | Utilisations maximales |
 | `common_game_threshold` | INTEGER | nullable | Seuil de jeux communs |
+| `auto_vote_schedule` | VARCHAR(50) | nullable | Expression cron du vote automatique |
+| `auto_vote_duration_minutes` | INTEGER | nullable, défaut `120` | Durée du vote automatique (minutes) |
 | `discord_channel_id` | VARCHAR | nullable | Canal Discord lié |
 | `discord_guild_id` | VARCHAR | nullable | Serveur Discord lié |
 | `discord_webhook_url` | TEXT | nullable | URL du webhook Discord |
@@ -101,6 +104,7 @@ Appartenance des utilisateurs aux groupes.
 | `group_id` | UUID | PK, FK → groups, CASCADE | Groupe |
 | `user_id` | UUID | PK, FK → users, CASCADE | Membre |
 | `role` | ENUM | `owner` ou `member` | Rôle dans le groupe |
+| `notifications_enabled` | BOOLEAN | défaut `true` | Notifications activées pour ce membre |
 | `joined_at` | TIMESTAMP | auto | Date d'adhésion |
 
 > **Détail technique** — Clé primaire composite `(group_id, user_id)` pour empêcher les doublons.
@@ -236,6 +240,49 @@ Codes temporaires pour le flux de liaison Discord.
 | `expires_at` | TIMESTAMP | NOT NULL | Expiration (10 minutes) |
 | `created_at` | TIMESTAMP | auto | Date de création |
 
+### app_settings
+
+Paramètres applicatifs configurables à chaud (bot Discord, planification).
+
+| Colonne | Type | Contrainte | Description |
+|---------|------|------------|-------------|
+| `key` | VARCHAR(100) | PK | Clé du paramètre |
+| `value` | JSONB | NOT NULL | Valeur sérialisée en JSON |
+| `updated_at` | TIMESTAMP | auto | Dernière modification |
+
+**Paramètres par défaut :**
+
+| Clé | Valeur par défaut | Description |
+|-----|-------------------|-------------|
+| `bot.persona_rotation_enabled` | `true` | Rotation automatique des personas |
+| `bot.friday_schedule` | `"0 21 * * 5"` | Cron du rappel vendredi (21h) |
+| `bot.wednesday_schedule` | `"0 17 * * 3"` | Cron du rappel mercredi (17h) |
+| `bot.schedule_timezone` | `"Europe/Paris"` | Fuseau horaire du planificateur |
+| `bot.announce_persona_change` | `false` | Annoncer le changement de persona |
+| `bot.disabled_personas` | `[]` | Personas exclues de la rotation |
+
+### personas
+
+Personnalités du bot Discord avec messages contextuels.
+
+| Colonne | Type | Contrainte | Description |
+|---------|------|------------|-------------|
+| `id` | VARCHAR(50) | PK | Identifiant kebab-case |
+| `name` | VARCHAR(100) | NOT NULL | Nom affiché de la persona |
+| `system_prompt_overlay` | TEXT | NOT NULL | Instructions de personnalité pour le LLM |
+| `friday_messages` | JSONB | NOT NULL | Messages du vendredi soir |
+| `weekday_messages` | JSONB | NOT NULL | Messages en semaine |
+| `back_online_messages` | JSONB | NOT NULL | Messages au retour en ligne |
+| `empty_mention_reply` | TEXT | NOT NULL | Réponse si mentionné sans contenu |
+| `intro_message` | TEXT | NOT NULL | Message d'introduction |
+| `embed_color` | INTEGER | NOT NULL | Couleur des embeds Discord |
+| `is_active` | BOOLEAN | défaut `true` | Persona active |
+| `is_default` | BOOLEAN | défaut `false` | Persona livrée par défaut (non supprimable) |
+| `created_at` | TIMESTAMP | auto | Date de création |
+| `updated_at` | TIMESTAMP | auto | Dernière modification |
+
+> **Détail technique** — 7 personas par défaut sont créées à la migration. Les personas par défaut ne peuvent pas être supprimées via l'API admin.
+
 ## Migrations
 
 Les migrations sont gérées par **Knex.js** dans `packages/backend/migrations/`.
@@ -243,9 +290,18 @@ Les migrations sont gérées par **Knex.js** dans `packages/backend/migrations/`
 | Fichier | Description |
 |---------|-------------|
 | `20260306_initial_schema.ts` | Création des tables de base |
-| `20260308_better_auth_migration.ts` | Adaptation du schéma d'authentification (legacy name) |
-| `20260308_games_schema_generalization.ts` | Catalogue de jeux canonique et multi-plateforme |
+| `20260307_add_game_extended_metadata.ts` | Métadonnées enrichies des jeux |
+| `20260307_add_game_filters.ts` | Filtrage par catégorie |
+| `20260307_add_voting_session_participants.ts` | Suivi des participants par session |
+| `20260308_better_auth_migration.ts` | Adaptation du schéma d'authentification |
+| `20260308_games_schema_generalization.ts` | Catalogue de jeux canonique multi-plateforme |
 | `20260308_add_scheduled_at.ts` | Votes planifiés avec clôture automatique |
 | `20260308_accounts_unique_constraints.ts` | Contraintes de liaison multi-plateforme |
 | `20260308_epic_games_support.ts` | Support Epic Games |
 | `20260314_discord_support.ts` | Tables Discord et colonnes de liaison |
+| `20260321_add_admin_role.ts` | Rôle admin et table `app_settings` |
+| `20260321_add_personas_table.ts` | Table `personas` avec 7 personas par défaut |
+| `20260321_add_announce_persona_setting.ts` | Paramètre d'annonce de changement de persona |
+| `20260321_add_auto_vote_schedule.ts` | Planning de vote automatique par groupe |
+| `20260321_add_disabled_personas.ts` | Paramètre de personas désactivées |
+| `20260321_add_notifications_enabled.ts` | Notification opt-out par membre et par groupe |

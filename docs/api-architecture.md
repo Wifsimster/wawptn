@@ -32,8 +32,13 @@ Toutes les routes sont préfixées par `/api`.
 | POST | `/api/groups/:id/invite` | Génère un nouveau lien d'invitation |
 | POST | `/api/groups/join` | Rejoint un groupe via un token d'invitation |
 | DELETE | `/api/groups/:id/members/:userId` | Quitte un groupe ou exclut un membre |
+| PATCH | `/api/groups/:id/notifications` | Active ou désactive les notifications pour le membre |
+| PATCH | `/api/groups/:id/auto-vote` | Configure le planning de vote automatique du groupe |
 | GET | `/api/groups/:id/common-games` | Liste les jeux communs du groupe |
+| POST | `/api/groups/:id/common-games/preview` | Prévisualise les jeux communs pour un sous-ensemble de membres |
+| GET | `/api/groups/:id/stats` | Statistiques et historique de vote du groupe |
 | POST | `/api/groups/:id/sync` | Synchronise les bibliothèques de tous les membres |
+| GET | `/api/groups/:id/recommendations` | Recommandations de jeux basées sur l'historique de votes |
 
 ### Vote
 
@@ -44,6 +49,23 @@ Toutes les routes sont préfixées par `/api`.
 | POST | `/api/groups/:groupId/vote/:sessionId` | Enregistre un vote (pour ou contre) |
 | POST | `/api/groups/:groupId/vote/:sessionId/close` | Clôture le vote et calcule le gagnant |
 | GET | `/api/groups/:groupId/vote/history` | Historique des 10 dernières sessions |
+
+### Administration (requiert le rôle admin)
+
+Routes accessibles uniquement aux utilisateurs ayant `is_admin = true`.
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| GET | `/api/admin/bot-settings` | Récupère les paramètres du bot Discord |
+| PATCH | `/api/admin/bot-settings` | Modifie les paramètres du bot Discord |
+| GET | `/api/admin/users` | Liste tous les utilisateurs |
+| PATCH | `/api/admin/users/:id/admin` | Attribue ou révoque le rôle administrateur |
+| GET | `/api/admin/personas` | Liste toutes les personas du bot |
+| POST | `/api/admin/personas` | Crée une nouvelle persona |
+| PATCH | `/api/admin/personas/:id` | Modifie une persona existante |
+| DELETE | `/api/admin/personas/:id` | Supprime une persona (sauf celles par défaut) |
+| PATCH | `/api/admin/personas/:id/toggle` | Active ou désactive une persona |
+| GET | `/api/admin/stats` | Statistiques globales (utilisateurs, groupes, sessions) |
 
 ### Discord (feature-flagged)
 
@@ -93,6 +115,27 @@ sequenceDiagram
 
 Le créateur de la session ou le propriétaire du groupe peut clôturer le vote. Le jeu ayant le plus de votes positifs gagne. En cas d'égalité, un tirage au sort départage les candidats. Les notifications Discord sont envoyées en parallèle, sans bloquer le flux principal.
 
+## Flux de vote automatique
+
+```mermaid
+sequenceDiagram
+    participant CRON as Planificateur
+    participant API as Backend
+    participant WS as WebSocket
+    participant D as Discord
+
+    CRON->>API: Déclenchement planifié
+    API->>API: Création de session automatique
+    API->>WS: session:created
+    API->>D: Webhook embed avec jeux
+    Note over CRON,D: Durée configurée (défaut 2h)
+    CRON->>API: Clôture automatique
+    API->>WS: vote:closed (résultat)
+    API->>D: Webhook embed résultat
+```
+
+Chaque groupe peut configurer un planning de vote automatique (expression cron). Le planificateur crée la session et la clôture automatiquement après la durée configurée.
+
 ## Événements WebSocket
 
 Le serveur WebSocket utilise Socket.io sur le chemin `/socket.io`. L'authentification se fait par cookie de session.
@@ -130,6 +173,7 @@ Le serveur WebSocket utilise Socket.io sur le chemin `/socket.io`. L'authentific
 | REST (utilisateur) | Cookie signé `wawptn.session_token` | Vérifié par le middleware `requireAuth` |
 | WebSocket | Cookie transmis via le handshake | Vérifié à chaque connexion |
 | REST (bot Discord) | Header `Authorization: Bot <secret>` | Vérifié par le middleware `requireBotAuth` |
+| REST (admin) | Cookie + vérification `is_admin` | Vérifié par le middleware `requireAdmin` |
 | Session | Durée de 7 jours | Token de 32 octets aléatoires |
 
 > **Détail technique** — Le middleware bot résout automatiquement le header `X-Discord-User-Id` vers un `userId` WAWPTN via la table `discord_links`.

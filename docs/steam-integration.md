@@ -1,6 +1,6 @@
 # Intégration Steam
 
-Ce document décrit le flux d'authentification Steam OpenID 2.0, la synchronisation des bibliothèques de jeux et les mécanismes de protection contre les surcharges de l'API Steam.
+Ce document décrit le flux d'authentification Steam OpenID 2.0, la synchronisation des bibliothèques de jeux et les mécanismes de protection contre les surcharges de l'API Steam. Il s'adresse aux développeurs et au Product Owner.
 
 ## Authentification OpenID 2.0
 

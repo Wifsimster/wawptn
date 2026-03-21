@@ -68,6 +68,7 @@
     "multiplayerOnly": "Multijoueur",
     "coopOnly": "Coopératif",
     "metacritic": "Metacritic",
+    "metacriticTooltip": "Score Metacritic : {{score}}/100",
     "allScores": "Tous",
     "genres": "Genres",
     "clearGenres": "Effacer",

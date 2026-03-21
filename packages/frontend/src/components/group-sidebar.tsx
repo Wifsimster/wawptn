@@ -101,7 +101,14 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
             loading="lazy"
           />
           <div className="flex-1 min-w-0">
-            <p className={`text-sm font-medium truncate ${index === 0 ? 'text-primary' : ''}`}>{session.winningGameName}</p>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className={`text-sm font-medium truncate ${index === 0 ? 'text-primary' : ''}`}>{session.winningGameName}</p>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                {session.winningGameName}
+              </TooltipContent>
+            </Tooltip>
             <p className="text-xs text-muted-foreground">
               {new Intl.DateTimeFormat(i18n.language, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(session.closedAt))}
             </p>
@@ -166,7 +173,14 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
               />
             </div>
             <div className="flex-1 min-w-0 flex items-center gap-1.5">
-              <span className={`text-sm font-medium truncate ${!isOnline ? 'text-muted-foreground' : ''}`}>{member.displayName}</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className={`text-sm font-medium truncate ${!isOnline ? 'text-muted-foreground' : ''}`}>{member.displayName}</span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  {member.displayName}
+                </TooltipContent>
+              </Tooltip>
               {member.role === 'owner' && (
                 <Crown className="w-4 h-4 text-amber-500 shrink-0" aria-label={t('group.roleOwner')} />
               )}
@@ -175,15 +189,22 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
               <span className="text-xs text-destructive">{t('group.privateLibrary')}</span>
             )}
             {isOwner && !isSelf && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`h-7 w-7 text-muted-foreground hover:text-destructive ${compact ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}
-                onClick={() => setConfirmKick(member)}
-                aria-label={t('group.kickMember', { name: member.displayName })}
-              >
-                <UserMinus className="w-3.5 h-3.5" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-7 w-7 text-muted-foreground hover:text-destructive ${compact ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}
+                    onClick={() => setConfirmKick(member)}
+                    aria-label={t('group.kickMember', { name: member.displayName })}
+                  >
+                    <UserMinus className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="text-xs">
+                  {t('group.kickMember', { name: member.displayName })}
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
         )

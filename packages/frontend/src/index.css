@@ -42,10 +42,11 @@
   --success: oklch(0.723 0.191 142.5);
   --reward: oklch(0.795 0.160 75);
   --reward-foreground: oklch(0.25 0.05 75);
+  --neon: oklch(0.78 0.18 195);
 }
 
 @theme inline {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-heading: "Syne", ui-sans-serif, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -85,6 +86,7 @@
   --color-success: var(--success);
   --color-reward: var(--reward);
   --color-reward-foreground: var(--reward-foreground);
+  --color-neon: var(--neon);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -160,25 +162,54 @@
     animation: none;
     opacity: 0.10;
   }
+  .landing-premium-card {
+    animation: none;
+  }
 }
 
 /* Landing page utilities */
 .landing-gradient-text {
-  background: linear-gradient(135deg, oklch(0.65 0.22 265), oklch(0.75 0.16 235), oklch(0.60 0.20 275));
+  background: linear-gradient(135deg, oklch(0.72 0.22 270), oklch(0.80 0.18 220), oklch(0.72 0.20 195), oklch(0.65 0.22 270));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-.landing-dot-grid {
-  background-image: radial-gradient(circle, oklch(1 0 0 / 0.04) 1px, transparent 1px);
-  background-size: 24px 24px;
+.landing-question-mark {
+  color: oklch(0.50 0.20 265 / 0.05);
+  text-shadow:
+    0 0 60px oklch(0.50 0.20 265 / 0.08),
+    0 0 120px oklch(0.50 0.20 265 / 0.04);
+}
+
+.landing-glass-card {
+  background: oklch(1 0 0 / 0.02);
+  border: 1px solid oklch(1 0 0 / 0.06);
+  backdrop-filter: blur(12px);
 }
 
 .landing-premium-card {
-  background: oklch(0.205 0 0 / 0.8);
-  border: 1px solid oklch(0.424 0.199 265.638 / 0.35);
+  background: oklch(0.18 0.02 270 / 0.7);
+  border: 1px solid oklch(0.424 0.199 265.638 / 0.25);
+  backdrop-filter: blur(16px);
   box-shadow:
-    0 0 40px oklch(0.424 0.199 265.638 / 0.08),
+    0 0 50px oklch(0.424 0.199 265.638 / 0.08),
+    0 0 100px oklch(0.424 0.199 265.638 / 0.04),
     inset 0 1px 0 oklch(1 0 0 / 0.05);
+  animation: premium-glow 4s ease-in-out infinite;
+}
+
+@keyframes premium-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 50px oklch(0.424 0.199 265.638 / 0.08),
+      0 0 100px oklch(0.424 0.199 265.638 / 0.04),
+      inset 0 1px 0 oklch(1 0 0 / 0.05);
+  }
+  50% {
+    box-shadow:
+      0 0 60px oklch(0.424 0.199 265.638 / 0.12),
+      0 0 120px oklch(0.424 0.199 265.638 / 0.06),
+      inset 0 1px 0 oklch(1 0 0 / 0.07);
+  }
 }

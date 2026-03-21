@@ -199,6 +199,15 @@
   animation: premium-glow 4s ease-in-out infinite;
 }
 
+.card-hover-glow {
+  transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+}
+.card-hover-glow:hover {
+  border-color: oklch(0.424 0.199 265.638 / 0.3);
+  box-shadow: 0 0 24px oklch(0.424 0.199 265.638 / 0.06);
+  transform: scale(1.01);
+}
+
 @keyframes premium-glow {
   0%, 100% {
     box-shadow:

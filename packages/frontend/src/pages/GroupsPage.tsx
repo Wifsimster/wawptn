@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Plus, LogIn, Users, Gamepad2, Trophy, Crown, Search, X, RefreshCw } from 'lucide-react'
+import { Plus, LogIn, Users, Gamepad2, Trophy, Crown, Search, X, RefreshCw, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
+import { motion, type Variants } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useGroupStore } from '@/stores/group.store'
 import { ApiError } from '@/lib/api'
@@ -19,6 +20,20 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { AppHeader } from '@/components/app-header'
 import { InviteLink } from '@/components/invite-link'
+
+const fadeUp: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+  },
+}
+
+const stagger: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06 } },
+}
 
 export function GroupsPage() {
   const { t } = useTranslation()
@@ -265,18 +280,46 @@ export function GroupsPage() {
         {/* Groups List */}
         {loading ? (
           <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-[72px] w-full rounded-lg" />
+            {[0, 1, 2].map((i) => (
+              <Skeleton
+                key={i}
+                className="h-[72px] w-full rounded-lg"
+                style={{ animationDelay: `${i * 150}ms` }}
+              />
             ))}
           </div>
         ) : groups.length === 0 ? (
-          <div className="text-center py-16">
-            <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-xl font-semibold mb-2">{t('groups.noGroups')}</h3>
-            <p className="text-muted-foreground mb-6">{t('groups.noGroupsHint')}</p>
-          </div>
+          <motion.div
+            className="text-center py-16 relative overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-heading font-extrabold text-[20vw] sm:text-[12rem] leading-none landing-question-mark pointer-events-none select-none">
+              ?
+            </span>
+            <div className="relative z-10">
+              <h3 className="text-xl font-semibold mb-2">{t('groups.noGroups')}</h3>
+              <p className="text-muted-foreground mb-6">{t('groups.noGroupsHint')}</p>
+              <div className="flex justify-center gap-3">
+                <Button variant="secondary" onClick={() => setShowJoin(true)}>
+                  <LogIn className="w-4 h-4" />
+                  {t('groups.join')}
+                </Button>
+                <Button onClick={() => setShowCreate(true)}>
+                  <Plus className="w-4 h-4" />
+                  {t('groups.create')}
+                </Button>
+              </div>
+            </div>
+          </motion.div>
         ) : filteredGroups.length === 0 && searchQuery ? (
-          <div className="text-center py-8">
+          <motion.div
+            className="text-center py-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
             <p className="text-sm text-muted-foreground mb-2">{t('groups.noSearchResults')}</p>
             <button
               type="button"
@@ -285,41 +328,59 @@ export function GroupsPage() {
             >
               {t('groups.clearSearch')}
             </button>
-          </div>
+          </motion.div>
         ) : (
-          <div className="space-y-3">
+          <motion.div
+            className="space-y-3"
+            initial="hidden"
+            animate="visible"
+            variants={stagger}
+          >
             {filteredGroups.map((group) => (
-              <Link key={group.id} to={`/groups/${group.id}`} className="block">
-                <Card className="p-4 hover:border-primary/50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold flex items-center gap-1.5">
-                        {group.name}
-                        {group.role === 'owner' && <Crown className="w-4 h-4 text-amber-500 shrink-0" />}
-                      </h3>
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Users className="w-3 h-3" />
-                          {group.memberCount}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Gamepad2 className="w-3 h-3" />
-                          {t('groups.commonGames', { count: group.commonGameCount })}
-                        </span>
-                        {group.lastSession && (
-                          <span className="flex items-center gap-1 truncate">
-                            <Trophy className="w-3 h-3 shrink-0" />
-                            <span className="truncate">{group.lastSession.gameName}</span>
+              <motion.div key={group.id} variants={fadeUp}>
+                <Link to={`/groups/${group.id}`} className="block group/card">
+                  <Card
+                    className={cn(
+                      'p-4 card-hover-glow',
+                      group.role === 'owner' && 'border-primary/15',
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold flex items-center gap-1.5">
+                          {group.name}
+                          {group.role === 'owner' && (
+                            <Crown className="w-4 h-4 text-amber-500 shrink-0" />
+                          )}
+                        </h3>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            {group.memberCount}
                           </span>
-                        )}
+                          <span className="text-muted-foreground/30">·</span>
+                          <span className="flex items-center gap-1">
+                            <Gamepad2 className="w-3 h-3" />
+                            {t('groups.commonGames', { count: group.commonGameCount })}
+                          </span>
+                          {group.lastSession && (
+                            <>
+                              <span className="text-muted-foreground/30">·</span>
+                              <span className="flex items-center gap-1 truncate">
+                                <Trophy className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{group.lastSession.gameName}</span>
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/20 shrink-0 transition-all duration-300 group-hover/card:translate-x-0.5 group-hover/card:text-muted-foreground/50" />
                     </div>
-                    <Gamepad2 className="w-5 h-5 text-muted-foreground/30 shrink-0" />
-                  </div>
-                </Card>
-              </Link>
+                  </Card>
+                </Link>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </main>
     </div>

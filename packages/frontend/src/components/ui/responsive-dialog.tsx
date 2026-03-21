@@ -28,9 +28,11 @@ interface ResponsiveDialogProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   children: React.ReactNode
+  /** Vaul snap points for mobile drawer (e.g., [0.5, 1]) */
+  snapPoints?: (number | string)[]
 }
 
-function ResponsiveDialog({ open, onOpenChange, children }: ResponsiveDialogProps) {
+function ResponsiveDialog({ open, onOpenChange, children, snapPoints }: ResponsiveDialogProps) {
   const isDesktop = useMediaQuery(DESKTOP_BREAKPOINT)
 
   if (isDesktop) {
@@ -42,7 +44,7 @@ function ResponsiveDialog({ open, onOpenChange, children }: ResponsiveDialogProp
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
+    <Drawer open={open} onOpenChange={onOpenChange} snapPoints={snapPoints}>
       {children}
     </Drawer>
   )
@@ -82,8 +84,12 @@ const ResponsiveDialogContent = React.forwardRef<
 
   return (
     <DrawerContent ref={ref} className={cn('px-4', className)} {...props}>
-      <div className="overflow-y-auto overflow-x-hidden max-h-[calc(96dvh-4rem)] px-0.5 py-2 min-w-0">
-        {children}
+      <div className="relative">
+        <div className="overflow-y-auto overflow-x-hidden max-h-[calc(96dvh-4rem)] px-0.5 py-2 min-w-0">
+          {children}
+        </div>
+        {/* Scroll fade indicator */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent" />
       </div>
     </DrawerContent>
   )

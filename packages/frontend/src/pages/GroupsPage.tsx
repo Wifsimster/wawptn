@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Plus, LogIn, Users, Gamepad2, Trophy, Crown, Search, X } from 'lucide-react'
+import { Plus, LogIn, Users, Gamepad2, Trophy, Crown, Search, X, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
+import { cn } from '@/lib/utils'
 import { useGroupStore } from '@/stores/group.store'
 import { ApiError } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -23,6 +24,10 @@ export function GroupsPage() {
   const { t } = useTranslation()
   const { groups, loading, fetchGroups, createGroup, joinGroup } = useGroupStore()
   const navigate = useNavigate()
+  const [refreshing, setRefreshing] = useState(false)
+  const [pullDistance, setPullDistance] = useState(0)
+  const touchStartY = useRef(0)
+  const mainRef = useRef<HTMLElement>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [showJoin, setShowJoin] = useState(false)
   const [groupName, setGroupName] = useState('')
@@ -44,6 +49,35 @@ export function GroupsPage() {
   useEffect(() => {
     fetchGroups()
   }, [fetchGroups])
+
+  const handlePullRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await fetchGroups()
+    setRefreshing(false)
+    setPullDistance(0)
+  }, [fetchGroups])
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (window.scrollY === 0) {
+      touchStartY.current = e.touches[0]!.clientY
+    }
+  }, [])
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (refreshing || window.scrollY > 0) return
+    const delta = e.touches[0]!.clientY - touchStartY.current
+    if (delta > 0) {
+      setPullDistance(Math.min(delta * 0.4, 80))
+    }
+  }, [refreshing])
+
+  const onTouchEnd = useCallback(() => {
+    if (pullDistance > 60) {
+      handlePullRefresh()
+    } else {
+      setPullDistance(0)
+    }
+  }, [pullDistance, handlePullRefresh])
 
   const handleCreate = async () => {
     if (!groupName.trim()) {
@@ -98,7 +132,29 @@ export function GroupsPage() {
     <div className="min-h-screen">
       <AppHeader />
 
-      <main id="main-content" className="max-w-2xl mx-auto p-4">
+      <main
+        id="main-content"
+        ref={mainRef}
+        className="max-w-2xl mx-auto p-4"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* Pull-to-refresh indicator */}
+        {(pullDistance > 0 || refreshing) && (
+          <div
+            className="flex justify-center overflow-hidden transition-all"
+            style={{ height: refreshing ? 40 : pullDistance }}
+          >
+            <div className={cn(
+              'flex items-center gap-2 text-xs text-muted-foreground',
+              refreshing && 'animate-pulse',
+            )}>
+              <RefreshCw className={cn('w-4 h-4', refreshing && 'animate-spin')} />
+              {refreshing ? t('groups.refreshing', 'Actualisation...') : pullDistance > 60 ? t('groups.releaseToRefresh', 'Relâcher pour actualiser') : t('groups.pullToRefresh', 'Tirer pour actualiser')}
+            </div>
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
           <h2 className="text-2xl font-bold">{t('groups.title')}</h2>
           <div className="flex gap-2">

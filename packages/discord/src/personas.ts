@@ -16,6 +16,8 @@ export interface Persona {
   backOnlineMessages: string[]
   /** Reply when someone @mentions the bot with an empty message */
   emptyMentionReply: string
+  /** Sent at midnight when persona rotation changes the active persona */
+  introMessage: string
   /** Discord embed accent color */
   embedColor: number
 }
@@ -63,6 +65,7 @@ const PERSONAS: Persona[] = [
       "Hop, je suis là ! Vous avez essayé de jouer sans moi ? Mauvaise idée.",
     ],
     emptyMentionReply: 'Hé ! Tu voulais me dire quelque chose ? Pose-moi une question sur tes jeux ou ton groupe !',
+    introMessage: "Salut les amis ! C'est votre pote préféré, toujours prêt à vous taquiner.",
     embedColor: 0x5865F2,
   },
 
@@ -106,6 +109,7 @@ const PERSONAS: Persona[] = [
       "Tel le phénix, je renais de mes cendres numériques. On joue ce soir ?",
     ],
     emptyMentionReply: 'Un appel silencieux résonne dans le vide... Parle, aventurier ! Que veux-tu savoir ?',
+    introMessage: "Le rideau se lève... Un nouveau chapitre commence dans cette saga épique !",
     embedColor: 0x9B59B6,
   },
 
@@ -149,6 +153,7 @@ const PERSONAS: Persona[] = [
       "De retour avec le sourire ! Vous m'avez manqué, champions ! `/wawptn-vote`",
     ],
     emptyMentionReply: 'Tu as un potentiel INCROYABLE ! Dis-moi comment je peux t\'aider avec tes jeux !',
+    introMessage: "BONJOUR LES CHAMPIONS ! Nouvelle journée, nouvelle énergie !",
     embedColor: 0xF1C40F,
   },
 
@@ -192,6 +197,7 @@ const PERSONAS: Persona[] = [
       "Retour en ligne. Pas la peine d'applaudir.",
     ],
     emptyMentionReply: 'Tu m\'as mentionné sans rien dire. C\'est... un choix.',
+    introMessage: "Me revoilà. Essayez de contenir votre enthousiasme.",
     embedColor: 0x95A5A6,
   },
 
@@ -235,6 +241,7 @@ const PERSONAS: Persona[] = [
       "Me revoilà les amis ! Le temps passe mais les soirées jeux restent. `/wawptn-vote`",
     ],
     emptyMentionReply: 'Tu m\'as appelé ? Ça me rappelle les vieux chats IRC. Dis-moi ce qui te ferait plaisir !',
+    introMessage: "Ah, un nouveau jour... Ça me rappelle les matins devant la Game Boy.",
     embedColor: 0xE67E22,
   },
 
@@ -278,6 +285,7 @@ const PERSONAS: Persona[] = [
       "Je suis revenu et j'ai soif de compétition ! `/wawptn-vote`",
     ],
     emptyMentionReply: 'Tu m\'as défié sans même poser de question ? Audacieux. Dis-moi ce que tu veux savoir !',
+    introMessage: "Nouveau jour, nouveau défi ! Qui sera le premier à lancer un vote ?",
     embedColor: 0xE74C3C,
   },
 
@@ -321,6 +329,7 @@ const PERSONAS: Persona[] = [
       "De retour. Le temps passe, mais l'envie de jouer ensemble reste. `/wawptn-vote`",
     ],
     emptyMentionReply: 'Tu m\'appelles dans le silence... Que cherches-tu, ami ? Pose ta question.',
+    introMessage: "Le soleil se lève, un nouveau persona s'éveille. Méditez là-dessus.",
     embedColor: 0x2ECC71,
   },
 ]

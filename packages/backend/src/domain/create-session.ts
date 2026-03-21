@@ -10,6 +10,7 @@ export interface CreateSessionParams {
   participantIds: string[]
   filter?: string
   scheduledAt?: Date | null
+  excludeAppIds?: number[]
 }
 
 export interface SessionGame {
@@ -39,7 +40,7 @@ export interface CreateSessionResult {
  * Throws on validation errors (with a `statusCode` property on the error).
  */
 export async function createVotingSession(params: CreateSessionParams): Promise<CreateSessionResult> {
-  const { groupId, createdBy, participantIds, filter, scheduledAt } = params
+  const { groupId, createdBy, participantIds, filter, scheduledAt, excludeAppIds } = params
 
   // Check no open session exists
   const existingSession = await db('voting_sessions')
@@ -84,7 +85,12 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
 
   const commonGames = await computeCommonGames(validMembers, { filter, threshold })
 
-  if (commonGames.length === 0) {
+  // Exclude specific games (e.g. the winning game from a previous session for rematch)
+  const filteredCommonGames = excludeAppIds && excludeAppIds.length > 0
+    ? commonGames.filter(g => !excludeAppIds.includes(g.steamAppId))
+    : commonGames
+
+  if (filteredCommonGames.length === 0) {
     const err = new Error('No common games found. Make sure all members have synced their Steam libraries and they are public.') as Error & { statusCode: number; errorCode: string }
     err.statusCode = 422
     err.errorCode = 'no_common_games'
@@ -103,7 +109,7 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
     voteCountMap.set(row.steam_app_id, Number(row.vote_count))
   }
 
-  const selectedGames = commonGames.sort((a, b) => {
+  const selectedGames = filteredCommonGames.sort((a, b) => {
     const countA = voteCountMap.get(a.steamAppId) || 0
     const countB = voteCountMap.get(b.steamAppId) || 0
     if (countA !== countB) return countB - countA

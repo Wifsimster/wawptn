@@ -114,6 +114,11 @@ export const api = {
   getVoteHistory: (groupId: string) => request<{ id: string; winningGameAppId: number; winningGameId?: string; winningGameName: string; closedAt: string; createdBy: string }[]>(
     `/groups/${groupId}/vote/history`
   ),
+  rematchVote: (groupId: string, sessionId: string) =>
+    request<{
+      session: { id: string; groupId: string; status: string; createdBy: string; scheduledAt: string | null; createdAt: string };
+      games: { steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string }[];
+    }>(`/groups/${groupId}/vote/${sessionId}/rematch`, { method: 'POST' }),
   deleteVoteSession: (groupId: string, sessionId: string) =>
     request<{ ok: boolean }>(`/groups/${groupId}/vote/${sessionId}`, { method: 'DELETE' }),
 

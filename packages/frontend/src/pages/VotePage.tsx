@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, ExternalLink, Loader2, Vote, Search, Send } from 'lucide-react'
+import { ArrowLeft, Check, ExternalLink, Loader2, RefreshCw, Vote, Search, Send } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -43,6 +43,7 @@ export function VotePage() {
   const [submitting, setSubmitting] = useState(false)
   const [closing, setClosing] = useState(false)
   const [isParticipant, setIsParticipant] = useState(true)
+  const [rematching, setRematching] = useState(false)
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -139,6 +140,28 @@ export function VotePage() {
     }
   }
 
+  const handleRematch = async () => {
+    if (!id || !session || rematching) return
+    setRematching(true)
+    try {
+      const data = await api.rematchVote(id, session.id)
+      // Reset state to show the new voting session
+      setResult(null)
+      setHasVoted(false)
+      setSelectedGames(new Set())
+      setSession({ id: data.session.id, createdBy: data.session.createdBy, scheduledAt: data.session.scheduledAt })
+      setGames(data.games)
+      setVoterCount(0)
+      setTotalMembers(0)
+      setIsParticipant(true)
+    } catch (err) {
+      toast.error(t('vote.rematchError'))
+      console.error('Failed to start rematch:', err)
+    } finally {
+      setRematching(false)
+    }
+  }
+
   const filteredGames = useMemo(() => {
     if (!search.trim()) return games
     const q = search.toLowerCase()
@@ -182,6 +205,20 @@ export function VotePage() {
                 </a>
               </Button>
             )}
+
+            <Button
+              variant="secondary"
+              className="block mx-auto mt-4"
+              onClick={handleRematch}
+              disabled={rematching}
+            >
+              {rematching ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              {t('vote.rematch')}
+            </Button>
 
             <Button
               variant="ghost"

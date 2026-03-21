@@ -178,7 +178,9 @@
     "sessionInProgress": "Vote in progress",
     "notParticipant": "You are not a participant in this voting session.",
     "scheduledCountdown": "Gaming night starts in...",
-    "scheduledDate": "{{date}}"
+    "scheduledDate": "{{date}}",
+    "rematch": "Start a rematch",
+    "rematchError": "Unable to start rematch"
   },
   "join": {
     "invited": "You've been invited!",

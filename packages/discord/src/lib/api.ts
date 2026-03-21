@@ -68,3 +68,19 @@ export async function getBotSettings(): Promise<BotSettings> {
     return DEFAULT_SETTINGS
   }
 }
+
+export interface ApiPersona {
+  id: string
+  name: string
+  systemPromptOverlay: string
+  fridayMessages: string[]
+  weekdayMessages: string[]
+  backOnlineMessages: string[]
+  emptyMentionReply: string
+  introMessage: string
+  embedColor: number
+}
+
+export async function getPersonas(): Promise<ApiPersona[]> {
+  return backendApi<ApiPersona[]>('/api/discord/personas')
+}

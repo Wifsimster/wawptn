@@ -467,6 +467,26 @@ export { router as discordRoutes }
 
 // ─── Bot-only utility routes ──────────────────────────────────────────────────
 
+// Get all active personas (for bot persona rotation)
+router.get('/personas', async (_req: Request, res: Response) => {
+  const personas = await db('personas')
+    .where({ is_active: true })
+    .select('*')
+    .orderBy('created_at', 'asc')
+
+  res.json(personas.map(p => ({
+    id: p.id,
+    name: p.name,
+    systemPromptOverlay: p.system_prompt_overlay,
+    fridayMessages: p.friday_messages,
+    weekdayMessages: p.weekday_messages,
+    backOnlineMessages: p.back_online_messages,
+    emptyMentionReply: p.empty_mention_reply,
+    introMessage: p.intro_message,
+    embedColor: p.embed_color,
+  })))
+})
+
 // Get bot settings from app_settings table (for scheduler config)
 router.get('/bot-settings', async (_req: Request, res: Response) => {
   const rows = await db('app_settings')

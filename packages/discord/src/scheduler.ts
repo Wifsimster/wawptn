@@ -1,7 +1,7 @@
 import cron, { type ScheduledTask } from 'node-cron'
 import { EmbedBuilder, type Client, type TextChannel } from 'discord.js'
 import { getLinkedChannels, getBotSettings, type BotSettings } from './lib/api.js'
-import { getTodayPersona, getDefaultPersona } from './personas.js'
+import { getTodayPersona, getDefaultPersona, loadPersonasFromApi, startPersonaCacheRefresh } from './personas.js'
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -153,6 +153,10 @@ function scheduleCrons(client: Client, settings: BotSettings): void {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function startScheduler(client: Client): Promise<void> {
+  // Load personas from API (falls back to hardcoded if unavailable)
+  await loadPersonasFromApi()
+  startPersonaCacheRefresh()
+
   // Fetch settings from backend
   currentSettings = await getBotSettings()
   console.log(`[scheduler] Loaded settings: persona_rotation=${currentSettings.persona_rotation_enabled}`)

@@ -3,8 +3,13 @@
 // Each day the bot adopts a different voice. The persona is selected
 // deterministically from the date so every instance agrees, even after restarts.
 //
+// Personas are loaded from the backend API (database-backed). The hardcoded
+// PERSONAS array is kept as a fallback in case the API is unreachable.
+//
 // Invariant rules (never acknowledge being a bot, no tech leaks, etc.) live in
 // the backend SYSTEM_PROMPT and are NOT overridable by personas.
+
+import { getPersonas as fetchPersonasFromApi, type ApiPersona } from './lib/api.js'
 
 export interface Persona {
   id: string
@@ -22,7 +27,7 @@ export interface Persona {
   embedColor: number
 }
 
-// ─── Persona definitions ─────────────────────────────────────────────────────
+// ─── Hardcoded fallback personas ─────────────────────────────────────────────
 
 const PERSONAS: Persona[] = [
   // 0 — The original: sarcastic but kind friend
@@ -334,6 +339,66 @@ const PERSONAS: Persona[] = [
   },
 ]
 
+// ─── API-loaded persona cache ─────────────────────────────────────────────────
+
+let cachedPersonas: Persona[] | null = null
+let cacheRefreshTimer: ReturnType<typeof setInterval> | null = null
+
+const CACHE_REFRESH_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
+
+function apiPersonaToPersona(p: ApiPersona): Persona {
+  return {
+    id: p.id,
+    name: p.name,
+    systemPromptOverlay: p.systemPromptOverlay,
+    fridayMessages: p.fridayMessages,
+    weekdayMessages: p.weekdayMessages,
+    backOnlineMessages: p.backOnlineMessages,
+    emptyMentionReply: p.emptyMentionReply,
+    introMessage: p.introMessage,
+    embedColor: p.embedColor,
+  }
+}
+
+/**
+ * Loads personas from the backend API and caches them.
+ * Returns the loaded personas, or null if the fetch fails.
+ */
+export async function loadPersonasFromApi(): Promise<Persona[] | null> {
+  try {
+    const apiPersonas = await fetchPersonasFromApi()
+    if (apiPersonas.length > 0) {
+      cachedPersonas = apiPersonas.map(apiPersonaToPersona)
+      console.log(`[personas] Loaded ${cachedPersonas.length} personas from API`)
+      return cachedPersonas
+    }
+    console.warn('[personas] API returned empty personas list, keeping cache/fallback')
+    return null
+  } catch (err) {
+    console.error('[personas] Failed to load personas from API:', err)
+    return null
+  }
+}
+
+/**
+ * Starts the periodic persona cache refresh (every 5 minutes).
+ * Call this once at bot startup.
+ */
+export function startPersonaCacheRefresh(): void {
+  if (cacheRefreshTimer) return
+  cacheRefreshTimer = setInterval(() => {
+    void loadPersonasFromApi()
+  }, CACHE_REFRESH_INTERVAL_MS)
+  console.log(`[personas] Cache refresh scheduled every ${CACHE_REFRESH_INTERVAL_MS / 1000}s`)
+}
+
+/**
+ * Returns the active persona pool: API-loaded if available, hardcoded fallback otherwise.
+ */
+function getPersonaPool(): Persona[] {
+  return cachedPersonas && cachedPersonas.length > 0 ? cachedPersonas : PERSONAS
+}
+
 // ─── Deterministic daily selection ───────────────────────────────────────────
 
 /**
@@ -350,37 +415,42 @@ function hashCode(str: string): number {
 /**
  * Returns today's persona based on a deterministic hash of the date.
  * Uses Europe/Paris timezone so the persona changes at midnight local time.
+ * Uses API-loaded personas if available, falls back to hardcoded.
  * Filters out disabled personas if provided.
  */
 export function getTodayPersona(disabledIds: string[] = []): Persona {
+  const pool = getPersonaPool()
   const available = disabledIds.length > 0
-    ? PERSONAS.filter(p => !disabledIds.includes(p.id))
-    : PERSONAS
-  const pool = available.length > 0 ? available : PERSONAS // fallback if all disabled
+    ? pool.filter(p => !disabledIds.includes(p.id))
+    : pool
+  const finalPool = available.length > 0 ? available : pool // fallback if all disabled
   const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }) // YYYY-MM-DD
-  const index = hashCode(dateStr) % pool.length
-  return pool[index]!
+  const index = hashCode(dateStr) % finalPool.length
+  return finalPool[index]!
 }
 
 /**
  * Returns the persona for a specific date string (YYYY-MM-DD). Useful for testing.
  */
 export function getPersonaForDate(dateStr: string): Persona {
-  const index = hashCode(dateStr) % PERSONAS.length
-  return PERSONAS[index]!
+  const pool = getPersonaPool()
+  const index = hashCode(dateStr) % pool.length
+  return pool[index]!
 }
 
 /**
- * Returns the default persona (index 0 — Le Pote Sarcastique).
+ * Returns the default persona (index 0).
  * Used when persona rotation is disabled.
  */
 export function getDefaultPersona(): Persona {
-  return PERSONAS[0]!
+  const pool = getPersonaPool()
+  return pool[0]!
 }
 
 /**
  * Returns all personas with their IDs and names (for admin UI).
  */
 export function getAllPersonas(): Pick<Persona, 'id' | 'name' | 'embedColor'>[] {
-  return PERSONAS.map(p => ({ id: p.id, name: p.name, embedColor: p.embedColor }))
+  const pool = getPersonaPool()
+  return pool.map(p => ({ id: p.id, name: p.name, embedColor: p.embedColor }))
 }

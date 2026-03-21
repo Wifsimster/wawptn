@@ -102,6 +102,172 @@ router.patch('/users/:id/admin', async (req: Request, res: Response) => {
   res.json({ ok: true })
 })
 
+// ─── Personas management ──────────────────────────────────────────────────────
+
+router.get('/personas', async (_req: Request, res: Response) => {
+  const personas = await db('personas')
+    .select('*')
+    .orderBy('is_default', 'desc')
+    .orderBy('created_at', 'asc')
+
+  res.json(personas.map(p => ({
+    id: p.id,
+    name: p.name,
+    systemPromptOverlay: p.system_prompt_overlay,
+    fridayMessages: p.friday_messages,
+    weekdayMessages: p.weekday_messages,
+    backOnlineMessages: p.back_online_messages,
+    emptyMentionReply: p.empty_mention_reply,
+    introMessage: p.intro_message,
+    embedColor: p.embed_color,
+    isActive: p.is_active,
+    isDefault: p.is_default,
+    createdAt: p.created_at,
+    updatedAt: p.updated_at,
+  })))
+})
+
+router.post('/personas', async (req: Request, res: Response) => {
+  const body = req.body as {
+    id?: string
+    name?: string
+    systemPromptOverlay?: string
+    fridayMessages?: string[]
+    weekdayMessages?: string[]
+    backOnlineMessages?: string[]
+    emptyMentionReply?: string
+    introMessage?: string
+    embedColor?: number
+  }
+
+  // Validate required fields
+  const { id, name, systemPromptOverlay, fridayMessages, weekdayMessages, backOnlineMessages, emptyMentionReply, introMessage, embedColor } = body
+
+  if (!id || !name || !systemPromptOverlay || !fridayMessages || !weekdayMessages || !backOnlineMessages || !emptyMentionReply || !introMessage || embedColor === undefined) {
+    res.status(400).json({ error: 'validation', message: 'Tous les champs sont requis : id, name, systemPromptOverlay, fridayMessages, weekdayMessages, backOnlineMessages, emptyMentionReply, introMessage, embedColor' })
+    return
+  }
+
+  // Validate id format (kebab-case)
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) {
+    res.status(400).json({ error: 'validation', message: "L'identifiant doit être en kebab-case (ex: mon-persona)" })
+    return
+  }
+
+  if (id.length > 50) {
+    res.status(400).json({ error: 'validation', message: "L'identifiant ne doit pas dépasser 50 caractères" })
+    return
+  }
+
+  // Check for duplicate id
+  const existing = await db('personas').where({ id }).first()
+  if (existing) {
+    res.status(409).json({ error: 'conflict', message: 'Un persona avec cet identifiant existe déjà' })
+    return
+  }
+
+  // Validate arrays
+  if (!Array.isArray(fridayMessages) || !Array.isArray(weekdayMessages) || !Array.isArray(backOnlineMessages)) {
+    res.status(400).json({ error: 'validation', message: 'fridayMessages, weekdayMessages et backOnlineMessages doivent être des tableaux' })
+    return
+  }
+
+  await db('personas').insert({
+    id,
+    name,
+    system_prompt_overlay: systemPromptOverlay,
+    friday_messages: JSON.stringify(fridayMessages),
+    weekday_messages: JSON.stringify(weekdayMessages),
+    back_online_messages: JSON.stringify(backOnlineMessages),
+    empty_mention_reply: emptyMentionReply,
+    intro_message: introMessage,
+    embed_color: embedColor,
+    is_active: true,
+    is_default: false,
+  })
+
+  authLogger.info({ userId: req.userId, personaId: id }, 'admin created persona')
+
+  res.status(201).json({ ok: true, id })
+})
+
+router.patch('/personas/:id', async (req: Request, res: Response) => {
+  const personaId = req.params['id']
+  const body = req.body as Record<string, unknown>
+
+  const persona = await db('personas').where({ id: personaId }).first()
+  if (!persona) {
+    res.status(404).json({ error: 'not_found', message: 'Persona introuvable' })
+    return
+  }
+
+  // Build update object from allowed fields
+  const updates: Record<string, unknown> = {}
+
+  if (body.name !== undefined) updates.name = body.name
+  if (body.systemPromptOverlay !== undefined) updates.system_prompt_overlay = body.systemPromptOverlay
+  if (body.fridayMessages !== undefined) updates.friday_messages = JSON.stringify(body.fridayMessages)
+  if (body.weekdayMessages !== undefined) updates.weekday_messages = JSON.stringify(body.weekdayMessages)
+  if (body.backOnlineMessages !== undefined) updates.back_online_messages = JSON.stringify(body.backOnlineMessages)
+  if (body.emptyMentionReply !== undefined) updates.empty_mention_reply = body.emptyMentionReply
+  if (body.introMessage !== undefined) updates.intro_message = body.introMessage
+  if (body.embedColor !== undefined) updates.embed_color = body.embedColor
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: 'validation', message: 'Aucun champ à mettre à jour' })
+    return
+  }
+
+  updates.updated_at = db.fn.now()
+
+  await db('personas').where({ id: personaId }).update(updates)
+
+  authLogger.info({ userId: req.userId, personaId }, 'admin updated persona')
+
+  res.json({ ok: true })
+})
+
+router.delete('/personas/:id', async (req: Request, res: Response) => {
+  const personaId = req.params['id']
+
+  const persona = await db('personas').where({ id: personaId }).first()
+  if (!persona) {
+    res.status(404).json({ error: 'not_found', message: 'Persona introuvable' })
+    return
+  }
+
+  if (persona.is_default) {
+    res.status(400).json({ error: 'validation', message: 'Les personas par défaut ne peuvent pas être supprimés' })
+    return
+  }
+
+  await db('personas').where({ id: personaId }).del()
+
+  authLogger.info({ userId: req.userId, personaId }, 'admin deleted persona')
+
+  res.json({ ok: true })
+})
+
+router.patch('/personas/:id/toggle', async (req: Request, res: Response) => {
+  const personaId = req.params['id']
+
+  const persona = await db('personas').where({ id: personaId }).first()
+  if (!persona) {
+    res.status(404).json({ error: 'not_found', message: 'Persona introuvable' })
+    return
+  }
+
+  const newActive = !persona.is_active
+  await db('personas').where({ id: personaId }).update({
+    is_active: newActive,
+    updated_at: db.fn.now(),
+  })
+
+  authLogger.info({ userId: req.userId, personaId, isActive: newActive }, 'admin toggled persona')
+
+  res.json({ ok: true, isActive: newActive })
+})
+
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
 router.get('/stats', async (_req: Request, res: Response) => {

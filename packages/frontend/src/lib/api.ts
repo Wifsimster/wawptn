@@ -162,4 +162,33 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ isAdmin }),
     }),
+
+  // Personas
+  getAdminPersonas: () => request<{
+    id: string; name: string; systemPromptOverlay: string;
+    fridayMessages: string[]; weekdayMessages: string[]; backOnlineMessages: string[];
+    emptyMentionReply: string; introMessage: string; embedColor: number;
+    isActive: boolean; isDefault: boolean; createdAt: string; updatedAt: string;
+  }[]>('/admin/personas'),
+  createAdminPersona: (persona: {
+    id: string; name: string; systemPromptOverlay: string;
+    fridayMessages: string[]; weekdayMessages: string[]; backOnlineMessages: string[];
+    emptyMentionReply: string; introMessage: string; embedColor: number;
+  }) => request<{ ok: boolean; id: string }>('/admin/personas', {
+    method: 'POST',
+    body: JSON.stringify(persona),
+  }),
+  updateAdminPersona: (id: string, updates: Record<string, unknown>) =>
+    request<{ ok: boolean }>(`/admin/personas/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    }),
+  deleteAdminPersona: (id: string) =>
+    request<{ ok: boolean }>(`/admin/personas/${id}`, {
+      method: 'DELETE',
+    }),
+  toggleAdminPersona: (id: string) =>
+    request<{ ok: boolean; isActive: boolean }>(`/admin/personas/${id}/toggle`, {
+      method: 'PATCH',
+    }),
 }

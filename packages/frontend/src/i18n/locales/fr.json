@@ -306,8 +306,11 @@
   },
   "landing": {
     "headline": "On joue à quoi ce soir ?",
+    "headlineLine1": "On joue à quoi",
+    "headlineLine2": "ce soir ?",
     "subheadline": "Crée un groupe avec tes amis, découvre vos jeux en commun, et votez pour le jeu de la soirée. Simple, rapide, efficace.",
     "cta": "Commencer avec Steam",
+    "ctaSubtext": "Gratuit · Aucun mot de passe · 30 secondes",
     "featuresTitle": "Comment ça marche",
     "feature1Title": "Crée ton groupe",
     "feature1Desc": "Invite tes amis via un lien sécurisé. On détecte automatiquement vos jeux Steam, Epic et GOG en commun.",

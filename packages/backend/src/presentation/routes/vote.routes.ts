@@ -107,7 +107,7 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
     return
   }
 
-  const { filter, participantIds, scheduledAt } = req.body as { filter?: string; participantIds: string[]; scheduledAt?: string }
+  const { filter, filters, participantIds, scheduledAt } = req.body as { filter?: string; filters?: { multiplayer?: boolean; coop?: boolean; free?: boolean }; participantIds: string[]; scheduledAt?: string }
 
   // Validate participantIds
   if (!Array.isArray(participantIds) || participantIds.length < 2) {
@@ -147,6 +147,7 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
       createdBy: userId,
       participantIds,
       filter,
+      filters,
       scheduledAt: parsedScheduledAt,
     })
 

@@ -465,7 +465,7 @@ router.post('/:id/common-games/preview', async (req: Request, res: Response) => 
   try {
     const userId = req.userId!
     const groupId = String(req.params['id'])
-    const { memberIds, filter } = req.body as { memberIds: string[]; filter?: string }
+    const { memberIds, filter, filters } = req.body as { memberIds: string[]; filter?: string; filters?: { multiplayer?: boolean; coop?: boolean; free?: boolean } }
 
     if (!Array.isArray(memberIds) || memberIds.length < 2) {
       res.status(400).json({ error: 'validation', message: 'At least 2 member IDs are required' })
@@ -493,7 +493,7 @@ router.post('/:id/common-games/preview', async (req: Request, res: Response) => 
       return
     }
 
-    const commonGames = await computeCommonGames(validMembers, { filter })
+    const commonGames = await computeCommonGames(validMembers, { filter, filters })
 
     res.json({ gameCount: commonGames.length, totalMembers: validMembers.length })
   } catch (error) {

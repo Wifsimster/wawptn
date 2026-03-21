@@ -1,5 +1,5 @@
 import { db } from '../infrastructure/database/connection.js'
-import { computeCommonGames } from '../infrastructure/database/common-games.js'
+import { computeCommonGames, type GameFilters } from '../infrastructure/database/common-games.js'
 import { getIO } from '../infrastructure/socket/socket.js'
 import { notifySessionCreated } from '../infrastructure/discord/notifier.js'
 import { logger } from '../infrastructure/logger/logger.js'
@@ -9,6 +9,7 @@ export interface CreateSessionParams {
   createdBy: string
   participantIds: string[]
   filter?: string
+  filters?: GameFilters
   scheduledAt?: Date | null
   excludeAppIds?: number[]
 }
@@ -40,7 +41,7 @@ export interface CreateSessionResult {
  * Throws on validation errors (with a `statusCode` property on the error).
  */
 export async function createVotingSession(params: CreateSessionParams): Promise<CreateSessionResult> {
-  const { groupId, createdBy, participantIds, filter, scheduledAt, excludeAppIds } = params
+  const { groupId, createdBy, participantIds, filter, filters, scheduledAt, excludeAppIds } = params
 
   // Check no open session exists
   const existingSession = await db('voting_sessions')
@@ -83,7 +84,7 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
     ? Math.min(group.common_game_threshold, validMembers.length)
     : validMembers.length
 
-  const commonGames = await computeCommonGames(validMembers, { filter, threshold })
+  const commonGames = await computeCommonGames(validMembers, { filter, filters, threshold })
 
   // Exclude specific games (e.g. the winning game from a previous session for rematch)
   const filteredCommonGames = excludeAppIds && excludeAppIds.length > 0

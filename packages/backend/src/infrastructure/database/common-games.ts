@@ -21,6 +21,12 @@ interface CommonGameRow {
   contentDescriptors: string | null
 }
 
+export interface GameFilters {
+  multiplayer?: boolean
+  coop?: boolean
+  free?: boolean
+}
+
 /**
  * Compute common games for a set of user IDs.
  * Returns games owned by at least `threshold` of the provided users.
@@ -28,7 +34,7 @@ interface CommonGameRow {
  */
 export async function computeCommonGames(
   userIds: string[],
-  options?: { filter?: string; threshold?: number }
+  options?: { filter?: string; filters?: GameFilters; threshold?: number }
 ): Promise<CommonGameRow[]> {
   const threshold = options?.threshold ?? userIds.length
 
@@ -37,6 +43,7 @@ export async function computeCommonGames(
     .whereIn('user_games.user_id', userIds)
     .whereNotNull('user_games.game_id')
 
+  // Legacy string-based filter support
   if (options?.filter === 'multiplayer') {
     query = query.where(function () {
       this.where('game_metadata.is_multiplayer', true).orWhereNull('game_metadata.is_multiplayer')
@@ -46,6 +53,25 @@ export async function computeCommonGames(
   if (options?.filter === 'coop') {
     query = query.where(function () {
       this.where('game_metadata.is_coop', true).orWhereNull('game_metadata.is_coop')
+    })
+  }
+
+  // Structured filters support
+  if (options?.filters?.multiplayer) {
+    query = query.where(function () {
+      this.where('game_metadata.is_multiplayer', true).orWhereNull('game_metadata.is_multiplayer')
+    })
+  }
+
+  if (options?.filters?.coop) {
+    query = query.where(function () {
+      this.where('game_metadata.is_coop', true).orWhereNull('game_metadata.is_coop')
+    })
+  }
+
+  if (options?.filters?.free) {
+    query = query.where(function () {
+      this.where('game_metadata.is_free', true).orWhereNull('game_metadata.is_free')
     })
   }
 

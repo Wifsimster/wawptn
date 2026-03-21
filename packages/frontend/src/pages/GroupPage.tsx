@@ -152,10 +152,11 @@ export function GroupPage() {
     }
   }
 
-  const handleStartVote = async (participantIds: string[], scheduledAt?: string) => {
+  const handleStartVote = async (participantIds: string[], scheduledAt?: string, filters?: { multiplayer: boolean; coop: boolean; free: boolean }) => {
     if (!id) return
     try {
-      await api.createVoteSession(id, participantIds, activeFilter, scheduledAt)
+      const hasActiveFilters = filters && (filters.multiplayer || filters.coop || filters.free)
+      await api.createVoteSession(id, participantIds, activeFilter, scheduledAt, hasActiveFilters ? filters : undefined)
       navigate(`/groups/${id}/vote`)
     } catch (err) {
       if (err instanceof Error && err.message.includes('already open')) {

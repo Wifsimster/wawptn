@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Vote, Loader2, Users, Calendar } from 'lucide-react'
+import { ArrowLeft, Vote, Loader2, Users, Calendar, Handshake, CircleDollarSign } from 'lucide-react'
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -13,6 +13,12 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { api } from '@/lib/api'
+
+export interface VoteGameFilters {
+  multiplayer: boolean
+  coop: boolean
+  free: boolean
+}
 
 interface Member {
   id: string
@@ -28,7 +34,7 @@ interface VoteSetupDialogProps {
   groupId: string
   onlineMembers: Set<string>
   activeFilter?: string
-  onStartVote: (participantIds: string[], scheduledAt?: string) => void
+  onStartVote: (participantIds: string[], scheduledAt?: string, filters?: VoteGameFilters) => void
 }
 
 type Step = 'select' | 'confirm'
@@ -41,6 +47,11 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [isScheduled, setIsScheduled] = useState(false)
   const [scheduledDate, setScheduledDate] = useState('')
+  const [gameFilters, setGameFilters] = useState<VoteGameFilters>({
+    multiplayer: false,
+    coop: false,
+    free: false,
+  })
 
   // Compute minimum datetime-local value (15 minutes from now)
   const minDateTime = useMemo(() => {
@@ -67,6 +78,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
       setPreviewCount(null)
       setIsScheduled(false)
       setScheduledDate(defaultScheduledDate)
+      setGameFilters({ multiplayer: false, coop: false, free: false })
     }
   }, [open, members, defaultScheduledDate])
 
@@ -97,10 +109,13 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
     }
   }
 
+  const hasActiveGameFilters = gameFilters.multiplayer || gameFilters.coop || gameFilters.free
+
   const handleNext = async () => {
     setLoadingPreview(true)
     try {
-      const result = await api.previewCommonGames(groupId, Array.from(selectedIds), activeFilter)
+      const filtersParam = hasActiveGameFilters ? gameFilters : undefined
+      const result = await api.previewCommonGames(groupId, Array.from(selectedIds), activeFilter, filtersParam)
       setPreviewCount(result.gameCount)
       setStep('confirm')
     } catch {
@@ -119,7 +134,8 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
 
   const handleConfirm = () => {
     const scheduled = isScheduled && scheduledDate ? new Date(scheduledDate).toISOString() : undefined
-    onStartVote(Array.from(selectedIds), scheduled)
+    const filtersParam = hasActiveGameFilters ? gameFilters : undefined
+    onStartVote(Array.from(selectedIds), scheduled, filtersParam)
     onOpenChange(false)
   }
 
@@ -219,6 +235,42 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                 {t('voteSetup.gameSelectionHint', { total: previewCount })}
               </p>
             )}
+
+            <div className="mt-4 space-y-3 border-t border-border pt-4">
+              <p className="text-xs text-muted-foreground font-medium">{t('voteSetup.gameFiltersLabel')}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant={gameFilters.multiplayer ? 'default' : 'secondary'}
+                  size="sm"
+                  onClick={() => setGameFilters(prev => ({ ...prev, multiplayer: !prev.multiplayer }))}
+                  className="gap-1.5"
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  {t('voteSetup.filterMultiplayer')}
+                </Button>
+                <Button
+                  type="button"
+                  variant={gameFilters.coop ? 'default' : 'secondary'}
+                  size="sm"
+                  onClick={() => setGameFilters(prev => ({ ...prev, coop: !prev.coop }))}
+                  className="gap-1.5"
+                >
+                  <Handshake className="w-3.5 h-3.5" />
+                  {t('voteSetup.filterCoop')}
+                </Button>
+                <Button
+                  type="button"
+                  variant={gameFilters.free ? 'default' : 'secondary'}
+                  size="sm"
+                  onClick={() => setGameFilters(prev => ({ ...prev, free: !prev.free }))}
+                  className="gap-1.5"
+                >
+                  <CircleDollarSign className="w-3.5 h-3.5" />
+                  {t('voteSetup.filterFree')}
+                </Button>
+              </div>
+            </div>
 
             <div className="mt-4 space-y-3 border-t border-border pt-4">
               <label htmlFor="schedule-toggle" className="flex items-center gap-3 py-1 cursor-pointer">

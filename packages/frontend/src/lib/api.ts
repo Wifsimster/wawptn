@@ -77,10 +77,10 @@ export const api = {
     totalMembers: number; threshold: number;
   }>(`/groups/${groupId}/common-games${filter ? `?filter=${filter}` : ''}`),
   syncLibraries: (groupId: string) => request(`/groups/${groupId}/sync`, { method: 'POST' }),
-  previewCommonGames: (groupId: string, memberIds: string[], filter?: string) =>
+  previewCommonGames: (groupId: string, memberIds: string[], filter?: string, filters?: { multiplayer?: boolean; coop?: boolean; free?: boolean }) =>
     request<{ gameCount: number; totalMembers: number }>(`/groups/${groupId}/common-games/preview`, {
       method: 'POST',
-      body: JSON.stringify({ memberIds, filter }),
+      body: JSON.stringify({ memberIds, ...(filter ? { filter } : {}), ...(filters ? { filters } : {}) }),
     }),
 
   // Voting
@@ -90,12 +90,12 @@ export const api = {
     myVotes: { steamAppId: number; gameId?: string; vote: boolean }[];
     voterCount: number; totalMembers: number; isParticipant: boolean; participantIds: string[];
   }>(`/groups/${groupId}/vote`),
-  createVoteSession: (groupId: string, participantIds: string[], filter?: string, scheduledAt?: string) => request<{
+  createVoteSession: (groupId: string, participantIds: string[], filter?: string, scheduledAt?: string, filters?: { multiplayer?: boolean; coop?: boolean; free?: boolean }) => request<{
     session: { id: string; groupId: string; status: string; createdBy: string; scheduledAt: string | null; createdAt: string };
     games: { steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string }[];
   }>(`/groups/${groupId}/vote`, {
     method: 'POST',
-    body: JSON.stringify({ participantIds, ...(filter ? { filter } : {}), ...(scheduledAt ? { scheduledAt } : {}) }),
+    body: JSON.stringify({ participantIds, ...(filter ? { filter } : {}), ...(filters ? { filters } : {}), ...(scheduledAt ? { scheduledAt } : {}) }),
   }),
   castVote: (groupId: string, sessionId: string, steamAppId: number, vote: boolean) =>
     request(`/groups/${groupId}/vote/${sessionId}`, {

@@ -24,6 +24,7 @@ import { discordRoutes, discordUserRoutes } from './presentation/routes/discord.
 import { adminRoutes } from './presentation/routes/admin.routes.js'
 import { subscriptionRoutes, subscriptionWebhookRouter } from './presentation/routes/subscription.routes.js'
 import { isStripeEnabled } from './infrastructure/stripe/stripe-client.js'
+import { personaRoutes } from './presentation/routes/persona.routes.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -112,6 +113,9 @@ async function main() {
   app.use('/api/auth', authRoutes)
   app.use('/api/groups', requireAuth, groupRoutes)
   app.use('/api/groups', requireAuth, voteLimiter, voteRoutes)
+
+  // Persona route (public, read-only — shows today's bot personality)
+  app.use('/api/persona', personaRoutes)
 
   // Admin routes (requires authenticated admin user)
   app.use('/api/admin', requireAuth, requireAdmin, adminRoutes)

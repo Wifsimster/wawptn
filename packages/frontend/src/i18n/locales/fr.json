@@ -356,5 +356,8 @@
     "autoVote": "Vote automatique",
     "groupLimitReached": "Limite de groupes atteinte ({{max}}). Passe en Premium pour des groupes illimités.",
     "memberLimitReached": "Ce groupe a atteint la limite de membres gratuite ({{max}})."
+  },
+  "persona": {
+    "today": "Persona du jour"
   }
 }

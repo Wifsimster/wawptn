@@ -162,6 +162,9 @@ export const api = {
   deleteVoteSession: (groupId: string, sessionId: string) =>
     request<{ ok: boolean }>(`/groups/${groupId}/vote/${sessionId}`, { method: 'DELETE' }),
 
+  // Persona
+  getCurrentPersona: () => request<{ id: string; name: string; embedColor: number; introMessage: string }>('/persona/current'),
+
   // Admin
   getAdminBotSettings: () => request<Record<string, unknown>>('/admin/bot-settings'),
   updateAdminBotSettings: (settings: Record<string, unknown>) =>

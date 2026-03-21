@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useSubscriptionStore } from '@/stores/subscription.store'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { PersonaBadge } from '@/components/persona-badge'
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -58,6 +59,9 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
           </span>
         </button>
         <div className="flex-1" />
+
+        {/* Today's bot persona */}
+        {user && <PersonaBadge />}
 
         {/* User menu */}
         <div className="relative">

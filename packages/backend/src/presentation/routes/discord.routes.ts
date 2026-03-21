@@ -357,9 +357,10 @@ router.post('/chat', async (req: Request, res: Response) => {
   }
 
   const discordUserId = req.headers['x-discord-user-id'] as string | undefined
-  const { channelId, message } = req.body as {
+  const { channelId, message, personaVoice } = req.body as {
     channelId?: string
     message?: string
+    personaVoice?: string
   }
 
   if (!message || message.trim().length === 0) {
@@ -384,7 +385,7 @@ router.post('/chat', async (req: Request, res: Response) => {
   }
 
   // Build context from the channel-linked group
-  const context: ChatContext = {}
+  const context: ChatContext = { personaVoice }
 
   // Resolve user name
   if (req.userId) {

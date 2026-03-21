@@ -10,6 +10,7 @@ export interface User {
   profileUrl: string | null
   email: string | null
   libraryVisible: boolean
+  isAdmin: boolean
   createdAt: string
   updatedAt: string
 }

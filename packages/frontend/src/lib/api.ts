@@ -20,7 +20,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // Auth
 export const api = {
-  getMe: () => request<{ id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean }>('/auth/me'),
+  getMe: () => request<{ id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; isAdmin: boolean }>('/auth/me'),
   logout: () => request('/auth/logout', { method: 'POST' }),
   getProfile: () => request<{
     id: string; steamId: string; displayName: string; avatarUrl: string; profileUrl: string | null;
@@ -116,4 +116,14 @@ export const api = {
   ),
   deleteVoteSession: (groupId: string, sessionId: string) =>
     request<{ ok: boolean }>(`/groups/${groupId}/vote/${sessionId}`, { method: 'DELETE' }),
+
+  // Admin
+  getAdminBotSettings: () => request<Record<string, unknown>>('/admin/bot-settings'),
+  updateAdminBotSettings: (settings: Record<string, unknown>) =>
+    request<{ ok: boolean }>('/admin/bot-settings', {
+      method: 'PATCH',
+      body: JSON.stringify(settings),
+    }),
+  getAdminStats: () => request<{ users: number; groups: number; votingSessions: number }>('/admin/stats'),
+  getAdminUsers: () => request<{ id: string; steamId: string; displayName: string; avatarUrl: string; isAdmin: boolean; createdAt: string }[]>('/admin/users'),
 }

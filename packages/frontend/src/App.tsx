@@ -10,6 +10,7 @@ import { JoinPage } from '@/pages/JoinPage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { DiscordLinkPage } from '@/pages/DiscordLinkPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { AdminPage } from '@/pages/AdminPage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DialogTestPage } from '@/pages/DialogTestPage'
 
@@ -62,6 +63,7 @@ function App() {
     <Routes>
       <Route path="/" element={<GroupsPage />} />
       <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/admin" element={<AdminPage />} />
       <Route path="/groups/:id" element={<GroupPage />} />
       <Route path="/groups/:id/vote" element={<VotePage />} />
       <Route path="/join/:token" element={<JoinPage />} />

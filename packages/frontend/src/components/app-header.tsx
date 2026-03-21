@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Gamepad2, LogOut, User } from 'lucide-react'
+import { Gamepad2, LogOut, User, Shield } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth.store'
@@ -93,6 +93,15 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
                   <User className="w-4 h-4" />
                   {t('profile.title')}
                 </button>
+                {user?.isAdmin && (
+                  <button
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                    onClick={() => { setShowMenu(false); navigate('/admin') }}
+                  >
+                    <Shield className="w-4 h-4" />
+                    Administration
+                  </button>
+                )}
                 <button
                   className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
                   onClick={() => { setShowMenu(false); setShowLogoutDialog(true) }}

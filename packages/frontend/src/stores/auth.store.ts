@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { api } from '@/lib/api'
 
 interface AuthState {
-  user: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean } | null
+  user: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; isAdmin: boolean } | null
   loading: boolean
   fetchUser: () => Promise<void>
   logout: () => Promise<void>

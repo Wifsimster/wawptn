@@ -348,5 +348,13 @@
     "activated": "Abonnement Premium activé !",
     "checkoutError": "Impossible de lancer le paiement",
     "portalError": "Impossible d'ouvrir le portail de gestion"
+  },
+  "premium": {
+    "featureLocked": "Fonctionnalité Premium",
+    "unlock": "Passer en Premium",
+    "recommendations": "Suggestions de jeux",
+    "autoVote": "Vote automatique",
+    "groupLimitReached": "Limite de groupes atteinte ({{max}}). Passe en Premium pour des groupes illimités.",
+    "memberLimitReached": "Ce groupe a atteint la limite de membres gratuite ({{max}})."
   }
 }

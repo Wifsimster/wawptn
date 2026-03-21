@@ -11,6 +11,7 @@ import { testConnection, runMigrations } from './infrastructure/database/connect
 import { createSocketServer } from './infrastructure/socket/socket.js'
 import { startVoteScheduler } from './infrastructure/scheduler/vote-scheduler.js'
 import { startAutoVoteScheduler } from './infrastructure/scheduler/auto-vote-scheduler.js'
+import { startSubscriptionReconciler } from './infrastructure/scheduler/subscription-reconciler.js'
 import { logger } from './infrastructure/logger/logger.js'
 import { authRoutes } from './presentation/routes/auth.routes.js'
 import { groupRoutes } from './presentation/routes/group.routes.js'
@@ -160,6 +161,9 @@ async function main() {
 
   // Auto-vote scheduler (recurring auto-created sessions)
   startAutoVoteScheduler()
+
+  // Subscription reconciler (daily Stripe sync + grace period enforcement)
+  startSubscriptionReconciler()
 
   // Start server
   httpServer.listen(env.PORT, () => {

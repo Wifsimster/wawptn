@@ -7,6 +7,7 @@ import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-st
 import { getIO, forceLeaveRoom } from '../../infrastructure/socket/socket.js'
 import { updateGroupSchedule } from '../../infrastructure/scheduler/auto-vote-scheduler.js'
 import { logger } from '../../infrastructure/logger/logger.js'
+import { isUserPremium, FREE_TIER_LIMITS } from '../middleware/tier.middleware.js'
 
 const router = Router()
 
@@ -147,6 +148,16 @@ router.post('/', async (req: Request, res: Response) => {
     return
   }
 
+  // Free tier: max groups limit
+  const premium = await isUserPremium(userId)
+  if (!premium) {
+    const ownedCount = await db('group_members').where({ user_id: userId, role: 'owner' }).count('* as count').first()
+    if (Number(ownedCount?.count || 0) >= FREE_TIER_LIMITS.maxGroups) {
+      res.status(403).json({ error: 'premium_required', message: `Free users can create max ${FREE_TIER_LIMITS.maxGroups} groups. Upgrade to premium for unlimited groups.` })
+      return
+    }
+  }
+
   const { token, hash } = generateInviteToken()
   const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000) // 72 hours
 
@@ -255,6 +266,13 @@ router.patch('/:id/auto-vote', async (req: Request, res: Response) => {
     return
   }
 
+  // Auto-vote scheduling is a premium feature
+  const premium = await isUserPremium(userId)
+  if (!premium) {
+    res.status(403).json({ error: 'premium_required', message: 'Auto-vote scheduling requires a premium subscription' })
+    return
+  }
+
   // Validate cron expression if provided
   if (schedule !== null && schedule !== undefined) {
     if (typeof schedule !== 'string' || schedule.trim().length === 0) {
@@ -343,6 +361,19 @@ router.post('/join', async (req: Request, res: Response) => {
   if (existing) {
     res.json({ id: group.id, name: group.name, alreadyMember: true })
     return
+  }
+
+  // Free tier: max members per group limit
+  const owner = await db('group_members').where({ group_id: group.id, role: 'owner' }).select('user_id').first()
+  if (owner) {
+    const ownerIsPremium = await isUserPremium(owner.user_id)
+    if (!ownerIsPremium) {
+      const memberCount = await db('group_members').where({ group_id: group.id }).count('* as count').first()
+      if (Number(memberCount?.count || 0) >= FREE_TIER_LIMITS.maxMembersPerGroup) {
+        res.status(403).json({ error: 'premium_required', message: `This group has reached the free member limit (${FREE_TIER_LIMITS.maxMembersPerGroup}). Group owner must upgrade to premium.` })
+        return
+      }
+    }
   }
 
   // Atomic: claim an invite use and add member in a single transaction (race-safe)
@@ -782,6 +813,13 @@ router.get('/:id/recommendations', async (req: Request, res: Response) => {
 
     if (!membership) {
       res.status(403).json({ error: 'forbidden', message: 'Not a member' })
+      return
+    }
+
+    // Recommendations are a premium feature
+    const premium = await isUserPremium(userId)
+    if (!premium) {
+      res.status(403).json({ error: 'premium_required', message: 'Game recommendations require a premium subscription' })
       return
     }
 

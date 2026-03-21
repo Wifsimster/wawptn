@@ -314,6 +314,75 @@ router.post('/:groupId/vote/:sessionId/close', async (req: Request, res: Respons
   res.json({ result })
 })
 
+// Rematch: create a new session with the same participants, excluding the winning game
+router.post('/:groupId/vote/:sessionId/rematch', async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const groupId = String(req.params['groupId'])
+  const sessionId = String(req.params['sessionId'])
+
+  // Fetch the closed session
+  const session = await db('voting_sessions')
+    .where({ id: sessionId, group_id: groupId, status: 'closed' })
+    .first()
+
+  if (!session) {
+    res.status(404).json({ error: 'not_found', message: 'No closed session found' })
+    return
+  }
+
+  // Check membership
+  const membership = await db('group_members')
+    .where({ group_id: groupId, user_id: userId })
+    .first()
+
+  if (!membership) {
+    res.status(403).json({ error: 'forbidden', message: 'Not a member' })
+    return
+  }
+
+  // Fetch participants from the original session
+  const participantIds: string[] = await db('voting_session_participants')
+    .where({ session_id: sessionId })
+    .pluck('user_id')
+
+  // Fallback to current group members if no participants recorded
+  const finalParticipantIds = participantIds.length >= 2
+    ? participantIds
+    : await db('group_members').where({ group_id: groupId }).pluck('user_id')
+
+  if (finalParticipantIds.length < 2) {
+    res.status(400).json({ error: 'validation', message: 'At least 2 participants are required for a rematch' })
+    return
+  }
+
+  // Ensure the requesting user is a participant
+  if (!finalParticipantIds.includes(userId)) {
+    finalParticipantIds.push(userId)
+  }
+
+  // Build exclude filter for the winning game
+  const excludeAppId = session.winning_game_app_id ? Number(session.winning_game_app_id) : null
+
+  try {
+    const result = await createVotingSession({
+      groupId,
+      createdBy: userId,
+      participantIds: finalParticipantIds,
+      excludeAppIds: excludeAppId ? [excludeAppId] : undefined,
+    })
+
+    res.status(201).json(result)
+  } catch (error) {
+    const err = error as Error & { statusCode?: number; errorCode?: string; invalidIds?: string[] }
+    const status = err.statusCode || 500
+    res.status(status).json({
+      error: err.errorCode || 'internal',
+      message: err.message,
+      ...(err.invalidIds ? { invalidIds: err.invalidIds } : {}),
+    })
+  }
+})
+
 // Delete a closed voting session (creator or group owner only)
 router.delete('/:groupId/vote/:sessionId', async (req: Request, res: Response) => {
   const userId = req.userId!

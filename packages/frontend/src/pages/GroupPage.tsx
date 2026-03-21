@@ -230,6 +230,17 @@ export function GroupPage() {
     }
   }
 
+  const handleToggleNotifications = async (enabled: boolean) => {
+    if (!id) return
+    try {
+      await api.toggleNotifications(id, enabled)
+      // Re-fetch group to update the member's notificationsEnabled state
+      fetchGroup(id)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('group.notificationsError'))
+    }
+  }
+
   const onlineMembers = useMemo(() => new Set(onlineUserIds), [onlineUserIds])
   const currentUserRole = currentGroup?.members.find(m => m.id === user?.id)?.role || 'member'
 
@@ -297,6 +308,7 @@ export function GroupPage() {
               onDeleteGroup={handleDeleteGroup}
               onRenameGroup={handleRenameGroup}
               onDeleteHistory={handleDeleteHistory}
+              onToggleNotifications={handleToggleNotifications}
             />
           </div>
 
@@ -418,6 +430,7 @@ export function GroupPage() {
               onDeleteGroup={handleDeleteGroup}
               onRenameGroup={handleRenameGroup}
               onDeleteHistory={handleDeleteHistory}
+              onToggleNotifications={handleToggleNotifications}
               compact
             />
           </ResponsiveDialogContent>

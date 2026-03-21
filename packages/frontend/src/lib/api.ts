@@ -49,7 +49,7 @@ export const api = {
   getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null }[]>('/groups'),
   getGroup: (id: string) => request<{
     id: string; name: string; createdBy: string; commonGameThreshold: number | null; createdAt: string;
-    members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string }[]
+    members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string; notificationsEnabled: boolean }[]
   }>(`/groups/${id}`),
   createGroup: (name: string) => request<{ id: string; name: string; inviteToken: string; inviteExpiresAt: string }>('/groups', {
     method: 'POST',
@@ -83,6 +83,11 @@ export const api = {
     memberParticipation: { userId: string; displayName: string; avatarUrl: string; voteCount: number; sessionsParticipated: number }[];
     recentWinners: { gameName: string; steamAppId: number; closedAt: string }[];
   }>(`/groups/${groupId}/stats`),
+  toggleNotifications: (groupId: string, enabled: boolean) =>
+    request<{ ok: boolean }>(`/groups/${groupId}/notifications`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled }),
+    }),
   syncLibraries: (groupId: string) => request(`/groups/${groupId}/sync`, { method: 'POST' }),
   previewCommonGames: (groupId: string, memberIds: string[], filter?: string, filters?: { multiplayer?: boolean; coop?: boolean; free?: boolean }) =>
     request<{ gameCount: number; totalMembers: number }>(`/groups/${groupId}/common-games/preview`, {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil } from 'lucide-react'
+import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil, Bell, BellOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -23,6 +23,7 @@ interface Member {
   avatarUrl: string
   role: string
   libraryVisible: boolean
+  notificationsEnabled: boolean
 }
 
 interface VoteHistoryEntry {
@@ -50,11 +51,12 @@ interface GroupSidebarProps {
   onDeleteGroup: () => void
   onRenameGroup: (name: string) => Promise<void>
   onDeleteHistory: (sessionId: string) => void
+  onToggleNotifications: (enabled: boolean) => void
   /** When true, renders a compact layout for mobile bottom sheets (no Card wrappers) */
   compact?: boolean
 }
 
-export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, onlineMembers, currentUserId, currentUserRole, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, compact = false }: GroupSidebarProps) {
+export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, onlineMembers, currentUserId, currentUserRole, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, compact = false }: GroupSidebarProps) {
   const { t, i18n } = useTranslation()
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -213,6 +215,26 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
       )}
 
       {inviteToken && <InviteLink token={inviteToken} />}
+
+      {/* Discord notification toggle */}
+      {(() => {
+        const currentMember = members.find(m => m.id === currentUserId)
+        const enabled = currentMember?.notificationsEnabled ?? true
+        return (
+          <Button
+            variant={enabled ? 'outline' : 'ghost'}
+            className={`w-full ${!enabled ? 'text-muted-foreground' : ''}`}
+            onClick={() => onToggleNotifications(!enabled)}
+          >
+            {enabled ? (
+              <Bell className="w-4 h-4 mr-2" />
+            ) : (
+              <BellOff className="w-4 h-4 mr-2" />
+            )}
+            {enabled ? t('group.notificationsEnabled') : t('group.notificationsDisabled')}
+          </Button>
+        )
+      })()}
 
       <div className="pt-2 border-t space-y-2">
         {!isOwner && (

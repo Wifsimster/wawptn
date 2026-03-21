@@ -114,7 +114,8 @@ router.get('/:id', async (req: Request, res: Response) => {
       'users.avatar_url as avatarUrl',
       'users.library_visible as libraryVisible',
       'group_members.role',
-      'group_members.joined_at as joinedAt'
+      'group_members.joined_at as joinedAt',
+      'group_members.notifications_enabled as notificationsEnabled'
     )
 
   res.json({
@@ -205,6 +206,34 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
   logger.info({ userId, groupId, newName: trimmedName }, 'group renamed')
   res.json({ id: groupId, name: trimmedName })
+})
+
+// Toggle Discord notifications for current user
+router.patch('/:id/notifications', async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const groupId = String(req.params['id'])
+  const { enabled } = req.body as { enabled: boolean }
+
+  if (typeof enabled !== 'boolean') {
+    res.status(400).json({ error: 'validation', message: 'enabled must be a boolean' })
+    return
+  }
+
+  const membership = await db('group_members')
+    .where({ group_id: groupId, user_id: userId })
+    .first()
+
+  if (!membership) {
+    res.status(403).json({ error: 'forbidden', message: 'Not a member of this group' })
+    return
+  }
+
+  await db('group_members')
+    .where({ group_id: groupId, user_id: userId })
+    .update({ notifications_enabled: enabled })
+
+  logger.info({ userId, groupId, notificationsEnabled: enabled }, 'notifications preference updated')
+  res.json({ ok: true })
 })
 
 // Generate new invite link (owner only)

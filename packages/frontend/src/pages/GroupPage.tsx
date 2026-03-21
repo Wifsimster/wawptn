@@ -344,7 +344,7 @@ export function GroupPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Button
                 onClick={() => setVoteSetupOpen(true)}
-                className="h-auto py-4 flex-col"
+                className="h-auto py-4 flex-col card-hover-glow"
               >
                 <Vote className="w-6 h-6 mb-1" />
                 <span className="text-lg font-bold block">{t('group.startVote')}</span>
@@ -355,7 +355,7 @@ export function GroupPage() {
                 variant="secondary"
                 onClick={() => setRandomPickOpen(true)}
                 disabled={commonGames.length === 0}
-                className="h-auto py-4 flex-col"
+                className="h-auto py-4 flex-col card-hover-glow"
               >
                 <Dices className="w-6 h-6 mb-1" />
                 <span className="text-lg font-bold block">{t('group.randomPick')}</span>

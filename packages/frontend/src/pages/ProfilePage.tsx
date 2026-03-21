@@ -176,7 +176,7 @@ export function ProfilePage() {
       </AppHeader>
 
       <main id="main-content" className="max-w-2xl mx-auto p-4 space-y-6">
-        <h2 className="text-2xl font-bold">{t('profile.title')}</h2>
+        <h2 className="text-2xl font-heading font-bold">{t('profile.title')}</h2>
 
         {/* User info card */}
         <Card>

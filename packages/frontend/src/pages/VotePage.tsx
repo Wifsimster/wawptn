@@ -226,7 +226,7 @@ export function VotePage() {
                 />
               </motion.div>
             )}
-            <motion.h1 variants={resultFade} className="text-3xl font-bold mb-2">{result.gameName}</motion.h1>
+            <motion.h1 variants={resultFade} className="text-3xl font-heading font-bold mb-2">{result.gameName}</motion.h1>
             <motion.p variants={resultFade} className="text-muted-foreground mb-8">
               {t('vote.votedFor', { yes: result.yesCount, total: result.totalVoters })}
             </motion.p>
@@ -277,7 +277,7 @@ export function VotePage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <Check className="w-16 h-16 text-success mb-4" />
-        <h2 className="text-2xl font-bold mb-2">{t('vote.submitted')}</h2>
+        <h2 className="text-2xl font-heading font-bold mb-2">{t('vote.submitted')}</h2>
 
         {isScheduledSession && (
           <div className="mb-6 text-center">
@@ -321,7 +321,7 @@ export function VotePage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <Vote className="w-16 h-16 text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-bold mb-2">{t('vote.sessionInProgress')}</h2>
+        <h2 className="text-2xl font-heading font-bold mb-2">{t('vote.sessionInProgress')}</h2>
         <p className="text-muted-foreground mb-6">
           {t('vote.notParticipant')}
         </p>
@@ -346,7 +346,7 @@ export function VotePage() {
 
       <main id="main-content" className="flex-1 flex flex-col p-4 max-w-2xl mx-auto w-full">
         <div className="text-center mb-4">
-          <h2 className="text-xl font-bold">{t('vote.selectGamesTitle')}</h2>
+          <h2 className="text-xl font-heading font-bold">{t('vote.selectGamesTitle')}</h2>
           <p className="text-sm text-muted-foreground mt-1">
             {t('vote.selectGamesHint', { count: games.length })}
           </p>

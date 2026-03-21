@@ -55,7 +55,7 @@ export function SubscriptionPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main id="main-content" className="max-w-2xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">{t('subscription.title')}</h1>
+        <h1 className="text-2xl font-heading font-bold mb-6">{t('subscription.title')}</h1>
 
         <Card>
           <CardHeader>

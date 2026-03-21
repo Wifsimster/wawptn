@@ -171,7 +171,7 @@ export function GroupsPage() {
           </div>
         )}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
-          <h2 className="text-2xl font-bold">{t('groups.title')}</h2>
+          <h2 className="text-2xl font-heading font-bold">{t('groups.title')}</h2>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowJoin(true)}>
               <LogIn className="w-4 h-4" />

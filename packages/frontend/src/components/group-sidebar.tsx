@@ -15,6 +15,7 @@ import {
   ResponsiveDialogFooter,
 } from '@/components/ui/responsive-dialog'
 import { InviteLink } from '@/components/invite-link'
+import { GroupStats } from '@/components/group-stats'
 
 interface Member {
   id: string
@@ -34,6 +35,7 @@ interface VoteHistoryEntry {
 
 interface GroupSidebarProps {
   members: Member[]
+  groupId: string
   groupName: string
   syncing: boolean
   inviteToken: string | null
@@ -52,7 +54,7 @@ interface GroupSidebarProps {
   compact?: boolean
 }
 
-export function GroupSidebar({ members, groupName, syncing, inviteToken, voteHistory, onlineMembers, currentUserId, currentUserRole, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, compact = false }: GroupSidebarProps) {
+export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, onlineMembers, currentUserId, currentUserRole, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, compact = false }: GroupSidebarProps) {
   const { t, i18n } = useTranslation()
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -251,6 +253,7 @@ export function GroupSidebar({ members, groupName, syncing, inviteToken, voteHis
               {historySection}
             </div>
           )}
+          <GroupStats groupId={groupId} compact />
           {membersHeader}
           {membersList}
           {actionButtons}
@@ -271,6 +274,8 @@ export function GroupSidebar({ members, groupName, syncing, inviteToken, voteHis
               </CardContent>
             </Card>
           )}
+
+          <GroupStats groupId={groupId} />
 
           <Card>
             <CardHeader className="space-y-0 pb-3">

@@ -223,6 +223,17 @@
     "description": "La page que tu cherches n'existe pas ou a été déplacée.",
     "backHome": "Retour à l'accueil"
   },
+  "stats": {
+    "title": "Statistiques",
+    "sessions": "sessions",
+    "votes": "votes",
+    "topGames": "Top jeux",
+    "wins": "victoires",
+    "win": "victoire",
+    "participation": "Participation",
+    "memberVotes": "{{count}} votes",
+    "recentWinners": "Derniers gagnants"
+  },
   "profile": {
     "title": "Mon Profil",
     "platforms": "Plateformes connectées",

@@ -281,6 +281,7 @@ export function GroupPage() {
           <div className="hidden lg:block">
             <GroupSidebar
               members={currentGroup.members}
+              groupId={id!}
               groupName={currentGroup.name}
               syncing={syncing}
               inviteToken={inviteToken}
@@ -401,6 +402,7 @@ export function GroupPage() {
             </ResponsiveDialogHeader>
             <GroupSidebar
               members={currentGroup.members}
+              groupId={id!}
               groupName={currentGroup.name}
               syncing={syncing}
               inviteToken={inviteToken}

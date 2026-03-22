@@ -34,7 +34,7 @@ function PremiumGateFallback({ feature }: { feature?: string }) {
         </span>
       </div>
       <Button size="sm" variant="outline" onClick={() => navigate('/subscription')}>
-        <Crown className="w-4 h-4 mr-2 text-yellow-500" />
+        <Crown className="w-4 h-4 mr-2 text-reward" />
         {t('premium.unlock')}
       </Button>
     </div>

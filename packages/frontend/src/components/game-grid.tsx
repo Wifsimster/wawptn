@@ -214,7 +214,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                 </button>
               )}
             </div>
-            <div className="flex gap-1.5 shrink-0">
+            <div className="flex gap-1.5 shrink-0 overflow-x-auto scrollbar-none">
               <Button
                 variant={filters.multiplayerOnly ? 'default' : 'secondary'}
                 size="sm"
@@ -474,9 +474,9 @@ function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<s
         <Tooltip>
           <TooltipTrigger asChild>
             <span className={`absolute top-1 left-1 text-xs font-bold px-1.5 py-0.5 rounded cursor-default ${
-              game.metacriticScore >= 75 ? 'bg-emerald-600 text-white' :
-              game.metacriticScore >= 50 ? 'bg-amber-500 text-white' :
-              'bg-red-600 text-white'
+              game.metacriticScore >= 75 ? 'bg-score-good text-white' :
+              game.metacriticScore >= 50 ? 'bg-score-mixed text-white' :
+              'bg-score-bad text-white'
             }`}>
               {game.metacriticScore}
             </span>
@@ -501,7 +501,7 @@ function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<s
       )}
       <div className="absolute bottom-7 right-1 flex gap-0.5">
         {game.isFree && (
-          <span className="text-xs font-bold bg-emerald-600 text-white px-1.5 py-0.5 rounded">
+          <span className="text-xs font-bold bg-score-good text-white px-1.5 py-0.5 rounded">
             {t('group.free')}
           </span>
         )}

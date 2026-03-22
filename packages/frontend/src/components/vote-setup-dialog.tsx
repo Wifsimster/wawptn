@@ -187,7 +187,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                           <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <span
-                          className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-card ${isOnline ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`}
+                          className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-card ${isOnline ? 'bg-online' : 'bg-muted-foreground/40'}`}
                         />
                       </div>
                       <span className={`text-sm font-medium truncate ${!isOnline ? 'text-muted-foreground' : ''}`}>{member.displayName}</span>

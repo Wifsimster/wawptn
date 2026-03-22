@@ -76,7 +76,7 @@ export function DiscordLinkPage() {
   if (discordUsername) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4">
-        <Check className="w-12 h-12 text-green-500 mb-4" />
+        <Check className="w-12 h-12 text-success mb-4" />
         <h1 className="text-2xl font-bold mb-2">{t('discordLink.linked')}</h1>
         <p className="text-muted-foreground mb-6">
           {t('discordLink.linkedDescription', { username: discordUsername })}

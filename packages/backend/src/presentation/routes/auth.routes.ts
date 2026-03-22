@@ -203,21 +203,21 @@ router.get('/me', async (req: Request, res: Response) => {
     const token = req.signedCookies?.[SESSION_COOKIE_NAME]
     if (!token) {
       authLogger.debug('get session: no token provided')
-      res.status(401).json({ error: 'unauthorized', message: 'No session' })
+      res.json(null)
       return
     }
 
     const userId = await getSessionUserId(token)
     if (!userId) {
       authLogger.info('get session: expired or invalid token')
-      res.status(401).json({ error: 'unauthorized', message: 'No session' })
+      res.json(null)
       return
     }
 
     const user = await db('users').where({ id: userId }).first()
     if (!user) {
       authLogger.warn({ userId }, 'get session: user not found for valid session')
-      res.status(401).json({ error: 'unauthorized', message: 'No session' })
+      res.json(null)
       return
     }
 

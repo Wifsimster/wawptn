@@ -15,9 +15,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   fetchUser: async () => {
     try {
       const user = await api.getMe()
-      set({ user, loading: false })
-      // Fetch subscription state after successful auth
-      useSubscriptionStore.getState().fetchSubscription()
+      if (user) {
+        set({ user, loading: false })
+        // Fetch subscription state after successful auth
+        useSubscriptionStore.getState().fetchSubscription()
+      } else {
+        set({ user: null, loading: false })
+      }
     } catch {
       set({ user: null, loading: false })
     }

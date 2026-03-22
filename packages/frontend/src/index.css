@@ -14,7 +14,7 @@
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.75 0 0);
+  --muted-foreground: oklch(0.80 0 0);
   --accent: oklch(0.371 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
@@ -43,6 +43,12 @@
   --reward: oklch(0.795 0.160 75);
   --reward-foreground: oklch(0.25 0.05 75);
   --neon: oklch(0.78 0.18 195);
+  /* Semantic: Metacritic score colors */
+  --score-good: oklch(0.60 0.18 155);
+  --score-mixed: oklch(0.75 0.15 85);
+  --score-bad: oklch(0.60 0.20 25);
+  /* Semantic: Online status */
+  --online: oklch(0.65 0.19 155);
 }
 
 @theme inline {
@@ -87,6 +93,10 @@
   --color-reward: var(--reward);
   --color-reward-foreground: var(--reward-foreground);
   --color-neon: var(--neon);
+  --color-score-good: var(--score-good);
+  --color-score-mixed: var(--score-mixed);
+  --color-score-bad: var(--score-bad);
+  --color-online: var(--online);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -98,7 +108,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   body {
     @apply text-foreground antialiased;
@@ -206,6 +216,15 @@
   border-color: oklch(0.424 0.199 265.638 / 0.3);
   box-shadow: 0 0 24px oklch(0.424 0.199 265.638 / 0.06);
   transform: scale(1.01);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 @keyframes premium-glow {

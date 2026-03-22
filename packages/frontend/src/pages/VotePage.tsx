@@ -396,9 +396,9 @@ export function VotePage() {
                 )}
                 {game.metacriticScore != null && (
                   <span className={`absolute top-1.5 left-1.5 text-xs font-bold px-1.5 py-0.5 rounded pointer-events-none ${
-                    game.metacriticScore >= 75 ? 'bg-emerald-600 text-white' :
-                    game.metacriticScore >= 50 ? 'bg-amber-500 text-white' :
-                    'bg-red-600 text-white'
+                    game.metacriticScore >= 75 ? 'bg-score-good text-white' :
+                    game.metacriticScore >= 50 ? 'bg-score-mixed text-white' :
+                    'bg-score-bad text-white'
                   }`}>
                     {game.metacriticScore}
                   </span>
@@ -499,9 +499,9 @@ function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }: GameD
             <Badge
               variant="outline"
               className={`gap-1 ${
-                game.metacriticScore >= 75 ? 'border-emerald-600 text-emerald-600' :
-                game.metacriticScore >= 50 ? 'border-amber-500 text-amber-500' :
-                'border-red-600 text-red-600'
+                game.metacriticScore >= 75 ? 'border-score-good text-score-good' :
+                game.metacriticScore >= 50 ? 'border-score-mixed text-score-mixed' :
+                'border-score-bad text-score-bad'
               }`}
             >
               <Star className="w-3 h-3" />
@@ -511,7 +511,7 @@ function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }: GameD
 
           {/* Free badge */}
           {game.isFree && (
-            <Badge variant="secondary" className="bg-emerald-600/10 text-emerald-600 border-emerald-600/20">
+            <Badge variant="secondary" className="bg-score-good/10 text-score-good border-score-good/20">
               {t('vote.free')}
             </Badge>
           )}

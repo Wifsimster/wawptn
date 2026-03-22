@@ -62,7 +62,7 @@ export function SubscriptionPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 {isPremium ? (
-                  <Crown className="w-5 h-5 text-yellow-500" />
+                  <Crown className="w-5 h-5 text-reward" />
                 ) : (
                   <CreditCard className="w-5 h-5 text-muted-foreground" />
                 )}
@@ -91,7 +91,7 @@ export function SubscriptionPage() {
                   </p>
                 )}
                 {status === 'canceled' && (
-                  <p className="text-sm text-yellow-500">
+                  <p className="text-sm text-reward">
                     {t('subscription.canceledNotice')}
                   </p>
                 )}
@@ -107,15 +107,15 @@ export function SubscriptionPage() {
                 </p>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
-                    <Crown className="w-4 h-4 text-yellow-500" />
+                    <Crown className="w-4 h-4 text-reward" />
                     {t('landing.premiumFeature1')}
                   </li>
                   <li className="flex items-center gap-2">
-                    <Crown className="w-4 h-4 text-yellow-500" />
+                    <Crown className="w-4 h-4 text-reward" />
                     {t('landing.premiumFeature2')}
                   </li>
                   <li className="flex items-center gap-2">
-                    <Crown className="w-4 h-4 text-yellow-500" />
+                    <Crown className="w-4 h-4 text-reward" />
                     {t('landing.premiumFeature3')}
                   </li>
                 </ul>

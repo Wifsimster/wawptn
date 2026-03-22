@@ -350,7 +350,7 @@ export function GroupsPage() {
                         <h3 className="font-semibold flex items-center gap-1.5">
                           {group.name}
                           {group.role === 'owner' && (
-                            <Crown className="w-4 h-4 text-amber-500 shrink-0" />
+                            <Crown className="w-4 h-4 text-reward shrink-0" />
                           )}
                         </h3>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">

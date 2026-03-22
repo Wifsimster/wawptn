@@ -168,7 +168,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                 <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
               <span
-                className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 ${compact ? 'border-background' : 'border-card'} ${isOnline ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`}
+                className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 ${compact ? 'border-background' : 'border-card'} ${isOnline ? 'bg-online' : 'bg-muted-foreground/40'}`}
                 aria-label={isOnline ? 'En ligne' : 'Hors ligne'}
               />
             </div>
@@ -182,7 +182,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                 </TooltipContent>
               </Tooltip>
               {member.role === 'owner' && (
-                <Crown className="w-4 h-4 text-amber-500 shrink-0" aria-label={t('group.roleOwner')} />
+                <Crown className="w-4 h-4 text-reward shrink-0" aria-label={t('group.roleOwner')} />
               )}
             </div>
             {!member.libraryVisible && (

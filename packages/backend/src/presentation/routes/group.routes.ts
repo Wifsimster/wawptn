@@ -7,7 +7,7 @@ import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-st
 import { getIO, forceLeaveRoom } from '../../infrastructure/socket/socket.js'
 import { updateGroupSchedule } from '../../infrastructure/scheduler/auto-vote-scheduler.js'
 import { logger } from '../../infrastructure/logger/logger.js'
-import { isUserPremium, FREE_TIER_LIMITS } from '../middleware/tier.middleware.js'
+import { isUserPremium, FREE_TIER_LIMITS, PREMIUM_TIER_LIMITS } from '../middleware/tier.middleware.js'
 
 const router = Router()
 
@@ -363,16 +363,19 @@ router.post('/join', async (req: Request, res: Response) => {
     return
   }
 
-  // Free tier: max members per group limit
+  // Tier-based max members per group limit
   const owner = await db('group_members').where({ group_id: group.id, role: 'owner' }).select('user_id').first()
   if (owner) {
     const ownerIsPremium = await isUserPremium(owner.user_id)
-    if (!ownerIsPremium) {
-      const memberCount = await db('group_members').where({ group_id: group.id }).count('* as count').first()
-      if (Number(memberCount?.count || 0) >= FREE_TIER_LIMITS.maxMembersPerGroup) {
-        res.status(403).json({ error: 'premium_required', message: `This group has reached the free member limit (${FREE_TIER_LIMITS.maxMembersPerGroup}). Group owner must upgrade to premium.` })
-        return
-      }
+    const memberCount = await db('group_members').where({ group_id: group.id }).count('* as count').first()
+    const currentCount = Number(memberCount?.count || 0)
+    if (!ownerIsPremium && currentCount >= FREE_TIER_LIMITS.maxMembersPerGroup) {
+      res.status(403).json({ error: 'premium_required', message: `This group has reached the free member limit (${FREE_TIER_LIMITS.maxMembersPerGroup}). Group owner must upgrade to premium.` })
+      return
+    }
+    if (ownerIsPremium && currentCount >= PREMIUM_TIER_LIMITS.maxMembersPerGroup) {
+      res.status(403).json({ error: 'member_limit', message: `This group has reached the maximum member limit (${PREMIUM_TIER_LIMITS.maxMembersPerGroup}).` })
+      return
     }
   }
 

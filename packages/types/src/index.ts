@@ -54,6 +54,8 @@ export interface UserGame {
   gameName: string
   headerImageUrl: string | null
   platform?: string
+  playtimeForever?: number | null
+  playtime2weeks?: number | null
   syncedAt: string
 }
 
@@ -64,6 +66,8 @@ export interface CommonGame {
   headerImageUrl: string | null
   ownerCount: number
   totalMembers: number
+  totalPlaytime?: number | null
+  avgPlaytime?: number | null
   isMultiplayer: boolean | null
   isCoop: boolean | null
   genres: { id: string; description: string }[] | null

@@ -66,6 +66,7 @@ export interface SteamOwnedGame {
   appid: number
   name: string
   playtime_forever: number
+  playtime_2weeks?: number
   img_icon_url: string
 }
 

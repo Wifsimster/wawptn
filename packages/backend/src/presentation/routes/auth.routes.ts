@@ -250,11 +250,16 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
       return
     }
 
-    // Get game counts per platform
+    // Get game counts and playtime stats per platform
     const gameCounts = await db('user_games')
       .where({ user_id: userId })
       .groupBy('platform')
-      .select('platform', db.raw('COUNT(*) as count'), db.raw('MAX(synced_at) as "lastSyncedAt"'))
+      .select(
+        'platform',
+        db.raw('COUNT(*) as count'),
+        db.raw('MAX(synced_at) as "lastSyncedAt"'),
+        db.raw('COALESCE(SUM(playtime_forever), 0) as "totalPlaytimeMinutes"')
+      )
 
     const steamStats = gameCounts.find((g: { platform: string }) => g.platform === 'steam')
     const epicStats = gameCounts.find((g: { platform: string }) => g.platform === 'epic')
@@ -278,6 +283,7 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
         syncable: true,
         accountId: user.steam_id || null,
         gameCount: Number(steamStats?.count || 0),
+        totalPlaytimeMinutes: Number(steamStats?.totalPlaytimeMinutes || 0),
         lastSyncedAt: steamStats?.lastSyncedAt || null,
         profileUrl: user.profile_url || null,
       },
@@ -314,6 +320,15 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
       { id: 'ubisoft', name: 'Ubisoft Connect', connected: false, comingSoon: true },
     ]
 
+    // Get top 5 most-played games for profile display
+    const topGames = await db('user_games')
+      .where({ user_id: userId, platform: 'steam' })
+      .whereNotNull('playtime_forever')
+      .where('playtime_forever', '>', 0)
+      .orderBy('playtime_forever', 'desc')
+      .limit(5)
+      .select('game_name as gameName', 'steam_app_id as steamAppId', 'header_image_url as headerImageUrl', 'playtime_forever as playtimeForever')
+
     res.json({
       id: user.id,
       steamId: user.steam_id,
@@ -323,6 +338,12 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
       libraryVisible: user.library_visible,
       createdAt: user.created_at,
       platforms,
+      topGames: topGames.map((g: { gameName: string; steamAppId: number; headerImageUrl: string | null; playtimeForever: number }) => ({
+        gameName: g.gameName,
+        steamAppId: g.steamAppId,
+        headerImageUrl: g.headerImageUrl,
+        playtimeForever: Number(g.playtimeForever),
+      })),
     })
   } catch (error) {
     authLogger.error({ error: String(error) }, 'get profile failed')
@@ -846,6 +867,8 @@ async function syncUserLibrary(userId: string, steamId: string): Promise<number>
         platform: 'steam',
         game_name: game.name,
         header_image_url: getHeaderImageUrl(game.appid),
+        playtime_forever: game.playtime_forever ?? null,
+        playtime_2weeks: game.playtime_2weeks ?? null,
         synced_at: now,
       })
       .onConflict(['user_id', 'steam_app_id'])
@@ -853,6 +876,8 @@ async function syncUserLibrary(userId: string, steamId: string): Promise<number>
         game_name: game.name,
         game_id: gameId,
         header_image_url: getHeaderImageUrl(game.appid),
+        playtime_forever: db.raw('GREATEST(EXCLUDED.playtime_forever, user_games.playtime_forever)'),
+        playtime_2weeks: game.playtime_2weeks ?? null,
         synced_at: now,
       })
   }

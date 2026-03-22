@@ -295,7 +295,8 @@
     "unlinkError": "Impossible de déconnecter le compte.",
     "memberSince": "Membre depuis {{date}}",
     "steamProfile": "Voir le profil Steam",
-    "noLibraryApi": "Cette plateforme ne propose pas d'API pour synchroniser la bibliothèque de jeux."
+    "noLibraryApi": "Cette plateforme ne propose pas d'API pour synchroniser la bibliothèque de jeux.",
+    "topGames": "Jeux les plus joués"
   },
   "recommendations": {
     "title": "Suggestions",

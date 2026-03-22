@@ -38,7 +38,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
   }
 
   return (
-    <header className={cn('sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60', className)}>
+    <header className={cn('sticky top-0 z-50 w-full border-b border-white/[0.05] bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50', className)}>
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[60] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded-md">
         {t('app.skipToContent', 'Skip to content')}
       </a>
@@ -54,8 +54,8 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
           aria-label={t('app.name') + ' — ' + t('app.tagline')}
         >
           <WawptnLogo size={28} className="text-primary" />
-          <span className="font-bold text-lg tracking-tight">WAWPTN</span>
-          <span className="ml-2 text-xs text-muted-foreground/40 hidden sm:inline">
+          <span className="font-heading font-bold text-lg tracking-[-0.03em]">WAWPTN</span>
+          <span className="ml-2 text-[10px] text-muted-foreground/30 font-mono hidden sm:inline">
             v{__APP_VERSION__}
           </span>
         </button>

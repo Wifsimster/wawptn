@@ -447,7 +447,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
 
 function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<string, unknown>) => string }) {
   return (
-    <div className="relative group" style={{ transition: 'opacity 150ms ease' }}>
+    <div className="relative group rounded-lg overflow-hidden ring-1 ring-white/[0.06] hover:ring-primary/20 transition-all duration-300" style={{ transition: 'opacity 150ms ease, box-shadow 0.3s, ring-color 0.3s' }}>
       <Tooltip>
         <TooltipTrigger asChild>
           <div>
@@ -456,11 +456,11 @@ function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<s
               alt={game.gameName}
               width={460}
               height={215}
-              className="w-full rounded aspect-[460/215] object-cover"
+              className="w-full aspect-[460/215] object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               loading="lazy"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent rounded flex items-end p-2">
-              <span className="text-xs font-medium text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{game.gameName}</span>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex items-end p-2.5">
+              <span className="text-xs font-semibold text-white leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">{game.gameName}</span>
             </div>
           </div>
         </TooltipTrigger>

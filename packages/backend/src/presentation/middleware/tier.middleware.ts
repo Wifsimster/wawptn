@@ -8,6 +8,11 @@ export const FREE_TIER_LIMITS = {
   maxMembersPerGroup: 8,
 } as const
 
+/** Tier limits for premium users */
+export const PREMIUM_TIER_LIMITS = {
+  maxMembersPerGroup: 20,
+} as const
+
 /** Check if a user has an active premium subscription */
 export async function isUserPremium(userId: string): Promise<boolean> {
   const subscription = await db('subscriptions')

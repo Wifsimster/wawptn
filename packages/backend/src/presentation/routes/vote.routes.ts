@@ -3,6 +3,7 @@ import { db } from '../../infrastructure/database/connection.js'
 import { getIO } from '../../infrastructure/socket/socket.js'
 import { closeSession } from '../../domain/close-session.js'
 import { createVotingSession } from '../../domain/create-session.js'
+import { isUserPremium } from '../middleware/tier.middleware.js'
 
 const router = Router()
 
@@ -132,6 +133,13 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
   // Validate scheduledAt if provided
   let parsedScheduledAt: Date | null = null
   if (scheduledAt) {
+    // Vote scheduling is a premium feature
+    const premium = await isUserPremium(userId)
+    if (!premium) {
+      res.status(403).json({ error: 'premium_required', message: 'Vote scheduling requires a premium subscription' })
+      return
+    }
+
     parsedScheduledAt = new Date(scheduledAt)
     if (isNaN(parsedScheduledAt.getTime())) {
       res.status(400).json({ error: 'validation', message: 'Invalid scheduledAt date format' })

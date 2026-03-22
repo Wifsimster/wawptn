@@ -114,6 +114,10 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
     const countA = voteCountMap.get(a.steamAppId) || 0
     const countB = voteCountMap.get(b.steamAppId) || 0
     if (countA !== countB) return countB - countA
+    // Tiebreaker: aggregate playtime across group members (most played first)
+    const playtimeA = a.totalPlaytime ?? 0
+    const playtimeB = b.totalPlaytime ?? 0
+    if (playtimeA !== playtimeB) return playtimeB - playtimeA
     return a.gameName.localeCompare(b.gameName)
   })
 

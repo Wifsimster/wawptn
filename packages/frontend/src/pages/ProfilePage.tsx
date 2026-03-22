@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, ExternalLink, Check, Clock, Gamepad2, Link, Unlink, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, RefreshCw, ExternalLink, Check, Clock, Gamepad2, Link, Unlink, AlertTriangle, Timer } from 'lucide-react'
 import { PlatformIcon } from '@/components/icons/platforms'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -22,8 +22,16 @@ interface Platform {
   needsRelink?: boolean
   accountId?: string | null
   gameCount?: number
+  totalPlaytimeMinutes?: number
   lastSyncedAt?: string | null
   profileUrl?: string | null
+}
+
+interface TopGame {
+  gameName: string
+  steamAppId: number
+  headerImageUrl: string | null
+  playtimeForever: number
 }
 
 interface Profile {
@@ -35,6 +43,14 @@ interface Profile {
   libraryVisible: boolean
   createdAt: string
   platforms: Platform[]
+  topGames?: TopGame[]
+}
+
+function formatPlaytime(minutes: number): string {
+  if (minutes < 60) return `${minutes}min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 1000) return `${hours}h`
+  return `${(hours / 1000).toFixed(1)}kh`
 }
 
 const PLATFORM_NAMES: Record<string, string> = {
@@ -262,6 +278,12 @@ export function ProfilePage() {
                           {platform.gameCount !== undefined && (
                             <span>{t('profile.gameCount', { count: platform.gameCount })}</span>
                           )}
+                          {platform.totalPlaytimeMinutes != null && platform.totalPlaytimeMinutes > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Timer className="w-3 h-3" />
+                              {formatPlaytime(platform.totalPlaytimeMinutes)}
+                            </span>
+                          )}
                           {platform.lastSyncedAt ? (
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
@@ -329,6 +351,40 @@ export function ProfilePage() {
             ))}
           </CardContent>
         </Card>
+
+        {/* Top played games */}
+        {profile.topGames && profile.topGames.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Timer className="w-5 h-5" />
+                {t('profile.topGames')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {profile.topGames.map((game) => (
+                <div
+                  key={game.steamAppId}
+                  className="flex items-center gap-3 p-2 rounded-lg border border-border bg-card"
+                >
+                  {game.headerImageUrl && (
+                    <img
+                      src={game.headerImageUrl}
+                      alt={game.gameName}
+                      className="w-16 h-8 object-cover rounded shrink-0"
+                    />
+                  )}
+                  <span className="flex-1 min-w-0 text-sm font-medium truncate">
+                    {game.gameName}
+                  </span>
+                  <Badge variant="secondary" className="shrink-0 text-xs">
+                    {formatPlaytime(game.playtimeForever)}
+                  </Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   )

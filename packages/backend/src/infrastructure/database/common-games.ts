@@ -6,6 +6,8 @@ interface CommonGameRow {
   gameName: string
   headerImageUrl: string | null
   ownerCount: number
+  totalPlaytime: number | null
+  avgPlaytime: number | null
   isMultiplayer: boolean | null
   isCoop: boolean | null
   genres: string | null
@@ -84,6 +86,8 @@ export async function computeCommonGames(
       'user_games.game_name as gameName',
       'user_games.header_image_url as headerImageUrl',
       db.raw('COUNT(DISTINCT user_games.user_id) as "ownerCount"'),
+      db.raw('COALESCE(SUM(user_games.playtime_forever), 0) as "totalPlaytime"'),
+      db.raw('COALESCE(AVG(user_games.playtime_forever), 0) as "avgPlaytime"'),
       db.raw('bool_or(game_metadata.is_multiplayer) as "isMultiplayer"'),
       db.raw('bool_or(game_metadata.is_coop) as "isCoop"'),
       db.raw('MAX(game_metadata.genres::text) as "genres"'),
@@ -106,6 +110,8 @@ export async function computeCommonGames(
     gameName: g.gameName as string,
     headerImageUrl: g.headerImageUrl as string | null,
     ownerCount: Number(g.ownerCount),
+    totalPlaytime: g.totalPlaytime != null ? Number(g.totalPlaytime) : null,
+    avgPlaytime: g.avgPlaytime != null ? Math.round(Number(g.avgPlaytime)) : null,
     isMultiplayer: (g.isMultiplayer as boolean | null) ?? null,
     isCoop: (g.isCoop as boolean | null) ?? null,
     genres: (g.genres as string | null) ?? null,

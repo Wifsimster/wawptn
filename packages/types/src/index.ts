@@ -181,10 +181,27 @@ export interface DiscordGroupConfig {
 }
 
 // ============================================
+// Challenges
+// ============================================
+
+export interface ChallengeProgress {
+  id: string
+  category: string
+  title: string
+  description: string
+  icon: string
+  tier: number
+  threshold: number
+  progress: number
+  percentage: number
+  unlockedAt: string | null
+}
+
+// ============================================
 // Notifications
 // ============================================
 
-export type NotificationType = 'vote_opened' | 'vote_closed' | 'admin_broadcast'
+export type NotificationType = 'vote_opened' | 'vote_closed' | 'admin_broadcast' | 'challenge_unlocked'
 
 export interface Notification {
   id: string
@@ -215,6 +232,7 @@ export interface ServerToClientEvents {
   'member:online': (data: { groupId: string; userId: string }) => void
   'member:offline': (data: { groupId: string; userId: string }) => void
   'notification:new': (data: Notification) => void
+  'challenge:unlocked': (data: { userId: string; challengeId: string; title: string; icon: string; tier: number }) => void
 }
 
 export interface ClientToServerEvents {

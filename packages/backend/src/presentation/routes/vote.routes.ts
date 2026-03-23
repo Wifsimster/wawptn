@@ -4,6 +4,8 @@ import { getIO } from '../../infrastructure/socket/socket.js'
 import { closeSession } from '../../domain/close-session.js'
 import { createVotingSession } from '../../domain/create-session.js'
 import { isUserPremium } from '../middleware/tier.middleware.js'
+import { evaluateChallenges } from '../../domain/challenges/challenge-service.js'
+import { logger } from '../../infrastructure/logger/logger.js'
 
 const router = Router()
 
@@ -298,6 +300,11 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
     voterCount: Number(voterCount?.count || 0),
     totalParticipants,
   })
+
+  // Evaluate participation challenges (non-blocking)
+  evaluateChallenges(userId, ['participation']).catch(err =>
+    logger.warn({ error: String(err), userId }, 'challenge evaluation after vote failed')
+  )
 
   res.json({ ok: true })
 })

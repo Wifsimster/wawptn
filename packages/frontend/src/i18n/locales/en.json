@@ -329,6 +329,11 @@
     "premiumFeature5": "Scheduled auto-voting",
     "premiumCtaButton": "Upgrade to Premium"
   },
+  "challenges": {
+    "title": "Challenges",
+    "unlocked": "Unlocked ✓",
+    "unlockedToast": "{{icon}} Challenge unlocked: {{title}}"
+  },
   "notifications": {
     "title": "Notifications",
     "empty": "No notifications",

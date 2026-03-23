@@ -3,6 +3,7 @@ import { getIO } from '../infrastructure/socket/socket.js'
 import { logger } from '../infrastructure/logger/logger.js'
 import { notifyVoteClosed } from '../infrastructure/discord/notifier.js'
 import { createNotification } from '../infrastructure/notifications/notification-service.js'
+import { evaluateChallenges } from './challenges/challenge-service.js'
 import type { VoteResult } from '@wawptn/types'
 
 /**
@@ -98,6 +99,13 @@ export async function closeSession(sessionId: string, groupId: string): Promise<
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     }).catch(err =>
       logger.warn({ error: String(err), groupId }, 'in-app vote closed notification failed')
+    )
+  }
+
+  // Evaluate participation challenges for all participants (non-blocking)
+  for (const pid of participantIds) {
+    evaluateChallenges(pid, ['participation']).catch(err =>
+      logger.warn({ error: String(err), userId: pid }, 'challenge evaluation after session close failed')
     )
   }
 

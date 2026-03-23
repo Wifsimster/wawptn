@@ -884,6 +884,13 @@ async function syncUserLibrary(userId: string, steamId: string): Promise<number>
 
   await db('users').where({ id: userId }).update({ library_visible: true, updated_at: now })
   steamLogger.info({ userId, steamId, gameCount: games.length }, 'library synced')
+
+  // Evaluate playtime/collection/dedication challenges after sync (non-blocking)
+  const { evaluateChallenges } = await import('../../domain/challenges/challenge-service.js')
+  evaluateChallenges(userId, ['playtime', 'dedication', 'collection']).catch(err =>
+    steamLogger.warn({ error: String(err), userId }, 'challenge evaluation after sync failed')
+  )
+
   return games.length
 }
 

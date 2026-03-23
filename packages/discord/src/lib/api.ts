@@ -48,6 +48,7 @@ export interface BotSettings {
   schedule_timezone: string
   disabled_personas: string[]
   announce_persona_change: boolean
+  persona_override: string | null
 }
 
 const DEFAULT_SETTINGS: BotSettings = {
@@ -57,6 +58,7 @@ const DEFAULT_SETTINGS: BotSettings = {
   schedule_timezone: 'Europe/Paris',
   disabled_personas: [],
   announce_persona_change: false,
+  persona_override: null,
 }
 
 export async function getBotSettings(): Promise<BotSettings> {

@@ -29,6 +29,15 @@ router.get('/current', async (_req: Request, res: Response) => {
       return
     }
 
+    // Check for admin persona override
+    const overrideSetting = await db('app_settings')
+      .where({ key: 'bot.persona_override' })
+      .select('value')
+      .first()
+    const overrideId: string | null = typeof overrideSetting?.value === 'string' && overrideSetting.value
+      ? overrideSetting.value
+      : null
+
     // Check if rotation is enabled
     const rotationSetting = await db('app_settings')
       .where({ key: 'bot.persona_rotation_enabled' })
@@ -56,10 +65,18 @@ router.get('/current', async (_req: Request, res: Response) => {
 
     let selected
 
-    if (!rotationEnabled) {
+    // Admin override takes priority
+    if (overrideId) {
+      const overridePersona = personas.find((p: { id: string }) => p.id === overrideId)
+      if (overridePersona) {
+        selected = overridePersona
+      }
+    }
+
+    if (!selected && !rotationEnabled) {
       // No rotation: use first active persona (default)
       selected = personas[0]
-    } else {
+    } else if (!selected) {
       // Filter out disabled personas
       const available = disabledIds.length > 0
         ? personas.filter((p: { id: string }) => !disabledIds.includes(p.id))

@@ -448,6 +448,14 @@ export function getDefaultPersona(): Persona {
 }
 
 /**
+ * Returns a persona by ID, or undefined if not found.
+ */
+export function getPersonaById(id: string): Persona | undefined {
+  const pool = getPersonaPool()
+  return pool.find(p => p.id === id)
+}
+
+/**
  * Returns all personas with their IDs and names (for admin UI).
  */
 export function getAllPersonas(): Pick<Persona, 'id' | 'name' | 'embedColor'>[] {

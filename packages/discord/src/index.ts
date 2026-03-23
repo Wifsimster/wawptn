@@ -2,12 +2,17 @@ import { Client, GatewayIntentBits, Events, REST, Routes, type Interaction, type
 import { validateEnv, env } from './env.js'
 import { backendApi } from './lib/api.js'
 import { startScheduler, notifyBackOnline } from './scheduler.js'
-import { getTodayPersona, getDefaultPersona, type Persona } from './personas.js'
+import { getTodayPersona, getDefaultPersona, getPersonaById, type Persona } from './personas.js'
 import { getBotSettings } from './lib/api.js'
 
 async function getActivePersona(): Promise<Persona> {
   try {
     const settings = await getBotSettings()
+    // Admin override takes priority
+    if (settings.persona_override) {
+      const override = getPersonaById(settings.persona_override)
+      if (override) return override
+    }
     if (!settings.persona_rotation_enabled) return getDefaultPersona()
     return getTodayPersona(settings.disabled_personas ?? [])
   } catch {

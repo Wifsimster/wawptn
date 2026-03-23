@@ -1,7 +1,7 @@
 import cron, { type ScheduledTask } from 'node-cron'
 import { EmbedBuilder, type Client, type TextChannel } from 'discord.js'
 import { getLinkedChannels, getBotSettings, type BotSettings } from './lib/api.js'
-import { getTodayPersona, getDefaultPersona, loadPersonasFromApi, startPersonaCacheRefresh } from './personas.js'
+import { getTodayPersona, getDefaultPersona, getPersonaById, loadPersonasFromApi, startPersonaCacheRefresh } from './personas.js'
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -11,6 +11,11 @@ let weekdayTask: ScheduledTask | null = null
 let personaAnnounceTask: ScheduledTask | null = null
 
 function getPersona() {
+  // Admin override takes priority
+  if (currentSettings?.persona_override) {
+    const override = getPersonaById(currentSettings.persona_override)
+    if (override) return override
+  }
   if (currentSettings && !currentSettings.persona_rotation_enabled) {
     return getDefaultPersona()
   }

@@ -39,6 +39,7 @@ interface BotSettings {
   schedule_timezone: string
   disabled_personas: string[]
   announce_persona_change: boolean
+  persona_override: string | null
 }
 
 interface AdminStats {
@@ -238,6 +239,7 @@ export function AdminPage() {
       ])
       const s = settingsData as unknown as BotSettings
       if (!Array.isArray(s.disabled_personas)) s.disabled_personas = []
+      if (s.persona_override === undefined) s.persona_override = null
       setSettings(s)
       setStats(statsData)
       setUsers(usersData)
@@ -523,6 +525,7 @@ export function AdminPage() {
                 settings={settings}
                 loading={loading}
                 saving={saving}
+                personas={personas}
                 onSettingsChange={setSettings}
                 onSave={handleSave}
               />
@@ -1066,15 +1069,18 @@ function BotSettingsTab({
   settings,
   loading,
   saving,
+  personas,
   onSettingsChange,
   onSave,
 }: {
   settings: BotSettings | null
   loading: boolean
   saving: boolean
+  personas: AdminPersona[]
   onSettingsChange: (s: BotSettings) => void
   onSave: () => void
 }) {
+  const activePersonas = personas.filter(p => p.isActive)
   return (
     <motion.div
       variants={stagger}
@@ -1136,6 +1142,34 @@ function BotSettingsTab({
                   >
                     Annoncer le changement de persona à minuit
                   </label>
+                </div>
+
+                {/* Persona override */}
+                <div className="space-y-2 pt-2">
+                  <label htmlFor="persona-override" className="text-sm font-medium flex items-center gap-1.5">
+                    <Theater className="h-3.5 w-3.5 text-muted-foreground" />
+                    Forcer le persona du jour
+                  </label>
+                  <select
+                    id="persona-override"
+                    value={settings.persona_override ?? ''}
+                    onChange={(e) =>
+                      onSettingsChange({ ...settings, persona_override: e.target.value || null })
+                    }
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">Automatique (rotation)</option>
+                    {activePersonas.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground/60">
+                    {settings.persona_override
+                      ? 'Le persona sélectionné sera utilisé à la place de la rotation automatique.'
+                      : 'La rotation automatique sélectionne le persona en fonction du jour.'}
+                  </p>
                 </div>
               </>
             )}

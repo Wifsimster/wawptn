@@ -338,6 +338,7 @@
 @keyframes admin-badge-sweep {
   0%, 100% { transform: translateX(-100%); }
   50% { transform: translateX(100%); }
+}
 
 /* ── Profile page: spinning avatar ring ── */
 

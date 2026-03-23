@@ -1,7 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bot, Users, BarChart3, Save, RefreshCw, ShieldCheck, ShieldOff, Theater, Plus, Pencil, Trash2, Lock } from 'lucide-react'
+import {
+  ArrowLeft, Bot, Users, BarChart3, Save, RefreshCw, ShieldCheck,
+  ShieldOff, Theater, Plus, Pencil, Trash2, Lock, Search, X,
+  Activity, Zap, Clock, Globe, Terminal,
+} from 'lucide-react'
 import { toast } from 'sonner'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { AppHeader } from '@/components/app-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,6 +26,9 @@ import {
 } from '@/components/ui/dialog'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/lib/api'
+import { cn } from '@/lib/utils'
+
+/* ─── Types ─────────────────────────────────────────── */
 
 interface BotSettings {
   persona_rotation_enabled: boolean
@@ -86,6 +94,17 @@ const EMPTY_FORM: PersonaFormData = {
   embedColor: '#5865F2',
 }
 
+type AdminTab = 'overview' | 'bot' | 'personas' | 'users'
+
+const TABS: { id: AdminTab; label: string; icon: typeof BarChart3 }[] = [
+  { id: 'overview', label: 'Vue d\'ensemble', icon: Activity },
+  { id: 'bot', label: 'Bot Discord', icon: Bot },
+  { id: 'personas', label: 'Personas', icon: Theater },
+  { id: 'users', label: 'Utilisateurs', icon: Users },
+]
+
+/* ─── Helpers ───────────────────────────────────────── */
+
 function colorIntToHex(color: number): string {
   return '#' + color.toString(16).padStart(6, '0').toUpperCase()
 }
@@ -102,15 +121,90 @@ function arrayToLines(arr: string[]): string {
   return arr.join('\n')
 }
 
+/* ─── Animated counter ──────────────────────────────── */
+
+function AnimatedNumber({ value, duration = 1200 }: { value: number; duration?: number }) {
+  const [display, setDisplay] = useState(0)
+  const ref = useRef<number>(0)
+
+  useEffect(() => {
+    const start = ref.current
+    const diff = value - start
+    if (diff === 0) return
+    const startTime = performance.now()
+
+    function tick(now: number) {
+      const elapsed = now - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3)
+      const current = Math.round(start + diff * eased)
+      setDisplay(current)
+      if (progress < 1) {
+        requestAnimationFrame(tick)
+      } else {
+        ref.current = value
+      }
+    }
+
+    requestAnimationFrame(tick)
+  }, [value, duration])
+
+  return <>{display.toLocaleString('fr-FR')}</>
+}
+
+/* ─── Motion variants ───────────────────────────────── */
+
+const fadeUp: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+  },
+}
+
+const stagger: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.08 } },
+}
+
+const scaleIn: Variants = {
+  hidden: { opacity: 0, scale: 0.92 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+  },
+}
+
+const tabContent: Variants = {
+  enter: { opacity: 0, x: 12 },
+  center: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] },
+  },
+  exit: {
+    opacity: 0,
+    x: -12,
+    transition: { duration: 0.2 },
+  },
+}
+
+/* ─── Main component ────────────────────────────────── */
+
 export function AdminPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview')
   const [settings, setSettings] = useState<BotSettings | null>(null)
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [users, setUsers] = useState<AdminUser[]>([])
   const [personas, setPersonas] = useState<AdminPersona[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [userSearch, setUserSearch] = useState('')
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -140,7 +234,6 @@ export function AdminPage() {
         api.getAdminPersonas(),
       ])
       const s = settingsData as unknown as BotSettings
-      // Ensure disabled_personas is always an array
       if (!Array.isArray(s.disabled_personas)) s.disabled_personas = []
       setSettings(s)
       setStats(statsData)
@@ -212,7 +305,6 @@ export function AdminPage() {
   }
 
   async function handleFormSubmit() {
-    // Validate
     if (!formData.name.trim()) {
       toast.error('Le nom est requis')
       return
@@ -282,285 +374,191 @@ export function AdminPage() {
     }
   }
 
+  const filteredUsers = userSearch.trim()
+    ? users.filter(u =>
+      u.displayName.toLowerCase().includes(userSearch.toLowerCase()) ||
+      u.steamId.includes(userSearch)
+    )
+    : users
+
+  const activePersonas = personas.filter(p => p.isActive).length
+
   if (!user?.isAdmin) return null
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader>
+      <AppHeader maxWidth="wide">
         <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </AppHeader>
 
-      <main id="main-content" className="mx-auto max-w-2xl px-4 py-6 space-y-6" style={{ paddingLeft: 'max(1rem, env(safe-area-inset-left))', paddingRight: 'max(1rem, env(safe-area-inset-right))' }}>
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Administration</h1>
-          <Badge variant="outline">Admin</Badge>
-        </div>
-
-        {/* Stats */}
-        {loading ? (
-          <div className="grid grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-24" />)}
-          </div>
-        ) : stats && (
-          <div className="grid grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="pt-4 pb-4 text-center">
-                <Users className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                <div className="text-2xl font-bold">{stats.users}</div>
-                <div className="text-xs text-muted-foreground">Utilisateurs</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4 pb-4 text-center">
-                <BarChart3 className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                <div className="text-2xl font-bold">{stats.groups}</div>
-                <div className="text-xs text-muted-foreground">Groupes</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4 pb-4 text-center">
-                <Bot className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                <div className="text-2xl font-bold">{stats.votingSessions}</div>
-                <div className="text-xs text-muted-foreground">Sessions de vote</div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Bot Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bot className="h-5 w-5" />
-              Paramètres du bot Discord
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loading ? (
-              <div className="space-y-4">
-                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-10" />)}
-              </div>
-            ) : settings && (
-              <>
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    id="persona-rotation"
-                    checked={settings.persona_rotation_enabled}
-                    onCheckedChange={(checked) =>
-                      setSettings({ ...settings, persona_rotation_enabled: checked === true })
-                    }
-                  />
-                  <label htmlFor="persona-rotation" className="text-sm font-medium cursor-pointer">
-                    Rotation des personas activée
-                  </label>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    id="announce-persona-change"
-                    checked={settings.announce_persona_change}
-                    onCheckedChange={(checked) =>
-                      setSettings({ ...settings, announce_persona_change: checked === true })
-                    }
-                    disabled={!settings.persona_rotation_enabled}
-                  />
-                  <label htmlFor="announce-persona-change" className={`text-sm font-medium cursor-pointer ${!settings.persona_rotation_enabled ? 'text-muted-foreground' : ''}`}>
-                    Annoncer le changement de persona à minuit
-                  </label>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="friday-schedule" className="text-sm font-medium">
-                    Rappel vendredi (cron)
-                  </label>
-                  <Input
-                    id="friday-schedule"
-                    value={settings.friday_schedule}
-                    onChange={(e) => setSettings({ ...settings, friday_schedule: e.target.value })}
-                    placeholder="0 21 * * 5"
-                  />
-                  <p className="text-xs text-muted-foreground">Expression cron pour le rappel du vendredi soir</p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="wednesday-schedule" className="text-sm font-medium">
-                    Rappel semaine (cron)
-                  </label>
-                  <Input
-                    id="wednesday-schedule"
-                    value={settings.wednesday_schedule}
-                    onChange={(e) => setSettings({ ...settings, wednesday_schedule: e.target.value })}
-                    placeholder="0 17 * * 3"
-                  />
-                  <p className="text-xs text-muted-foreground">Expression cron pour le rappel en semaine</p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="timezone" className="text-sm font-medium">
-                    Fuseau horaire
-                  </label>
-                  <Input
-                    id="timezone"
-                    value={settings.schedule_timezone}
-                    onChange={(e) => setSettings({ ...settings, schedule_timezone: e.target.value })}
-                    placeholder="Europe/Paris"
-                  />
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <Button onClick={handleSave} disabled={saving} className="gap-2">
-                    <Save className="h-4 w-4" />
-                    {saving ? 'Sauvegarde...' : 'Sauvegarder'}
-                  </Button>
-                  <Button variant="outline" onClick={loadData} className="gap-2">
-                    <RefreshCw className="h-4 w-4" />
-                    Recharger
-                  </Button>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Personas */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Theater className="h-5 w-5" />
-                Personas ({personas.length})
-              </CardTitle>
-              <Button size="sm" className="gap-1.5" onClick={openCreateDialog}>
-                <Plus className="h-4 w-4" />
-                Ajouter un persona
-              </Button>
+      <main
+        id="main-content"
+        className="mx-auto max-w-6xl px-4 py-8 space-y-8"
+        style={{
+          paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+          paddingRight: 'max(1rem, env(safe-area-inset-right))',
+        }}
+      >
+        {/* ── Header ─────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-end justify-between gap-4"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+                Centre de contrôle
+              </h1>
+              <Badge className="admin-badge text-[10px] uppercase tracking-widest font-mono px-2.5 py-0.5 bg-primary/10 text-primary border-primary/20">
+                Admin
+              </Badge>
             </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => <Skeleton key={i} className="h-10" />)}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {personas.map((persona) => (
-                  <div
-                    key={persona.id}
-                    className="flex items-center gap-3 rounded-md border border-border p-3"
-                  >
-                    <Checkbox
-                      id={`persona-${persona.id}`}
-                      checked={persona.isActive}
-                      onCheckedChange={() => handleTogglePersona(persona.id)}
-                    />
-                    <div
-                      className="w-3 h-3 rounded-full shrink-0"
-                      style={{ backgroundColor: colorIntToHex(persona.embedColor) }}
-                    />
-                    <label
-                      htmlFor={`persona-${persona.id}`}
-                      className={`text-sm font-medium cursor-pointer flex-1 ${!persona.isActive ? 'text-muted-foreground line-through' : ''}`}
-                    >
-                      {persona.name}
-                    </label>
-                    {persona.isDefault && (
-                      <span title="Persona par défaut"><Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" /></span>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0"
-                      onClick={() => openEditDialog(persona)}
-                      title="Modifier"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    {!persona.isDefault && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
-                        onClick={() => {
-                          setDeletingPersonaId(persona.id)
-                          setDeleteDialogOpen(true)
-                        }}
-                        title="Supprimer"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <p className="text-xs text-muted-foreground pt-1">
-                  Cochez/décochez pour activer ou désactiver un persona dans la rotation.
-                  Les personas avec un cadenas sont les personas par défaut et ne peuvent pas être supprimés.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            <p className="text-sm text-muted-foreground font-mono">
+              <Terminal className="inline h-3.5 w-3.5 mr-1.5 -mt-0.5" />
+              Tableau de bord administrateur
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadData}
+            disabled={loading}
+            className="gap-2 shrink-0"
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+            Actualiser
+          </Button>
+        </motion.div>
 
-        {/* Users List */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Utilisateurs ({users.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => <Skeleton key={i} className="h-12" />)}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {users.map((u) => (
-                  <div key={u.id} className="flex items-center gap-3 rounded-md border border-border p-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={u.avatarUrl} alt={u.displayName} />
-                      <AvatarFallback>{u.displayName.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{u.displayName}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Inscrit le {new Date(u.createdAt).toLocaleDateString('fr-FR')}
-                      </div>
-                    </div>
-                    {u.isAdmin ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 text-destructive hover:text-destructive"
-                        onClick={() => handleToggleAdmin(u)}
-                        disabled={u.id === user?.id}
-                        title={u.id === user?.id ? 'Vous ne pouvez pas révoquer votre propre accès' : undefined}
-                      >
-                        <ShieldOff className="h-3.5 w-3.5" />
-                        Révoquer
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={() => handleToggleAdmin(u)}
-                      >
-                        <ShieldCheck className="h-3.5 w-3.5" />
-                        Promouvoir
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* ── Tab navigation ─────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.4 }}
+          className="admin-tabs relative"
+        >
+          <div className="flex gap-1 p-1 rounded-xl bg-card/50 border border-white/[0.04] backdrop-blur-sm">
+            {TABS.map((tab) => {
+              const Icon = tab.icon
+              const isActive = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    'relative flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 flex-1 justify-center',
+                    isActive
+                      ? 'text-foreground'
+                      : 'text-muted-foreground hover:text-foreground/70',
+                  )}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="admin-tab-bg"
+                      className="absolute inset-0 rounded-lg bg-primary/[0.08] border border-primary/15"
+                      style={{ boxShadow: '0 0 20px oklch(0.55 0.27 270 / 0.06)' }}
+                      transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                    />
+                  )}
+                  <Icon className="relative z-10 h-4 w-4" />
+                  <span className="relative z-10 hidden sm:inline">{tab.label}</span>
+                  {tab.id === 'personas' && personas.length > 0 && (
+                    <span className="relative z-10 hidden sm:inline text-[10px] font-mono text-muted-foreground">
+                      {activePersonas}/{personas.length}
+                    </span>
+                  )}
+                  {tab.id === 'users' && users.length > 0 && (
+                    <span className="relative z-10 hidden sm:inline text-[10px] font-mono text-muted-foreground">
+                      {users.length}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </motion.div>
+
+        {/* ── Tab content ────────────────────────────── */}
+        <AnimatePresence mode="wait">
+          {activeTab === 'overview' && (
+            <motion.div
+              key="overview"
+              variants={tabContent}
+              initial="enter"
+              animate="center"
+              exit="exit"
+            >
+              <OverviewTab stats={stats} loading={loading} personas={personas} users={users} />
+            </motion.div>
+          )}
+
+          {activeTab === 'bot' && (
+            <motion.div
+              key="bot"
+              variants={tabContent}
+              initial="enter"
+              animate="center"
+              exit="exit"
+            >
+              <BotSettingsTab
+                settings={settings}
+                loading={loading}
+                saving={saving}
+                onSettingsChange={setSettings}
+                onSave={handleSave}
+              />
+            </motion.div>
+          )}
+
+          {activeTab === 'personas' && (
+            <motion.div
+              key="personas"
+              variants={tabContent}
+              initial="enter"
+              animate="center"
+              exit="exit"
+            >
+              <PersonasTab
+                personas={personas}
+                loading={loading}
+                onToggle={handleTogglePersona}
+                onEdit={openEditDialog}
+                onDelete={(id) => {
+                  setDeletingPersonaId(id)
+                  setDeleteDialogOpen(true)
+                }}
+                onCreate={openCreateDialog}
+              />
+            </motion.div>
+          )}
+
+          {activeTab === 'users' && (
+            <motion.div
+              key="users"
+              variants={tabContent}
+              initial="enter"
+              animate="center"
+              exit="exit"
+            >
+              <UsersTab
+                users={filteredUsers}
+                totalUsers={users.length}
+                loading={loading}
+                currentUserId={user?.id}
+                searchQuery={userSearch}
+                onSearchChange={setUserSearch}
+                onToggleAdmin={handleToggleAdmin}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
-      {/* Create/Edit Persona Dialog */}
+      {/* ── Create/Edit Persona Dialog ──────────────── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -697,7 +695,7 @@ export function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* ── Delete Confirmation Dialog ──────────────── */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -716,6 +714,715 @@ export function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════
+   TAB: Overview
+   ═══════════════════════════════════════════════════════ */
+
+function OverviewTab({
+  stats,
+  loading,
+  personas,
+  users,
+}: {
+  stats: AdminStats | null
+  loading: boolean
+  personas: AdminPersona[]
+  users: AdminUser[]
+}) {
+  const adminCount = users.filter(u => u.isAdmin).length
+  const activePersonas = personas.filter(p => p.isActive).length
+
+  const statCards = [
+    {
+      label: 'Utilisateurs',
+      value: stats?.users ?? 0,
+      icon: Users,
+      accent: 'neon' as const,
+      detail: `dont ${adminCount} admin${adminCount > 1 ? 's' : ''}`,
+    },
+    {
+      label: 'Groupes',
+      value: stats?.groups ?? 0,
+      icon: Zap,
+      accent: 'primary' as const,
+      detail: null,
+    },
+    {
+      label: 'Sessions de vote',
+      value: stats?.votingSessions ?? 0,
+      icon: BarChart3,
+      accent: 'ember' as const,
+      detail: null,
+    },
+    {
+      label: 'Personas actifs',
+      value: activePersonas,
+      icon: Theater,
+      accent: 'success' as const,
+      detail: `sur ${personas.length} total`,
+    },
+  ]
+
+  return (
+    <div className="space-y-8">
+      {/* ── Stat cards grid ── */}
+      <motion.div
+        variants={stagger}
+        initial="hidden"
+        animate="visible"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+      >
+        {loading
+          ? [1, 2, 3, 4].map(i => (
+            <Skeleton key={i} className="h-32 rounded-xl" />
+          ))
+          : statCards.map((card) => {
+            const Icon = card.icon
+            const colorMap = {
+              neon: {
+                ring: 'border-neon/15 hover:border-neon/30',
+                glow: '0 0 24px oklch(0.82 0.19 190 / 0.08)',
+                iconBg: 'bg-neon/10',
+                iconColor: 'text-neon',
+                valueColor: 'text-neon',
+              },
+              primary: {
+                ring: 'border-primary/15 hover:border-primary/30',
+                glow: '0 0 24px oklch(0.55 0.27 270 / 0.08)',
+                iconBg: 'bg-primary/10',
+                iconColor: 'text-primary',
+                valueColor: 'text-primary',
+              },
+              ember: {
+                ring: 'border-ember/15 hover:border-ember/30',
+                glow: '0 0 24px oklch(0.72 0.18 50 / 0.08)',
+                iconBg: 'bg-ember/10',
+                iconColor: 'text-ember',
+                valueColor: 'text-ember',
+              },
+              success: {
+                ring: 'border-success/15 hover:border-success/30',
+                glow: '0 0 24px oklch(0.723 0.191 142.5 / 0.08)',
+                iconBg: 'bg-success/10',
+                iconColor: 'text-success',
+                valueColor: 'text-success',
+              },
+            }
+            const c = colorMap[card.accent]
+
+            return (
+              <motion.div key={card.label} variants={fadeUp}>
+                <div
+                  className={cn(
+                    'group relative overflow-hidden rounded-xl border bg-card/60 backdrop-blur-sm p-5 transition-all duration-500',
+                    c.ring,
+                  )}
+                  style={{ boxShadow: c.glow }}
+                >
+                  {/* Background glow orb */}
+                  <div
+                    className="absolute -top-8 -right-8 w-24 h-24 rounded-full opacity-[0.04] blur-2xl transition-opacity duration-500 group-hover:opacity-[0.08]"
+                    style={{
+                      background: card.accent === 'neon'
+                        ? 'oklch(0.82 0.19 190)'
+                        : card.accent === 'primary'
+                          ? 'oklch(0.55 0.27 270)'
+                          : card.accent === 'ember'
+                            ? 'oklch(0.72 0.18 50)'
+                            : 'oklch(0.723 0.191 142.5)',
+                    }}
+                  />
+
+                  <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center mb-3', c.iconBg)}>
+                    <Icon className={cn('h-4.5 w-4.5', c.iconColor)} />
+                  </div>
+                  <div className={cn('text-3xl font-heading font-bold tracking-tight', c.valueColor)}>
+                    <AnimatedNumber value={card.value} />
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1 font-medium">
+                    {card.label}
+                  </div>
+                  {card.detail && (
+                    <div className="text-[10px] text-muted-foreground/60 mt-0.5 font-mono">
+                      {card.detail}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )
+          })}
+      </motion.div>
+
+      {/* ── Recent activity grid ── */}
+      <motion.div
+        variants={stagger}
+        initial="hidden"
+        animate="visible"
+        className="grid gap-4 lg:grid-cols-2"
+      >
+        {/* Personas overview */}
+        <motion.div variants={fadeUp}>
+          <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04]">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Theater className="h-4 w-4" />
+                Personas en rotation
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-8" />)}
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {personas.slice(0, 6).map((p) => (
+                    <div
+                      key={p.id}
+                      className={cn(
+                        'flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors',
+                        p.isActive
+                          ? 'bg-white/[0.02]'
+                          : 'opacity-40',
+                      )}
+                    >
+                      <div
+                        className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-background"
+                        style={{
+                          backgroundColor: colorIntToHex(p.embedColor),
+                          ringColor: colorIntToHex(p.embedColor) + '40',
+                        }}
+                      />
+                      <span className="text-sm truncate flex-1">{p.name}</span>
+                      {p.isDefault && (
+                        <Lock className="h-3 w-3 text-muted-foreground/50" />
+                      )}
+                      <span className={cn(
+                        'text-[10px] font-mono uppercase tracking-wider',
+                        p.isActive ? 'text-success' : 'text-muted-foreground',
+                      )}>
+                        {p.isActive ? 'actif' : 'inactif'}
+                      </span>
+                    </div>
+                  ))}
+                  {personas.length > 6 && (
+                    <p className="text-[10px] text-muted-foreground/50 text-center pt-1 font-mono">
+                      +{personas.length - 6} de plus
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Recent users */}
+        <motion.div variants={fadeUp}>
+          <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04]">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Derniers inscrits
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-10" />)}
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {[...users]
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .slice(0, 5)
+                    .map((u) => (
+                      <div
+                        key={u.id}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/[0.02]"
+                      >
+                        <Avatar className="h-7 w-7">
+                          <AvatarImage src={u.avatarUrl} alt={u.displayName} />
+                          <AvatarFallback className="text-[10px]">{u.displayName.charAt(0).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm truncate flex-1">{u.displayName}</span>
+                        {u.isAdmin && (
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary/20 text-primary">
+                            admin
+                          </Badge>
+                        )}
+                        <span className="text-[10px] text-muted-foreground/60 font-mono shrink-0">
+                          {new Date(u.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════
+   TAB: Bot Settings
+   ═══════════════════════════════════════════════════════ */
+
+function BotSettingsTab({
+  settings,
+  loading,
+  saving,
+  onSettingsChange,
+  onSave,
+}: {
+  settings: BotSettings | null
+  loading: boolean
+  saving: boolean
+  onSettingsChange: (s: BotSettings) => void
+  onSave: () => void
+}) {
+  return (
+    <motion.div
+      variants={stagger}
+      initial="hidden"
+      animate="visible"
+      className="max-w-2xl space-y-6"
+    >
+      {/* Persona rotation */}
+      <motion.div variants={fadeUp}>
+        <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04] overflow-hidden">
+          <div className="h-[2px] bg-gradient-to-r from-primary/40 via-neon/30 to-transparent" />
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2.5 text-base">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Bot className="h-4 w-4 text-primary" />
+              </div>
+              Rotation des personas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {loading ? (
+              <div className="space-y-4">
+                {[1, 2].map(i => <Skeleton key={i} className="h-10" />)}
+              </div>
+            ) : settings && (
+              <>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.03]">
+                  <Checkbox
+                    id="persona-rotation"
+                    checked={settings.persona_rotation_enabled}
+                    onCheckedChange={(checked) =>
+                      onSettingsChange({ ...settings, persona_rotation_enabled: checked === true })
+                    }
+                  />
+                  <label htmlFor="persona-rotation" className="text-sm font-medium cursor-pointer flex-1">
+                    Rotation des personas activée
+                  </label>
+                  <div className={cn(
+                    'w-2 h-2 rounded-full transition-colors',
+                    settings.persona_rotation_enabled ? 'bg-success' : 'bg-muted-foreground/30',
+                  )} />
+                </div>
+
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.03]">
+                  <Checkbox
+                    id="announce-persona-change"
+                    checked={settings.announce_persona_change}
+                    onCheckedChange={(checked) =>
+                      onSettingsChange({ ...settings, announce_persona_change: checked === true })
+                    }
+                    disabled={!settings.persona_rotation_enabled}
+                  />
+                  <label
+                    htmlFor="announce-persona-change"
+                    className={cn(
+                      'text-sm font-medium cursor-pointer flex-1',
+                      !settings.persona_rotation_enabled && 'text-muted-foreground',
+                    )}
+                  >
+                    Annoncer le changement de persona à minuit
+                  </label>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Schedules */}
+      <motion.div variants={fadeUp}>
+        <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04] overflow-hidden">
+          <div className="h-[2px] bg-gradient-to-r from-ember/40 via-reward/30 to-transparent" />
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2.5 text-base">
+              <div className="w-8 h-8 rounded-lg bg-ember/10 flex items-center justify-center">
+                <Clock className="h-4 w-4 text-ember" />
+              </div>
+              Planification
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {loading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-16" />)}
+              </div>
+            ) : settings && (
+              <>
+                <div className="space-y-1.5">
+                  <label htmlFor="friday-schedule" className="text-sm font-medium flex items-center gap-1.5">
+                    Rappel vendredi
+                    <span className="text-[10px] font-mono text-muted-foreground/50 bg-white/[0.03] px-1.5 py-0.5 rounded">cron</span>
+                  </label>
+                  <Input
+                    id="friday-schedule"
+                    value={settings.friday_schedule}
+                    onChange={(e) => onSettingsChange({ ...settings, friday_schedule: e.target.value })}
+                    placeholder="0 21 * * 5"
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground/60">Expression cron pour le rappel du vendredi soir</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="wednesday-schedule" className="text-sm font-medium flex items-center gap-1.5">
+                    Rappel semaine
+                    <span className="text-[10px] font-mono text-muted-foreground/50 bg-white/[0.03] px-1.5 py-0.5 rounded">cron</span>
+                  </label>
+                  <Input
+                    id="wednesday-schedule"
+                    value={settings.wednesday_schedule}
+                    onChange={(e) => onSettingsChange({ ...settings, wednesday_schedule: e.target.value })}
+                    placeholder="0 17 * * 3"
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground/60">Expression cron pour le rappel en semaine</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="timezone" className="text-sm font-medium flex items-center gap-1.5">
+                    <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                    Fuseau horaire
+                  </label>
+                  <Input
+                    id="timezone"
+                    value={settings.schedule_timezone}
+                    onChange={(e) => onSettingsChange({ ...settings, schedule_timezone: e.target.value })}
+                    placeholder="Europe/Paris"
+                    className="font-mono text-sm"
+                  />
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Save bar */}
+      <motion.div variants={fadeUp} className="flex gap-3 pt-2">
+        <Button onClick={onSave} disabled={saving || loading} className="gap-2">
+          <Save className="h-4 w-4" />
+          {saving ? 'Sauvegarde...' : 'Sauvegarder les paramètres'}
+        </Button>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════
+   TAB: Personas
+   ═══════════════════════════════════════════════════════ */
+
+function PersonasTab({
+  personas,
+  loading,
+  onToggle,
+  onEdit,
+  onDelete,
+  onCreate,
+}: {
+  personas: AdminPersona[]
+  loading: boolean
+  onToggle: (id: string) => void
+  onEdit: (persona: AdminPersona) => void
+  onDelete: (id: string) => void
+  onCreate: () => void
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          {personas.filter(p => p.isActive).length} actif{personas.filter(p => p.isActive).length > 1 ? 's' : ''} sur {personas.length}
+        </div>
+        <Button size="sm" className="gap-1.5" onClick={onCreate}>
+          <Plus className="h-4 w-4" />
+          Ajouter un persona
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-48 rounded-xl" />)}
+        </div>
+      ) : (
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          animate="visible"
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {personas.map((persona) => (
+            <motion.div key={persona.id} variants={scaleIn}>
+              <div
+                className={cn(
+                  'group relative rounded-xl border bg-card/60 backdrop-blur-sm overflow-hidden transition-all duration-300',
+                  persona.isActive
+                    ? 'border-white/[0.06] hover:border-white/[0.12]'
+                    : 'border-white/[0.03] opacity-50 hover:opacity-70',
+                )}
+              >
+                {/* Color stripe top */}
+                <div
+                  className="h-1 w-full transition-all duration-300"
+                  style={{
+                    background: `linear-gradient(90deg, ${colorIntToHex(persona.embedColor)}, ${colorIntToHex(persona.embedColor)}80, transparent)`,
+                    opacity: persona.isActive ? 1 : 0.4,
+                  }}
+                />
+
+                <div className="p-4 space-y-3">
+                  {/* Header row */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className="w-4 h-4 rounded-full shrink-0 ring-2 ring-offset-2 ring-offset-card"
+                        style={{
+                          backgroundColor: colorIntToHex(persona.embedColor),
+                          boxShadow: persona.isActive
+                            ? `0 0 12px ${colorIntToHex(persona.embedColor)}40`
+                            : 'none',
+                        }}
+                      />
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold truncate">{persona.name}</h3>
+                        <p className="text-[10px] font-mono text-muted-foreground/50 truncate">{persona.id}</p>
+                      </div>
+                    </div>
+                    {persona.isDefault && (
+                      <span title="Persona par défaut">
+                        <Lock className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 mt-0.5" />
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Preview */}
+                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                    {persona.systemPromptOverlay || persona.introMessage || 'Aucune description'}
+                  </p>
+
+                  {/* Stats row */}
+                  <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground/50">
+                    <span>{persona.fridayMessages.length} msg vendredi</span>
+                    <span className="text-white/10">|</span>
+                    <span>{persona.weekdayMessages.length} msg semaine</span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-white/[0.04]">
+                    <Checkbox
+                      id={`persona-${persona.id}`}
+                      checked={persona.isActive}
+                      onCheckedChange={() => onToggle(persona.id)}
+                    />
+                    <label
+                      htmlFor={`persona-${persona.id}`}
+                      className="text-[11px] cursor-pointer flex-1 text-muted-foreground"
+                    >
+                      {persona.isActive ? 'Actif' : 'Inactif'}
+                    </label>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => onEdit(persona)}
+                      title="Modifier"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    {!persona.isDefault && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => onDelete(persona.id)}
+                        title="Supprimer"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
+
+      <p className="text-xs text-muted-foreground/40 pt-2">
+        Cochez/décochez pour activer ou désactiver un persona dans la rotation.
+        Les personas avec un cadenas sont les personas par défaut et ne peuvent pas être supprimés.
+      </p>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════
+   TAB: Users
+   ═══════════════════════════════════════════════════════ */
+
+function UsersTab({
+  users,
+  totalUsers,
+  loading,
+  currentUserId,
+  searchQuery,
+  onSearchChange,
+  onToggleAdmin,
+}: {
+  users: AdminUser[]
+  totalUsers: number
+  loading: boolean
+  currentUserId: string | undefined
+  searchQuery: string
+  onSearchChange: (q: string) => void
+  onToggleAdmin: (user: AdminUser) => void
+}) {
+  return (
+    <div className="space-y-5">
+      {/* Search bar */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Rechercher un utilisateur..."
+            className="pl-9 pr-8"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <span className="text-xs font-mono text-muted-foreground/50">
+          {users.length === totalUsers
+            ? `${totalUsers} utilisateur${totalUsers > 1 ? 's' : ''}`
+            : `${users.length}/${totalUsers}`
+          }
+        </span>
+      </div>
+
+      {/* Users list */}
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
+        </div>
+      ) : (
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          animate="visible"
+          className="space-y-2"
+        >
+          {users.map((u) => (
+            <motion.div key={u.id} variants={fadeUp}>
+              <div className={cn(
+                'flex items-center gap-4 rounded-xl border bg-card/60 backdrop-blur-sm p-4 transition-all duration-300',
+                u.isAdmin
+                  ? 'border-primary/10 hover:border-primary/20'
+                  : 'border-white/[0.04] hover:border-white/[0.08]',
+              )}>
+                <div className="relative">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={u.avatarUrl} alt={u.displayName} />
+                    <AvatarFallback>{u.displayName.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  {u.isAdmin && (
+                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary/20 border border-card flex items-center justify-center">
+                      <ShieldCheck className="h-2.5 w-2.5 text-primary" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium truncate">{u.displayName}</span>
+                    {u.isAdmin && (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary/20 text-primary shrink-0">
+                        admin
+                      </Badge>
+                    )}
+                    {u.id === currentUserId && (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-neon/20 text-neon shrink-0">
+                        vous
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground/50 font-mono mt-0.5">
+                    <span>Steam {u.steamId}</span>
+                    <span className="text-white/10">|</span>
+                    <span>
+                      {new Date(u.createdAt).toLocaleDateString('fr-FR', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                </div>
+
+                {u.isAdmin ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-destructive hover:text-destructive border-destructive/20 hover:border-destructive/40 shrink-0"
+                    onClick={() => onToggleAdmin(u)}
+                    disabled={u.id === currentUserId}
+                    title={u.id === currentUserId ? 'Vous ne pouvez pas révoquer votre propre accès' : undefined}
+                  >
+                    <ShieldOff className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Révoquer</span>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 shrink-0"
+                    onClick={() => onToggleAdmin(u)}
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Promouvoir</span>
+                  </Button>
+                )}
+              </div>
+            </motion.div>
+          ))}
+
+          {users.length === 0 && searchQuery && (
+            <div className="text-center py-12 text-sm text-muted-foreground">
+              Aucun utilisateur trouvé pour "{searchQuery}"
+            </div>
+          )}
+        </motion.div>
+      )}
     </div>
   )
 }

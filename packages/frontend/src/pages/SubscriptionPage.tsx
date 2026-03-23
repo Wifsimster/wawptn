@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Crown, CreditCard, ExternalLink } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, Crown, CreditCard, ExternalLink } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AppHeader } from '@/components/app-header'
@@ -13,6 +13,7 @@ import { api } from '@/lib/api'
 
 export function SubscriptionPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { tier, status, currentPeriodEnd, loading, fetchSubscription } = useSubscriptionStore()
   const [searchParams] = useSearchParams()
   const [actionLoading, setActionLoading] = useState(false)
@@ -56,6 +57,10 @@ export function SubscriptionPage() {
     <div className="min-h-screen flex flex-col bg-background">
       <AppHeader />
       <main id="main-content" className="max-w-2xl mx-auto px-4 py-8">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-4">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          {t('group.back')}
+        </Button>
         <h1 className="text-2xl font-heading font-bold mb-6">{t('subscription.title')}</h1>
 
         <Card>

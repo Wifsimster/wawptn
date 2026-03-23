@@ -25,6 +25,8 @@ import { adminRoutes } from './presentation/routes/admin.routes.js'
 import { subscriptionRoutes, subscriptionWebhookRouter } from './presentation/routes/subscription.routes.js'
 import { isStripeEnabled } from './infrastructure/stripe/stripe-client.js'
 import { personaRoutes } from './presentation/routes/persona.routes.js'
+import { notificationRoutes, adminNotificationRoutes } from './presentation/routes/notification.routes.js'
+import { startNotificationCleanup } from './infrastructure/notifications/notification-cleanup.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -118,8 +120,12 @@ async function main() {
   // Persona route (public, read-only — shows today's bot personality)
   app.use('/api/persona', personaRoutes)
 
+  // Notification routes (requires authenticated user)
+  app.use('/api/notifications', requireAuth, notificationRoutes)
+
   // Admin routes (requires authenticated admin user)
   app.use('/api/admin', requireAuth, requireAdmin, adminRoutes)
+  app.use('/api/admin/notifications', requireAuth, requireAdmin, adminNotificationRoutes)
 
   // Discord user-facing routes (session auth, no bot auth required)
   app.use('/api/discord', discordUserRoutes)
@@ -178,6 +184,9 @@ async function main() {
 
   // Subscription reconciler (daily Stripe sync + grace period enforcement)
   startSubscriptionReconciler()
+
+  // Notification cleanup (purge expired notifications weekly)
+  startNotificationCleanup()
 
   // Start server
   httpServer.listen(env.PORT, () => {

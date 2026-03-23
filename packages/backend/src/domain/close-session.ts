@@ -2,6 +2,7 @@ import { db } from '../infrastructure/database/connection.js'
 import { getIO } from '../infrastructure/socket/socket.js'
 import { logger } from '../infrastructure/logger/logger.js'
 import { notifyVoteClosed } from '../infrastructure/discord/notifier.js'
+import { createNotification } from '../infrastructure/notifications/notification-service.js'
 import type { VoteResult } from '@wawptn/types'
 
 /**
@@ -73,6 +74,32 @@ export async function closeSession(sessionId: string, groupId: string): Promise<
   notifyVoteClosed(groupId, result).catch(err =>
     logger.warn({ error: String(err), groupId }, 'Discord notification failed')
   )
+
+  // In-app notification for group participants (non-blocking)
+  const group = await db('groups').where({ id: groupId }).first()
+  const groupName = group?.name || 'Groupe'
+  const participantIds: string[] = await db('voting_session_participants')
+    .where({ session_id: sessionId })
+    .pluck('user_id')
+
+  if (participantIds.length > 0 && winnerName) {
+    createNotification({
+      type: 'vote_closed',
+      title: `${winnerName} a gagné dans ${groupName} !`,
+      body: `${result.yesCount} sur ${result.totalVoters} ont voté pour.`,
+      groupId,
+      metadata: {
+        sessionId,
+        winnerAppId,
+        winnerName,
+        actionUrl: `/groups/${groupId}/vote`,
+      },
+      recipientUserIds: participantIds,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    }).catch(err =>
+      logger.warn({ error: String(err), groupId }, 'in-app vote closed notification failed')
+    )
+  }
 
   logger.info({ sessionId, groupId, winner: winnerName, winnerAppId }, 'voting session closed')
 

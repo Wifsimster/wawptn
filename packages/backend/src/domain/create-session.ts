@@ -2,6 +2,7 @@ import { db } from '../infrastructure/database/connection.js'
 import { computeCommonGames, type GameFilters } from '../infrastructure/database/common-games.js'
 import { getIO } from '../infrastructure/socket/socket.js'
 import { notifySessionCreated } from '../infrastructure/discord/notifier.js'
+import { createNotification } from '../infrastructure/notifications/notification-service.js'
 import { logger } from '../infrastructure/logger/logger.js'
 
 export interface CreateSessionParams {
@@ -165,6 +166,24 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
   }))).catch(err =>
     logger.warn({ error: String(err), groupId }, 'Discord session notification failed')
   )
+
+  // In-app notification for participants (non-blocking)
+  const groupName = group?.name || 'Groupe'
+  const notifRecipients = validMembers.filter(uid => uid !== createdBy)
+  if (notifRecipients.length > 0) {
+    createNotification({
+      type: 'vote_opened',
+      title: `Un vote a commencé dans ${groupName}`,
+      body: `${selectedGames.length} jeux en commun sont soumis au vote.`,
+      groupId,
+      createdBy,
+      metadata: { sessionId: session.id, actionUrl: `/groups/${groupId}/vote` },
+      recipientUserIds: notifRecipients,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    }).catch(err =>
+      logger.warn({ error: String(err), groupId }, 'in-app vote notification failed')
+    )
+  }
 
   logger.info({ sessionId: session.id, groupId, gameCount: selectedGames.length, participants: validMembers.length }, 'voting session created')
 

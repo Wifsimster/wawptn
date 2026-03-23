@@ -367,5 +367,22 @@
   },
   "persona": {
     "today": "Persona du jour"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "Aucune notification",
+    "markAllRead": "Tout marquer comme lu",
+    "justNow": "À l'instant",
+    "minutesAgo": "Il y a {{count}} min",
+    "hoursAgo": "Il y a {{count}}h",
+    "daysAgo": "Il y a {{count}}j",
+    "broadcastTitle": "Envoyer une annonce",
+    "broadcastTitleLabel": "Titre",
+    "broadcastTitlePlaceholder": "Titre de l'annonce...",
+    "broadcastBodyLabel": "Message (optionnel)",
+    "broadcastBodyPlaceholder": "Détails de l'annonce...",
+    "broadcastSend": "Envoyer",
+    "broadcastSuccess": "Annonce envoyée à {{count}} utilisateurs",
+    "broadcastError": "Impossible d'envoyer l'annonce"
   }
 }

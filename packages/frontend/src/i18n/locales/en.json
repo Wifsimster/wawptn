@@ -330,5 +330,22 @@
     "premiumFeature4": "Discord bot with personalities",
     "premiumFeature5": "Scheduled auto-voting",
     "premiumCtaButton": "Upgrade to Premium"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications",
+    "markAllRead": "Mark all as read",
+    "justNow": "Just now",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago",
+    "broadcastTitle": "Send an announcement",
+    "broadcastTitleLabel": "Title",
+    "broadcastTitlePlaceholder": "Announcement title...",
+    "broadcastBodyLabel": "Message (optional)",
+    "broadcastBodyPlaceholder": "Announcement details...",
+    "broadcastSend": "Send",
+    "broadcastSuccess": "Announcement sent to {{count}} users",
+    "broadcastError": "Unable to send announcement"
   }
 }

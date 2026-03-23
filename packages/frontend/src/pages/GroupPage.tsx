@@ -275,9 +275,12 @@ export function GroupPage() {
   return (
     <div className="min-h-screen">
       <AppHeader maxWidth="wide">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')} className="shrink-0">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="text-lg font-heading font-bold truncate">{currentGroup.name}</h1>
+        </div>
       </AppHeader>
 
       <main id="main-content" className="max-w-6xl mx-auto p-4">

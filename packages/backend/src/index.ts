@@ -26,6 +26,7 @@ import { subscriptionRoutes, subscriptionWebhookRouter } from './presentation/ro
 import { isStripeEnabled } from './infrastructure/stripe/stripe-client.js'
 import { personaRoutes } from './presentation/routes/persona.routes.js'
 import { notificationRoutes, adminNotificationRoutes } from './presentation/routes/notification.routes.js'
+import { challengeRoutes } from './presentation/routes/challenge.routes.js'
 import { startNotificationCleanup } from './infrastructure/notifications/notification-cleanup.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -122,6 +123,9 @@ async function main() {
 
   // Notification routes (requires authenticated user)
   app.use('/api/notifications', requireAuth, notificationRoutes)
+
+  // Challenge routes (requires authenticated user)
+  app.use('/api/challenges', requireAuth, challengeRoutes)
 
   // Admin routes (requires authenticated admin user)
   app.use('/api/admin', requireAuth, requireAdmin, adminRoutes)

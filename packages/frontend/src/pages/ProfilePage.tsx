@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import {
   ArrowLeft, RefreshCw, ExternalLink, Check, Clock,
-  Gamepad2, Link, Unlink, AlertTriangle, Timer, Trophy,
+  Gamepad2, Link, Unlink, AlertTriangle, Timer, Trophy, Target,
 } from 'lucide-react'
 import { PlatformIcon } from '@/components/icons/platforms'
 import { useTranslation } from 'react-i18next'
@@ -15,6 +15,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
+import { useChallengeStore } from '@/stores/challenge.store'
+import { ChallengeCard } from '@/components/challenge-card'
 
 interface Platform {
   id: string
@@ -174,6 +176,8 @@ export function ProfilePage() {
   const [unlinking, setUnlinking] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
 
+  const { challenges, totalUnlocked, totalChallenges, fetchChallenges } = useChallengeStore()
+
   const loadProfile = useCallback(async () => {
     try {
       const data = await api.getProfile()
@@ -187,7 +191,8 @@ export function ProfilePage() {
 
   useEffect(() => {
     loadProfile()
-  }, [loadProfile])
+    fetchChallenges()
+  }, [loadProfile, fetchChallenges])
 
   useEffect(() => {
     const linked = searchParams.get('linked')
@@ -610,6 +615,26 @@ export function ProfilePage() {
                   ))}
                 </div>
               )}
+            </motion.div>
+          </motion.section>
+        )}
+
+        {/* ── Challenges ── */}
+        {challenges.length > 0 && (
+          <motion.section variants={fadeUp}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                <Target className="w-4 h-4 shrink-0" />
+                {t('challenges.title')}
+              </h3>
+              <Badge variant="secondary" className="text-[10px] py-0 h-5 font-mono">
+                {totalUnlocked}/{totalChallenges}
+              </Badge>
+            </div>
+            <motion.div variants={stagger} className="space-y-2.5">
+              {challenges.map((challenge) => (
+                <ChallengeCard key={challenge.id} challenge={challenge} />
+              ))}
             </motion.div>
           </motion.section>
         )}

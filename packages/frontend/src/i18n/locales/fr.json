@@ -363,6 +363,11 @@
     "groupLimitReached": "Limite de groupes atteinte ({{max}}). Passe en Premium pour des groupes illimités.",
     "memberLimitReached": "Ce groupe a atteint la limite de membres gratuite ({{max}})."
   },
+  "challenges": {
+    "title": "Défis",
+    "unlocked": "Débloqué ✓",
+    "unlockedToast": "{{icon}} Défi débloqué : {{title}}"
+  },
   "persona": {
     "today": "Persona du jour"
   },

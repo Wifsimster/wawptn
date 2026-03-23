@@ -15,6 +15,7 @@ import { SubscriptionPage } from '@/pages/SubscriptionPage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DialogTestPage } from '@/pages/DialogTestPage'
 import { useNotificationListener } from '@/hooks/useNotificationListener'
+import { useChallengeListener } from '@/hooks/useChallengeListener'
 import { useNotificationStore } from '@/stores/notification.store'
 
 function App() {
@@ -36,6 +37,9 @@ function App() {
 
   // Global notification listener (only when authenticated)
   useNotificationListener()
+
+  // Global challenge unlock listener
+  useChallengeListener()
 
   // Dev-only dialog test page (no auth required)
   if (import.meta.env.DEV && window.location.pathname === '/test-dialogs') {

@@ -173,6 +173,12 @@ export const api = {
       body: JSON.stringify({ title, body, groupId }),
     }),
 
+  // Challenges
+  getChallenges: () => request<{
+    challenges: import('@wawptn/types').ChallengeProgress[];
+    stats: { totalUnlocked: number; totalChallenges: number };
+  }>('/challenges/me'),
+
   // Persona
   getCurrentPersona: () => request<{ id: string; name: string; embedColor: number; introMessage: string }>('/persona/current'),
 

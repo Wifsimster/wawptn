@@ -101,9 +101,9 @@ export function GroupsPage() {
     }
     setCreateError(null)
     try {
-      const result = await createGroup(groupName.trim())
-      setInviteResult(result.inviteToken)
+      await createGroup(groupName.trim())
       setGroupName('')
+      setShowCreate(false)
       fetchGroups()
       toast.success(t('createGroup.success'))
     } catch (err) {

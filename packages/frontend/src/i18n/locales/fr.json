@@ -296,7 +296,10 @@
     "memberSince": "Membre depuis {{date}}",
     "steamProfile": "Voir le profil Steam",
     "noLibraryApi": "Cette plateforme ne propose pas d'API pour synchroniser la bibliothèque de jeux.",
-    "topGames": "Jeux les plus joués"
+    "topGames": "Jeux les plus joués",
+    "statsGames": "jeux",
+    "statsHours": "heures",
+    "statsPlatforms": "connectées"
   },
   "recommendations": {
     "title": "Suggestions",

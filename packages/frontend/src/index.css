@@ -338,4 +338,111 @@
 @keyframes admin-badge-sweep {
   0%, 100% { transform: translateX(-100%); }
   50% { transform: translateX(100%); }
+
+/* ── Profile page: spinning avatar ring ── */
+
+.profile-avatar-ring {
+  position: relative;
+  display: inline-flex;
+}
+.profile-avatar-ring::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  padding: 3px;
+  background: conic-gradient(
+    from 0deg,
+    oklch(0.55 0.27 270),
+    oklch(0.82 0.19 190),
+    oklch(0.72 0.18 50),
+    oklch(0.82 0.19 190),
+    oklch(0.55 0.27 270)
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: profile-ring-spin 4s linear infinite;
+}
+.profile-avatar-ring::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 180deg,
+    oklch(0.55 0.27 270 / 0.15),
+    oklch(0.82 0.19 190 / 0.06),
+    oklch(0.72 0.18 50 / 0.08),
+    oklch(0.82 0.19 190 / 0.06),
+    oklch(0.55 0.27 270 / 0.15)
+  );
+  filter: blur(10px);
+  animation: profile-ring-spin 4s linear infinite reverse;
+  z-index: -1;
+}
+
+@keyframes profile-ring-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Profile: glass stat tile ── */
+
+.profile-stat-tile {
+  background: oklch(1 0 0 / 0.025);
+  border: 1px solid oklch(1 0 0 / 0.06);
+  backdrop-filter: blur(12px);
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.profile-stat-tile:hover {
+  background: oklch(1 0 0 / 0.045);
+  border-color: oklch(1 0 0 / 0.10);
+}
+
+/* ── Profile: section header with neon line ── */
+
+.profile-section-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.profile-section-line::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    oklch(0.55 0.27 270 / 0.30),
+    oklch(0.55 0.27 270 / 0.03)
+  );
+}
+
+/* ── Profile: crown game card ── */
+
+.profile-game-crown {
+  background: oklch(0.165 0.015 280);
+  border: 1px solid oklch(0.82 0.17 70 / 0.20);
+  box-shadow:
+    0 0 30px oklch(0.82 0.17 70 / 0.06),
+    0 0 60px oklch(0.82 0.17 70 / 0.03),
+    inset 0 1px 0 oklch(1 0 0 / 0.05);
+  transition: box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.profile-game-crown:hover {
+  box-shadow:
+    0 0 40px oklch(0.82 0.17 70 / 0.10),
+    0 0 80px oklch(0.82 0.17 70 / 0.05),
+    inset 0 1px 0 oklch(1 0 0 / 0.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-avatar-ring::before,
+  .profile-avatar-ring::after {
+    animation: none;
+  }
 }

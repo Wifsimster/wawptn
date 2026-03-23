@@ -34,7 +34,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
 
   const handleLogout = async () => {
     await logout()
-    navigate('/login')
+    navigate('/')
   }
 
   return (

@@ -83,7 +83,7 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     res.clearCookie(CSRF_COOKIE_NAME, { path: '/api/auth/steam/callback' })
     if (!csrfState) {
       authLogger.warn('steam callback rejected: missing CSRF state cookie')
-      res.redirect(`${env.CORS_ORIGIN}/login?error=auth_failed`)
+      res.redirect(`${env.CORS_ORIGIN}/?error=auth_failed`)
       return
     }
 
@@ -94,7 +94,7 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     const expectedReturnTo = `${env.API_URL}/api/auth/steam/callback`
     if (returnTo !== expectedReturnTo) {
       authLogger.warn({ returnTo, expected: expectedReturnTo }, 'steam callback rejected: return_to mismatch')
-      res.redirect(`${env.CORS_ORIGIN}/login?error=auth_failed`)
+      res.redirect(`${env.CORS_ORIGIN}/?error=auth_failed`)
       return
     }
 
@@ -102,7 +102,7 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     const steamId = await verifySteamLogin(params)
     if (!steamId) {
       authLogger.warn('steam callback rejected: OpenID verification failed')
-      res.redirect(`${env.CORS_ORIGIN}/login?error=auth_failed`)
+      res.redirect(`${env.CORS_ORIGIN}/?error=auth_failed`)
       return
     }
 
@@ -110,7 +110,7 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     const profile = await getPlayerSummary(steamId)
     if (!profile) {
       authLogger.warn({ steamId }, 'steam callback rejected: failed to fetch player profile')
-      res.redirect(`${env.CORS_ORIGIN}/login?error=steam_profile_failed`)
+      res.redirect(`${env.CORS_ORIGIN}/?error=steam_profile_failed`)
       return
     }
 
@@ -193,7 +193,7 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     res.redirect(`${env.CORS_ORIGIN}${redirectPath}`)
   } catch (error) {
     authLogger.error({ error: String(error) }, 'Steam callback failed')
-    res.redirect(`${env.CORS_ORIGIN}/login?error=auth_failed`)
+    res.redirect(`${env.CORS_ORIGIN}/?error=auth_failed`)
   }
 })
 

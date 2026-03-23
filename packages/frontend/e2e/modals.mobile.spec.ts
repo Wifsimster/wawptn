@@ -96,7 +96,7 @@ test.describe('Modals on mobile', () => {
       await expect(dialog.getByText('Se déconnecter ?')).toBeVisible()
 
       await dialog.getByRole('button', { name: 'Se déconnecter' }).click()
-      await page.waitForURL('**/login')
+      await page.waitForURL('**/')
     })
 
     test('cancels logout and keeps user on page', async ({ page }) => {

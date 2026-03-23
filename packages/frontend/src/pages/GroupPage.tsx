@@ -41,7 +41,6 @@ export function GroupPage() {
     minMetacritic: null,
     gamesOnly: true,
     controllerOnly: false,
-    platform: 'all',
     sortBy: 'popularity',
   })
   const [voteSetupOpen, setVoteSetupOpen] = useState(false)
@@ -416,10 +415,6 @@ export function GroupPage() {
                 ...prev,
                 controllerOnly: value,
               }))}
-              onSetPlatform={(value) => setGameFilters(prev => ({
-                ...prev,
-                platform: value,
-              }))}
               onSetSortBy={(value) => setGameFilters(prev => ({
                 ...prev,
                 sortBy: value,
@@ -431,7 +426,6 @@ export function GroupPage() {
                 minMetacritic: null,
                 gamesOnly: true,
                 controllerOnly: false,
-                platform: 'all',
                 sortBy: 'popularity',
               })}
             />

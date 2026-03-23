@@ -34,7 +34,6 @@ export interface GameFilters {
   minMetacritic: number | null
   gamesOnly: boolean
   controllerOnly: boolean
-  platform: 'all' | 'windows' | 'mac' | 'linux'
   sortBy: 'owners' | 'popularity' | 'name'
 }
 
@@ -48,7 +47,6 @@ interface GameGridProps {
   onSetMinMetacritic: (value: number | null) => void
   onToggleGamesOnly: (value: boolean) => void
   onToggleControllerOnly: (value: boolean) => void
-  onSetPlatform: (value: 'all' | 'windows' | 'mac' | 'linux') => void
   onSetSortBy: (value: 'owners' | 'popularity' | 'name') => void
   onResetFilters: () => void
 }
@@ -61,7 +59,7 @@ const METACRITIC_THRESHOLDS = [null, 60, 70, 75, 80, 85, 90] as const
 const normalize = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
-export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggleCoop, onToggleGenre, onSetMinMetacritic, onToggleGamesOnly, onToggleControllerOnly, onSetPlatform, onSetSortBy, onResetFilters }: GameGridProps) {
+export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggleCoop, onToggleGenre, onSetMinMetacritic, onToggleGamesOnly, onToggleControllerOnly, onSetSortBy, onResetFilters }: GameGridProps) {
   const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
   const [showAll, setShowAll] = useState(false)
@@ -96,15 +94,6 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
       result = result.filter((g) => !g.type || g.type === 'game')
     }
 
-    // Platform filter
-    if (filters.platform !== 'all') {
-      const plat = filters.platform
-      result = result.filter((g) => {
-        if (!g.platforms) return true // keep un-enriched games
-        return g.platforms[plat]
-      })
-    }
-
     // Controller support
     if (filters.controllerOnly) {
       result = result.filter((g) => g.controllerSupport === 'full' || g.controllerSupport === 'partial')
@@ -136,9 +125,9 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
     // 'owners' is the default sort from the API
 
     return result
-  }, [games, searchQuery, filters.selectedGenres, filters.minMetacritic, filters.gamesOnly, filters.platform, filters.controllerOnly, filters.sortBy])
+  }, [games, searchQuery, filters.selectedGenres, filters.minMetacritic, filters.gamesOnly, filters.controllerOnly, filters.sortBy])
 
-  const isFiltering = searchQuery.trim().length > 0 || filters.selectedGenres.length > 0 || filters.minMetacritic !== null || filters.controllerOnly || filters.platform !== 'all'
+  const isFiltering = searchQuery.trim().length > 0 || filters.selectedGenres.length > 0 || filters.minMetacritic !== null || filters.controllerOnly
   const displayedGames = isFiltering || showAll
     ? filteredGames
     : filteredGames.slice(0, DISPLAY_CAP)
@@ -269,25 +258,6 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                 onClick={() => onSetMinMetacritic(threshold)}
               >
                 {threshold === null ? t('group.allScores') : `${threshold}+`}
-              </Button>
-            ))}
-          </div>
-
-          {/* Platform filter */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Monitor className="w-3 h-3" />
-              {t('group.platform')}
-            </span>
-            {(['all', 'windows', 'mac', 'linux'] as const).map((p) => (
-              <Button
-                key={p}
-                variant={filters.platform === p ? 'default' : 'outline'}
-                size="sm"
-                className="h-8 px-3 text-xs"
-                onClick={() => onSetPlatform(p)}
-              >
-                {t(`group.platform_${p}`)}
               </Button>
             ))}
           </div>

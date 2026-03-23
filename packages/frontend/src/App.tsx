@@ -14,6 +14,8 @@ import { AdminPage } from '@/pages/AdminPage'
 import { SubscriptionPage } from '@/pages/SubscriptionPage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DialogTestPage } from '@/pages/DialogTestPage'
+import { useNotificationListener } from '@/hooks/useNotificationListener'
+import { useNotificationStore } from '@/stores/notification.store'
 
 function App() {
   const { user, loading, fetchUser } = useAuthStore()
@@ -27,9 +29,13 @@ function App() {
       connectSocket()
     } else {
       disconnectSocket()
+      useNotificationStore.getState().clear()
     }
     return () => disconnectSocket()
   }, [user])
+
+  // Global notification listener (only when authenticated)
+  useNotificationListener()
 
   // Dev-only dialog test page (no auth required)
   if (import.meta.env.DEV && window.location.pathname === '/test-dialogs') {

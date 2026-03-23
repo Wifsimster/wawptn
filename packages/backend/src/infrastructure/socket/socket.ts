@@ -96,6 +96,9 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
   io.on('connection', (socket) => {
     socketLogger.info({ userId: socket.data.userId }, 'client connected')
 
+    // Auto-join user-specific room for targeted notifications
+    socket.join(`user:${socket.data.userId}`)
+
     socket.on('group:join', async (groupId) => {
       // Verify membership before joining room
       const membership = await db('group_members')

@@ -162,6 +162,17 @@ export const api = {
   deleteVoteSession: (groupId: string, sessionId: string) =>
     request<{ ok: boolean }>(`/groups/${groupId}/vote/${sessionId}`, { method: 'DELETE' }),
 
+  // Notifications
+  getNotifications: () => request<import('@wawptn/types').Notification[]>('/notifications'),
+  getNotificationCount: () => request<{ count: number }>('/notifications/count'),
+  markNotificationRead: (id: string) => request<{ ok: boolean }>(`/notifications/${id}/read`, { method: 'PATCH' }),
+  markAllNotificationsRead: () => request<{ ok: boolean; count: number }>('/notifications/read-all', { method: 'POST' }),
+  broadcastNotification: (title: string, body?: string, groupId?: string) =>
+    request<{ ok: boolean; notificationId: string; recipientCount: number }>('/admin/notifications', {
+      method: 'POST',
+      body: JSON.stringify({ title, body, groupId }),
+    }),
+
   // Persona
   getCurrentPersona: () => request<{ id: string; name: string; embedColor: number; introMessage: string }>('/persona/current'),
 

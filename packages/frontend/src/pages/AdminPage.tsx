@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Bot, Users, BarChart3, Save, RefreshCw, ShieldCheck,
   ShieldOff, Theater, Plus, Pencil, Trash2, Lock, Search, X,
-  Activity, Zap, Clock, Globe, Terminal,
+  Activity, Zap, Clock, Globe, Terminal, Megaphone, Send,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { AppHeader } from '@/components/app-header'
 import { Button } from '@/components/ui/button'
@@ -94,10 +95,11 @@ const EMPTY_FORM: PersonaFormData = {
   embedColor: '#5865F2',
 }
 
-type AdminTab = 'overview' | 'bot' | 'personas' | 'users'
+type AdminTab = 'overview' | 'bot' | 'personas' | 'users' | 'notifications'
 
 const TABS: { id: AdminTab; label: string; icon: typeof BarChart3 }[] = [
   { id: 'overview', label: 'Vue d\'ensemble', icon: Activity },
+  { id: 'notifications', label: 'Annonces', icon: Megaphone },
   { id: 'bot', label: 'Bot Discord', icon: Bot },
   { id: 'personas', label: 'Personas', icon: Theater },
   { id: 'users', label: 'Utilisateurs', icon: Users },
@@ -496,6 +498,18 @@ export function AdminPage() {
             </motion.div>
           )}
 
+          {activeTab === 'notifications' && (
+            <motion.div
+              key="notifications"
+              variants={tabContent}
+              initial="enter"
+              animate="center"
+              exit="exit"
+            >
+              <NotificationsTab />
+            </motion.div>
+          )}
+
           {activeTab === 'bot' && (
             <motion.div
               key="bot"
@@ -714,6 +728,79 @@ export function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════
+   TAB: Notifications
+   ═══════════════════════════════════════════════════════ */
+
+function NotificationsTab() {
+  const { t } = useTranslation()
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+  const [sending, setSending] = useState(false)
+
+  const handleSend = async () => {
+    if (!title.trim()) return
+    setSending(true)
+    try {
+      const result = await api.broadcastNotification(title.trim(), body.trim() || undefined)
+      toast.success(t('notifications.broadcastSuccess', { count: result.recipientCount }))
+      setTitle('')
+      setBody('')
+    } catch {
+      toast.error(t('notifications.broadcastError'))
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Megaphone className="w-4 h-4" />
+            {t('notifications.broadcastTitle')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <label htmlFor="broadcast-title" className="text-sm font-medium">
+              {t('notifications.broadcastTitleLabel')}
+            </label>
+            <Input
+              id="broadcast-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={t('notifications.broadcastTitlePlaceholder')}
+              maxLength={255}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="broadcast-body" className="text-sm font-medium">
+              {t('notifications.broadcastBodyLabel')}
+            </label>
+            <Textarea
+              id="broadcast-body"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder={t('notifications.broadcastBodyPlaceholder')}
+              rows={3}
+            />
+          </div>
+          <Button
+            onClick={handleSend}
+            disabled={!title.trim() || sending}
+            className="w-full"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            {sending ? '...' : t('notifications.broadcastSend')}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   )
 }

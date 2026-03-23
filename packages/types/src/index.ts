@@ -181,6 +181,23 @@ export interface DiscordGroupConfig {
 }
 
 // ============================================
+// Notifications
+// ============================================
+
+export type NotificationType = 'vote_opened' | 'vote_closed' | 'admin_broadcast'
+
+export interface Notification {
+  id: string
+  type: NotificationType
+  title: string
+  body: string | null
+  groupId: string | null
+  metadata: Record<string, unknown> | null
+  read: boolean
+  createdAt: string
+}
+
+// ============================================
 // Socket.io Events
 // ============================================
 
@@ -197,6 +214,7 @@ export interface ServerToClientEvents {
   'group:presence': (data: { onlineUserIds: string[] }) => void
   'member:online': (data: { groupId: string; userId: string }) => void
   'member:offline': (data: { groupId: string; userId: string }) => void
+  'notification:new': (data: Notification) => void
 }
 
 export interface ClientToServerEvents {

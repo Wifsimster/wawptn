@@ -17,6 +17,7 @@ import {
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
 import { WawptnLogo } from '@/components/icons/wawptn-logo'
+import { NotificationBell } from '@/components/notification-bell'
 
 interface AppHeaderProps {
   children?: React.ReactNode
@@ -63,6 +64,9 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
 
         {/* Today's bot persona */}
         {user && <PersonaBadge />}
+
+        {/* Notifications */}
+        {user && <NotificationBell />}
 
         {/* User menu */}
         <div className="relative">

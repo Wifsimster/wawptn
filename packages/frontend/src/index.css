@@ -340,7 +340,128 @@
   50% { transform: translateX(100%); }
 }
 
-/* ── Profile page: spinning avatar ring ── */
+/* ── Profile: Holographic Player Card ── */
+
+.profile-player-card {
+  position: relative;
+  background:
+    radial-gradient(oklch(1 0 0 / 0.02) 1px, transparent 1px),
+    linear-gradient(160deg, oklch(0.19 0.04 270), oklch(0.14 0.02 290) 50%, oklch(0.16 0.03 250));
+  background-size: 20px 20px, 100% 100%;
+  border: 1px solid oklch(1 0 0 / 0.08);
+  overflow: hidden;
+  box-shadow:
+    0 8px 40px oklch(0 0 0 / 0.4),
+    0 0 80px oklch(0.55 0.27 270 / 0.04),
+    inset 0 1px 0 oklch(1 0 0 / 0.06);
+  transition:
+    border-color 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.profile-player-card:hover {
+  border-color: oklch(0.55 0.27 270 / 0.15);
+  box-shadow:
+    0 12px 48px oklch(0 0 0 / 0.45),
+    0 0 100px oklch(0.55 0.27 270 / 0.07),
+    inset 0 1px 0 oklch(1 0 0 / 0.08);
+}
+
+/* Holographic shimmer sweep */
+.profile-player-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 20%,
+    oklch(0.55 0.22 270 / 0.06) 35%,
+    oklch(0.72 0.18 200 / 0.08) 40%,
+    oklch(0.82 0.15 160 / 0.06) 45%,
+    oklch(0.72 0.18 50 / 0.04) 50%,
+    transparent 65%
+  );
+  background-size: 300% 100%;
+  animation: profile-holo-sweep 7s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Scanlines overlay */
+.profile-player-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    oklch(0 0 0 / 0.012) 3px,
+    oklch(0 0 0 / 0.012) 4px
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes profile-holo-sweep {
+  0%, 100% { background-position: 200% 0; }
+  50% { background-position: -100% 0; }
+}
+
+/* ── Profile: Holographic seal decoration ── */
+
+.profile-holo-seal {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    oklch(0.55 0.27 270 / 0.12),
+    oklch(0.82 0.19 190 / 0.08),
+    oklch(0.72 0.18 50 / 0.06),
+    oklch(0.82 0.19 190 / 0.08),
+    oklch(0.55 0.27 270 / 0.12)
+  );
+  animation: profile-ring-spin 10s linear infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+.profile-holo-seal::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: oklch(0.16 0.03 270);
+}
+
+/* ── Profile: Holographic gradient name ── */
+
+.profile-holo-name {
+  background: linear-gradient(
+    135deg,
+    oklch(0.92 0.08 270),
+    oklch(0.96 0.04 220),
+    oklch(0.92 0.10 190),
+    oklch(0.96 0.06 160),
+    oklch(0.92 0.08 270)
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: profile-holo-text 5s ease-in-out infinite;
+}
+
+@keyframes profile-holo-text {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ── Profile: spinning avatar ring ── */
 
 .profile-avatar-ring {
   position: relative;
@@ -349,9 +470,9 @@
 .profile-avatar-ring::before {
   content: '';
   position: absolute;
-  inset: -3px;
+  inset: -4px;
   border-radius: 50%;
-  padding: 3px;
+  padding: 4px;
   background: conic-gradient(
     from 0deg,
     oklch(0.55 0.27 270),
@@ -373,36 +494,23 @@
 .profile-avatar-ring::after {
   content: '';
   position: absolute;
-  inset: -12px;
+  inset: -16px;
   border-radius: 50%;
   background: conic-gradient(
     from 180deg,
-    oklch(0.55 0.27 270 / 0.15),
-    oklch(0.82 0.19 190 / 0.06),
-    oklch(0.72 0.18 50 / 0.08),
-    oklch(0.82 0.19 190 / 0.06),
-    oklch(0.55 0.27 270 / 0.15)
+    oklch(0.55 0.27 270 / 0.18),
+    oklch(0.82 0.19 190 / 0.08),
+    oklch(0.72 0.18 50 / 0.10),
+    oklch(0.82 0.19 190 / 0.08),
+    oklch(0.55 0.27 270 / 0.18)
   );
-  filter: blur(10px);
+  filter: blur(12px);
   animation: profile-ring-spin 4s linear infinite reverse;
   z-index: -1;
 }
 
 @keyframes profile-ring-spin {
   to { transform: rotate(360deg); }
-}
-
-/* ── Profile: glass stat tile ── */
-
-.profile-stat-tile {
-  background: oklch(1 0 0 / 0.025);
-  border: 1px solid oklch(1 0 0 / 0.06);
-  backdrop-filter: blur(12px);
-  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.profile-stat-tile:hover {
-  background: oklch(1 0 0 / 0.045);
-  border-color: oklch(1 0 0 / 0.10);
 }
 
 /* ── Profile: section header with neon line ── */
@@ -427,23 +535,37 @@
 
 .profile-game-crown {
   background: oklch(0.165 0.015 280);
-  border: 1px solid oklch(0.82 0.17 70 / 0.20);
+  border: 1px solid oklch(0.82 0.17 70 / 0.25);
   box-shadow:
-    0 0 30px oklch(0.82 0.17 70 / 0.06),
-    0 0 60px oklch(0.82 0.17 70 / 0.03),
-    inset 0 1px 0 oklch(1 0 0 / 0.05);
-  transition: box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    0 0 30px oklch(0.82 0.17 70 / 0.08),
+    0 0 60px oklch(0.82 0.17 70 / 0.04),
+    inset 0 1px 0 oklch(1 0 0 / 0.06);
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .profile-game-crown:hover {
+  border-color: oklch(0.82 0.17 70 / 0.35);
   box-shadow:
-    0 0 40px oklch(0.82 0.17 70 / 0.10),
-    0 0 80px oklch(0.82 0.17 70 / 0.05),
-    inset 0 1px 0 oklch(1 0 0 / 0.06);
+    0 0 45px oklch(0.82 0.17 70 / 0.12),
+    0 0 90px oklch(0.82 0.17 70 / 0.06),
+    inset 0 1px 0 oklch(1 0 0 / 0.08);
+  transform: translateY(-2px);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .profile-avatar-ring::before,
   .profile-avatar-ring::after {
     animation: none;
+  }
+  .profile-player-card::before {
+    animation: none;
+  }
+  .profile-holo-name {
+    animation: none;
+  }
+  .profile-holo-seal {
+    animation: none;
+  }
+  .profile-game-crown:hover {
+    transform: none;
   }
 }

@@ -63,6 +63,24 @@ function formatStatValue(value: number): string {
   return new Intl.NumberFormat('fr-FR').format(value)
 }
 
+function useAnimatedValue(target: number, duration = 1400) {
+  const [value, setValue] = useState(0)
+  useEffect(() => {
+    if (target <= 0) return
+    let raf: number
+    const start = performance.now()
+    const step = (now: number) => {
+      const t = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setValue(Math.round(target * eased))
+      if (t < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
+  return target <= 0 ? 0 : value
+}
+
 /* ── Config ── */
 
 const PLATFORM_NAMES: Record<string, string> = {
@@ -80,6 +98,35 @@ const PLATFORM_ACCENT: Record<string, string> = {
 }
 
 /* ── Animation variants ── */
+
+const orchestrator: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.3 } },
+}
+
+const cardReveal: Variants = {
+  hidden: { opacity: 0, y: 40, rotateX: 6, scale: 0.96 },
+  visible: {
+    opacity: 1, y: 0, rotateX: 0, scale: 1,
+    transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] },
+  },
+}
+
+const avatarReveal: Variants = {
+  hidden: { opacity: 0, scale: 0.4 },
+  visible: {
+    opacity: 1, scale: 1,
+    transition: { type: 'spring', stiffness: 200, damping: 15, delay: 0.2 },
+  },
+}
+
+const nameReveal: Variants = {
+  hidden: { opacity: 0, y: 12, filter: 'blur(8px)' },
+  visible: {
+    opacity: 1, y: 0, filter: 'blur(0px)',
+    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.35 },
+  },
+}
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
@@ -100,6 +147,19 @@ const scaleIn: Variants = {
 const stagger: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.08 } },
+}
+
+const statStagger: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.1, delayChildren: 0.55 } },
+}
+
+const statItem: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: {
+    opacity: 1, y: 0,
+    transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+  },
 }
 
 /* ── Component ── */
@@ -128,7 +188,6 @@ export function ProfilePage() {
     loadProfile()
   }, [loadProfile])
 
-  // Handle OAuth callback query params
   useEffect(() => {
     const linked = searchParams.get('linked')
     const error = searchParams.get('error')
@@ -175,7 +234,6 @@ export function ProfilePage() {
     }
   }, [searchParams, setSearchParams, t, loadProfile])
 
-  // Computed aggregate stats
   const stats = useMemo(() => {
     if (!profile) return { games: 0, hours: 0, platforms: 0 }
     const connected = profile.platforms.filter(p => p.connected && !p.needsRelink)
@@ -185,6 +243,10 @@ export function ProfilePage() {
       platforms: connected.length,
     }
   }, [profile])
+
+  const animGames = useAnimatedValue(stats.games)
+  const animHours = useAnimatedValue(stats.hours)
+  const animPlatforms = useAnimatedValue(stats.platforms, 800)
 
   function handleConnect(platformId: string) {
     window.location.href = `/api/auth/${platformId}/link`
@@ -230,17 +292,7 @@ export function ProfilePage() {
           </Button>
         </AppHeader>
         <main id="main-content" className="max-w-2xl mx-auto p-4 space-y-6">
-          <div className="flex items-center gap-5">
-            <Skeleton className="w-20 h-20 rounded-full shrink-0" />
-            <div className="space-y-2.5 flex-1">
-              <Skeleton className="h-7 w-48" />
-              <Skeleton className="h-4 w-36" />
-              <Skeleton className="h-4 w-28" />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-[5.5rem] rounded-xl" />)}
-          </div>
+          <Skeleton className="h-80 rounded-2xl" />
           <div className="space-y-3 pt-2">
             <Skeleton className="h-4 w-48" />
             {[1, 2, 3].map(i => <Skeleton key={i} className="h-[4.5rem] rounded-xl" />)}
@@ -268,61 +320,92 @@ export function ProfilePage() {
         className="max-w-2xl mx-auto p-4 space-y-8 pb-12"
         initial="hidden"
         animate="visible"
-        variants={stagger}
+        variants={orchestrator}
+        style={{ perspective: '1200px' }}
       >
-        {/* ── Hero: Avatar + Identity ── */}
-        <motion.div variants={fadeUp} className="flex items-center gap-5">
-          <div className="profile-avatar-ring shrink-0">
-            <Avatar className="w-20 h-20 ring-2 ring-background">
-              <AvatarImage src={profile.avatarUrl} alt={profile.displayName} />
-              <AvatarFallback className="text-2xl font-heading font-bold">
-                {profile.displayName.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+        {/* ── Holographic Player Card ── */}
+        <motion.div
+          variants={cardReveal}
+          className="profile-player-card relative rounded-2xl p-6 pt-10 sm:p-8 sm:pt-10"
+        >
+          {/* Decorative holographic seal */}
+          <div className="profile-holo-seal" aria-hidden="true">
+            <Gamepad2 className="w-4 h-4 relative z-10 text-foreground/25" />
           </div>
-          <div className="min-w-0 space-y-1">
-            <h2 className="text-2xl font-heading font-bold truncate">
+
+          <div className="relative z-10 flex flex-col items-center text-center">
+            {/* Avatar with prismatic ring */}
+            <motion.div variants={avatarReveal} className="profile-avatar-ring mb-5">
+              <Avatar className="w-24 h-24 sm:w-28 sm:h-28 ring-2 ring-background">
+                <AvatarImage src={profile.avatarUrl} alt={profile.displayName} />
+                <AvatarFallback className="text-3xl font-heading font-bold">
+                  {profile.displayName.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </motion.div>
+
+            {/* Display name — holographic gradient */}
+            <motion.h2
+              variants={nameReveal}
+              className="profile-holo-name text-2xl sm:text-3xl font-heading font-bold tracking-tight mb-1.5"
+            >
               {profile.displayName}
-            </h2>
-            <p className="text-sm text-muted-foreground">
+            </motion.h2>
+
+            {/* Member since */}
+            <motion.p
+              variants={nameReveal}
+              className="text-sm text-muted-foreground"
+            >
               {t('profile.memberSince', {
                 date: new Date(profile.createdAt).toLocaleDateString('fr-FR', {
                   day: 'numeric', month: 'long', year: 'numeric',
                 }),
               })}
-            </p>
+            </motion.p>
+
+            {/* Steam profile link */}
             {profile.profileUrl && (
-              <a
+              <motion.a
+                variants={nameReveal}
                 href={profile.profileUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-primary hover:text-primary/80 inline-flex items-center gap-1.5 transition-colors"
+                className="text-sm text-primary hover:text-primary/80 inline-flex items-center gap-1.5 transition-colors mt-1.5"
               >
                 {t('profile.steamProfile')}
                 <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+              </motion.a>
             )}
-          </div>
-        </motion.div>
 
-        {/* ── Stats strip ── */}
-        <motion.div variants={stagger} className="grid grid-cols-3 gap-3">
-          {[
-            { value: formatStatValue(stats.games), label: t('profile.statsGames'), accent: 'var(--neon)', icon: Gamepad2 },
-            { value: formatStatValue(stats.hours), label: t('profile.statsHours'), accent: 'var(--ember)', icon: Timer },
-            { value: stats.platforms.toString(), label: t('profile.statsPlatforms'), accent: 'var(--primary)', icon: Link },
-          ].map((stat) => (
-            <motion.div
-              key={stat.label}
-              variants={scaleIn}
-              className="profile-stat-tile rounded-xl p-3.5 text-center border-t-2"
-              style={{ borderTopColor: stat.accent }}
-            >
-              <stat.icon className="w-4 h-4 mx-auto mb-1.5 text-muted-foreground" />
-              <p className="font-heading text-xl font-bold tracking-tight">{stat.value}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{stat.label}</p>
+            {/* Gradient divider */}
+            <div className="w-full h-px bg-gradient-to-r from-transparent via-border to-transparent my-6" />
+
+            {/* Stats */}
+            <motion.div variants={statStagger} className="grid grid-cols-3 gap-4 sm:gap-8 w-full">
+              {[
+                { raw: animGames, label: t('profile.statsGames'), accent: 'var(--neon)', icon: Gamepad2 },
+                { raw: animHours, label: t('profile.statsHours'), accent: 'var(--ember)', icon: Timer },
+                { raw: animPlatforms, label: t('profile.statsPlatforms'), accent: 'var(--primary)', icon: Link },
+              ].map((stat) => (
+                <motion.div
+                  key={stat.label}
+                  variants={statItem}
+                  className="flex flex-col items-center"
+                >
+                  <stat.icon className="w-4 h-4 mb-2 text-muted-foreground/50" />
+                  <span className="text-2xl sm:text-3xl font-heading font-bold tracking-tight">
+                    {formatStatValue(stat.raw)}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground mt-1">{stat.label}</span>
+                  <div
+                    className="h-0.5 w-8 rounded-full mt-2.5 opacity-50"
+                    style={{ background: stat.accent }}
+                  />
+                </motion.div>
+              ))}
             </motion.div>
-          ))}
+          </div>
         </motion.div>
 
         {/* ── Platforms ── */}
@@ -336,7 +419,7 @@ export function ProfilePage() {
               <motion.div
                 key={platform.id}
                 variants={fadeUp}
-                className="flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm border-l-[3px] transition-colors duration-300 hover:bg-card/80"
+                className="flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm border-l-[3px] transition-all duration-300 hover:bg-card/80 hover:border-border/70"
                 style={{ borderLeftColor: PLATFORM_ACCENT[platform.id] || 'var(--border)' }}
               >
                 <PlatformIcon
@@ -399,7 +482,6 @@ export function ProfilePage() {
                     </div>
                   )}
                 </div>
-                {/* Action buttons */}
                 {platform.connected && platform.needsRelink && (
                   <Button
                     variant="outline"
@@ -462,25 +544,30 @@ export function ProfilePage() {
               {/* Crown game: #1 */}
               {crownGame && (
                 <motion.div variants={scaleIn} className="profile-game-crown rounded-xl overflow-hidden">
-                  {crownGame.headerImageUrl && (
-                    <div className="relative">
+                  <div className="relative">
+                    {crownGame.headerImageUrl ? (
                       <img
                         src={crownGame.headerImageUrl}
                         alt={crownGame.gameName}
                         className="w-full aspect-[460/215] object-cover"
                         loading="lazy"
                       />
-                      <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-reward/90 text-reward-foreground rounded-lg px-2.5 py-1 text-xs font-bold backdrop-blur-sm shadow-lg">
-                        <Trophy className="w-3.5 h-3.5" />
-                        #1
-                      </div>
+                    ) : (
+                      <div className="w-full aspect-[460/215] bg-card/60" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-reward/90 text-reward-foreground rounded-lg px-2.5 py-1 text-xs font-bold backdrop-blur-sm shadow-lg">
+                      <Trophy className="w-3.5 h-3.5" />
+                      #1
                     </div>
-                  )}
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <span className="font-heading font-semibold truncate">{crownGame.gameName}</span>
-                    <Badge variant="secondary" className="shrink-0 font-mono text-xs">
-                      {formatPlaytime(crownGame.playtimeForever)}
-                    </Badge>
+                    <div className="absolute bottom-0 left-0 right-0 px-4 py-3 flex items-center justify-between">
+                      <span className="font-heading font-semibold truncate text-white drop-shadow-md">
+                        {crownGame.gameName}
+                      </span>
+                      <Badge variant="secondary" className="shrink-0 font-mono text-xs bg-black/40 border-white/10 text-white/90 backdrop-blur-sm">
+                        {formatPlaytime(crownGame.playtimeForever)}
+                      </Badge>
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -492,7 +579,7 @@ export function ProfilePage() {
                     <motion.div
                       key={game.steamAppId}
                       variants={scaleIn}
-                      className="rounded-xl overflow-hidden border border-border/50 bg-card/40 backdrop-blur-sm transition-colors duration-300 hover:bg-card/70"
+                      className="rounded-xl overflow-hidden border border-border/50 bg-card/40 backdrop-blur-sm transition-all duration-300 hover:bg-card/70 hover:border-border/80 hover:-translate-y-0.5"
                     >
                       {game.headerImageUrl && (
                         <div className="relative">

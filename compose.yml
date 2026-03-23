@@ -2,7 +2,7 @@ name: wawptn
 
 services:
   wawptn:
-    image: wifsimster/wawptn:latest
+    image: ghcr.io/wifsimster/wawptn:latest
     container_name: wawptn
     restart: unless-stopped
     healthcheck:
@@ -44,7 +44,7 @@ services:
       lan:
 
   wawptn-discord:
-    image: wifsimster/wawptn:latest
+    image: ghcr.io/wifsimster/wawptn:latest
     container_name: wawptn-discord
     restart: unless-stopped
     command: ["node", "packages/discord/dist/index.js"]

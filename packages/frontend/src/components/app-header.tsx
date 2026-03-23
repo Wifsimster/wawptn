@@ -7,6 +7,14 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useSubscriptionStore } from '@/stores/subscription.store'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { PersonaBadge } from '@/components/persona-badge'
 import {
   ResponsiveDialog,
@@ -31,7 +39,6 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
   const { user, logout } = useAuthStore()
   const { tier } = useSubscriptionStore()
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
-  const [showMenu, setShowMenu] = useState(false)
 
   const handleLogout = async () => {
     await logout()
@@ -69,68 +76,57 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
         {user && <NotificationBell />}
 
         {/* User menu */}
-        <div className="relative">
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="flex items-center justify-center rounded-full hover:ring-2 hover:ring-primary/20 transition-all p-1.5 -m-1 min-h-[44px] min-w-[44px]"
-            aria-label={t('profile.title')}
-          >
-            {user ? (
-              <Avatar className="w-8 h-8">
-                <AvatarImage src={user.avatarUrl} alt={user.displayName} />
-                <AvatarFallback>{user.displayName.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                <User className="w-4 h-4" />
-              </div>
-            )}
-          </button>
-
-          {showMenu && (
-            <>
-              {/* Backdrop to close menu */}
-              <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-              <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] max-w-[calc(100vw-2rem)] rounded-md border border-border bg-popover p-1 shadow-md">
-                {user && (
-                  <div className="px-2 py-1.5 text-sm font-medium truncate border-b border-border mb-1 pb-1.5">
-                    {user.displayName}
-                  </div>
-                )}
-                <button
-                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-                  onClick={() => { setShowMenu(false); navigate('/profile') }}
-                >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex items-center justify-center rounded-full hover:ring-2 hover:ring-primary/20 transition-all p-1.5 -m-1 min-h-[44px] min-w-[44px]"
+              aria-label={t('profile.title')}
+            >
+              {user ? (
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={user.avatarUrl} alt={user.displayName} />
+                  <AvatarFallback>{user.displayName.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                   <User className="w-4 h-4" />
-                  {t('profile.title')}
-                </button>
-                <button
-                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-                  onClick={() => { setShowMenu(false); navigate('/subscription') }}
-                >
-                  <Crown className={cn('w-4 h-4', tier === 'premium' ? 'text-reward' : 'text-muted-foreground')} />
-                  {tier === 'premium' ? t('subscription.premium') : t('subscription.upgrade')}
-                </button>
-                {user?.isAdmin && (
-                  <button
-                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-                    onClick={() => { setShowMenu(false); navigate('/admin') }}
-                  >
-                    <Shield className="w-4 h-4" />
-                    Administration
-                  </button>
-                )}
-                <button
-                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
-                  onClick={() => { setShowMenu(false); setShowLogoutDialog(true) }}
-                >
-                  <LogOut className="w-4 h-4" />
-                  {t('groups.logout')}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+                </div>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[180px]">
+            {user && (
+              <>
+                <DropdownMenuLabel className="truncate">
+                  {user.displayName}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem onSelect={() => navigate('/profile')}>
+              <User />
+              {t('profile.title')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => navigate('/subscription')}>
+              <Crown className={cn(tier === 'premium' ? 'text-reward' : 'text-muted-foreground')} />
+              {tier === 'premium' ? t('subscription.premium') : t('subscription.upgrade')}
+            </DropdownMenuItem>
+            {user?.isAdmin && (
+              <DropdownMenuItem onSelect={() => navigate('/admin')}>
+                <Shield />
+                Administration
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => setShowLogoutDialog(true)}
+              className="text-destructive focus:text-destructive focus:bg-destructive/10"
+            >
+              <LogOut />
+              {t('groups.logout')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </nav>
 
       <ResponsiveDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>

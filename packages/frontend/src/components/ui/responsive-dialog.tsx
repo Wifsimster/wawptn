@@ -50,28 +50,28 @@ function ResponsiveDialog({ open, onOpenChange, children, snapPoints }: Responsi
   )
 }
 
-const ResponsiveDialogTrigger = React.forwardRef<
-  HTMLButtonElement,
-  React.ComponentPropsWithoutRef<typeof DialogTrigger>
->((props, ref) => {
+function ResponsiveDialogTrigger({
+  ref,
+  ...props
+}: React.ComponentProps<typeof DialogTrigger>) {
   const isDesktop = useMediaQuery(DESKTOP_BREAKPOINT)
   return isDesktop ? <DialogTrigger ref={ref} {...props} /> : <DrawerTrigger ref={ref} {...props} />
-})
-ResponsiveDialogTrigger.displayName = 'ResponsiveDialogTrigger'
+}
 
-const ResponsiveDialogClose = React.forwardRef<
-  HTMLButtonElement,
-  React.ComponentPropsWithoutRef<typeof DialogClose>
->((props, ref) => {
+function ResponsiveDialogClose({
+  ref,
+  ...props
+}: React.ComponentProps<typeof DialogClose>) {
   const isDesktop = useMediaQuery(DESKTOP_BREAKPOINT)
   return isDesktop ? <DialogClose ref={ref} {...props} /> : <DrawerClose ref={ref} {...props} />
-})
-ResponsiveDialogClose.displayName = 'ResponsiveDialogClose'
+}
 
-const ResponsiveDialogContent = React.forwardRef<
-  HTMLDivElement,
-  React.ComponentPropsWithoutRef<typeof DialogContent>
->(({ className, children, ...props }, ref) => {
+function ResponsiveDialogContent({
+  className,
+  children,
+  ref,
+  ...props
+}: React.ComponentProps<typeof DialogContent>) {
   const isDesktop = useMediaQuery(DESKTOP_BREAKPOINT)
 
   if (isDesktop) {
@@ -93,42 +93,39 @@ const ResponsiveDialogContent = React.forwardRef<
       </div>
     </DrawerContent>
   )
-})
-ResponsiveDialogContent.displayName = 'ResponsiveDialogContent'
+}
 
-function ResponsiveDialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+function ResponsiveDialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
   const isDesktop = useMediaQuery(DESKTOP_BREAKPOINT)
   return isDesktop
     ? <DialogHeader className={className} {...props} />
     : <DrawerHeader className={cn('text-left px-0', className)} {...props} />
 }
 
-function ResponsiveDialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+function ResponsiveDialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
   const isDesktop = useMediaQuery(DESKTOP_BREAKPOINT)
   return isDesktop
     ? <DialogFooter className={className} {...props} />
     : <DrawerFooter className={cn('px-0', className)} {...props} />
 }
 
-const ResponsiveDialogTitle = React.forwardRef<
-  HTMLHeadingElement,
-  React.ComponentPropsWithoutRef<typeof DialogTitle>
->((props, ref) => {
+function ResponsiveDialogTitle({
+  ref,
+  ...props
+}: React.ComponentProps<typeof DialogTitle>) {
   const isDesktop = useMediaQuery(DESKTOP_BREAKPOINT)
   return isDesktop ? <DialogTitle ref={ref} {...props} /> : <DrawerTitle ref={ref} {...props} />
-})
-ResponsiveDialogTitle.displayName = 'ResponsiveDialogTitle'
+}
 
-const ResponsiveDialogDescription = React.forwardRef<
-  HTMLParagraphElement,
-  React.ComponentPropsWithoutRef<typeof DialogDescription>
->((props, ref) => {
+function ResponsiveDialogDescription({
+  ref,
+  ...props
+}: React.ComponentProps<typeof DialogDescription>) {
   const isDesktop = useMediaQuery(DESKTOP_BREAKPOINT)
   return isDesktop
     ? <DialogDescription ref={ref} {...props} />
     : <DrawerDescription ref={ref} {...props} />
-})
-ResponsiveDialogDescription.displayName = 'ResponsiveDialogDescription'
+}
 
 export {
   ResponsiveDialog,

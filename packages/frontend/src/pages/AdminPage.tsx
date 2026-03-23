@@ -894,8 +894,8 @@ function OverviewTab({
                         className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-background"
                         style={{
                           backgroundColor: colorIntToHex(p.embedColor),
-                          ringColor: colorIntToHex(p.embedColor) + '40',
-                        }}
+                          '--tw-ring-color': colorIntToHex(p.embedColor) + '40',
+                        } as React.CSSProperties}
                       />
                       <span className="text-sm truncate flex-1">{p.name}</span>
                       {p.isDefault && (

@@ -63,9 +63,6 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
         >
           <WawptnLogo size={28} className="text-primary" />
           <span className="font-heading font-bold text-lg tracking-[-0.03em]">WAWPTN</span>
-          <span className="ml-2 text-[10px] text-muted-foreground/30 font-mono hidden sm:inline">
-            v{__APP_VERSION__} — {new Date(__BUILD_TIME__).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-          </span>
         </button>
         <div className="flex-1" />
 

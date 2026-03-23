@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { AppHeader } from '@/components/app-header'
+import { AppFooter } from '@/components/app-footer'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -388,7 +389,7 @@ export function AdminPage() {
   if (!user?.isAdmin) return null
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       <AppHeader maxWidth="wide">
         <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
           <ArrowLeft className="h-5 w-5" />
@@ -728,6 +729,7 @@ export function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AppFooter />
     </div>
   )
 }

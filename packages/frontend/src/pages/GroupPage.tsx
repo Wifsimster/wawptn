@@ -17,6 +17,7 @@ import {
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
 import { AppHeader } from '@/components/app-header'
+import { AppFooter } from '@/components/app-footer'
 import { GroupSidebar } from '@/components/group-sidebar'
 import { GameGrid, type GameFilters } from '@/components/game-grid'
 import { RandomPickModal } from '@/components/random-pick-modal'
@@ -258,7 +259,7 @@ export function GroupPage() {
 
   if (!currentGroup) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen flex flex-col">
         <AppHeader maxWidth="wide">
           <Skeleton className="h-5 w-5 rounded" />
         </AppHeader>
@@ -268,12 +269,13 @@ export function GroupPage() {
             <Skeleton className="h-[400px] w-full rounded-lg" />
           </div>
         </main>
+        <AppFooter />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       <AppHeader maxWidth="wide">
         <div className="flex items-center gap-3 min-w-0">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')} className="shrink-0">
@@ -469,6 +471,7 @@ export function GroupPage() {
           </ResponsiveDialogContent>
         </ResponsiveDialog>
       </main>
+      <AppFooter />
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { Crown, CreditCard, ExternalLink } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AppHeader } from '@/components/app-header'
+import { AppFooter } from '@/components/app-footer'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -52,7 +53,7 @@ export function SubscriptionPage() {
   const isPremium = tier === 'premium' && (status === 'active' || status === 'canceled')
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       <AppHeader />
       <main id="main-content" className="max-w-2xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-heading font-bold mb-6">{t('subscription.title')}</h1>
@@ -128,6 +129,7 @@ export function SubscriptionPage() {
           </CardContent>
         </Card>
       </main>
+      <AppFooter />
     </div>
   )
 }

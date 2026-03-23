@@ -9,6 +9,7 @@ import { PlatformIcon } from '@/components/icons/platforms'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AppHeader } from '@/components/app-header'
+import { AppFooter } from '@/components/app-footer'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -285,7 +286,7 @@ export function ProfilePage() {
   /* ── Loading skeleton ── */
   if (loading) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen flex flex-col">
         <AppHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
             <ArrowLeft className="h-5 w-5" />
@@ -298,6 +299,7 @@ export function ProfilePage() {
             {[1, 2, 3].map(i => <Skeleton key={i} className="h-[4.5rem] rounded-xl" />)}
           </div>
         </main>
+        <AppFooter />
       </div>
     )
   }
@@ -308,7 +310,7 @@ export function ProfilePage() {
   const otherGames = profile.topGames?.slice(1)
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       <AppHeader>
         <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
           <ArrowLeft className="h-5 w-5" />
@@ -612,6 +614,7 @@ export function ProfilePage() {
           </motion.section>
         )}
       </motion.main>
+      <AppFooter />
     </div>
   )
 }

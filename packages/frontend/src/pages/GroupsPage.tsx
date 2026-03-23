@@ -19,6 +19,7 @@ import {
   ResponsiveDialogDescription,
 } from '@/components/ui/responsive-dialog'
 import { AppHeader } from '@/components/app-header'
+import { AppFooter } from '@/components/app-footer'
 import { InviteLink } from '@/components/invite-link'
 
 const fadeUp: Variants = {
@@ -144,7 +145,7 @@ export function GroupsPage() {
 
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       <AppHeader />
 
       <main
@@ -383,6 +384,7 @@ export function GroupsPage() {
           </motion.div>
         )}
       </main>
+      <AppFooter />
     </div>
   )
 }

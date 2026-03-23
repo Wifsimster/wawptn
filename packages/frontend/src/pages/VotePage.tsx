@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
 import { AppHeader } from '@/components/app-header'
+import { AppFooter } from '@/components/app-footer'
 import { CountdownTimer } from '@/components/countdown-timer'
 import { getSocket } from '@/lib/socket'
 import { useAuthStore } from '@/stores/auth.store'
@@ -454,6 +455,7 @@ export function VotePage() {
           </div>
         </div>
       </main>
+      <AppFooter />
     </div>
   )
 }

@@ -7,18 +7,23 @@ const router = Router()
 // ─── Bot settings ─────────────────────────────────────────────────────────────
 
 router.get('/bot-settings', async (_req: Request, res: Response) => {
-  const rows = await db('app_settings')
-    .where('key', 'like', 'bot.%')
-    .select('key', 'value', 'updated_at')
+  try {
+    const rows = await db('app_settings')
+      .where('key', 'like', 'bot.%')
+      .select('key', 'value', 'updated_at')
 
-  const settings: Record<string, unknown> = {}
-  for (const row of rows) {
-    // Strip the 'bot.' prefix for cleaner API response
-    const shortKey = row.key.replace(/^bot\./, '')
-    settings[shortKey] = row.value
+    const settings: Record<string, unknown> = {}
+    for (const row of rows) {
+      // Strip the 'bot.' prefix for cleaner API response
+      const shortKey = row.key.replace(/^bot\./, '')
+      settings[shortKey] = row.value
+    }
+
+    res.json(settings)
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'failed to get bot settings')
+    res.status(500).json({ error: 'internal', message: 'Failed to get bot settings' })
   }
-
-  res.json(settings)
 })
 
 router.patch('/bot-settings', async (req: Request, res: Response) => {
@@ -61,18 +66,23 @@ router.patch('/bot-settings', async (req: Request, res: Response) => {
 // ─── Users management ─────────────────────────────────────────────────────────
 
 router.get('/users', async (_req: Request, res: Response) => {
-  const users = await db('users')
-    .select('id', 'steam_id', 'display_name', 'avatar_url', 'is_admin', 'created_at')
-    .orderBy('created_at', 'asc')
+  try {
+    const users = await db('users')
+      .select('id', 'steam_id', 'display_name', 'avatar_url', 'is_admin', 'created_at')
+      .orderBy('created_at', 'asc')
 
-  res.json(users.map(u => ({
-    id: u.id,
-    steamId: u.steam_id,
-    displayName: u.display_name,
-    avatarUrl: u.avatar_url,
-    isAdmin: u.is_admin,
-    createdAt: u.created_at,
-  })))
+    res.json(users.map(u => ({
+      id: u.id,
+      steamId: u.steam_id,
+      displayName: u.display_name,
+      avatarUrl: u.avatar_url,
+      isAdmin: u.is_admin,
+      createdAt: u.created_at,
+    })))
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'failed to list users')
+    res.status(500).json({ error: 'internal', message: 'Failed to list users' })
+  }
 })
 
 // Toggle admin status for a user
@@ -106,26 +116,31 @@ router.patch('/users/:id/admin', async (req: Request, res: Response) => {
 // ─── Personas management ──────────────────────────────────────────────────────
 
 router.get('/personas', async (_req: Request, res: Response) => {
-  const personas = await db('personas')
-    .select('*')
-    .orderBy('is_default', 'desc')
-    .orderBy('created_at', 'asc')
+  try {
+    const personas = await db('personas')
+      .select('*')
+      .orderBy('is_default', 'desc')
+      .orderBy('created_at', 'asc')
 
-  res.json(personas.map(p => ({
-    id: p.id,
-    name: p.name,
-    systemPromptOverlay: p.system_prompt_overlay,
-    fridayMessages: p.friday_messages,
-    weekdayMessages: p.weekday_messages,
-    backOnlineMessages: p.back_online_messages,
-    emptyMentionReply: p.empty_mention_reply,
-    introMessage: p.intro_message,
-    embedColor: p.embed_color,
-    isActive: p.is_active,
-    isDefault: p.is_default,
-    createdAt: p.created_at,
-    updatedAt: p.updated_at,
-  })))
+    res.json(personas.map(p => ({
+      id: p.id,
+      name: p.name,
+      systemPromptOverlay: p.system_prompt_overlay,
+      fridayMessages: p.friday_messages,
+      weekdayMessages: p.weekday_messages,
+      backOnlineMessages: p.back_online_messages,
+      emptyMentionReply: p.empty_mention_reply,
+      introMessage: p.intro_message,
+      embedColor: p.embed_color,
+      isActive: p.is_active,
+      isDefault: p.is_default,
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+    })))
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'failed to list personas')
+    res.status(500).json({ error: 'internal', message: 'Failed to list personas' })
+  }
 })
 
 router.post('/personas', async (req: Request, res: Response) => {
@@ -272,15 +287,20 @@ router.patch('/personas/:id/toggle', async (req: Request, res: Response) => {
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
 router.get('/stats', async (_req: Request, res: Response) => {
-  const userCount = await db('users').count('id as count').first()
-  const groupCount = await db('groups').count('id as count').first()
-  const sessionCount = await db('voting_sessions').count('id as count').first()
+  try {
+    const userCount = await db('users').count('id as count').first()
+    const groupCount = await db('groups').count('id as count').first()
+    const sessionCount = await db('voting_sessions').count('id as count').first()
 
-  res.json({
-    users: Number(userCount?.count ?? 0),
-    groups: Number(groupCount?.count ?? 0),
-    votingSessions: Number(sessionCount?.count ?? 0),
-  })
+    res.json({
+      users: Number(userCount?.count ?? 0),
+      groups: Number(groupCount?.count ?? 0),
+      votingSessions: Number(sessionCount?.count ?? 0),
+    })
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'failed to get admin stats')
+    res.status(500).json({ error: 'internal', message: 'Failed to get admin stats' })
+  }
 })
 
 export { router as adminRoutes }

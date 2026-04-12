@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Search, X, Users, Handshake, Star, ChevronDown, Gamepad2, Monitor, TrendingUp } from 'lucide-react'
+import { Search, X, Users, Handshake, Star, ChevronDown, Gamepad2, Monitor, TrendingUp, SearchX } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { EmptyState } from '@/components/empty-state'
 
 interface Game {
   steamAppId: number
@@ -340,29 +341,31 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
           ))}
         </div>
       ) : games.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {t('group.noCommonGames')}
-        </p>
+        <EmptyState
+          icon={Gamepad2}
+          title={t('group.noCommonGamesTitle')}
+          description={t('group.noCommonGamesDescription')}
+        />
       ) : filteredGames.length === 0 ? (
-        <div className="text-center py-4">
-          <p className="text-sm text-muted-foreground">{t('group.noSearchResults')}</p>
-          <button
-            type="button"
-            onClick={() => {
+        <EmptyState
+          icon={SearchX}
+          title={t('group.noSearchResultsTitle')}
+          description={t('group.noSearchResultsDescription')}
+          action={{
+            label: t('group.clearFilters'),
+            onClick: () => {
               setSearchQuery('')
               onResetFilters()
-            }}
-            className="text-sm text-primary hover:underline mt-1"
-          >
-            {t('group.clearFilters')}
-          </button>
-        </div>
+            },
+          }}
+        />
       ) : (
         <>
           {shouldVirtualize ? (
             <div
               ref={scrollContainerRef}
               className="overflow-y-auto"
+              role="list"
               style={{ maxHeight: '70vh' }}
             >
               <div
@@ -394,7 +397,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            <div role="list" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
               {displayedGames.map((game) => (
                 <GameCard key={game.steamAppId} game={game} t={t} />
               ))}
@@ -417,7 +420,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
 
 function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<string, unknown>) => string }) {
   return (
-    <div className="relative group rounded-lg overflow-hidden ring-1 ring-white/[0.06] hover:ring-primary/20 transition-all duration-300" style={{ transition: 'opacity 150ms ease, box-shadow 0.3s, ring-color 0.3s' }}>
+    <div role="listitem" className="relative group rounded-lg overflow-hidden ring-1 ring-white/[0.06] hover:ring-primary/20 transition-all duration-300" style={{ transition: 'opacity 150ms ease, box-shadow 0.3s, ring-color 0.3s' }}>
       <Tooltip>
         <TooltipTrigger asChild>
           <div>

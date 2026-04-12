@@ -45,6 +45,7 @@ interface GroupSidebarProps {
   inviteToken: string | null
   voteHistory: VoteHistoryEntry[]
   onlineMembers: Set<string>
+  lastSeenMap: Map<string, number>
   currentUserId: string
   currentUserRole: string
   autoVoteSchedule: string | null
@@ -63,7 +64,17 @@ interface GroupSidebarProps {
   compact?: boolean
 }
 
-export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, onlineMembers, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onStartVote, compact = false }: GroupSidebarProps) {
+function getLastSeenLabel(lastSeenTs: number | undefined): string {
+  if (!lastSeenTs) return 'Hors ligne'
+  const diffMs = Date.now() - lastSeenTs
+  const diffMinutes = Math.floor(diffMs / 60000)
+  if (diffMinutes < 1) return 'Vu à l\u2019instant'
+  if (diffMinutes < 5) return 'Vu il y a quelques minutes'
+  if (diffMinutes < 60) return `Vu il y a ${diffMinutes} min`
+  return 'Hors ligne'
+}
+
+export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onStartVote, compact = false }: GroupSidebarProps) {
   const { t, i18n } = useTranslation()
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -136,12 +147,22 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
     </div>
   )
 
+  const onlineCount = members.filter(m => onlineMembers.has(m.id)).length
+
   const membersHeader = (
     <div className="flex items-center justify-between">
-      <h2 className="font-semibold flex items-center gap-2 text-sm">
-        <Users className="w-4 h-4" />
-        {t('group.members', { count: members.length })}
-      </h2>
+      <div className="flex items-center gap-2">
+        <h2 className="font-semibold flex items-center gap-2 text-sm">
+          <Users className="w-4 h-4" />
+          {t('group.members', { count: members.length })}
+        </h2>
+        {onlineCount > 0 && (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
+            <span className="w-1.5 h-1.5 rounded-full bg-online animate-pulse" />
+            {onlineCount} en ligne
+          </Badge>
+        )}
+      </div>
       {!compact && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -160,30 +181,38 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
       {sortedMembers.map((member) => {
         const isOnline = onlineMembers.has(member.id)
         const isSelf = member.id === currentUserId
+        const presenceLabel = isOnline
+          ? 'En ligne'
+          : getLastSeenLabel(lastSeenMap.get(member.id))
         return (
-          <div key={member.id} className="flex items-center gap-3 py-1.5 group">
+          <div key={member.id} className={`flex items-center gap-3 py-1.5 group transition-opacity ${!isOnline ? 'opacity-60' : ''}`}>
             <div className="relative">
               <Avatar className="w-8 h-8">
                 <AvatarImage src={member.avatarUrl} alt={member.displayName} />
                 <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
               <span
-                className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 ${compact ? 'border-background' : 'border-card'} ${isOnline ? 'bg-online' : 'bg-muted-foreground/40'}`}
-                aria-label={isOnline ? 'En ligne' : 'Hors ligne'}
+                className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 ${compact ? 'border-background' : 'border-card'} ${isOnline ? 'bg-online animate-pulse' : 'bg-muted-foreground/40'}`}
+                aria-label={presenceLabel}
               />
             </div>
-            <div className="flex-1 min-w-0 flex items-center gap-1.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className={`text-sm font-medium truncate ${!isOnline ? 'text-muted-foreground' : ''}`}>{member.displayName}</span>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs">
-                  {member.displayName}
-                </TooltipContent>
-              </Tooltip>
-              {member.role === 'owner' && (
-                <Crown className="w-4 h-4 text-reward shrink-0" aria-label={t('group.roleOwner')} />
-              )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className={`text-sm font-medium truncate ${!isOnline ? 'text-muted-foreground' : ''}`}>{member.displayName}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    {member.displayName}
+                  </TooltipContent>
+                </Tooltip>
+                {member.role === 'owner' && (
+                  <Crown className="w-4 h-4 text-reward shrink-0" aria-label={t('group.roleOwner')} />
+                )}
+              </div>
+              <p className={`text-[11px] leading-tight ${isOnline ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                {presenceLabel}
+              </p>
             </div>
             {!member.libraryVisible && (
               <span className="text-xs text-destructive">{t('group.privateLibrary')}</span>

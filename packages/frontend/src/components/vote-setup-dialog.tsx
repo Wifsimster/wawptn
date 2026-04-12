@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Vote, Loader2, Users, Calendar, Handshake, CircleDollarSign, Lock } from 'lucide-react'
+import { ArrowLeft, Vote, Loader2, Users, Calendar, Handshake, CircleDollarSign, Lock, AlertTriangle } from 'lucide-react'
 import { useSubscriptionStore } from '@/stores/subscription.store'
 import {
   ResponsiveDialog,
@@ -48,6 +48,9 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [previewCount, setPreviewCount] = useState<number | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
+  const [livePreviewCount, setLivePreviewCount] = useState<number | null>(null)
+  const [loadingLivePreview, setLoadingLivePreview] = useState(false)
+  const livePreviewAbortRef = useRef<AbortController | null>(null)
   const [isScheduled, setIsScheduled] = useState(false)
   const [scheduledDate, setScheduledDate] = useState('')
   const [gameFilters, setGameFilters] = useState<VoteGameFilters>({
@@ -79,11 +82,55 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
       setStep('select')
       setSelectedIds(new Set(members.map(m => m.id)))
       setPreviewCount(null)
+      setLivePreviewCount(null)
       setIsScheduled(false)
       setScheduledDate(defaultScheduledDate)
       setGameFilters({ multiplayer: false, coop: false, free: false })
     }
   }, [open, members, defaultScheduledDate])
+
+  // Debounced live preview of common game count
+  useEffect(() => {
+    if (!open || step !== 'select') return
+
+    const memberIdArray = Array.from(selectedIds)
+    if (memberIdArray.length < 2) {
+      setLivePreviewCount(null)
+      setLoadingLivePreview(false)
+      return
+    }
+
+    setLoadingLivePreview(true)
+
+    const timer = setTimeout(() => {
+      // Cancel any in-flight request
+      livePreviewAbortRef.current?.abort()
+      const controller = new AbortController()
+      livePreviewAbortRef.current = controller
+
+      api.previewCommonGames(groupId, memberIdArray, activeFilter)
+        .then((result) => {
+          if (!controller.signal.aborted) {
+            setLivePreviewCount(result.gameCount)
+          }
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) {
+            setLivePreviewCount(null)
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) {
+            setLoadingLivePreview(false)
+          }
+        })
+    }, 300)
+
+    return () => {
+      clearTimeout(timer)
+      livePreviewAbortRef.current?.abort()
+    }
+  }, [open, step, selectedIds, groupId, activeFilter])
 
   const sortedMembers = [...members].sort((a, b) => {
     const aOnline = onlineMembers.has(a.id)
@@ -195,6 +242,29 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                   )
                 })}
               </div>
+            </div>
+
+            {/* Live game count preview */}
+            <div className="mt-3 flex items-center gap-2 text-sm">
+              {selectedIds.size < 2 ? (
+                <span className="text-muted-foreground">
+                  Sélectionnez au moins 2 membres
+                </span>
+              ) : loadingLivePreview ? (
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Calcul des jeux en commun…
+                </span>
+              ) : livePreviewCount !== null && livePreviewCount === 0 ? (
+                <span className="flex items-center gap-2 text-amber-500">
+                  <AlertTriangle className="w-4 h-4" />
+                  Aucun jeu en commun trouvé
+                </span>
+              ) : livePreviewCount !== null ? (
+                <span className="text-muted-foreground">
+                  🎮 {livePreviewCount} {livePreviewCount === 1 ? 'jeu' : 'jeux'} en commun
+                </span>
+              ) : null}
             </div>
 
             <div className="flex flex-wrap justify-between items-center gap-2 mt-4">

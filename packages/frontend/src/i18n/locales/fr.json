@@ -232,7 +232,11 @@
     "loginPrompt": "Connecte-toi avec Steam pour rejoindre le groupe.",
     "connecting": "Connexion au groupe...",
     "failed": "Impossible de rejoindre",
-    "goToGroups": "Aller à mes groupes"
+    "goToGroups": "Aller à mes groupes",
+    "memberCount_one": "{{count}} membre",
+    "memberCount_other": "{{count}} membres",
+    "lastPlayed": "Dernier jeu joué :",
+    "popularGames": "Jeux populaires du groupe"
   },
   "invite": {
     "shareLink": "Partage ce lien avec tes amis :",

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Vote, ChevronUp, Dices } from 'lucide-react'
 import { toast } from 'sonner'
@@ -9,6 +9,7 @@ import { api } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   ResponsiveDialog,
@@ -47,6 +48,7 @@ export function GroupPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [randomPickOpen, setRandomPickOpen] = useState(false)
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([])
+  const lastSeenMapRef = useRef<Map<string, number>>(new Map())
 
   const loadCommonGames = useCallback(async (groupId: string, filter?: string) => {
     setLoadingGames(true)
@@ -82,7 +84,10 @@ export function GroupPage() {
 
     socket.on('group:presence', (data) => setOnlineUserIds(data.onlineUserIds))
     socket.on('member:online', (data) => setOnlineUserIds((prev) => prev.includes(data.userId) ? prev : [...prev, data.userId]))
-    socket.on('member:offline', (data) => setOnlineUserIds((prev) => prev.filter((id) => id !== data.userId)))
+    socket.on('member:offline', (data) => {
+      lastSeenMapRef.current.set(data.userId, Date.now())
+      setOnlineUserIds((prev) => prev.filter((id) => id !== data.userId))
+    })
     socket.on('member:joined', () => fetchGroup(id))
     socket.on('member:left', () => fetchGroup(id))
     socket.on('member:kicked', (data) => {
@@ -254,6 +259,7 @@ export function GroupPage() {
   }
 
   const onlineMembers = useMemo(() => new Set(onlineUserIds), [onlineUserIds])
+  const lastSeenMap = lastSeenMapRef.current
   const currentUserRole = currentGroup?.members.find(m => m.id === user?.id)?.role || 'member'
 
   if (!currentGroup) {
@@ -281,6 +287,12 @@ export function GroupPage() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-lg font-heading font-bold truncate">{currentGroup.name}</h1>
+          {onlineUserIds.length > 0 && (
+            <Badge variant="secondary" className="hidden sm:inline-flex text-[10px] px-1.5 py-0 gap-1 font-normal shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-online animate-pulse" />
+              {onlineUserIds.length} en ligne
+            </Badge>
+          )}
         </div>
       </AppHeader>
 
@@ -308,7 +320,15 @@ export function GroupPage() {
             </div>
             <div className="flex-1 min-w-0 text-left">
               <p className="text-sm font-medium truncate">{currentGroup.name}</p>
-              <p className="text-xs text-muted-foreground">{t('group.members', { count: currentGroup.members.length })}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">{t('group.members', { count: currentGroup.members.length })}</p>
+                {onlineUserIds.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
+                    <span className="w-1.5 h-1.5 rounded-full bg-online animate-pulse" />
+                    {onlineUserIds.length} en ligne
+                  </Badge>
+                )}
+              </div>
             </div>
             <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
           </div>
@@ -325,6 +345,7 @@ export function GroupPage() {
               inviteToken={inviteToken}
               voteHistory={voteHistory}
               onlineMembers={onlineMembers}
+              lastSeenMap={lastSeenMap}
               currentUserId={user?.id || ''}
               currentUserRole={currentUserRole}
               autoVoteSchedule={currentGroup.autoVoteSchedule}
@@ -446,6 +467,7 @@ export function GroupPage() {
               inviteToken={inviteToken}
               voteHistory={voteHistory}
               onlineMembers={onlineMembers}
+              lastSeenMap={lastSeenMap}
               currentUserId={user?.id || ''}
               currentUserRole={currentUserRole}
               autoVoteSchedule={currentGroup.autoVoteSchedule}

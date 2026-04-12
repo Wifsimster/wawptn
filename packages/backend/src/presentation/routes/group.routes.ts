@@ -999,4 +999,31 @@ router.get('/:id/leaderboard', async (req: Request, res: Response) => {
   }
 })
 
+// Get voting streaks for a group
+router.get('/:id/streaks', async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!
+    const groupId = String(req.params['id'])
+
+    const membership = await db('group_members')
+      .where({ group_id: groupId, user_id: userId })
+      .first()
+
+    if (!membership) {
+      res.status(403).json({ error: 'forbidden', message: 'Not a member of this group' })
+      return
+    }
+
+    const { getGroupStreaks } = await import('../../domain/streaks.js')
+    const streaks = await getGroupStreaks(groupId)
+
+    res.json({ streaks })
+  } catch (error) {
+    logger.error({ error: String(error), groupId: req.params['id'] }, 'failed to load group streaks')
+    res.status(500).json({ error: 'internal', message: 'Failed to load group streaks' })
+  }
+})
+  }
+})
+
 export { router as groupRoutes }

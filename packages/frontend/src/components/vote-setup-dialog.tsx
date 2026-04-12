@@ -205,28 +205,34 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
             </ResponsiveDialogHeader>
 
             <div className="space-y-3">
-              <label htmlFor="select-all" className="flex items-center gap-3 py-2.5 cursor-pointer">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={toggleAll}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleAll() } }}
+                className="flex items-center gap-3 py-3 px-2 -mx-2 rounded-md cursor-pointer hover:bg-accent/50 active:bg-accent/10 transition-colors"
+              >
                 <Checkbox
                   id="select-all"
                   checked={allSelected}
                   onCheckedChange={toggleAll}
-                  className="size-5"
+                  className="size-6 sm:size-5 shrink-0"
                 />
                 <span className="text-sm font-medium text-muted-foreground">{t('voteSetup.selectAll')}</span>
-              </label>
+              </div>
 
               <div className="border-t border-border" />
 
-              <div className="max-h-[40dvh] overflow-y-auto overflow-x-hidden">
+              <div className="max-h-[50dvh] sm:max-h-[40dvh] overflow-y-auto overflow-x-hidden overscroll-contain">
                 {sortedMembers.map((member) => {
                   const isOnline = onlineMembers.has(member.id)
                   return (
-                    <label key={member.id} htmlFor={`member-${member.id}`} className="flex items-center gap-3 py-2.5 px-2 rounded-md cursor-pointer hover:bg-accent/50 min-w-0">
+                    <label key={member.id} htmlFor={`member-${member.id}`} className="flex items-center gap-3 py-2.5 px-2 rounded-md cursor-pointer hover:bg-accent/50 active:bg-accent/10 transition-colors min-w-0">
                       <Checkbox
                         id={`member-${member.id}`}
                         checked={selectedIds.has(member.id)}
                         onCheckedChange={() => toggleMember(member.id)}
-                        className="size-5 shrink-0"
+                        className="size-6 sm:size-5 shrink-0"
                       />
                       <div className="relative shrink-0">
                         <Avatar className="w-7 h-7">
@@ -267,11 +273,11 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
               ) : null}
             </div>
 
-            <div className="flex flex-wrap justify-between items-center gap-2 mt-4">
+            <div className="flex flex-col sm:flex-row sm:justify-between items-center gap-2 mt-4">
               <span className="text-xs text-muted-foreground">
                 {t('voteSetup.selectedCount', { count: selectedIds.size })}
               </span>
-              <Button onClick={handleNext} disabled={!canProceed || loadingPreview}>
+              <Button onClick={handleNext} disabled={!canProceed || loadingPreview} className="w-full sm:w-auto">
                 {loadingPreview && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {t('voteSetup.next')}
               </Button>
@@ -294,7 +300,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
               </ResponsiveDialogDescription>
             </ResponsiveDialogHeader>
 
-            <div className="flex items-center gap-2 flex-wrap py-2">
+            <div className="flex items-center gap-2 flex-wrap py-2 px-3 sm:px-4">
               {members.filter(m => selectedIds.has(m.id)).map((member) => (
                 <Avatar key={member.id} className="w-8 h-8">
                   <AvatarImage src={member.avatarUrl} alt={member.displayName} />
@@ -379,7 +385,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
               )}
             </div>
 
-            <ResponsiveDialogFooter className="mt-4 gap-2 sm:justify-between">
+            <ResponsiveDialogFooter className="mt-4 flex flex-col sm:flex-row gap-2 sm:justify-between">
               <Button variant="ghost" onClick={handleBack} className="w-full sm:w-auto">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 {t('voteSetup.back')}

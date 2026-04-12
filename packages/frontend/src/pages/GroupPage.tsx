@@ -282,13 +282,13 @@ export function GroupPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <AppHeader maxWidth="wide">
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-wrap">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')} className="shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-lg font-heading font-bold truncate">{currentGroup.name}</h1>
+          <h1 className="text-base sm:text-lg font-heading font-bold truncate max-w-[50vw] sm:max-w-none">{currentGroup.name}</h1>
           {onlineUserIds.length > 0 && (
-            <Badge variant="secondary" className="hidden sm:inline-flex text-[10px] px-1.5 py-0 gap-1 font-normal shrink-0">
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-online animate-pulse" />
               {onlineUserIds.length} en ligne
             </Badge>
@@ -296,11 +296,11 @@ export function GroupPage() {
         </div>
       </AppHeader>
 
-      <main id="main-content" className="max-w-6xl mx-auto p-4">
+      <main id="main-content" className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
         {/* Mobile: mini-bar that opens sidebar sheet */}
         <button
           type="button"
-          className="lg:hidden mb-4 w-full rounded-lg border border-border bg-card/50 p-3 active:bg-card/80 transition-colors"
+          className="lg:hidden mb-4 w-full min-h-[44px] rounded-lg border border-border bg-card/50 p-3 active:bg-card/80 active:scale-[0.98] transition-all"
           onClick={() => setMobileSidebarOpen(true)}
           aria-label={t('group.openSidebar')}
         >
@@ -320,7 +320,7 @@ export function GroupPage() {
             </div>
             <div className="flex-1 min-w-0 text-left">
               <p className="text-sm font-medium truncate">{currentGroup.name}</p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-xs text-muted-foreground">{t('group.members', { count: currentGroup.members.length })}</p>
                 {onlineUserIds.length > 0 && (
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
@@ -330,7 +330,10 @@ export function GroupPage() {
                 )}
               </div>
             </div>
-            <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
+            <div className="flex flex-col items-center shrink-0">
+              <ChevronUp className="w-5 h-5 text-muted-foreground animate-bounce" />
+              <span className="text-[9px] text-muted-foreground leading-none">Ouvrir</span>
+            </div>
           </div>
         </button>
 
@@ -364,9 +367,9 @@ export function GroupPage() {
           </div>
 
           {/* Main content: games grid */}
-          <div className="space-y-4">
-            {/* Action buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-3 sm:space-y-4">
+            {/* Action buttons — full-width stacked on mobile, grid on sm+ */}
+            <div className="hidden sm:grid sm:grid-cols-2 gap-3">
               <Button
                 onClick={() => setVoteSetupOpen(true)}
                 className="h-auto py-4 flex-col card-hover-glow"
@@ -387,6 +390,29 @@ export function GroupPage() {
                 <span className="text-sm opacity-80">{t('group.randomPickHint')}</span>
               </Button>
             </div>
+
+            {/* Mobile: fixed bottom action bar */}
+            <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setVoteSetupOpen(true)}
+                  className="flex-1 h-12 gap-2 active:scale-[0.98] transition-transform"
+                >
+                  <Vote className="w-5 h-5" />
+                  <span className="font-heading font-bold">{t('group.startVote')}</span>
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setRandomPickOpen(true)}
+                  disabled={commonGames.length === 0}
+                  className="h-12 px-4 active:scale-[0.98] transition-transform"
+                >
+                  <Dices className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+            {/* Spacer for fixed bottom bar on mobile */}
+            <div className="h-16 sm:hidden" />
 
             <RandomPickModal
               open={randomPickOpen}

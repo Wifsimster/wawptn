@@ -102,9 +102,12 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
   })
 
   const historySection = voteHistory.length > 0 && (
-    <div className="space-y-2">
+    <div className={compact ? 'flex gap-2 sm:gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory pb-1 -mx-1 px-1' : 'space-y-2'}>
       {voteHistory.map((session, index) => (
-        <div key={session.id} className="flex items-center gap-3 group/history">
+        <div key={session.id} className={compact
+          ? 'flex-none w-[200px] snap-start rounded-lg border border-border bg-card/50 p-2 flex items-center gap-2 group/history'
+          : 'flex items-center gap-3 group/history'
+        }>
           <img
             src={`https://cdn.akamai.steamstatic.com/steam/apps/${session.winningGameAppId}/header.jpg`}
             alt={session.winningGameName}
@@ -130,7 +133,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={`h-7 w-7 text-muted-foreground hover:text-destructive ${compact ? 'opacity-100' : 'opacity-0 group-hover/history:opacity-100'} transition-opacity shrink-0`}
+                  className={`h-8 w-8 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive active:bg-accent/10 ${compact ? 'opacity-100' : 'opacity-0 group-hover/history:opacity-100'} transition-opacity shrink-0`}
                   onClick={() => setConfirmDeleteHistory(session)}
                   aria-label={t('group.deleteHistory')}
                 >
@@ -166,7 +169,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
       {!compact && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={onSync} disabled={syncing} aria-label={t('group.syncLibraries')}>
+            <Button variant="ghost" size="icon" onClick={onSync} disabled={syncing} aria-label={t('group.syncLibraries')} className="h-11 w-11 min-h-[44px] min-w-[44px] active:bg-accent/10">
               <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin text-primary' : ''}`} />
             </Button>
           </TooltipTrigger>
@@ -177,7 +180,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
   )
 
   const membersList = (
-    <div className="space-y-2">
+    <div className="space-y-1 sm:space-y-2">
       {sortedMembers.map((member) => {
         const isOnline = onlineMembers.has(member.id)
         const isSelf = member.id === currentUserId
@@ -185,7 +188,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
           ? 'En ligne'
           : getLastSeenLabel(lastSeenMap.get(member.id))
         return (
-          <div key={member.id} className={`flex items-center gap-3 py-1.5 group transition-opacity ${!isOnline ? 'opacity-60' : ''}`}>
+          <div key={member.id} className={`flex items-center gap-3 min-h-[48px] py-1.5 px-1 -mx-1 rounded-md group transition-opacity ${!isOnline ? 'opacity-60' : ''}`}>
             <div className="relative">
               <Avatar className="w-8 h-8">
                 <AvatarImage src={member.avatarUrl} alt={member.displayName} />
@@ -223,11 +226,11 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                   <Button
                     variant="ghost"
                     size="icon"
-                    className={`h-7 w-7 text-muted-foreground hover:text-destructive ${compact ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}
+                    className={`h-11 w-11 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive active:bg-accent/10 ${compact ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}
                     onClick={() => setConfirmKick(member)}
                     aria-label={t('group.kickMember', { name: member.displayName })}
                   >
-                    <UserMinus className="w-3.5 h-3.5" />
+                    <UserMinus className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left" className="text-xs">
@@ -242,7 +245,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
   )
 
   const actionButtons = (
-    <div className="space-y-2">
+    <div className="space-y-1.5 sm:space-y-2">
       {compact && (
         <Button
           variant="outline"
@@ -352,10 +355,10 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
   )
 
   return (
-    <aside className="space-y-4">
+    <aside className="space-y-2 sm:space-y-3">
       {compact ? (
         // Compact layout for mobile bottom sheets — no Card wrappers
-        <div className="space-y-4">
+        <div className="space-y-2 sm:space-y-3">
           {historySection && (
             <div className="space-y-2">
               <h2 className="font-semibold flex items-center gap-2 text-sm">
@@ -376,13 +379,13 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
         <>
           {historySection && (
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
                 <h2 className="font-semibold flex items-center gap-2 text-sm">
                   <History className="w-4 h-4" />
                   {t('group.history')}
                 </h2>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="p-3 sm:p-4 pt-0 space-y-2">
                 {historySection}
               </CardContent>
             </Card>
@@ -393,10 +396,10 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
           <GroupStats groupId={groupId} />
 
           <Card>
-            <CardHeader className="space-y-0 pb-3">
+            <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3 space-y-0">
               {membersHeader}
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="p-3 sm:p-4 pt-0 space-y-2 sm:space-y-3">
               {membersList}
               {actionButtons}
             </CardContent>

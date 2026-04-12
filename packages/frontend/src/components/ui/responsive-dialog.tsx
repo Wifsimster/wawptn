@@ -83,13 +83,13 @@ function ResponsiveDialogContent({
   }
 
   return (
-    <DrawerContent ref={ref} className={cn('px-4', className)} {...props}>
-      <div className="relative">
-        <div className="overflow-y-auto overflow-x-hidden max-h-[calc(96dvh-4rem)] px-0.5 py-2 min-w-0">
+    <DrawerContent ref={ref} className={cn('px-3 sm:px-4', className)} {...props}>
+      <div className="relative overscroll-contain">
+        <div className="overflow-y-auto overflow-x-hidden overscroll-contain max-h-[calc(96dvh-4rem)] px-0.5 py-2 min-w-0 touch-scroll">
           {children}
         </div>
         {/* Scroll fade indicator */}
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent" />
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-card to-transparent" />
       </div>
     </DrawerContent>
   )

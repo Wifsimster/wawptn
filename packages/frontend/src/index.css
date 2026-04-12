@@ -569,3 +569,33 @@
     transform: none;
   }
 }
+
+/* ── Mobile touch improvements ── */
+
+/* Prevent iOS input zoom (inputs < 16px trigger zoom) */
+@media screen and (max-width: 640px) {
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
+
+/* Improve touch scrolling */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Hide scrollbar on touch-friendly containers while keeping scroll functionality */
+.touch-scroll::-webkit-scrollbar {
+  display: none;
+}
+.touch-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Prevent pull-to-refresh interfering with drawers/modals */
+[data-slot="drawer-content"] {
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}

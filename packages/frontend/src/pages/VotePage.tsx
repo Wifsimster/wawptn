@@ -303,7 +303,7 @@ export function VotePage() {
     const isScheduledSession = scheduledDate && scheduledDate.getTime() > Date.now()
 
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center px-3 sm:px-4 py-4">
         <Check className="w-16 h-16 text-success mb-4" />
         <h2 className="text-2xl font-heading font-bold mb-2">{t('vote.submitted')}</h2>
 
@@ -408,7 +408,7 @@ export function VotePage() {
               >
                 <button
                   onClick={() => toggleGame(game.steamAppId)}
-                  className="w-full text-left"
+                  className="w-full text-left active:scale-95 active:bg-accent/10 transition-transform"
                   aria-label={isSelected ? t('vote.deselectGame', { name: game.gameName }) : t('vote.selectGame', { name: game.gameName })}
                   aria-pressed={isSelected}
                 >
@@ -443,7 +443,7 @@ export function VotePage() {
                           e.stopPropagation()
                           setDetailGame(game)
                         }}
-                        className="ml-1 shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        className="ml-1 shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary active:bg-accent/10 active:scale-95 transition-all"
                         aria-label={t('vote.gameDetails')}
                       >
                         <Info className="w-3.5 h-3.5" />
@@ -469,18 +469,23 @@ export function VotePage() {
         />
 
         {/* Floating submit button */}
-        <div className="fixed bottom-0 left-0 right-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-background/80 backdrop-blur-sm border-t border-border">
+        <div className="fixed bottom-0 left-0 right-0 p-2.5 sm:p-4 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))] bg-background/80 backdrop-blur-sm shadow-[0_-4px_12px_rgba(0,0,0,0.1)]">
           <div className="max-w-2xl mx-auto flex items-center justify-between">
             <span role="status" aria-live="polite" className="text-sm text-muted-foreground">
               {t('vote.gamesSelected', { count: selectedGames.size })}
             </span>
-            <Button onClick={submitVotes} disabled={submitting || selectedGames.size === 0} aria-label={t('vote.submitSelection')}>
+            <Button onClick={submitVotes} disabled={submitting || selectedGames.size === 0} aria-label={t('vote.submitSelection')} className="relative">
               {submitting ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
               ) : (
                 <Send className="w-4 h-4 mr-2" />
               )}
               {t('vote.submitSelection')}
+              {selectedGames.size > 0 && (
+                <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
+                  {selectedGames.size}
+                </span>
+              )}
             </Button>
           </div>
         </div>

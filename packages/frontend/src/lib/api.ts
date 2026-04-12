@@ -59,6 +59,13 @@ export const api = {
     body: JSON.stringify({ code }),
   }),
 
+  // Invite preview (public, no auth — mounted at /invite, not /api)
+  getInvitePreview: async (token: string): Promise<import('@wawptn/types').InvitePreview> => {
+    const res = await fetch(`/invite/${token}/preview`)
+    if (!res.ok) throw new Error('Failed to load invite preview')
+    return res.json()
+  },
+
   // Groups
   getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null }[]>('/groups'),
   getGroup: (id: string) => request<{

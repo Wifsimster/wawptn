@@ -239,3 +239,21 @@ export interface ClientToServerEvents {
   'group:join': (groupId: string) => void
   'group:leave': (groupId: string) => void
 }
+
+// ============================================
+// Invite Preview
+// ============================================
+
+export interface InvitePreviewGame {
+  gameName: string
+  headerImageUrl: string | null
+}
+
+export interface InvitePreview {
+  isValid: boolean
+  groupName: string
+  memberCount: number
+  memberAvatars: string[]
+  topGames: InvitePreviewGame[]
+  recentWinner: InvitePreviewGame | null
+}

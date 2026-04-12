@@ -223,7 +223,11 @@
     "loginPrompt": "Sign in with Steam to join the group.",
     "connecting": "Joining group...",
     "failed": "Unable to join",
-    "goToGroups": "Go to my groups"
+    "goToGroups": "Go to my groups",
+    "memberCount_one": "{{count}} member",
+    "memberCount_other": "{{count}} members",
+    "lastPlayed": "Last game played:",
+    "popularGames": "Popular games in the group"
   },
   "invite": {
     "shareLink": "Share this link with your friends:",

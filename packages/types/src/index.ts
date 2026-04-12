@@ -201,7 +201,7 @@ export interface ChallengeProgress {
 // Notifications
 // ============================================
 
-export type NotificationType = 'vote_opened' | 'vote_closed' | 'admin_broadcast' | 'challenge_unlocked'
+export type NotificationType = 'vote_opened' | 'vote_closed' | 'vote_reminder' | 'admin_broadcast' | 'challenge_unlocked'
 
 export interface Notification {
   id: string

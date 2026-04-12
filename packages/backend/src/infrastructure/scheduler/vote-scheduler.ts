@@ -1,6 +1,7 @@
 import cron from 'node-cron'
 import { db } from '../database/connection.js'
 import { closeSession } from '../../domain/close-session.js'
+import { sendVoteReminders } from '../../domain/vote-reminder.js'
 import { logger } from '../logger/logger.js'
 
 const schedulerLogger = logger.child({ module: 'scheduler' })
@@ -33,6 +34,15 @@ export function startVoteScheduler(): void {
       }
     } catch (err) {
       schedulerLogger.error({ error: String(err) }, 'Discord link code cleanup failed')
+    }
+  })
+
+  // Send vote reminders every 30 minutes for open sessions older than 1 hour
+  cron.schedule('*/30 * * * *', async () => {
+    try {
+      await sendVoteReminders()
+    } catch (err) {
+      schedulerLogger.error({ error: String(err) }, 'vote reminder tick failed')
     }
   })
 

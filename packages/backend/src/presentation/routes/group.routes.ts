@@ -416,6 +416,18 @@ router.post('/join', async (req: Request, res: Response) => {
     })
   }
 
+  // Track referral: the group owner (created_by) is the referrer
+  if (group.created_by !== userId) {
+    await db('referrals')
+      .insert({
+        referrer_user_id: group.created_by,
+        referred_user_id: userId,
+        group_id: group.id,
+      })
+      .onConflict('referred_user_id')
+      .ignore()
+  }
+
   logger.info({ userId, groupId: group.id }, 'user joined group')
   res.json({ id: group.id, name: group.name, alreadyMember: false })
 })

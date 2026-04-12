@@ -235,6 +235,38 @@ router.get('/me', async (req: Request, res: Response) => {
   }
 })
 
+// Get referral stats for the current user
+router.get('/me/referrals', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!
+
+    const referrals = await db('referrals')
+      .where({ referrer_user_id: userId })
+      .join('users', 'users.id', 'referrals.referred_user_id')
+      .join('groups', 'groups.id', 'referrals.group_id')
+      .select(
+        'users.display_name as displayName',
+        'users.avatar_url as avatarUrl',
+        'groups.name as groupName',
+        'referrals.created_at as createdAt',
+      )
+      .orderBy('referrals.created_at', 'desc')
+
+    res.json({
+      totalReferrals: referrals.length,
+      referrals: referrals.map((r: { displayName: string; avatarUrl: string | null; groupName: string; createdAt: string }) => ({
+        displayName: r.displayName,
+        avatarUrl: r.avatarUrl,
+        groupName: r.groupName,
+        createdAt: r.createdAt,
+      })),
+    })
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'get referrals failed')
+    res.status(500).json({ error: 'internal', message: 'Failed to get referrals' })
+  }
+})
+
 // Get full profile with platform connections
 router.get('/profile', requireAuth, async (req: Request, res: Response) => {
   try {

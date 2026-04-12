@@ -12,7 +12,8 @@
     "db:migrate": "knex migrate:latest --knexfile knexfile.ts",
     "db:rollback": "knex migrate:rollback --knexfile knexfile.ts",
     "db:seed": "knex seed:run --knexfile knexfile.ts",
-    "db:make-migration": "knex migrate:make --knexfile knexfile.ts -x ts"
+    "db:make-migration": "knex migrate:make --knexfile knexfile.ts -x ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@wawptn/types": "*",
@@ -46,6 +47,7 @@
     "@types/uuid": "^11.0.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.4"
   }
 }

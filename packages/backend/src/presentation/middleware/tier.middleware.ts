@@ -13,18 +13,42 @@ export const PREMIUM_TIER_LIMITS = {
   maxMembersPerGroup: 20,
 } as const
 
-/** Check if a user has an active premium subscription */
+/** In-memory cache for premium status with TTL */
+interface CacheEntry {
+  value: boolean
+  expiresAt: number
+}
+
+const PREMIUM_CACHE_TTL_MS = 60_000 // 60 seconds
+const premiumCache = new Map<string, CacheEntry>()
+
+/** Evict expired entries periodically to prevent unbounded growth */
+const EVICTION_INTERVAL_MS = 5 * 60_000 // 5 minutes
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, entry] of premiumCache) {
+    if (entry.expiresAt <= now) premiumCache.delete(key)
+  }
+}, EVICTION_INTERVAL_MS).unref()
+
+/** Check if a user has an active premium subscription (cached, 60s TTL) */
 export async function isUserPremium(userId: string): Promise<boolean> {
+  const now = Date.now()
+  const cached = premiumCache.get(userId)
+  if (cached && cached.expiresAt > now) return cached.value
+
   const subscription = await db('subscriptions')
     .where({ user_id: userId })
     .select('tier', 'status', 'current_period_end')
     .first()
 
-  if (!subscription || subscription.tier !== 'premium') return false
-  if (subscription.status !== 'active') return false
-  if (subscription.current_period_end && new Date(subscription.current_period_end) < new Date()) return false
+  let premium = true
+  if (!subscription || subscription.tier !== 'premium') premium = false
+  else if (subscription.status !== 'active') premium = false
+  else if (subscription.current_period_end && new Date(subscription.current_period_end) < new Date()) premium = false
 
-  return true
+  premiumCache.set(userId, { value: premium, expiresAt: now + PREMIUM_CACHE_TTL_MS })
+  return premium
 }
 
 /** Express middleware — blocks request if user is not premium */

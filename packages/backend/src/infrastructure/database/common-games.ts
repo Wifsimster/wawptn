@@ -148,3 +148,79 @@ export async function countCommonGames(
 
   return count
 }
+
+interface GroupMemberInfo {
+  groupId: string
+  memberIds: string[]
+  threshold: number
+}
+
+/**
+ * Count common games for multiple groups in a single DB round-trip.
+ * Fetches (user_id, game_id) pairs once for all users across all groups,
+ * then computes per-group common game counts in application code.
+ *
+ * Returns a Map from groupId to the count of common games.
+ */
+export async function countCommonGamesForGroups(
+  groups: GroupMemberInfo[]
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>()
+
+  if (groups.length === 0) return result
+
+  // Collect all unique user IDs across all groups
+  const allUserIds = new Set<string>()
+  for (const g of groups) {
+    for (const uid of g.memberIds) allUserIds.add(uid)
+  }
+
+  if (allUserIds.size === 0) {
+    for (const g of groups) result.set(g.groupId, 0)
+    return result
+  }
+
+  // Single query: fetch (user_id, game_id) for all relevant users
+  const rows: Array<{ user_id: string; game_id: string }> = await db('user_games')
+    .whereIn('user_id', Array.from(allUserIds))
+    .whereNotNull('game_id')
+    .select('user_id', 'game_id')
+
+  // Build a map: user_id -> Set<game_id>
+  const userGamesMap = new Map<string, Set<string>>()
+  for (const row of rows) {
+    let gameSet = userGamesMap.get(row.user_id)
+    if (!gameSet) {
+      gameSet = new Set<string>()
+      userGamesMap.set(row.user_id, gameSet)
+    }
+    gameSet.add(row.game_id)
+  }
+
+  // For each group, count games that meet the threshold
+  for (const g of groups) {
+    if (g.memberIds.length < 1) {
+      result.set(g.groupId, 0)
+      continue
+    }
+
+    // Count owners per game_id within this group
+    const gameOwnerCount = new Map<string, number>()
+    for (const uid of g.memberIds) {
+      const games = userGamesMap.get(uid)
+      if (!games) continue
+      for (const gameId of games) {
+        gameOwnerCount.set(gameId, (gameOwnerCount.get(gameId) ?? 0) + 1)
+      }
+    }
+
+    // Count games that meet the threshold
+    let count = 0
+    for (const ownerCount of gameOwnerCount.values()) {
+      if (ownerCount >= g.threshold) count++
+    }
+    result.set(g.groupId, count)
+  }
+
+  return result
+}

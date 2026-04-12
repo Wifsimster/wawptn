@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express'
 import cron from 'node-cron'
 import { db } from '../../infrastructure/database/connection.js'
-import { computeCommonGames, countCommonGames } from '../../infrastructure/database/common-games.js'
+import { computeCommonGames, countCommonGames, countCommonGamesForGroups } from '../../infrastructure/database/common-games.js'
 import { generateInviteToken, hashInviteToken } from '../../infrastructure/steam/steam-client.js'
 import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-store-client.js'
 import { getIO, forceLeaveRoom } from '../../infrastructure/socket/socket.js'
@@ -58,16 +58,17 @@ router.get('/', async (req: Request, res: Response) => {
     memberIdsMap.set(m.group_id, list)
   }
 
-  // Count common games per group in parallel
-  const commonGameCounts = await Promise.all(
-    groups.map(async (g) => {
+  // Count common games per group in a single batched query
+  const commonGameCountMap = await countCommonGamesForGroups(
+    groups.map((g) => {
       const memberIds = memberIdsMap.get(g.id) || []
-      if (memberIds.length < 1) return 0
-      const threshold = g.common_game_threshold || memberIds.length
-      return countCommonGames(memberIds, threshold)
+      return {
+        groupId: g.id as string,
+        memberIds,
+        threshold: (g.common_game_threshold as number | null) || memberIds.length,
+      }
     })
   )
-  const commonGameCountMap = new Map(groups.map((g, i) => [g.id, commonGameCounts[i]]))
 
   res.json(groups.map(g => ({
     id: g.id,

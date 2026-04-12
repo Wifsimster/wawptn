@@ -52,8 +52,8 @@ FROM types-builder AS frontend-builder
 COPY packages/frontend ./packages/frontend
 
 ARG VERSION
+ENV NODE_ENV=production
 ENV VITE_APP_VERSION=${VERSION}
-ENV VITE_API_URL=""
 RUN npm run build:frontend
 
 # Stage 4: Production runtime

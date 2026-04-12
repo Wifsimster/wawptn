@@ -65,20 +65,33 @@ router.patch('/bot-settings', async (req: Request, res: Response) => {
 
 // ─── Users management ─────────────────────────────────────────────────────────
 
-router.get('/users', async (_req: Request, res: Response) => {
+router.get('/users', async (req: Request, res: Response) => {
   try {
+    const limit = Math.min(Math.max(Number(req.query['limit']) || 50, 1), 100)
+    const offset = Math.max(Number(req.query['offset']) || 0, 0)
+
+    const totalResult = await db('users').count('id as count').first()
+    const total = Number(totalResult?.count ?? 0)
+
     const users = await db('users')
       .select('id', 'steam_id', 'display_name', 'avatar_url', 'is_admin', 'created_at')
       .orderBy('created_at', 'asc')
+      .limit(limit)
+      .offset(offset)
 
-    res.json(users.map(u => ({
-      id: u.id,
-      steamId: u.steam_id,
-      displayName: u.display_name,
-      avatarUrl: u.avatar_url,
-      isAdmin: u.is_admin,
-      createdAt: u.created_at,
-    })))
+    res.json({
+      data: users.map(u => ({
+        id: u.id,
+        steamId: u.steam_id,
+        displayName: u.display_name,
+        avatarUrl: u.avatar_url,
+        isAdmin: u.is_admin,
+        createdAt: u.created_at,
+      })),
+      total,
+      limit,
+      offset,
+    })
   } catch (error) {
     authLogger.error({ error: String(error) }, 'failed to list users')
     res.status(500).json({ error: 'internal', message: 'Failed to list users' })

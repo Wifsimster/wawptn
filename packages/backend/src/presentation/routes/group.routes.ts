@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express'
 import cron from 'node-cron'
 import { db } from '../../infrastructure/database/connection.js'
-import { computeCommonGames, countCommonGames } from '../../infrastructure/database/common-games.js'
+import { computeCommonGames, countCommonGames, countCommonGamesForGroups } from '../../infrastructure/database/common-games.js'
 import { generateInviteToken, hashInviteToken } from '../../infrastructure/steam/steam-client.js'
 import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-store-client.js'
 import { getIO, forceLeaveRoom } from '../../infrastructure/socket/socket.js'
@@ -58,16 +58,17 @@ router.get('/', async (req: Request, res: Response) => {
     memberIdsMap.set(m.group_id, list)
   }
 
-  // Count common games per group in parallel
-  const commonGameCounts = await Promise.all(
-    groups.map(async (g) => {
+  // Count common games per group in a single batched query
+  const commonGameCountMap = await countCommonGamesForGroups(
+    groups.map((g) => {
       const memberIds = memberIdsMap.get(g.id) || []
-      if (memberIds.length < 1) return 0
-      const threshold = g.common_game_threshold || memberIds.length
-      return countCommonGames(memberIds, threshold)
+      return {
+        groupId: g.id as string,
+        memberIds,
+        threshold: (g.common_game_threshold as number | null) || memberIds.length,
+      }
     })
   )
-  const commonGameCountMap = new Map(groups.map((g, i) => [g.id, commonGameCounts[i]]))
 
   res.json(groups.map(g => ({
     id: g.id,
@@ -930,6 +931,98 @@ router.get('/:id/recommendations', async (req: Request, res: Response) => {
   } catch (error) {
     logger.error({ error: String(error), groupId: req.params['id'] }, 'failed to load recommendations')
     res.status(500).json({ error: 'internal', message: 'Failed to load recommendations' })
+  }
+})
+
+// Get member leaderboard/rankings for a group
+router.get('/:id/leaderboard', async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!
+    const groupId = String(req.params['id'])
+
+    const membership = await db('group_members')
+      .where({ group_id: groupId, user_id: userId })
+      .first()
+
+    if (!membership) {
+      res.status(403).json({ error: 'forbidden', message: 'Not a member' })
+      return
+    }
+
+    // Total votes cast per member in this group's closed sessions
+    const memberVotes = await db('votes')
+      .join('voting_sessions', 'voting_sessions.id', 'votes.session_id')
+      .join('users', 'users.id', 'votes.user_id')
+      .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed' })
+      .select(
+        'votes.user_id as userId',
+        'users.display_name as displayName',
+        'users.avatar_url as avatarUrl',
+      )
+      .count('* as votesCount')
+      .countDistinct('votes.session_id as sessionsParticipated')
+      .groupBy('votes.user_id', 'users.display_name', 'users.avatar_url') as unknown as {
+        userId: string
+        displayName: string
+        avatarUrl: string
+        votesCount: string
+        sessionsParticipated: string
+      }[]
+
+    // Count wins per member: times user voted for the winning game
+    const memberWins = await db('votes')
+      .join('voting_sessions', 'voting_sessions.id', 'votes.session_id')
+      .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed', 'votes.vote': true })
+      .whereNotNull('voting_sessions.winning_game_app_id')
+      .whereRaw('votes.steam_app_id = voting_sessions.winning_game_app_id')
+      .select('votes.user_id as userId')
+      .count('* as winsCount')
+      .groupBy('votes.user_id') as unknown as { userId: string; winsCount: string }[]
+
+    const winsMap = new Map(memberWins.map(w => [w.userId, Number(w.winsCount)]))
+
+    const leaderboard = memberVotes
+      .map(m => ({
+        userId: m.userId,
+        displayName: m.displayName,
+        avatarUrl: m.avatarUrl,
+        votesCount: Number(m.votesCount),
+        sessionsParticipated: Number(m.sessionsParticipated),
+        winsCount: winsMap.get(m.userId) || 0,
+      }))
+      .sort((a, b) => b.votesCount - a.votesCount)
+
+    res.json(leaderboard)
+  } catch (error) {
+    logger.error({ error: String(error), groupId: req.params['id'] }, 'failed to load group leaderboard')
+    res.status(500).json({ error: 'internal', message: 'Failed to load group leaderboard' })
+  }
+})
+
+// Get voting streaks for a group
+router.get('/:id/streaks', async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!
+    const groupId = String(req.params['id'])
+
+    const membership = await db('group_members')
+      .where({ group_id: groupId, user_id: userId })
+      .first()
+
+    if (!membership) {
+      res.status(403).json({ error: 'forbidden', message: 'Not a member of this group' })
+      return
+    }
+
+    const { getGroupStreaks } = await import('../../domain/streaks.js')
+    const streaks = await getGroupStreaks(groupId)
+
+    res.json({ streaks })
+  } catch (error) {
+    logger.error({ error: String(error), groupId: req.params['id'] }, 'failed to load group streaks')
+    res.status(500).json({ error: 'internal', message: 'Failed to load group streaks' })
+  }
+})
   }
 })
 

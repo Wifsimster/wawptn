@@ -461,13 +461,23 @@ router.get('/:groupId/vote/history', async (req: Request, res: Response) => {
     return
   }
 
+  const limit = Math.min(Math.max(Number(req.query['limit']) || 10, 1), 50)
+  const offset = Math.max(Number(req.query['offset']) || 0, 0)
+
+  const totalResult = await db('voting_sessions')
+    .where({ group_id: groupId, status: 'closed' })
+    .count('id as count')
+    .first()
+  const total = Number(totalResult?.count ?? 0)
+
   const sessions = await db('voting_sessions')
     .where({ group_id: groupId, status: 'closed' })
     .orderBy('closed_at', 'desc')
-    .limit(10)
+    .limit(limit)
+    .offset(offset)
     .select('id', 'winning_game_app_id as winningGameAppId', 'winning_game_id as winningGameId', 'winning_game_name as winningGameName', 'closed_at as closedAt', 'created_by as createdBy')
 
-  res.json(sessions)
+  res.json({ data: sessions, total, limit, offset })
 })
 
 export { router as voteRoutes }

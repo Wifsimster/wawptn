@@ -4,6 +4,7 @@ import { logger } from '../infrastructure/logger/logger.js'
 import { notifyVoteClosed } from '../infrastructure/discord/notifier.js'
 import { createNotification } from '../infrastructure/notifications/notification-service.js'
 import { evaluateChallenges } from './challenges/challenge-service.js'
+import { updateStreak } from './streaks.js'
 import type { VoteResult } from '@wawptn/types'
 
 /**
@@ -116,6 +117,13 @@ export async function closeSession(sessionId: string, groupId: string): Promise<
   for (const pid of participantIds) {
     evaluateChallenges(pid, ['participation']).catch(err =>
       logger.warn({ error: String(err), userId: pid }, 'challenge evaluation after session close failed')
+    )
+  }
+
+  // Update voting streaks for all participants (non-blocking)
+  for (const pid of participantIds) {
+    updateStreak(pid, groupId, sessionId).catch(err =>
+      logger.warn({ error: String(err), userId: pid, groupId }, 'streak update after session close failed')
     )
   }
 

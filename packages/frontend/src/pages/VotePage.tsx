@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, ExternalLink, Loader2, RefreshCw, Vote, Search, Send, Info, Monitor, Apple, Gamepad2, Star } from 'lucide-react'
+import { ArrowLeft, Check, ExternalLink, Loader2, RefreshCw, Vote, Search, Send, Info, Monitor, Apple, Gamepad2, Star, CircleOff } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -8,6 +8,7 @@ import { api } from '@/lib/api'
 import { AppHeader } from '@/components/app-header'
 import { AppFooter } from '@/components/app-footer'
 import { CountdownTimer } from '@/components/countdown-timer'
+import { EmptyState } from '@/components/empty-state'
 import { getSocket } from '@/lib/socket'
 import { useAuthStore } from '@/stores/auth.store'
 import { Button } from '@/components/ui/button'
@@ -65,6 +66,7 @@ export function VotePage() {
   const [rematching, setRematching] = useState(false)
   const [search, setSearch] = useState('')
   const [detailGame, setDetailGame] = useState<Game | null>(null)
+  const [noSession, setNoSession] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -74,7 +76,7 @@ export function VotePage() {
       (data) => {
         if (cancelled) return
         if (!data.session) {
-          navigate(`/groups/${id}`)
+          setNoSession(true)
           return
         }
         setSession({ id: data.session.id, createdBy: data.session.createdBy, scheduledAt: data.session.scheduledAt })
@@ -193,6 +195,31 @@ export function VotePage() {
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches, []
   )
 
+  // No active session
+  if (noSession) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <AppHeader>
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/groups/${id}`)} aria-label={t('group.back')}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        </AppHeader>
+        <main id="main-content" className="flex-1 flex items-center justify-center p-4">
+          <EmptyState
+            icon={CircleOff}
+            title={t('vote.noActiveSessionTitle')}
+            description={t('vote.noActiveSessionDescription')}
+            action={{
+              label: t('vote.backToGroup'),
+              onClick: () => navigate(`/groups/${id}`),
+            }}
+          />
+        </main>
+        <AppFooter />
+      </div>
+    )
+  }
+
   // Result screen
   if (result) {
     const resultStagger = {
@@ -293,7 +320,7 @@ export function VotePage() {
         <p className="text-muted-foreground mb-2">
           {t('vote.selectedCount', { count: selectedGames.size })}
         </p>
-        <p className="text-muted-foreground mb-6">
+        <p role="status" aria-live="polite" className="text-muted-foreground mb-6">
           {t('vote.waiting', { done: voterCount, total: totalMembers })}
         </p>
 
@@ -366,12 +393,13 @@ export function VotePage() {
         </div>
 
         {/* Game grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 overflow-y-auto pb-24">
+        <div role="list" className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 overflow-y-auto pb-24">
           {filteredGames.map(game => {
             const isSelected = selectedGames.has(game.steamAppId)
             return (
               <div
                 key={game.steamAppId}
+                role="listitem"
                 className={`relative rounded-lg overflow-hidden border-2 transition-all ${
                   isSelected
                     ? 'border-primary ring-2 ring-primary/30 shadow-lg'
@@ -381,6 +409,8 @@ export function VotePage() {
                 <button
                   onClick={() => toggleGame(game.steamAppId)}
                   className="w-full text-left"
+                  aria-label={isSelected ? t('vote.deselectGame', { name: game.gameName }) : t('vote.selectGame', { name: game.gameName })}
+                  aria-pressed={isSelected}
                 >
                   <img
                     src={game.headerImageUrl}
@@ -441,10 +471,10 @@ export function VotePage() {
         {/* Floating submit button */}
         <div className="fixed bottom-0 left-0 right-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-background/80 backdrop-blur-sm border-t border-border">
           <div className="max-w-2xl mx-auto flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
+            <span role="status" aria-live="polite" className="text-sm text-muted-foreground">
               {t('vote.gamesSelected', { count: selectedGames.size })}
             </span>
-            <Button onClick={submitVotes} disabled={submitting || selectedGames.size === 0}>
+            <Button onClick={submitVotes} disabled={submitting || selectedGames.size === 0} aria-label={t('vote.submitSelection')}>
               {submitting ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
               ) : (

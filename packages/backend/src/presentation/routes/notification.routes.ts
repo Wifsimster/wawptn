@@ -13,37 +13,57 @@ const router = Router()
 
 // Get unread notifications for current user
 router.get('/', async (req: Request, res: Response) => {
-  const userId = req.userId!
-  const notifications = await getUnreadNotifications(userId)
-  res.json(notifications)
+  try {
+    const userId = req.userId!
+    const notifications = await getUnreadNotifications(userId)
+    res.json(notifications)
+  } catch (error) {
+    logger.error({ error: String(error), userId: req.userId }, 'failed to fetch notifications')
+    res.status(500).json({ error: 'internal', message: 'Failed to fetch notifications' })
+  }
 })
 
 // Get unread count
 router.get('/count', async (req: Request, res: Response) => {
-  const userId = req.userId!
-  const count = await getUnreadCount(userId)
-  res.json({ count })
+  try {
+    const userId = req.userId!
+    const count = await getUnreadCount(userId)
+    res.json({ count })
+  } catch (error) {
+    logger.error({ error: String(error), userId: req.userId }, 'failed to fetch notification count')
+    res.status(500).json({ error: 'internal', message: 'Failed to fetch notification count' })
+  }
 })
 
 // Mark a single notification as read
 router.patch('/:id/read', async (req: Request, res: Response) => {
-  const userId = req.userId!
-  const notificationId = String(req.params['id'])
-  const updated = await markAsRead(notificationId, userId)
+  try {
+    const userId = req.userId!
+    const notificationId = String(req.params['id'])
+    const updated = await markAsRead(notificationId, userId)
 
-  if (!updated) {
-    res.status(404).json({ error: 'not_found', message: 'Notification introuvable ou déjà lue' })
-    return
+    if (!updated) {
+      res.status(404).json({ error: 'not_found', message: 'Notification introuvable ou déjà lue' })
+      return
+    }
+
+    res.json({ ok: true })
+  } catch (error) {
+    logger.error({ error: String(error), userId: req.userId, notificationId: req.params['id'] }, 'failed to mark notification as read')
+    res.status(500).json({ error: 'internal', message: 'Failed to mark notification as read' })
   }
-
-  res.json({ ok: true })
 })
 
 // Mark all notifications as read
 router.post('/read-all', async (req: Request, res: Response) => {
-  const userId = req.userId!
-  const count = await markAllAsRead(userId)
-  res.json({ ok: true, count })
+  try {
+    const userId = req.userId!
+    const count = await markAllAsRead(userId)
+    res.json({ ok: true, count })
+  } catch (error) {
+    logger.error({ error: String(error), userId: req.userId }, 'failed to mark all notifications as read')
+    res.status(500).json({ error: 'internal', message: 'Failed to mark all notifications as read' })
+  }
 })
 
 export { router as notificationRoutes }
@@ -64,6 +84,11 @@ adminRouter.post('/', async (req: Request, res: Response) => {
 
   if (title.length > 255) {
     res.status(400).json({ error: 'validation', message: 'Le titre ne doit pas dépasser 255 caractères' })
+    return
+  }
+
+  if (body && typeof body === 'string' && body.length > 2000) {
+    res.status(400).json({ error: 'validation', message: 'Le corps ne doit pas dépasser 2000 caractères' })
     return
   }
 

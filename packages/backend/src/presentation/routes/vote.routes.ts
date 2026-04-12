@@ -132,6 +132,11 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
     return
   }
 
+  if (participantIds.length > 100) {
+    res.status(400).json({ error: 'validation', message: 'Cannot have more than 100 participants' })
+    return
+  }
+
   // Validate scheduledAt if provided
   let parsedScheduledAt: Date | null = null
   if (scheduledAt) {

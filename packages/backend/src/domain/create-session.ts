@@ -44,18 +44,6 @@ export interface CreateSessionResult {
 export async function createVotingSession(params: CreateSessionParams): Promise<CreateSessionResult> {
   const { groupId, createdBy, participantIds, filter, filters, scheduledAt, excludeAppIds } = params
 
-  // Check no open session exists
-  const existingSession = await db('voting_sessions')
-    .where({ group_id: groupId, status: 'open' })
-    .first()
-
-  if (existingSession) {
-    const err = new Error('A voting session is already open') as Error & { statusCode: number; errorCode: string }
-    err.statusCode = 409
-    err.errorCode = 'conflict'
-    throw err
-  }
-
   // Validate participantIds
   if (participantIds.length < 2) {
     const err = new Error('At least 2 participant IDs are required') as Error & { statusCode: number; errorCode: string }
@@ -122,32 +110,47 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
     return a.gameName.localeCompare(b.gameName)
   })
 
-  // Create session
-  const [session] = await db('voting_sessions').insert({
-    group_id: groupId,
-    status: 'open',
-    created_by: createdBy,
-    ...(scheduledAt ? { scheduled_at: scheduledAt } : {}),
-  }).returning('*')
+  // Atomic check-and-create: use a transaction with FOR UPDATE to prevent
+  // concurrent requests from both passing the "no open session" check
+  const session = await db.transaction(async (trx) => {
+    const existingSession = await trx('voting_sessions')
+      .where({ group_id: groupId, status: 'open' })
+      .forUpdate()
+      .first()
 
-  // Insert session participants
-  await db('voting_session_participants').insert(
-    validMembers.map(uid => ({
-      session_id: session.id,
-      user_id: uid,
-    }))
-  )
+    if (existingSession) {
+      const err = new Error('A voting session is already open') as Error & { statusCode: number; errorCode: string }
+      err.statusCode = 409
+      err.errorCode = 'conflict'
+      throw err
+    }
 
-  // Insert session games
-  await db('voting_session_games').insert(
-    selectedGames.map(g => ({
-      session_id: session.id,
-      steam_app_id: g.steamAppId,
-      game_id: g.gameId || null,
-      game_name: g.gameName,
-      header_image_url: g.headerImageUrl,
-    }))
-  )
+    const [sess] = await trx('voting_sessions').insert({
+      group_id: groupId,
+      status: 'open',
+      created_by: createdBy,
+      ...(scheduledAt ? { scheduled_at: scheduledAt } : {}),
+    }).returning('*')
+
+    await trx('voting_session_participants').insert(
+      validMembers.map(uid => ({
+        session_id: sess.id,
+        user_id: uid,
+      }))
+    )
+
+    await trx('voting_session_games').insert(
+      selectedGames.map(g => ({
+        session_id: sess.id,
+        steam_app_id: g.steamAppId,
+        game_id: g.gameId || null,
+        game_name: g.gameName,
+        header_image_url: g.headerImageUrl,
+      }))
+    )
+
+    return sess
+  })
 
   // Notify group (include participantIds so frontend can filter)
   getIO().to(`group:${groupId}`).emit('session:created', {

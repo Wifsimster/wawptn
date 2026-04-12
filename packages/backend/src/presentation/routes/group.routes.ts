@@ -586,6 +586,11 @@ router.post('/:id/common-games/preview', async (req: Request, res: Response) => 
       return
     }
 
+    if (memberIds.length > 100) {
+      res.status(400).json({ error: 'validation', message: 'Cannot have more than 100 member IDs' })
+      return
+    }
+
     const membership = await db('group_members')
       .where({ group_id: groupId, user_id: userId })
       .first()

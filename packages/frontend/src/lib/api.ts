@@ -204,7 +204,11 @@ export const api = {
     if (params?.q) search.set('q', params.q)
     const qs = search.toString()
     return request<{
-      data: { id: string; steamId: string; displayName: string; avatarUrl: string; isAdmin: boolean; createdAt: string }[]
+      data: {
+        id: string; steamId: string; displayName: string; avatarUrl: string;
+        isAdmin: boolean; isPremium: boolean; adminGrantedPremium: boolean;
+        createdAt: string;
+      }[]
       total: number
       limit: number
       offset: number
@@ -214,6 +218,11 @@ export const api = {
     request<{ ok: boolean }>(`/admin/users/${userId}/admin`, {
       method: 'PATCH',
       body: JSON.stringify({ isAdmin }),
+    }),
+  setAdminUserPremium: (userId: string, isPremium: boolean) =>
+    request<{ ok: boolean }>(`/admin/users/${userId}/premium`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isPremium }),
     }),
 
   // Subscription

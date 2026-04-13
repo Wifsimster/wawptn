@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
 import { authLogger } from '../../infrastructure/logger/logger.js'
+import { invalidatePremiumCache } from '../../domain/subscription-service.js'
 
 const router = Router()
 
@@ -71,7 +72,21 @@ interface UserRow {
   display_name: string
   avatar_url: string
   is_admin: boolean
+  admin_granted_premium: boolean
+  stripe_tier: string | null
+  stripe_status: string | null
+  stripe_period_end: Date | null
   created_at: Date
+}
+
+/** Compute whether a user is currently premium, accounting for both
+ * admin-granted access and an active Stripe subscription. */
+function computeIsPremium(u: UserRow): boolean {
+  if (u.is_admin || u.admin_granted_premium) return true
+  if (u.stripe_tier !== 'premium') return false
+  if (u.stripe_status !== 'active') return false
+  if (u.stripe_period_end && new Date(u.stripe_period_end) < new Date()) return false
+  return true
 }
 
 router.get('/users', async (req: Request, res: Response) => {
@@ -84,18 +99,30 @@ router.get('/users', async (req: Request, res: Response) => {
     const applyFilter = <T extends import('knex').Knex.QueryBuilder>(qb: T): T => {
       if (q) {
         qb.where((w) => {
-          w.whereILike('display_name', `%${q}%`).orWhereILike('steam_id', `%${q}%`)
+          w.whereILike('users.display_name', `%${q}%`).orWhereILike('users.steam_id', `%${q}%`)
         })
       }
       return qb
     }
 
-    const totalResult = await applyFilter(db('users')).count('id as count').first()
+    const totalResult = await applyFilter(db('users')).count('users.id as count').first()
     const total = Number(totalResult?.count ?? 0)
 
     const users = await applyFilter(db('users'))
-      .select('id', 'steam_id', 'display_name', 'avatar_url', 'is_admin', 'created_at')
-      .orderBy('created_at', 'desc')
+      .leftJoin('subscriptions', 'subscriptions.user_id', 'users.id')
+      .select(
+        'users.id as id',
+        'users.steam_id as steam_id',
+        'users.display_name as display_name',
+        'users.avatar_url as avatar_url',
+        'users.is_admin as is_admin',
+        'users.admin_granted_premium as admin_granted_premium',
+        'users.created_at as created_at',
+        'subscriptions.tier as stripe_tier',
+        'subscriptions.status as stripe_status',
+        'subscriptions.current_period_end as stripe_period_end',
+      )
+      .orderBy('users.created_at', 'desc')
       .limit(limit)
       .offset(offset) as UserRow[]
 
@@ -106,6 +133,8 @@ router.get('/users', async (req: Request, res: Response) => {
         displayName: u.display_name,
         avatarUrl: u.avatar_url,
         isAdmin: u.is_admin,
+        isPremium: computeIsPremium(u),
+        adminGrantedPremium: u.admin_granted_premium,
         createdAt: u.created_at,
       })),
       total,
@@ -142,6 +171,33 @@ router.patch('/users/:id/admin', async (req: Request, res: Response) => {
 
   await db('users').where({ id: targetId }).update({ is_admin: isAdmin })
   authLogger.warn({ userId: req.userId, targetId, isAdmin }, 'admin role changed')
+
+  res.json({ ok: true })
+})
+
+// Grant or revoke admin-granted premium access for a user
+router.patch('/users/:id/premium', async (req: Request, res: Response) => {
+  const targetId = req.params['id']
+  const { isPremium } = req.body as { isPremium?: boolean }
+
+  if (typeof isPremium !== 'boolean') {
+    res.status(400).json({ error: 'validation', message: 'isPremium (boolean) is required' })
+    return
+  }
+
+  const target = await db('users').where({ id: targetId }).first()
+  if (!target) {
+    res.status(404).json({ error: 'not_found', message: 'Utilisateur introuvable' })
+    return
+  }
+
+  await db('users').where({ id: targetId }).update({ admin_granted_premium: isPremium })
+  invalidatePremiumCache(targetId!)
+
+  authLogger.warn(
+    { userId: req.userId, targetId, isPremium },
+    'admin-granted premium changed',
+  )
 
   res.json({ ok: true })
 })

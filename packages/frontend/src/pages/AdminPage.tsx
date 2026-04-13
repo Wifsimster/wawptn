@@ -4,7 +4,7 @@ import {
   ArrowLeft, Bot, Users, BarChart3, Save, RefreshCw, ShieldCheck,
   ShieldOff, Theater, Plus, Pencil, Trash2, Lock, Search, X,
   Activity, Zap, Clock, Globe, Terminal, Megaphone, Send,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Crown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -58,6 +58,8 @@ interface AdminUser {
   displayName: string
   avatarUrl: string
   isAdmin: boolean
+  isPremium: boolean
+  adminGrantedPremium: boolean
   createdAt: string
 }
 
@@ -322,12 +324,35 @@ export function AdminPage() {
     const newIsAdmin = !targetUser.isAdmin
     try {
       await api.setAdminUserRole(targetUser.id, newIsAdmin)
-      setUsers(users.map(u => u.id === targetUser.id ? { ...u, isAdmin: newIsAdmin } : u))
+      setUsers(users.map(u => u.id === targetUser.id ? {
+        ...u,
+        isAdmin: newIsAdmin,
+        // Admins implicitly have premium access
+        isPremium: newIsAdmin ? true : u.adminGrantedPremium,
+      } : u))
       // Keep the overview admin count in sync without refetching the full page
       setStats(prev => prev ? { ...prev, admins: prev.admins + (newIsAdmin ? 1 : -1) } : prev)
       toast.success(newIsAdmin ? `${targetUser.displayName} promu admin` : `${targetUser.displayName} n'est plus admin`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur lors du changement de rôle')
+    }
+  }
+
+  async function handleTogglePremium(targetUser: AdminUser) {
+    const newGranted = !targetUser.adminGrantedPremium
+    try {
+      await api.setAdminUserPremium(targetUser.id, newGranted)
+      setUsers(users.map(u => u.id === targetUser.id ? {
+        ...u,
+        adminGrantedPremium: newGranted,
+        // Admins keep premium regardless; otherwise reflect the grant
+        isPremium: u.isAdmin ? true : newGranted,
+      } : u))
+      toast.success(newGranted
+        ? `${targetUser.displayName} a reçu l'accès premium`
+        : `Accès premium retiré à ${targetUser.displayName}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur lors du changement du statut premium')
     }
   }
 
@@ -640,6 +665,7 @@ export function AdminPage() {
                 onPrev={handleUsersPrev}
                 onNext={handleUsersNext}
                 onToggleAdmin={handleToggleAdmin}
+                onTogglePremium={handleTogglePremium}
               />
             </motion.div>
           )}
@@ -1488,6 +1514,7 @@ function UsersTab({
   onPrev,
   onNext,
   onToggleAdmin,
+  onTogglePremium,
 }: {
   users: AdminUser[]
   totalUsers: number
@@ -1500,6 +1527,7 @@ function UsersTab({
   onPrev: () => void
   onNext: () => void
   onToggleAdmin: (user: AdminUser) => void
+  onTogglePremium: (user: AdminUser) => void
 }) {
   const rangeStart = totalUsers === 0 ? 0 : offset + 1
   const rangeEnd = Math.min(offset + users.length, totalUsers)
@@ -1576,6 +1604,11 @@ function UsersTab({
                         admin
                       </Badge>
                     )}
+                    {u.isPremium && !u.isAdmin && (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-reward/30 text-reward shrink-0">
+                        premium
+                      </Badge>
+                    )}
                     {u.id === currentUserId && (
                       <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-neon/20 text-neon shrink-0">
                         vous
@@ -1595,29 +1628,62 @@ function UsersTab({
                   </div>
                 </div>
 
-                {u.isAdmin ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 text-destructive hover:text-destructive border-destructive/20 hover:border-destructive/40 shrink-0"
-                    onClick={() => onToggleAdmin(u)}
-                    disabled={u.id === currentUserId}
-                    title={u.id === currentUserId ? 'Vous ne pouvez pas révoquer votre propre accès' : undefined}
-                  >
-                    <ShieldOff className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Révoquer</span>
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 shrink-0"
-                    onClick={() => onToggleAdmin(u)}
-                  >
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Promouvoir</span>
-                  </Button>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {u.isAdmin ? (
+                    <span
+                      className="text-[10px] font-mono text-muted-foreground/40 hidden md:inline"
+                      title="Les admins ont automatiquement accès au premium"
+                    >
+                      premium via admin
+                    </span>
+                  ) : u.adminGrantedPremium ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-reward hover:text-reward border-reward/30 hover:border-reward/50"
+                      onClick={() => onTogglePremium(u)}
+                      title="Retirer l'accès premium offert"
+                    >
+                      <Crown className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Retirer premium</span>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => onTogglePremium(u)}
+                      title="Offrir l'accès premium à cet utilisateur"
+                    >
+                      <Crown className="h-3.5 w-3.5 text-reward" />
+                      <span className="hidden sm:inline">Offrir premium</span>
+                    </Button>
+                  )}
+
+                  {u.isAdmin ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-destructive hover:text-destructive border-destructive/20 hover:border-destructive/40"
+                      onClick={() => onToggleAdmin(u)}
+                      disabled={u.id === currentUserId}
+                      title={u.id === currentUserId ? 'Vous ne pouvez pas révoquer votre propre accès' : undefined}
+                    >
+                      <ShieldOff className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Révoquer</span>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => onToggleAdmin(u)}
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Promouvoir</span>
+                    </Button>
+                  )}
+                </div>
               </div>
             </motion.div>
           ))}

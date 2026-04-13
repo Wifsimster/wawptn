@@ -34,11 +34,47 @@ export async function backendApi<T>(path: string, options: ApiOptions = {}): Pro
 
 export interface LinkedChannel {
   channelId: string
+  /** Discord guild (server) ID — used by the per-guild scheduler to
+   * route each channel through its own cron. Nullable for legacy rows
+   * inserted before the backend started storing the guild id. */
+  guildId: string | null
   groupName: string
 }
 
 export async function getLinkedChannels(): Promise<LinkedChannel[]> {
   return backendApi<LinkedChannel[]>('/api/discord/linked-channels')
+}
+
+export interface GuildSettings {
+  guildId: string
+  friday_schedule: string
+  wednesday_schedule: string
+  schedule_timezone: string
+  overrides: {
+    friday_schedule: boolean
+    wednesday_schedule: boolean
+    schedule_timezone: boolean
+  }
+  updatedAt: string | null
+}
+
+export async function getGuildSettings(guildId: string): Promise<GuildSettings> {
+  return backendApi<GuildSettings>(`/api/discord/guild-settings/${guildId}`)
+}
+
+export async function updateGuildSettings(
+  guildId: string,
+  body: {
+    friday_schedule?: string | null
+    wednesday_schedule?: string | null
+    schedule_timezone?: string | null
+    updatedByDiscordId?: string
+  },
+): Promise<void> {
+  await backendApi(`/api/discord/guild-settings/${guildId}`, {
+    method: 'PUT',
+    body,
+  })
 }
 
 export interface BotSettings {

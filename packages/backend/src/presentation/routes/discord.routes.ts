@@ -720,9 +720,129 @@ router.get('/bot-settings', async (_req: Request, res: Response) => {
 router.get('/linked-channels', async (_req: Request, res: Response) => {
   const channels = await db('groups')
     .whereNotNull('discord_channel_id')
-    .select('discord_channel_id as channelId', 'name as groupName')
+    .select(
+      'discord_channel_id as channelId',
+      'discord_guild_id as guildId',
+      'name as groupName',
+    )
 
   res.json(channels)
+})
+
+// ─── Per-guild bot config overrides (Tom #2) ──────────────────────────────
+// The Discord bot /wawptn-config slash command reads and writes these via
+// the two endpoints below. Settings are merged against the global defaults
+// in app_settings on read so the bot only ever sees a fully-resolved
+// BotSettings-shaped payload.
+
+interface GlobalBotDefaults {
+  friday_schedule: string
+  wednesday_schedule: string
+  schedule_timezone: string
+}
+
+async function loadGlobalBotDefaults(): Promise<GlobalBotDefaults> {
+  const rows = await db('app_settings')
+    .whereIn('key', ['bot.friday_schedule', 'bot.wednesday_schedule', 'bot.schedule_timezone'])
+    .select('key', 'value')
+
+  const byKey = new Map(rows.map((r) => [r.key, r.value]))
+  const parse = (key: string, fallback: string): string => {
+    const raw = byKey.get(key)
+    if (typeof raw !== 'string' || raw.length === 0) return fallback
+    try {
+      const parsed = JSON.parse(raw)
+      return typeof parsed === 'string' ? parsed : fallback
+    } catch {
+      return raw
+    }
+  }
+  return {
+    friday_schedule: parse('bot.friday_schedule', '0 21 * * 5'),
+    wednesday_schedule: parse('bot.wednesday_schedule', '0 17 * * 3'),
+    schedule_timezone: parse('bot.schedule_timezone', 'Europe/Paris'),
+  }
+}
+
+router.get('/guild-settings/:guildId', async (req: Request, res: Response) => {
+  const guildId = String(req.params['guildId'] ?? '')
+  if (!/^\d{5,32}$/.test(guildId)) {
+    res.status(400).json({ error: 'validation', message: 'guildId must be a Discord snowflake' })
+    return
+  }
+
+  const defaults = await loadGlobalBotDefaults()
+  const override = await db('discord_guild_settings').where({ guild_id: guildId }).first()
+
+  res.json({
+    guildId,
+    friday_schedule: override?.friday_schedule ?? defaults.friday_schedule,
+    wednesday_schedule: override?.wednesday_schedule ?? defaults.wednesday_schedule,
+    schedule_timezone: override?.schedule_timezone ?? defaults.schedule_timezone,
+    // Flags whose fields are overridden so the UI can show "(default)"
+    // labels next to inherited values.
+    overrides: {
+      friday_schedule: override?.friday_schedule != null,
+      wednesday_schedule: override?.wednesday_schedule != null,
+      schedule_timezone: override?.schedule_timezone != null,
+    },
+    updatedAt: override?.updated_at ?? null,
+  })
+})
+
+router.put('/guild-settings/:guildId', async (req: Request, res: Response) => {
+  const guildId = String(req.params['guildId'] ?? '')
+  if (!/^\d{5,32}$/.test(guildId)) {
+    res.status(400).json({ error: 'validation', message: 'guildId must be a Discord snowflake' })
+    return
+  }
+
+  const body = req.body as {
+    friday_schedule?: string | null
+    wednesday_schedule?: string | null
+    schedule_timezone?: string | null
+    updatedByDiscordId?: string | null
+  }
+
+  // Each field accepts either a valid cron string (or tz string) or
+  // explicit null to drop the override back to the global default.
+  // Undefined = "don't touch this column" (partial PATCH semantics even
+  // though the verb is PUT — the bot command always sends one field at
+  // a time).
+  const cronPattern = /^[-*/,0-9\s]+$/
+  if (body.friday_schedule !== undefined && body.friday_schedule !== null) {
+    if (typeof body.friday_schedule !== 'string' || body.friday_schedule.length > 64 || !cronPattern.test(body.friday_schedule)) {
+      res.status(400).json({ error: 'validation', message: 'friday_schedule must be a valid cron string' })
+      return
+    }
+  }
+  if (body.wednesday_schedule !== undefined && body.wednesday_schedule !== null) {
+    if (typeof body.wednesday_schedule !== 'string' || body.wednesday_schedule.length > 64 || !cronPattern.test(body.wednesday_schedule)) {
+      res.status(400).json({ error: 'validation', message: 'wednesday_schedule must be a valid cron string' })
+      return
+    }
+  }
+  if (body.schedule_timezone !== undefined && body.schedule_timezone !== null) {
+    if (typeof body.schedule_timezone !== 'string' || body.schedule_timezone.length > 64) {
+      res.status(400).json({ error: 'validation', message: 'schedule_timezone must be a valid IANA timezone string' })
+      return
+    }
+  }
+
+  const updates: Record<string, unknown> = {
+    updated_at: db.fn.now(),
+    updated_by_discord_id: body.updatedByDiscordId ?? null,
+  }
+  if (body.friday_schedule !== undefined) updates.friday_schedule = body.friday_schedule
+  if (body.wednesday_schedule !== undefined) updates.wednesday_schedule = body.wednesday_schedule
+  if (body.schedule_timezone !== undefined) updates.schedule_timezone = body.schedule_timezone
+
+  await db('discord_guild_settings')
+    .insert({ guild_id: guildId, ...updates })
+    .onConflict('guild_id')
+    .merge()
+
+  res.json({ ok: true })
 })
 
 // Group leaderboard: aggregates voting activity into three rankings so the

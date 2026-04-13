@@ -2,6 +2,8 @@ import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
 import { authLogger } from '../../infrastructure/logger/logger.js'
 import { invalidatePremiumCache } from '../../domain/subscription-service.js'
+import { recordAdminAction } from '../../domain/admin-audit-log.js'
+import { invalidateAllUserSessions } from '../../domain/auth-service.js'
 
 const router = Router()
 
@@ -60,6 +62,11 @@ router.patch('/bot-settings', async (req: Request, res: Response) => {
   }
 
   authLogger.info({ userId: req.userId, keys: Object.keys(updates) }, 'admin updated bot settings')
+  await recordAdminAction({
+    req,
+    action: 'bot_settings.update',
+    metadata: { keys: Object.keys(updates) },
+  })
 
   res.json({ ok: true })
 })
@@ -149,7 +156,7 @@ router.get('/users', async (req: Request, res: Response) => {
 
 // Toggle admin status for a user
 router.patch('/users/:id/admin', async (req: Request, res: Response) => {
-  const targetId = req.params['id']
+  const targetId = String(req.params['id'])
   const { isAdmin } = req.body as { isAdmin?: boolean }
 
   if (typeof isAdmin !== 'boolean') {
@@ -172,12 +179,28 @@ router.patch('/users/:id/admin', async (req: Request, res: Response) => {
   await db('users').where({ id: targetId }).update({ is_admin: isAdmin })
   authLogger.warn({ userId: req.userId, targetId, isAdmin }, 'admin role changed')
 
+  // Force the target to re-authenticate so any in-flight sessions pick up
+  // the new privilege state immediately. Critical when revoking admin: a
+  // lingering session would otherwise keep working until natural expiry.
+  const invalidatedSessions = await invalidateAllUserSessions(targetId)
+
+  await recordAdminAction({
+    req,
+    action: isAdmin ? 'user.admin.grant' : 'user.admin.revoke',
+    targetUserId: targetId,
+    metadata: {
+      previousIsAdmin: !!target.is_admin,
+      newIsAdmin: isAdmin,
+      invalidatedSessions,
+    },
+  })
+
   res.json({ ok: true })
 })
 
 // Grant or revoke admin-granted premium access for a user
 router.patch('/users/:id/premium', async (req: Request, res: Response) => {
-  const targetId = req.params['id']
+  const targetId = String(req.params['id'])
   const { isPremium } = req.body as { isPremium?: boolean }
 
   if (typeof isPremium !== 'boolean') {
@@ -192,12 +215,27 @@ router.patch('/users/:id/premium', async (req: Request, res: Response) => {
   }
 
   await db('users').where({ id: targetId }).update({ admin_granted_premium: isPremium })
-  invalidatePremiumCache(targetId!)
+  invalidatePremiumCache(targetId)
 
   authLogger.warn(
     { userId: req.userId, targetId, isPremium },
     'admin-granted premium changed',
   )
+
+  // Force re-auth so the next session reflects the new tier without waiting
+  // for the in-memory premium cache to expire on every backend instance.
+  const invalidatedSessions = await invalidateAllUserSessions(targetId)
+
+  await recordAdminAction({
+    req,
+    action: isPremium ? 'user.premium.grant' : 'user.premium.revoke',
+    targetUserId: targetId,
+    metadata: {
+      previousAdminGrantedPremium: !!target.admin_granted_premium,
+      newAdminGrantedPremium: isPremium,
+      invalidatedSessions,
+    },
+  })
 
   res.json({ ok: true })
 })
@@ -292,6 +330,11 @@ router.post('/personas', async (req: Request, res: Response) => {
   })
 
   authLogger.info({ userId: req.userId, personaId: id }, 'admin created persona')
+  await recordAdminAction({
+    req,
+    action: 'persona.create',
+    metadata: { personaId: id, name },
+  })
 
   res.status(201).json({ ok: true, id })
 })
@@ -328,6 +371,11 @@ router.patch('/personas/:id', async (req: Request, res: Response) => {
   await db('personas').where({ id: personaId }).update(updates)
 
   authLogger.info({ userId: req.userId, personaId }, 'admin updated persona')
+  await recordAdminAction({
+    req,
+    action: 'persona.update',
+    metadata: { personaId, fields: Object.keys(updates).filter(k => k !== 'updated_at') },
+  })
 
   res.json({ ok: true })
 })
@@ -349,6 +397,11 @@ router.delete('/personas/:id', async (req: Request, res: Response) => {
   await db('personas').where({ id: personaId }).del()
 
   authLogger.info({ userId: req.userId, personaId }, 'admin deleted persona')
+  await recordAdminAction({
+    req,
+    action: 'persona.delete',
+    metadata: { personaId, name: persona.name },
+  })
 
   res.json({ ok: true })
 })
@@ -369,6 +422,11 @@ router.patch('/personas/:id/toggle', async (req: Request, res: Response) => {
   })
 
   authLogger.info({ userId: req.userId, personaId, isActive: newActive }, 'admin toggled persona')
+  await recordAdminAction({
+    req,
+    action: 'persona.toggle',
+    metadata: { personaId, isActive: newActive },
+  })
 
   res.json({ ok: true, isActive: newActive })
 })

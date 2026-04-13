@@ -53,6 +53,21 @@ export async function invalidateSession(token: string): Promise<boolean> {
 }
 
 /**
+ * Invalidate every session owned by a user. Used when the user's privileges
+ * change (admin role granted/revoked, premium toggled by an admin) so that any
+ * in-flight clients are forced to re-authenticate and pick up the new state.
+ *
+ * Returns the number of session rows that were deleted.
+ */
+export async function invalidateAllUserSessions(userId: string): Promise<number> {
+  const deleted = await db('sessions').where({ user_id: userId }).del()
+  if (deleted > 0) {
+    authLogger.info({ userId, sessions: deleted }, 'all user sessions invalidated')
+  }
+  return deleted
+}
+
+/**
  * Find an existing user by Steam ID or create a new one using the supplied
  * Steam profile data. Also ensures the matching row in the `accounts` table
  * linking the Steam provider to the user exists.

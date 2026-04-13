@@ -130,9 +130,23 @@ async function main() {
   // Challenge routes (requires authenticated user)
   app.use('/api/challenges', requireAuth, challengeRoutes)
 
+  // Strict rate limiter for admin mutation endpoints (privilege grants,
+  // persona CRUD, bot settings). Capped well below normal usage so a
+  // compromised admin account cannot mass-mutate state, while leaving plenty
+  // of headroom for legitimate panel use.
+  const adminMutationLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5 minutes
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    // Only count state-changing requests; reads (GET) stay on the global
+    // apiLimiter so panel browsing stays snappy.
+    skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
+  })
+
   // Admin routes (requires authenticated admin user)
-  app.use('/api/admin', requireAuth, requireAdmin, adminRoutes)
-  app.use('/api/admin/notifications', requireAuth, requireAdmin, adminNotificationRoutes)
+  app.use('/api/admin', requireAuth, requireAdmin, adminMutationLimiter, adminRoutes)
+  app.use('/api/admin/notifications', requireAuth, requireAdmin, adminMutationLimiter, adminNotificationRoutes)
 
   // Discord user-facing routes (session auth, no bot auth required)
   app.use('/api/discord', discordUserRoutes)

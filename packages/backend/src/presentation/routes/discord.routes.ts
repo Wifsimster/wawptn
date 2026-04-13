@@ -3,7 +3,7 @@ import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
 import { computeCommonGames } from '../../infrastructure/database/common-games.js'
 import { getIO } from '../../infrastructure/socket/socket.js'
-import { logger } from '../../infrastructure/logger/logger.js'
+import { logger, authLogger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
 import { requireAuth } from '../middleware/auth.middleware.js'
 import { isUserPremium } from '../middleware/tier.middleware.js'
@@ -363,6 +363,191 @@ router.get('/random', async (req: Request, res: Response) => {
       headerImageUrl: game.headerImageUrl,
     },
   })
+})
+
+// ─── Daily challenge (Discord) ──────────────────────────────────────────────
+
+// Create (or fetch existing) daily challenge for the group linked to a channel
+router.post('/daily-challenge/create', async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId
+    if (!userId) {
+      res.status(403).json({ error: 'forbidden', message: 'Discord account not linked. Use /wawptn-link first.' })
+      return
+    }
+
+    const { channelId, guildId } = req.body as { channelId?: string; guildId?: string }
+    if (!channelId || !guildId) {
+      res.status(400).json({ error: 'validation', message: 'channelId and guildId are required' })
+      return
+    }
+
+    // Resolve the group via channel link
+    const group = await db('groups').where({ discord_channel_id: channelId }).first()
+    if (!group) {
+      res.status(404).json({ error: 'not_found', message: 'Aucun groupe lié à ce canal Discord' })
+      return
+    }
+
+    // Check premium (Discord bot integration requires group owner premium)
+    const ownerPremium = await isGroupOwnerPremium(group.id)
+    if (!ownerPremium) {
+      res.status(403).json({ error: 'premium_required', message: 'Discord bot integration requires a premium subscription' })
+      return
+    }
+
+    // Compute today's date in Europe/Paris timezone
+    const todayRow = await db.raw(`SELECT (now() AT TIME ZONE 'Europe/Paris')::date AS today`)
+    const today = todayRow.rows[0].today as string
+
+    // Idempotent: if a challenge exists for today, return it unchanged
+    const existing = await db('discord_daily_challenges')
+      .where({ group_id: group.id, challenge_date: today })
+      .first()
+
+    if (existing) {
+      res.json({
+        challenge: {
+          id: existing.id,
+          steamAppId: existing.steam_app_id,
+          gameId: existing.game_id,
+          gameName: existing.game_name,
+          headerImageUrl: existing.header_image_url,
+          alreadyExists: true,
+        },
+      })
+      return
+    }
+
+    // Pick a random common game from the group members' libraries
+    const memberIds = await db('group_members').where({ group_id: group.id }).pluck('user_id')
+    const games = await computeCommonGames(memberIds, { threshold: memberIds.length })
+
+    if (games.length === 0) {
+      res.status(422).json({ error: 'no_common_games', message: 'Aucun jeu en commun trouvé pour ce groupe.' })
+      return
+    }
+
+    const randomIndex = Math.floor(Math.random() * games.length)
+    const game = games[randomIndex]!
+
+    const [inserted] = await db('discord_daily_challenges')
+      .insert({
+        group_id: group.id,
+        challenge_date: today,
+        steam_app_id: game.steamAppId,
+        game_id: game.gameId,
+        game_name: game.gameName,
+        header_image_url: game.headerImageUrl,
+        discord_channel_id: channelId,
+        created_by_user_id: userId,
+      })
+      .returning('*')
+
+    logger.info({ groupId: group.id, challengeId: inserted.id, date: today }, 'Daily challenge created')
+
+    res.json({
+      challenge: {
+        id: inserted.id,
+        steamAppId: inserted.steam_app_id,
+        gameId: inserted.game_id,
+        gameName: inserted.game_name,
+        headerImageUrl: inserted.header_image_url,
+        alreadyExists: false,
+      },
+    })
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'daily-challenge create failed')
+    res.status(500).json({ error: 'internal', message: 'Erreur lors de la création du défi du jour' })
+  }
+})
+
+// Claim today's challenge (user has played/accepted)
+router.post('/daily-challenge/claim', async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId
+    if (!userId) {
+      res.status(403).json({ error: 'forbidden', message: 'Discord account not linked. Use /wawptn-link first.' })
+      return
+    }
+
+    const { challengeId } = req.body as { challengeId?: string }
+    if (!challengeId) {
+      res.status(400).json({ error: 'validation', message: 'challengeId is required' })
+      return
+    }
+
+    const challenge = await db('discord_daily_challenges').where({ id: challengeId }).first()
+    if (!challenge) {
+      res.status(404).json({ error: 'not_found', message: 'Défi introuvable' })
+      return
+    }
+
+    // Insert claim (idempotent via onConflict ignore)
+    await db('discord_daily_challenge_claims')
+      .insert({
+        challenge_id: challengeId,
+        user_id: userId,
+      })
+      .onConflict(['challenge_id', 'user_id'])
+      .ignore()
+
+    // Fetch this user's claim record to determine rank
+    const userClaim = await db('discord_daily_challenge_claims')
+      .where({ challenge_id: challengeId, user_id: userId })
+      .first()
+
+    // Rank = number of claims on this challenge with claimed_at <= userClaim.claimed_at
+    const rankRow = await db('discord_daily_challenge_claims')
+      .where({ challenge_id: challengeId })
+      .andWhere('claimed_at', '<=', userClaim.claimed_at)
+      .count<{ count: string }[]>('* as count')
+      .first()
+
+    const totalRow = await db('discord_daily_challenge_claims')
+      .where({ challenge_id: challengeId })
+      .count<{ count: string }[]>('* as count')
+      .first()
+
+    const rank = Number(rankRow?.count ?? 0)
+    const totalClaims = Number(totalRow?.count ?? 0)
+
+    res.json({
+      rank,
+      totalClaims,
+      firstClaimer: rank === 1,
+    })
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'daily-challenge claim failed')
+    res.status(500).json({ error: 'internal', message: 'Erreur lors de la validation du défi' })
+  }
+})
+
+// Store the Discord message ID tied to a daily challenge
+router.patch('/daily-challenge/:id/message', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params
+    const { messageId } = req.body as { messageId?: string }
+
+    if (!messageId) {
+      res.status(400).json({ error: 'validation', message: 'messageId is required' })
+      return
+    }
+
+    const updated = await db('discord_daily_challenges')
+      .where({ id })
+      .update({ discord_message_id: messageId })
+
+    if (updated === 0) {
+      res.status(404).json({ error: 'not_found', message: 'Défi introuvable' })
+      return
+    }
+
+    res.json({ ok: true })
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'daily-challenge message update failed')
+    res.status(500).json({ error: 'internal', message: 'Erreur lors de la mise à jour du message' })
+  }
 })
 
 // ─── Conversational chat (LLM-powered) ──────────────────────────────────────

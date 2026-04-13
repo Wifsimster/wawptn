@@ -24,6 +24,7 @@ import * as linkCommand from './commands/link.js'
 import * as gamesCommand from './commands/games.js'
 import * as voteCommand from './commands/vote.js'
 import * as randomCommand from './commands/random.js'
+import * as dailyChallengeCommand from './commands/daily-challenge.js'
 
 validateEnv()
 
@@ -41,6 +42,7 @@ const commands = new Map([
   ['wawptn-games', gamesCommand],
   ['wawptn-vote', voteCommand],
   ['wawptn-random', randomCommand],
+  ['wawptn-daily-challenge', dailyChallengeCommand],
 ])
 
 client.once(Events.ClientReady, async (c) => {
@@ -92,45 +94,94 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
     return
   }
 
-  // Handle button interactions (voting)
+  // Handle button interactions
   if (interaction.isButton()) {
-    const [action, sessionId, steamAppIdStr, vote] = interaction.customId.split(':')
-    if (action !== 'vote' || !sessionId || !steamAppIdStr || !vote) return
+    const parts = interaction.customId.split(':')
+    const action = parts[0]
 
-    await interaction.deferReply({ ephemeral: true })
+    // ─── Voting buttons ──────────────────────────────────────────────────
+    if (action === 'vote') {
+      const [, sessionId, steamAppIdStr, vote] = parts
+      if (!sessionId || !steamAppIdStr || !vote) return
 
-    try {
-      // Check if Discord user is linked
-      const status = await backendApi<{ linked: boolean; userId?: string }>(`/api/discord/link/status`, {
-        discordUserId: interaction.user.id,
-      })
+      await interaction.deferReply({ ephemeral: true })
 
-      if (!status.linked) {
-        await interaction.editReply({
-          content: '🔗 Vous devez d\'abord lier votre compte ! Utilisez la commande `/wawptn-link`.',
+      try {
+        // Check if Discord user is linked
+        const status = await backendApi<{ linked: boolean; userId?: string }>(`/api/discord/link/status`, {
+          discordUserId: interaction.user.id,
         })
-        return
+
+        if (!status.linked) {
+          await interaction.editReply({
+            content: '🔗 Vous devez d\'abord lier votre compte ! Utilisez la commande `/wawptn-link`.',
+          })
+          return
+        }
+
+        // Cast the vote via backend API
+        const steamAppId = parseInt(steamAppIdStr, 10)
+        await backendApi(`/api/discord/vote`, {
+          method: 'POST',
+          discordUserId: interaction.user.id,
+          body: {
+            sessionId,
+            steamAppId,
+            vote: vote === 'yes',
+          },
+        })
+
+        await interaction.editReply({
+          content: `✅ Vote enregistré : ${vote === 'yes' ? '👍' : '👎'}`,
+        })
+      } catch (error) {
+        await interaction.editReply({
+          content: `❌ ${error instanceof Error ? error.message : 'Erreur lors du vote'}`,
+        })
       }
+      return
+    }
 
-      // Cast the vote via backend API
-      const steamAppId = parseInt(steamAppIdStr, 10)
-      await backendApi(`/api/discord/vote`, {
-        method: 'POST',
-        discordUserId: interaction.user.id,
-        body: {
-          sessionId,
-          steamAppId,
-          vote: vote === 'yes',
-        },
-      })
+    // ─── Daily challenge claim button ────────────────────────────────────
+    if (action === 'daily-challenge') {
+      const challengeId = parts[1]
+      if (!challengeId) return
 
-      await interaction.editReply({
-        content: `✅ Vote enregistré : ${vote === 'yes' ? '👍' : '👎'}`,
-      })
-    } catch (error) {
-      await interaction.editReply({
-        content: `❌ ${error instanceof Error ? error.message : 'Erreur lors du vote'}`,
-      })
+      await interaction.deferReply({ ephemeral: true })
+
+      try {
+        // Check if Discord user is linked
+        const status = await backendApi<{ linked: boolean; userId?: string }>(`/api/discord/link/status`, {
+          discordUserId: interaction.user.id,
+        })
+
+        if (!status.linked) {
+          await interaction.editReply({
+            content: '🔗 Vous devez d\'abord lier votre compte ! Utilisez la commande `/wawptn-link`.',
+          })
+          return
+        }
+
+        const result = await backendApi<{ rank: number; totalClaims: number; firstClaimer: boolean }>(
+          `/api/discord/daily-challenge/claim`,
+          {
+            method: 'POST',
+            discordUserId: interaction.user.id,
+            body: { challengeId },
+          },
+        )
+
+        const message = result.firstClaimer
+          ? '🥇 Bravo ! Tu es le premier à relever le défi aujourd\'hui !'
+          : `Rang #${result.rank} sur ${result.totalClaims} — tu as relevé le défi !`
+
+        await interaction.editReply({ content: message })
+      } catch (error) {
+        await interaction.editReply({
+          content: `❌ ${error instanceof Error ? error.message : 'Erreur lors de la validation du défi'}`,
+        })
+      }
+      return
     }
   }
 })

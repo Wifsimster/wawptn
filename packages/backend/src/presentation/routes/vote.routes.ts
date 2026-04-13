@@ -260,6 +260,21 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
 
   const gameIdMap = new Map(sessionGames.map(g => [g.steam_app_id, g.game_id]))
 
+  // Reject votes for steam_app_ids that are not part of this session. Without
+  // this check, a malicious client could insert vote rows for arbitrary
+  // app ids, polluting the tally and bypassing session game filters.
+  const invalidAppIds = voteEntries
+    .map(v => v.steamAppId)
+    .filter(id => !gameIdMap.has(id))
+  if (invalidAppIds.length > 0) {
+    res.status(400).json({
+      error: 'validation',
+      message: 'Some games are not part of this voting session',
+      invalidAppIds,
+    })
+    return
+  }
+
   // Upsert all votes in a single transaction
   await db.transaction(async (trx) => {
     for (const entry of voteEntries) {

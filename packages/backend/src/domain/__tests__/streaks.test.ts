@@ -62,7 +62,7 @@ import { updateStreak } from '../streaks.js'
 
 // Replace the raw stub with a real vi.fn so we can assert against it
 const rawFn = vi.fn().mockResolvedValue(undefined)
-;(mockDb as Record<string, unknown>).raw = rawFn
+;(mockDb as unknown as Record<string, unknown>).raw = rawFn
 
 // ---------------------------------------------------------------------------
 // Helpers

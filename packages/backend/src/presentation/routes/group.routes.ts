@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express'
 import cron from 'node-cron'
 import { db } from '../../infrastructure/database/connection.js'
-import { computeCommonGames, countCommonGames, countCommonGamesForGroups } from '../../infrastructure/database/common-games.js'
+import { computeCommonGames, countCommonGamesForGroups } from '../../infrastructure/database/common-games.js'
 import { generateInviteToken, hashInviteToken } from '../../infrastructure/steam/steam-client.js'
 import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-store-client.js'
 import { getIO, forceLeaveRoom } from '../../infrastructure/socket/socket.js'
@@ -1033,8 +1033,6 @@ router.get('/:id/streaks', async (req: Request, res: Response) => {
   } catch (error) {
     logger.error({ error: String(error), groupId: req.params['id'] }, 'failed to load group streaks')
     res.status(500).json({ error: 'internal', message: 'Failed to load group streaks' })
-  }
-})
   }
 })
 

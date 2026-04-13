@@ -24,6 +24,7 @@ import {
   ResponsiveDialogFooter,
 } from '@/components/ui/responsive-dialog'
 import { ShareButton } from '@/components/share-button'
+import { CelebrationParticles } from '@/components/celebration-particles'
 
 interface Game {
   steamAppId: number
@@ -256,9 +257,42 @@ export function VotePage() {
               </motion.div>
             )}
             <motion.h1 variants={resultFade} className="text-3xl font-heading font-bold mb-2">{result.gameName}</motion.h1>
-            <motion.p variants={resultFade} className="text-muted-foreground mb-8">
+            <motion.p variants={resultFade} className="text-muted-foreground mb-4">
               {t('vote.votedFor', { yes: result.yesCount, total: result.totalVoters })}
             </motion.p>
+
+            {/* Consensus breakdown — animated bar fills from 0 to the win
+                percentage so the magnitude of the agreement feels earned
+                instead of being dropped in as a static line of text. */}
+            {result.totalVoters > 0 && (() => {
+              const percent = Math.round((result.yesCount / result.totalVoters) * 100)
+              return (
+                <motion.div variants={resultFade} className="mb-8 w-full max-w-xs mx-auto">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                    <span>{t('vote.consensusPercent', { percent })}</span>
+                    <span>{result.yesCount}/{result.totalVoters}</span>
+                  </div>
+                  <div
+                    role="progressbar"
+                    aria-valuenow={percent}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    className="h-2 w-full overflow-hidden rounded-full bg-secondary"
+                  >
+                    <motion.div
+                      className="h-full rounded-full bg-reward shadow-[0_0_12px_rgba(255,215,128,0.45)]"
+                      initial={{ width: '0%' }}
+                      animate={{ width: `${percent}%` }}
+                      transition={{
+                        duration: prefersReducedMotion ? 0.2 : 1.1,
+                        delay: prefersReducedMotion ? 0 : 0.5,
+                        ease: [0.22, 1, 0.36, 1],
+                      }}
+                    />
+                  </div>
+                </motion.div>
+              )
+            })()}
 
             <motion.div variants={resultFade}>
               {Number.isInteger(result.steamAppId) && result.steamAppId > 0 && (
@@ -337,7 +371,13 @@ export function VotePage() {
           {t('vote.waiting', { done: voterCount, total: totalMembers })}
         </p>
 
-        <Progress value={voterCount} max={totalMembers} className="w-48 mb-8" />
+        <div className="relative w-48 mb-8">
+          {/* Burst a fresh set of particles each time voterCount increments —
+              the changing key remounts the component so the lazy initializer
+              regenerates random positions and the animation replays. */}
+          {voterCount > 0 && <CelebrationParticles key={voterCount} count={10} />}
+          <Progress value={voterCount} max={totalMembers} />
+        </div>
 
         {canClose && (
           <Button onClick={handleClose} disabled={closing}>
@@ -405,8 +445,26 @@ export function VotePage() {
           />
         </div>
 
-        {/* Game grid */}
-        <div role="list" className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 overflow-y-auto pb-24">
+        {/* Scrollable grid area: holds the sticky selection badge so users
+            don't lose track of their pick count while scrolling on mobile. */}
+        <div className="flex-1 overflow-y-auto pb-24">
+          {/* Sticky selection counter — appears at the top of the scroll
+              container as soon as the user picks at least one game. The
+              floating bottom bar still shows the same count and the submit
+              CTA, but on mobile the bottom bar is easily covered by the
+              scrolling thumb, so this pill keeps the context visible at the
+              top of the viewport. */}
+          {selectedGames.size > 0 && (
+            <div
+              aria-hidden="true"
+              className="sticky top-0 z-10 -mx-1 mb-3 flex justify-center pointer-events-none"
+            >
+              <span className="rounded-full border border-primary/40 bg-background/85 px-3 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur">
+                {t('vote.gamesSelected', { count: selectedGames.size })}
+              </span>
+            </div>
+          )}
+          <div role="list" className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {filteredGames.map(game => {
             const isSelected = selectedGames.has(game.steamAppId)
             return (
@@ -470,6 +528,7 @@ export function VotePage() {
               </div>
             )
           })}
+          </div>
         </div>
 
         {/* Game detail dialog */}

@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { CelebrationParticles } from '@/components/celebration-particles'
 
 interface Game {
   steamAppId: number
@@ -30,48 +31,6 @@ function shuffleArray<T>(array: T[]): T[] {
     ;[shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!]
   }
   return shuffled
-}
-
-interface Particle {
-  id: number
-  x: number
-  delay: number
-  duration: number
-  size: number
-  color: string
-}
-
-function createParticles(): Particle[] {
-  return Array.from({ length: 18 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    delay: Math.random() * 0.4,
-    duration: 0.7 + Math.random() * 0.5,
-    size: 4 + Math.random() * 8,
-    color: i % 3 === 0 ? 'bg-primary/60' : i % 3 === 1 ? 'bg-neon/50' : 'bg-ember/50',
-  }))
-}
-
-/** Celebration sparkle particles shown on reveal */
-function CelebrationParticles() {
-  // Use lazy state initializer so Math.random is only called once on mount
-  // (React Compiler rejects calls to impure functions during render)
-  const [particles] = useState<Particle[]>(createParticles)
-
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {particles.map(p => (
-        <motion.div
-          key={p.id}
-          className={`absolute rounded-full ${p.color}`}
-          style={{ left: `${p.x}%`, width: p.size, height: p.size }}
-          initial={{ y: '50%', opacity: 1, scale: 0 }}
-          animate={{ y: '-120%', opacity: 0, scale: 1.2 }}
-          transition={{ delay: p.delay, duration: p.duration, ease: 'easeOut' }}
-        />
-      ))}
-    </div>
-  )
 }
 
 function RandomPickContent({ games }: { games: Game[] }) {

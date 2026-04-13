@@ -32,9 +32,17 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled
 }
 
-/** Celebration sparkle particles shown on reveal */
-function CelebrationParticles() {
-  const particles = Array.from({ length: 18 }, (_, i) => ({
+interface Particle {
+  id: number
+  x: number
+  delay: number
+  duration: number
+  size: number
+  color: string
+}
+
+function createParticles(): Particle[] {
+  return Array.from({ length: 18 }, (_, i) => ({
     id: i,
     x: Math.random() * 100,
     delay: Math.random() * 0.4,
@@ -42,6 +50,13 @@ function CelebrationParticles() {
     size: 4 + Math.random() * 8,
     color: i % 3 === 0 ? 'bg-primary/60' : i % 3 === 1 ? 'bg-neon/50' : 'bg-ember/50',
   }))
+}
+
+/** Celebration sparkle particles shown on reveal */
+function CelebrationParticles() {
+  // Use lazy state initializer so Math.random is only called once on mount
+  // (React Compiler rejects calls to impure functions during render)
+  const [particles] = useState<Particle[]>(createParticles)
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">

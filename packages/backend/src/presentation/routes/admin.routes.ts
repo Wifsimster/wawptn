@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express'
+import { z } from 'zod'
 import { db } from '../../infrastructure/database/connection.js'
 import { authLogger } from '../../infrastructure/logger/logger.js'
 import { invalidatePremiumCache } from '../../domain/subscription-service.js'
@@ -7,6 +8,51 @@ import { invalidateAllUserSessions } from '../../domain/auth-service.js'
 import { getHealth as getSteamHealth } from '../../infrastructure/steam/steam-client.js'
 import { getHealth as getEpicHealth } from '../../infrastructure/epic/epic-client.js'
 import { getHealth as getGogHealth } from '../../infrastructure/gog/gog-client.js'
+import { validateBody } from '../middleware/validate.middleware.js'
+
+// ─── Zod schemas ──────────────────────────────────────────────────────────────
+
+const ToggleAdminSchema = z.object({
+  isAdmin: z.boolean(),
+})
+
+const TogglePremiumSchema = z.object({
+  isPremium: z.boolean(),
+})
+
+const CreatePersonaSchema = z.object({
+  // kebab-case identifier, max 50 chars — matches the previous inline regex
+  id: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "L'identifiant doit être en kebab-case (ex: mon-persona)"),
+  name: z.string().min(1).max(64),
+  systemPromptOverlay: z.string().min(1),
+  fridayMessages: z.array(z.string().min(1)).min(1),
+  weekdayMessages: z.array(z.string().min(1)).min(1),
+  backOnlineMessages: z.array(z.string().min(1)).min(1),
+  emptyMentionReply: z.string().min(1),
+  introMessage: z.string().min(1),
+  embedColor: z.number().int().min(0).max(0xffffff),
+})
+
+// All fields optional for PATCH; at least one must be provided.
+const UpdatePersonaSchema = z
+  .object({
+    name: z.string().min(1).max(64),
+    systemPromptOverlay: z.string().min(1),
+    fridayMessages: z.array(z.string().min(1)).min(1),
+    weekdayMessages: z.array(z.string().min(1)).min(1),
+    backOnlineMessages: z.array(z.string().min(1)).min(1),
+    emptyMentionReply: z.string().min(1),
+    introMessage: z.string().min(1),
+    embedColor: z.number().int().min(0).max(0xffffff),
+  })
+  .partial()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'Aucun champ à mettre à jour',
+  })
 
 const router = Router()
 
@@ -158,14 +204,9 @@ router.get('/users', async (req: Request, res: Response) => {
 })
 
 // Toggle admin status for a user
-router.patch('/users/:id/admin', async (req: Request, res: Response) => {
+router.patch('/users/:id/admin', validateBody(ToggleAdminSchema), async (req: Request, res: Response) => {
   const targetId = String(req.params['id'])
-  const { isAdmin } = req.body as { isAdmin?: boolean }
-
-  if (typeof isAdmin !== 'boolean') {
-    res.status(400).json({ error: 'validation', message: 'isAdmin (boolean) is required' })
-    return
-  }
+  const { isAdmin } = req.body as z.infer<typeof ToggleAdminSchema>
 
   // Prevent self-demotion
   if (targetId === req.userId && !isAdmin) {
@@ -202,14 +243,9 @@ router.patch('/users/:id/admin', async (req: Request, res: Response) => {
 })
 
 // Grant or revoke admin-granted premium access for a user
-router.patch('/users/:id/premium', async (req: Request, res: Response) => {
+router.patch('/users/:id/premium', validateBody(TogglePremiumSchema), async (req: Request, res: Response) => {
   const targetId = String(req.params['id'])
-  const { isPremium } = req.body as { isPremium?: boolean }
-
-  if (typeof isPremium !== 'boolean') {
-    res.status(400).json({ error: 'validation', message: 'isPremium (boolean) is required' })
-    return
-  }
+  const { isPremium } = req.body as z.infer<typeof TogglePremiumSchema>
 
   const target = await db('users').where({ id: targetId }).first()
   if (!target) {
@@ -273,48 +309,24 @@ router.get('/personas', async (_req: Request, res: Response) => {
   }
 })
 
-router.post('/personas', async (req: Request, res: Response) => {
-  const body = req.body as {
-    id?: string
-    name?: string
-    systemPromptOverlay?: string
-    fridayMessages?: string[]
-    weekdayMessages?: string[]
-    backOnlineMessages?: string[]
-    emptyMentionReply?: string
-    introMessage?: string
-    embedColor?: number
-  }
+router.post('/personas', validateBody(CreatePersonaSchema), async (req: Request, res: Response) => {
+  const {
+    id,
+    name,
+    systemPromptOverlay,
+    fridayMessages,
+    weekdayMessages,
+    backOnlineMessages,
+    emptyMentionReply,
+    introMessage,
+    embedColor,
+  } = req.body as z.infer<typeof CreatePersonaSchema>
 
-  // Validate required fields
-  const { id, name, systemPromptOverlay, fridayMessages, weekdayMessages, backOnlineMessages, emptyMentionReply, introMessage, embedColor } = body
-
-  if (!id || !name || !systemPromptOverlay || !fridayMessages || !weekdayMessages || !backOnlineMessages || !emptyMentionReply || !introMessage || embedColor === undefined) {
-    res.status(400).json({ error: 'validation', message: 'Tous les champs sont requis : id, name, systemPromptOverlay, fridayMessages, weekdayMessages, backOnlineMessages, emptyMentionReply, introMessage, embedColor' })
-    return
-  }
-
-  // Validate id format (kebab-case)
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) {
-    res.status(400).json({ error: 'validation', message: "L'identifiant doit être en kebab-case (ex: mon-persona)" })
-    return
-  }
-
-  if (id.length > 50) {
-    res.status(400).json({ error: 'validation', message: "L'identifiant ne doit pas dépasser 50 caractères" })
-    return
-  }
-
-  // Check for duplicate id
+  // Check for duplicate id (uniqueness is a domain concern, not a shape
+  // concern, so it stays in the handler instead of moving into the schema)
   const existing = await db('personas').where({ id }).first()
   if (existing) {
     res.status(409).json({ error: 'conflict', message: 'Un persona avec cet identifiant existe déjà' })
-    return
-  }
-
-  // Validate arrays
-  if (!Array.isArray(fridayMessages) || !Array.isArray(weekdayMessages) || !Array.isArray(backOnlineMessages)) {
-    res.status(400).json({ error: 'validation', message: 'fridayMessages, weekdayMessages et backOnlineMessages doivent être des tableaux' })
     return
   }
 
@@ -342,9 +354,9 @@ router.post('/personas', async (req: Request, res: Response) => {
   res.status(201).json({ ok: true, id })
 })
 
-router.patch('/personas/:id', async (req: Request, res: Response) => {
+router.patch('/personas/:id', validateBody(UpdatePersonaSchema), async (req: Request, res: Response) => {
   const personaId = req.params['id']
-  const body = req.body as Record<string, unknown>
+  const body = req.body as z.infer<typeof UpdatePersonaSchema>
 
   const persona = await db('personas').where({ id: personaId }).first()
   if (!persona) {
@@ -352,9 +364,10 @@ router.patch('/personas/:id', async (req: Request, res: Response) => {
     return
   }
 
-  // Build update object from allowed fields
+  // Build update object from the validated fields. The schema's .refine()
+  // already guaranteed at least one field, so we can map straight from
+  // body to column names without re-checking emptiness.
   const updates: Record<string, unknown> = {}
-
   if (body.name !== undefined) updates.name = body.name
   if (body.systemPromptOverlay !== undefined) updates.system_prompt_overlay = body.systemPromptOverlay
   if (body.fridayMessages !== undefined) updates.friday_messages = JSON.stringify(body.fridayMessages)
@@ -363,11 +376,6 @@ router.patch('/personas/:id', async (req: Request, res: Response) => {
   if (body.emptyMentionReply !== undefined) updates.empty_mention_reply = body.emptyMentionReply
   if (body.introMessage !== undefined) updates.intro_message = body.introMessage
   if (body.embedColor !== undefined) updates.embed_color = body.embedColor
-
-  if (Object.keys(updates).length === 0) {
-    res.status(400).json({ error: 'validation', message: 'Aucun champ à mettre à jour' })
-    return
-  }
 
   updates.updated_at = db.fn.now()
 

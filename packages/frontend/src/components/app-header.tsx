@@ -50,21 +50,21 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[60] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded-md">
         {t('app.skipToContent', 'Skip to content')}
       </a>
-      <nav className={cn('mx-auto flex h-14 items-center px-[max(1rem,env(safe-area-inset-left))]', maxWidth === 'wide' ? 'max-w-6xl' : 'max-w-2xl')} style={{ paddingRight: 'max(1rem, env(safe-area-inset-right))' }} aria-label={t('app.name')}>
+      <nav className={cn('mx-auto flex h-14 items-center gap-1 px-[max(0.75rem,env(safe-area-inset-left))]', maxWidth === 'wide' ? 'max-w-6xl' : 'max-w-2xl')} style={{ paddingRight: 'max(0.75rem, env(safe-area-inset-right))' }} aria-label={t('app.name')}>
         {children && (
-          <div className="mr-2 flex items-center">
+          <div className="flex items-center min-w-0 flex-1 sm:flex-initial">
             {children}
           </div>
         )}
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0"
           aria-label={t('app.name') + ' — ' + t('app.tagline')}
         >
           <WawptnLogo size={28} className="text-primary" />
-          <span className="font-heading font-bold text-lg tracking-[-0.03em]">WAWPTN</span>
+          <span className={cn('font-heading font-bold text-lg tracking-[-0.03em]', children ? 'hidden sm:inline' : 'inline')}>WAWPTN</span>
         </button>
-        <div className="flex-1" />
+        <div className={cn('flex-1', children && 'hidden sm:block')} />
 
         {/* Today's bot persona */}
         {user && <PersonaBadge />}

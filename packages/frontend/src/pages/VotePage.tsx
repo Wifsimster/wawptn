@@ -24,6 +24,7 @@ import {
   ResponsiveDialogFooter,
 } from '@/components/ui/responsive-dialog'
 import { ShareButton } from '@/components/share-button'
+import { CelebrationParticles } from '@/components/celebration-particles'
 
 interface Game {
   steamAppId: number
@@ -337,7 +338,13 @@ export function VotePage() {
           {t('vote.waiting', { done: voterCount, total: totalMembers })}
         </p>
 
-        <Progress value={voterCount} max={totalMembers} className="w-48 mb-8" />
+        <div className="relative w-48 mb-8">
+          {/* Burst a fresh set of particles each time voterCount increments —
+              the changing key remounts the component so the lazy initializer
+              regenerates random positions and the animation replays. */}
+          {voterCount > 0 && <CelebrationParticles key={voterCount} count={10} />}
+          <Progress value={voterCount} max={totalMembers} />
+        </div>
 
         {canClose && (
           <Button onClick={handleClose} disabled={closing}>

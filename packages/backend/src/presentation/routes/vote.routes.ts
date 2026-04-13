@@ -39,6 +39,14 @@ router.get('/:groupId/vote', async (req: Request, res: Response) => {
     .countDistinct('user_id as count')
     .first()
 
+  // Set of user IDs that have already cast at least one vote in this
+  // session. Used by the frontend to render per-participant progress on
+  // the waiting screen without guessing from a bare count.
+  const votedUserRows = await db('votes')
+    .where({ session_id: session.id })
+    .distinct('user_id')
+    .pluck('user_id')
+
   // Get total participants from junction table, fallback to group_members for legacy sessions
   const participantCount = await db('voting_session_participants')
     .where({ session_id: session.id })
@@ -107,6 +115,7 @@ router.get('/:groupId/vote', async (req: Request, res: Response) => {
     totalMembers,
     isParticipant: !!isParticipant,
     participantIds,
+    votedUserIds: votedUserRows,
   })
 })
 

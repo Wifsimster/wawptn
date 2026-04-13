@@ -136,6 +136,7 @@ export const api = {
     }[];
     myVotes: { steamAppId: number; gameId?: string; vote: boolean }[];
     voterCount: number; totalMembers: number; isParticipant: boolean; participantIds: string[];
+    votedUserIds: string[];
   }>(`/groups/${groupId}/vote`),
   createVoteSession: (groupId: string, participantIds: string[], filter?: string, scheduledAt?: string, filters?: { multiplayer?: boolean; coop?: boolean; free?: boolean }) => request<{
     session: { id: string; groupId: string; status: string; createdBy: string; scheduledAt: string | null; createdAt: string };

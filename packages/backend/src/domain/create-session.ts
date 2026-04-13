@@ -2,6 +2,7 @@ import { db } from '../infrastructure/database/connection.js'
 import { computeCommonGames, type GameFilters } from '../infrastructure/database/common-games.js'
 import { logger } from '../infrastructure/logger/logger.js'
 import { domainEvents } from './events/event-bus.js'
+import { recordSessionEvent } from './session-audit-trail.js'
 
 export interface CreateSessionParams {
   groupId: string
@@ -147,6 +148,24 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
         header_image_url: g.headerImageUrl,
       }))
     )
+
+    // Snapshot the participant list at creation time so we can later answer
+    // "who was eligible to vote when this session was opened?" even after
+    // the underlying group_members table churns. Pinned to the same
+    // transaction so the audit row lives or dies with the session itself.
+    await recordSessionEvent({
+      sessionId: sess.id,
+      event: 'session_created',
+      actorId: createdBy,
+      metadata: {
+        groupId,
+        participantIds: validMembers,
+        gameCount: selectedGames.length,
+        scheduledAt: scheduledAt ? scheduledAt.toISOString() : null,
+        filter: filter ?? null,
+      },
+      trx,
+    })
 
     return sess
   })

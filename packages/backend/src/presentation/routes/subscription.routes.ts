@@ -8,12 +8,25 @@ import { logger } from '../../infrastructure/logger/logger.js'
 export const subscriptionRoutes = Router()
 
 // GET /api/subscription/me — current subscription state
+// Admins are reported as active premium so client-side PremiumGate unlocks features.
 subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
   try {
-    const subscription = await db('subscriptions')
-      .where({ user_id: req.userId })
-      .select('tier', 'status', 'current_period_end')
-      .first()
+    const [user, subscription] = await Promise.all([
+      db('users').where({ id: req.userId }).select('is_admin').first(),
+      db('subscriptions')
+        .where({ user_id: req.userId })
+        .select('tier', 'status', 'current_period_end')
+        .first(),
+    ])
+
+    if (user?.is_admin) {
+      res.json({
+        tier: 'premium',
+        status: 'active',
+        currentPeriodEnd: subscription?.current_period_end || null,
+      })
+      return
+    }
 
     res.json({
       tier: subscription?.tier || 'free',

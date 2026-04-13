@@ -17,6 +17,8 @@ import { authRoutes } from './presentation/routes/auth.routes.js'
 import { groupRoutes } from './presentation/routes/group.routes.js'
 import { voteRoutes } from './presentation/routes/vote.routes.js'
 import { inviteRoutes } from './presentation/routes/invite.routes.js'
+import { ogRoutes } from './presentation/routes/og.routes.js'
+import { shareRoutes } from './presentation/routes/share.routes.js'
 import { requireAuth } from './presentation/middleware/auth.middleware.js'
 import { requireBotAuth } from './presentation/middleware/bot-auth.middleware.js'
 import { requireAdmin } from './presentation/middleware/admin.middleware.js'
@@ -154,6 +156,22 @@ async function main() {
     legacyHeaders: false,
   })
   app.use('/invite', inviteLimiter, inviteRoutes)
+
+  // OG image route (public, no auth) — dynamic PNG for vote result previews.
+  // Mounted under /api so the apiLimiter already applies; additional per-route
+  // caching is set by the handler itself.
+  app.use('/api', ogRoutes)
+
+  // Share page route (public, no auth) — serves HTML with OG meta tags so
+  // Discord/Twitter/etc. can render rich embeds for closed voting sessions.
+  // Must be registered BEFORE the SPA catch-all so it is matched first.
+  const shareLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+  app.use('/share', shareLimiter, shareRoutes)
 
   // Serve frontend in production
   if (env.NODE_ENV === 'production') {

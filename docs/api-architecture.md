@@ -81,6 +81,8 @@ Routes activées uniquement si `DISCORD_BOT_API_SECRET` est configuré. Authenti
 | POST | `/api/discord/vote` | Bot | Enregistre un vote depuis Discord |
 | GET | `/api/discord/games` | Bot | Liste les jeux communs d'un canal lié |
 | GET | `/api/discord/stats` | Bot | Classement et statistiques d'un groupe (organisateurs, votants, jeux gagnants, séries) |
+| GET | `/api/discord/guild-settings/:guildId` | Bot | Lit les paramètres du bot pour un serveur (fusion défauts globaux + overrides) |
+| PUT | `/api/discord/guild-settings/:guildId` | Bot | Met à jour les paramètres du bot pour un serveur |
 | POST | `/api/discord/webhook` | Utilisateur | Configure le webhook Discord d'un groupe |
 | GET | `/api/discord/announcements` | Utilisateur | Liste les canaux d'annonce supplémentaires d'un groupe |
 | POST | `/api/discord/announcements` | Utilisateur | Ajoute un canal d'annonce (propriétaire + premium) |

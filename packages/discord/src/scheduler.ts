@@ -1,14 +1,34 @@
 import cron, { type ScheduledTask } from 'node-cron'
 import { EmbedBuilder, type Client, type TextChannel } from 'discord.js'
-import { getLinkedChannels, getBotSettings, type BotSettings } from './lib/api.js'
+import {
+  getLinkedChannels,
+  getBotSettings,
+  getGuildSettings,
+  type BotSettings,
+  type LinkedChannel,
+} from './lib/api.js'
 import { getTodayPersona, getDefaultPersona, getPersonaById, loadPersonasFromApi, startPersonaCacheRefresh } from './personas.js'
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
 let currentSettings: BotSettings | null = null
-let fridayTask: ScheduledTask | null = null
-let weekdayTask: ScheduledTask | null = null
 let personaAnnounceTask: ScheduledTask | null = null
+
+/**
+ * Per-guild reminder tasks. Before Tom #2 the scheduler registered one
+ * global Friday and one global Weekday cron and fanned out to every
+ * linked channel. With per-guild overrides, we now register one cron
+ * per (guild, schedule-kind) combination so `/wawptn-config set` can
+ * give each server its own rhythm without affecting the others.
+ *
+ * Legacy channels without a guild_id (pre-migration rows) fall through
+ * to the `null` bucket below, which uses the global defaults.
+ */
+interface GuildReminderTasks {
+  friday: ScheduledTask | null
+  weekday: ScheduledTask | null
+}
+const guildTasks = new Map<string | null, GuildReminderTasks>()
 
 function getPersona() {
   // Admin override takes priority
@@ -68,29 +88,32 @@ async function sendPersonaAnnouncement(client: Client): Promise<void> {
   }
 }
 
+async function sendToChannels(
+  client: Client,
+  channels: LinkedChannel[],
+  pool: string[],
+): Promise<void> {
+  if (channels.length === 0) return
+  const message = pickRandom(pool)
+  const embed = buildReminderEmbed(message)
+
+  for (const { channelId, groupName } of channels) {
+    try {
+      const channel = await client.channels.fetch(channelId)
+      if (channel?.isTextBased()) {
+        await (channel as TextChannel).send({ embeds: [embed] })
+        console.log(`[scheduler] Sent reminder to channel ${channelId} (${groupName})`)
+      }
+    } catch (err) {
+      console.error(`[scheduler] Failed to send to channel ${channelId} (${groupName}):`, err)
+    }
+  }
+}
+
 async function sendToLinkedChannels(client: Client, pool: string[]): Promise<void> {
   try {
     const channels = await getLinkedChannels()
-
-    if (channels.length === 0) {
-      console.log('[scheduler] No linked channels found, skipping')
-      return
-    }
-
-    const message = pickRandom(pool)
-    const embed = buildReminderEmbed(message)
-
-    for (const { channelId, groupName } of channels) {
-      try {
-        const channel = await client.channels.fetch(channelId)
-        if (channel?.isTextBased()) {
-          await (channel as TextChannel).send({ embeds: [embed] })
-          console.log(`[scheduler] Sent reminder to channel ${channelId} (${groupName})`)
-        }
-      } catch (err) {
-        console.error(`[scheduler] Failed to send to channel ${channelId} (${groupName}):`, err)
-      }
-    }
+    await sendToChannels(client, channels, pool)
   } catch (err) {
     console.error('[scheduler] Failed to fetch linked channels:', err)
   }
@@ -106,48 +129,122 @@ export async function notifyBackOnline(client: Client): Promise<void> {
 
 // ─── Dynamic cron scheduling ──────────────────────────────────────────────────
 
+function stopAllGuildTasks(): void {
+  for (const tasks of guildTasks.values()) {
+    tasks.friday?.stop()
+    tasks.weekday?.stop()
+  }
+  guildTasks.clear()
+}
+
+function scheduleGuildReminders(
+  client: Client,
+  guildKey: string | null,
+  channels: LinkedChannel[],
+  friday: string,
+  weekday: string,
+  timezone: string,
+): void {
+  const tasks: GuildReminderTasks = { friday: null, weekday: null }
+
+  if (cron.validate(friday)) {
+    tasks.friday = cron.schedule(
+      friday,
+      () => {
+        const persona = getPersona()
+        console.log(`[scheduler] Friday reminder triggered for guild ${guildKey ?? '<legacy>'} with persona: ${persona.name}`)
+        const jitterMs = Math.floor(Math.random() * 15 * 60 * 1000)
+        setTimeout(() => sendToChannels(client, channels, persona.fridayMessages), jitterMs)
+      },
+      { timezone },
+    )
+    console.log(`[scheduler] Guild ${guildKey ?? '<legacy>'} friday: ${friday} (${timezone})`)
+  } else {
+    console.error(`[scheduler] Invalid friday cron for guild ${guildKey ?? '<legacy>'}: ${friday}`)
+  }
+
+  if (cron.validate(weekday)) {
+    tasks.weekday = cron.schedule(
+      weekday,
+      () => {
+        const persona = getPersona()
+        console.log(`[scheduler] Weekday reminder triggered for guild ${guildKey ?? '<legacy>'} with persona: ${persona.name}`)
+        const jitterMs = Math.floor(Math.random() * 15 * 60 * 1000)
+        setTimeout(() => sendToChannels(client, channels, persona.weekdayMessages), jitterMs)
+      },
+      { timezone },
+    )
+    console.log(`[scheduler] Guild ${guildKey ?? '<legacy>'} weekday: ${weekday} (${timezone})`)
+  } else {
+    console.error(`[scheduler] Invalid weekday cron for guild ${guildKey ?? '<legacy>'}: ${weekday}`)
+  }
+
+  guildTasks.set(guildKey, tasks)
+}
+
+async function rebuildGuildCrons(client: Client, settings: BotSettings): Promise<void> {
+  stopAllGuildTasks()
+
+  let channels: LinkedChannel[] = []
+  try {
+    channels = await getLinkedChannels()
+  } catch (err) {
+    console.error('[scheduler] Failed to fetch linked channels for per-guild scheduling:', err)
+    return
+  }
+
+  // Group channels by guild so we schedule at most one (friday, weekday)
+  // pair per unique Discord guild. Legacy channels without a guild_id
+  // are bucketed under null and use the global defaults.
+  const byGuild = new Map<string | null, LinkedChannel[]>()
+  for (const channel of channels) {
+    const key = channel.guildId ?? null
+    const bucket = byGuild.get(key)
+    if (bucket) bucket.push(channel)
+    else byGuild.set(key, [channel])
+  }
+
+  // Fall back to the global defaults whenever a guild has no explicit
+  // override. The backend loadGlobalBotDefaults() endpoint returns the
+  // resolved values already, so each guild call is a single round-trip.
+  for (const [guildKey, guildChannels] of byGuild) {
+    let friday = settings.friday_schedule
+    let weekday = settings.wednesday_schedule
+    let timezone = settings.schedule_timezone || 'Europe/Paris'
+
+    if (guildKey) {
+      try {
+        const override = await getGuildSettings(guildKey)
+        friday = override.friday_schedule
+        weekday = override.wednesday_schedule
+        timezone = override.schedule_timezone
+      } catch (err) {
+        console.error(`[scheduler] Failed to load guild settings for ${guildKey}, falling back to global:`, err)
+      }
+    }
+
+    scheduleGuildReminders(client, guildKey, guildChannels, friday, weekday, timezone)
+  }
+}
+
 function scheduleCrons(client: Client, settings: BotSettings): void {
-  // Stop existing tasks
-  fridayTask?.stop()
-  weekdayTask?.stop()
+  // Per-guild reminder crons — rebuilt whenever global or per-guild
+  // settings change. The call is async so we fire-and-forget and let
+  // the old tasks keep running until the new ones take over.
+  void rebuildGuildCrons(client, settings)
+
+  // Persona change announcement at midnight (global, not per-guild).
   personaAnnounceTask?.stop()
-
   const timezone = settings.schedule_timezone || 'Europe/Paris'
-
-  // Friday reminder
-  if (cron.validate(settings.friday_schedule)) {
-    fridayTask = cron.schedule(settings.friday_schedule, () => {
-      const persona = getPersona()
-      console.log(`[scheduler] Friday reminder triggered with persona: ${persona.name}`)
-      const jitterMs = Math.floor(Math.random() * 15 * 60 * 1000)
-      console.log(`[scheduler] Sending in ${Math.round(jitterMs / 1000)}s`)
-      setTimeout(() => sendToLinkedChannels(client, persona.fridayMessages), jitterMs)
-    }, { timezone })
-    console.log(`[scheduler] Friday reminder: ${settings.friday_schedule} (${timezone})`)
-  } else {
-    console.error(`[scheduler] Invalid friday cron: ${settings.friday_schedule}`)
-  }
-
-  // Weekday reminder
-  if (cron.validate(settings.wednesday_schedule)) {
-    weekdayTask = cron.schedule(settings.wednesday_schedule, () => {
-      const persona = getPersona()
-      console.log(`[scheduler] Weekday nudge triggered with persona: ${persona.name}`)
-      const jitterMs = Math.floor(Math.random() * 15 * 60 * 1000)
-      console.log(`[scheduler] Sending in ${Math.round(jitterMs / 1000)}s`)
-      setTimeout(() => sendToLinkedChannels(client, persona.weekdayMessages), jitterMs)
-    }, { timezone })
-    console.log(`[scheduler] Weekday reminder: ${settings.wednesday_schedule} (${timezone})`)
-  } else {
-    console.error(`[scheduler] Invalid weekday cron: ${settings.wednesday_schedule}`)
-  }
-
-  // Persona change announcement at midnight
   if (settings.announce_persona_change && settings.persona_rotation_enabled) {
-    personaAnnounceTask = cron.schedule('0 0 * * *', () => {
-      console.log('[scheduler] Midnight persona announcement triggered')
-      void sendPersonaAnnouncement(client)
-    }, { timezone })
+    personaAnnounceTask = cron.schedule(
+      '0 0 * * *',
+      () => {
+        console.log('[scheduler] Midnight persona announcement triggered')
+        void sendPersonaAnnouncement(client)
+      },
+      { timezone },
+    )
     console.log(`[scheduler] Persona announcement: 0 0 * * * (${timezone})`)
   } else {
     personaAnnounceTask = null

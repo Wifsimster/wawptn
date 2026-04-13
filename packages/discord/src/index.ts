@@ -26,6 +26,7 @@ import * as voteCommand from './commands/vote.js'
 import * as randomCommand from './commands/random.js'
 import * as dailyChallengeCommand from './commands/daily-challenge.js'
 import * as statsCommand from './commands/stats.js'
+import * as configCommand from './commands/config.js'
 
 validateEnv()
 
@@ -45,6 +46,7 @@ const commands = new Map([
   ['wawptn-random', randomCommand],
   ['wawptn-daily-challenge', dailyChallengeCommand],
   ['wawptn-stats', statsCommand],
+  ['wawptn-config', configCommand],
 ])
 
 client.once(Events.ClientReady, async (c) => {

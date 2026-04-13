@@ -81,7 +81,10 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
       .sort((a, b) => a.description.localeCompare(b.description))
   }, [games])
 
-  const filteredGames = useMemo(() => {
+  // Apply every filter EXCEPT the Metacritic threshold so we can derive both
+  // the final filtered list and the count of games specifically culled by
+  // the Metacritic filter (used to surface the "X games hidden" banner).
+  const gamesBeforeMetacritic = useMemo(() => {
     let result = games
 
     // Text search
@@ -109,7 +112,14 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
       })
     }
 
-    // Metacritic filter (client-side)
+    return result
+  }, [games, searchQuery, filters.selectedGenres, filters.gamesOnly, filters.controllerOnly])
+
+  const filteredGames = useMemo(() => {
+    let result = gamesBeforeMetacritic
+
+    // Metacritic filter (client-side) — this is the only filter that runs
+    // after gamesBeforeMetacritic so the banner can count the culled games.
     if (filters.minMetacritic !== null) {
       result = result.filter((g) => {
         if (g.metacriticScore === null) return false
@@ -117,7 +127,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
       })
     }
 
-    // Sorting
+    // Sorting (length-preserving — safe to derive hidden count from this)
     if (filters.sortBy === 'popularity') {
       result = [...result].sort((a, b) => (b.recommendationsTotal ?? 0) - (a.recommendationsTotal ?? 0))
     } else if (filters.sortBy === 'name') {
@@ -126,7 +136,14 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
     // 'owners' is the default sort from the API
 
     return result
-  }, [games, searchQuery, filters.selectedGenres, filters.minMetacritic, filters.gamesOnly, filters.controllerOnly, filters.sortBy])
+  }, [gamesBeforeMetacritic, filters.minMetacritic, filters.sortBy])
+
+  // Number of games that pass every other filter but are culled by the
+  // Metacritic threshold. Drives the "X games hidden" banner; 0 when no
+  // Metacritic filter is set or when nothing is being culled.
+  const hiddenByMetacritic = filters.minMetacritic === null
+    ? 0
+    : gamesBeforeMetacritic.length - filteredGames.length
 
   const isFiltering = searchQuery.trim().length > 0 || filters.selectedGenres.length > 0 || filters.minMetacritic !== null || filters.controllerOnly
   const displayedGames = isFiltering || showAll
@@ -331,6 +348,26 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Metacritic-hidden banner: explains *why* games disappeared and gives
+          a one-tap path back to the full list. Only mounts when the filter
+          is actually culling games so it never adds noise. */}
+      {!loading && hiddenByMetacritic > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Star className="w-3.5 h-3.5 shrink-0" />
+            {t('group.metacriticHidden', { count: hiddenByMetacritic })}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={() => onSetMinMetacritic(null)}
+          >
+            {t('group.metacriticShowAll')}
+          </Button>
         </div>
       )}
 

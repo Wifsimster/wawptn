@@ -198,6 +198,15 @@ export const api = {
       body: JSON.stringify(settings),
     }),
   getAdminStats: () => request<{ users: number; admins: number; groups: number; votingSessions: number }>('/admin/stats'),
+  getAdminHealth: () => request<{
+    timestamp: string;
+    database: { status: 'up' | 'down'; latencyMs: number | null };
+    integrations: {
+      steam: { state: 'open' | 'closed'; consecutiveFailures: number; circuitOpenUntil: string | null; cacheSize: number };
+      epic: { state: 'open' | 'closed'; consecutiveFailures: number; circuitOpenUntil: string | null; cacheSize: number; enabled: boolean };
+      gog: { state: 'open' | 'closed'; consecutiveFailures: number; circuitOpenUntil: string | null; cacheSize: number; enabled: boolean };
+    };
+  }>('/admin/health'),
   getAdminUsers: (params?: { limit?: number; offset?: number; q?: string }) => {
     const search = new URLSearchParams()
     if (params?.limit !== undefined) search.set('limit', String(params.limit))

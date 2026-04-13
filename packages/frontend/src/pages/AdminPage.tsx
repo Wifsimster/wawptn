@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { AppHeader } from '@/components/app-header'
 import { AppFooter } from '@/components/app-footer'
+import { AdminHealthCard } from '@/components/admin-health-card'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -1046,6 +1047,9 @@ function OverviewTab({
             )
           })}
       </motion.div>
+
+      {/* ── Health card ── */}
+      <AdminHealthCard />
 
       {/* ── Recent activity grid ── */}
       <motion.div

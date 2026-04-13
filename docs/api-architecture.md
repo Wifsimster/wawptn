@@ -82,6 +82,9 @@ Routes activées uniquement si `DISCORD_BOT_API_SECRET` est configuré. Authenti
 | GET | `/api/discord/games` | Bot | Liste les jeux communs d'un canal lié |
 | GET | `/api/discord/stats` | Bot | Classement et statistiques d'un groupe (organisateurs, votants, jeux gagnants, séries) |
 | POST | `/api/discord/webhook` | Utilisateur | Configure le webhook Discord d'un groupe |
+| GET | `/api/discord/announcements` | Utilisateur | Liste les canaux d'annonce supplémentaires d'un groupe |
+| POST | `/api/discord/announcements` | Utilisateur | Ajoute un canal d'annonce (propriétaire + premium) |
+| DELETE | `/api/discord/announcements/:id` | Utilisateur | Retire un canal d'annonce (propriétaire + premium) |
 
 ### Invitation (public)
 

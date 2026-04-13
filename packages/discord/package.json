@@ -1,6 +1,6 @@
 {
   "name": "@wawptn/discord",
-  "version": "0.43.0",
+  "version": "0.44.0",
   "description": "Discord bot for WAWPTN — vote on games directly in Discord",
   "type": "module",
   "main": "dist/index.js",

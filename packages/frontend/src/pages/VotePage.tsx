@@ -23,6 +23,7 @@ import {
   ResponsiveDialogDescription,
   ResponsiveDialogFooter,
 } from '@/components/ui/responsive-dialog'
+import { ShareButton } from '@/components/share-button'
 
 interface Game {
   steamAppId: number
@@ -290,6 +291,18 @@ export function VotePage() {
               >
                 {t('vote.backToGroup')}
               </Button>
+
+              {session?.id && (
+                <div className="flex justify-center mt-4">
+                  <ShareButton
+                    sessionId={session.id}
+                    title={result.gameName}
+                    description={`${result.yesCount} membres ont voté pour ${result.gameName}`}
+                    variant="outline"
+                    size="sm"
+                  />
+                </div>
+              )}
             </motion.div>
           </motion.div>
         </AnimatePresence>

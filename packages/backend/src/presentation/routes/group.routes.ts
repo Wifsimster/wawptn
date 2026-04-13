@@ -8,6 +8,7 @@ import { getIO, forceLeaveRoom } from '../../infrastructure/socket/socket.js'
 import { updateGroupSchedule } from '../../infrastructure/scheduler/auto-vote-scheduler.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 import { isUserPremium, FREE_TIER_LIMITS, PREMIUM_TIER_LIMITS } from '../middleware/tier.middleware.js'
+import { requireGroupMembership } from '../middleware/group-membership.middleware.js'
 
 const router = Router()
 
@@ -88,19 +89,8 @@ router.get('/', async (req: Request, res: Response) => {
 })
 
 // Get group detail with members
-router.get('/:id', async (req: Request, res: Response) => {
-  const userId = req.userId!
+router.get('/:id', requireGroupMembership(), async (req: Request, res: Response) => {
   const groupId = String(req.params['id'])
-
-  // Verify membership
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId })
-    .first()
-
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Not a member of this group' })
-    return
-  }
 
   const group = await db('groups').where({ id: groupId }).first()
   if (!group) {
@@ -187,7 +177,7 @@ router.post('/', async (req: Request, res: Response) => {
 })
 
 // Rename group (owner only)
-router.patch('/:id', async (req: Request, res: Response) => {
+router.patch('/:id', requireGroupMembership({ role: 'owner' }), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['id'])
   const { name } = req.body as { name: string }
@@ -199,15 +189,6 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
   if (name.trim().length > 100) {
     res.status(400).json({ error: 'validation', message: 'Group name must be 100 characters or less' })
-    return
-  }
-
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId, role: 'owner' })
-    .first()
-
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Only the group owner can rename the group' })
     return
   }
 
@@ -225,22 +206,13 @@ router.patch('/:id', async (req: Request, res: Response) => {
 })
 
 // Toggle Discord notifications for current user
-router.patch('/:id/notifications', async (req: Request, res: Response) => {
+router.patch('/:id/notifications', requireGroupMembership(), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['id'])
   const { enabled } = req.body as { enabled: boolean }
 
   if (typeof enabled !== 'boolean') {
     res.status(400).json({ error: 'validation', message: 'enabled must be a boolean' })
-    return
-  }
-
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId })
-    .first()
-
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Not a member of this group' })
     return
   }
 
@@ -947,19 +919,9 @@ router.get('/:id/recommendations', async (req: Request, res: Response) => {
 })
 
 // Get member leaderboard/rankings for a group
-router.get('/:id/leaderboard', async (req: Request, res: Response) => {
+router.get('/:id/leaderboard', requireGroupMembership(), async (req: Request, res: Response) => {
   try {
-    const userId = req.userId!
     const groupId = String(req.params['id'])
-
-    const membership = await db('group_members')
-      .where({ group_id: groupId, user_id: userId })
-      .first()
-
-    if (!membership) {
-      res.status(403).json({ error: 'forbidden', message: 'Not a member' })
-      return
-    }
 
     // Total votes cast per member in this group's closed sessions
     const memberVotes = await db('votes')
@@ -1012,19 +974,9 @@ router.get('/:id/leaderboard', async (req: Request, res: Response) => {
 })
 
 // Get voting streaks for a group
-router.get('/:id/streaks', async (req: Request, res: Response) => {
+router.get('/:id/streaks', requireGroupMembership(), async (req: Request, res: Response) => {
   try {
-    const userId = req.userId!
     const groupId = String(req.params['id'])
-
-    const membership = await db('group_members')
-      .where({ group_id: groupId, user_id: userId })
-      .first()
-
-    if (!membership) {
-      res.status(403).json({ error: 'forbidden', message: 'Not a member of this group' })
-      return
-    }
 
     const { getGroupStreaks } = await import('../../domain/streaks.js')
     const streaks = await getGroupStreaks(groupId)

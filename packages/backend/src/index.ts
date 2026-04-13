@@ -28,6 +28,7 @@ import { personaRoutes } from './presentation/routes/persona.routes.js'
 import { notificationRoutes, adminNotificationRoutes } from './presentation/routes/notification.routes.js'
 import { challengeRoutes } from './presentation/routes/challenge.routes.js'
 import { startNotificationCleanup } from './infrastructure/notifications/notification-cleanup.js'
+import { registerSessionEffects } from './infrastructure/effects/session-effects.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -179,6 +180,10 @@ async function main() {
 
   // Socket.io
   createSocketServer(httpServer)
+
+  // Register domain event subscribers for session side effects
+  // (Socket.io emissions, Discord webhooks, in-app notifications)
+  registerSessionEffects()
 
   // Vote scheduler (auto-close scheduled sessions)
   startVoteScheduler()

@@ -104,6 +104,13 @@ vi.mock('@/domain/streaks.js', () => ({
 // ---------------------------------------------------------------------------
 
 import { closeSession } from '../close-session.js'
+import { registerSessionEffects } from '@/infrastructure/effects/session-effects.js'
+import { domainEvents } from '@/domain/events/event-bus.js'
+
+// Register effects once so the domain event bus has subscribers hooked into
+// the mocked infrastructure modules above.
+domainEvents.removeAllListeners()
+registerSessionEffects()
 
 // ---------------------------------------------------------------------------
 // Helpers

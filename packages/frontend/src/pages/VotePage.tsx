@@ -257,9 +257,42 @@ export function VotePage() {
               </motion.div>
             )}
             <motion.h1 variants={resultFade} className="text-3xl font-heading font-bold mb-2">{result.gameName}</motion.h1>
-            <motion.p variants={resultFade} className="text-muted-foreground mb-8">
+            <motion.p variants={resultFade} className="text-muted-foreground mb-4">
               {t('vote.votedFor', { yes: result.yesCount, total: result.totalVoters })}
             </motion.p>
+
+            {/* Consensus breakdown — animated bar fills from 0 to the win
+                percentage so the magnitude of the agreement feels earned
+                instead of being dropped in as a static line of text. */}
+            {result.totalVoters > 0 && (() => {
+              const percent = Math.round((result.yesCount / result.totalVoters) * 100)
+              return (
+                <motion.div variants={resultFade} className="mb-8 w-full max-w-xs mx-auto">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                    <span>{t('vote.consensusPercent', { percent })}</span>
+                    <span>{result.yesCount}/{result.totalVoters}</span>
+                  </div>
+                  <div
+                    role="progressbar"
+                    aria-valuenow={percent}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    className="h-2 w-full overflow-hidden rounded-full bg-secondary"
+                  >
+                    <motion.div
+                      className="h-full rounded-full bg-reward shadow-[0_0_12px_rgba(255,215,128,0.45)]"
+                      initial={{ width: '0%' }}
+                      animate={{ width: `${percent}%` }}
+                      transition={{
+                        duration: prefersReducedMotion ? 0.2 : 1.1,
+                        delay: prefersReducedMotion ? 0 : 0.5,
+                        ease: [0.22, 1, 0.36, 1],
+                      }}
+                    />
+                  </div>
+                </motion.div>
+              )
+            })()}
 
             <motion.div variants={resultFade}>
               {Number.isInteger(result.steamAppId) && result.steamAppId > 0 && (

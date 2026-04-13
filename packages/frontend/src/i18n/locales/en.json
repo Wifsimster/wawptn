@@ -186,6 +186,7 @@
   "vote": {
     "tonightYouPlay": "Tonight you're playing",
     "votedFor": "{{yes}} out of {{total}} voted for it",
+    "consensusPercent": "{{percent}}% consensus",
     "launchSteam": "Launch on Steam",
     "backToGroup": "Back to group",
     "submitted": "Vote submitted!",

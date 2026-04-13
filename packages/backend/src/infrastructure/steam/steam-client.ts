@@ -62,6 +62,27 @@ function recordFailure(): void {
   }
 }
 
+/**
+ * Snapshot of the Steam client's current health: circuit breaker state,
+ * cache size, and whether requests are currently being shed. Read by the
+ * /api/admin/health endpoint so admins can see when the integration is
+ * degraded without tailing the logs.
+ */
+export function getHealth(): {
+  state: 'closed' | 'open'
+  consecutiveFailures: number
+  circuitOpenUntil: string | null
+  cacheSize: number
+} {
+  const open = isCircuitOpen()
+  return {
+    state: open ? 'open' : 'closed',
+    consecutiveFailures,
+    circuitOpenUntil: open && circuitOpenUntil > 0 ? new Date(circuitOpenUntil).toISOString() : null,
+    cacheSize: cache.size,
+  }
+}
+
 export interface SteamOwnedGame {
   appid: number
   name: string

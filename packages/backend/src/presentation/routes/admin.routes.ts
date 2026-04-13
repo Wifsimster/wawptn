@@ -4,6 +4,9 @@ import { authLogger } from '../../infrastructure/logger/logger.js'
 import { invalidatePremiumCache } from '../../domain/subscription-service.js'
 import { recordAdminAction } from '../../domain/admin-audit-log.js'
 import { invalidateAllUserSessions } from '../../domain/auth-service.js'
+import { getHealth as getSteamHealth } from '../../infrastructure/steam/steam-client.js'
+import { getHealth as getEpicHealth } from '../../infrastructure/epic/epic-client.js'
+import { getHealth as getGogHealth } from '../../infrastructure/gog/gog-client.js'
 
 const router = Router()
 
@@ -450,6 +453,49 @@ router.get('/stats', async (_req: Request, res: Response) => {
     authLogger.error({ error: String(error) }, 'failed to get admin stats')
     res.status(500).json({ error: 'internal', message: 'Failed to get admin stats' })
   }
+})
+
+// ─── Health / observability ──────────────────────────────────────────────────
+
+/**
+ * Aggregated health snapshot for ops. Surfaces the state of each external
+ * integration's circuit breaker + cache, plus a database ping. Lets admins
+ * see when an integration is degraded without tailing the logs.
+ *
+ * Mounted under /api/admin so it requires the admin middleware (the handler
+ * itself never throws — every dependency is wrapped in a try/catch so a
+ * single broken integration cannot 500 the whole report).
+ */
+router.get('/health', async (_req: Request, res: Response) => {
+  // Database ping — measures round-trip and reports up/down separately so a
+  // DB outage doesn't make the response itself unreadable.
+  let dbStatus: 'up' | 'down' = 'down'
+  let dbLatencyMs: number | null = null
+  try {
+    const start = Date.now()
+    await db.raw('SELECT 1')
+    dbLatencyMs = Date.now() - start
+    dbStatus = 'up'
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'admin health: database ping failed')
+  }
+
+  // Each integration getHealth() is synchronous and reads in-memory state.
+  // We still wrap them so a future async refactor (or an unexpected throw)
+  // can't take down the rest of the report.
+  const safe = <T>(fn: () => T, fallback: T): T => {
+    try { return fn() } catch { return fallback }
+  }
+
+  res.json({
+    timestamp: new Date().toISOString(),
+    database: { status: dbStatus, latencyMs: dbLatencyMs },
+    integrations: {
+      steam: safe(getSteamHealth, { state: 'open', consecutiveFailures: -1, circuitOpenUntil: null, cacheSize: 0 }),
+      epic: safe(getEpicHealth, { state: 'open', consecutiveFailures: -1, circuitOpenUntil: null, cacheSize: 0, enabled: false }),
+      gog: safe(getGogHealth, { state: 'open', consecutiveFailures: -1, circuitOpenUntil: null, cacheSize: 0, enabled: false }),
+    },
+  })
 })
 
 export { router as adminRoutes }

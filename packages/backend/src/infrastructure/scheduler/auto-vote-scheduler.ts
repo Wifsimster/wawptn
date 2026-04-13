@@ -1,16 +1,12 @@
 import cron, { type ScheduledTask } from 'node-cron'
 import { db } from '../database/connection.js'
 import { createVotingSession } from '../../domain/create-session.js'
-import { closeSession } from '../../domain/close-session.js'
 import { logger } from '../logger/logger.js'
 
 const schedulerLogger = logger.child({ module: 'auto-vote-scheduler' })
 
 /** Map of group ID -> scheduled cron task */
 const scheduledTasks = new Map<string, ScheduledTask>()
-
-/** Map of group ID -> auto-close timeout */
-const autoCloseTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
 interface GroupSchedule {
   id: string
@@ -20,6 +16,12 @@ interface GroupSchedule {
 
 /**
  * Schedule a cron job for a single group's auto-vote.
+ *
+ * When the cron fires, we create a voting session with `scheduled_at` set to
+ * `now + duration_minutes`. The general-purpose vote scheduler in
+ * `vote-scheduler.ts` polls for sessions past their `scheduled_at` and closes
+ * them, so the auto-close survives a backend restart instead of relying on an
+ * in-process `setTimeout` that would be lost when the node dies.
  */
 function scheduleGroupAutoVote(group: GroupSchedule): void {
   // Stop existing task if any
@@ -27,12 +29,6 @@ function scheduleGroupAutoVote(group: GroupSchedule): void {
   if (existing) {
     existing.stop()
     scheduledTasks.delete(group.id)
-  }
-
-  const existingTimeout = autoCloseTimeouts.get(group.id)
-  if (existingTimeout) {
-    clearTimeout(existingTimeout)
-    autoCloseTimeouts.delete(group.id)
   }
 
   if (!group.auto_vote_schedule || !cron.validate(group.auto_vote_schedule)) {
@@ -73,39 +69,29 @@ function scheduleGroupAutoVote(group: GroupSchedule): void {
         return
       }
 
+      // Compute the auto-close target and persist it on the session row so
+      // the durable vote-scheduler polling closes it even if this process
+      // restarts before the duration elapses.
+      const durationMinutes = group.auto_vote_duration_minutes || 120
+      const closeAt = new Date(Date.now() + durationMinutes * 60 * 1000)
+
       const result = await createVotingSession({
         groupId: group.id,
         createdBy: owner.user_id,
         participantIds: memberIds,
+        scheduledAt: closeAt,
       })
 
       schedulerLogger.info(
-        { groupId: group.id, sessionId: result.session.id, gameCount: result.games.length },
+        {
+          groupId: group.id,
+          sessionId: result.session.id,
+          gameCount: result.games.length,
+          durationMinutes,
+          closeAt: closeAt.toISOString(),
+        },
         'auto-vote session created'
       )
-
-      // Schedule auto-close after the configured duration
-      const durationMs = (group.auto_vote_duration_minutes || 120) * 60 * 1000
-      const timeout = setTimeout(async () => {
-        try {
-          autoCloseTimeouts.delete(group.id)
-          const session = await db('voting_sessions')
-            .where({ id: result.session.id, status: 'open' })
-            .first()
-
-          if (session) {
-            await closeSession(result.session.id, group.id)
-            schedulerLogger.info(
-              { groupId: group.id, sessionId: result.session.id },
-              'auto-vote session auto-closed after duration'
-            )
-          }
-        } catch (err) {
-          schedulerLogger.error({ error: String(err), groupId: group.id }, 'auto-close failed')
-        }
-      }, durationMs)
-
-      autoCloseTimeouts.set(group.id, timeout)
     } catch (err) {
       schedulerLogger.error({ error: String(err), groupId: group.id }, 'auto-vote session creation failed')
     }
@@ -131,11 +117,6 @@ async function syncSchedules(): Promise<void> {
       if (!activeGroupIds.has(groupId)) {
         task.stop()
         scheduledTasks.delete(groupId)
-        const timeout = autoCloseTimeouts.get(groupId)
-        if (timeout) {
-          clearTimeout(timeout)
-          autoCloseTimeouts.delete(groupId)
-        }
         schedulerLogger.info({ groupId }, 'auto-vote unscheduled (schedule removed)')
       }
     }
@@ -178,11 +159,6 @@ export function updateGroupSchedule(groupId: string, schedule: string | null, du
     if (existing) {
       existing.stop()
       scheduledTasks.delete(groupId)
-    }
-    const timeout = autoCloseTimeouts.get(groupId)
-    if (timeout) {
-      clearTimeout(timeout)
-      autoCloseTimeouts.delete(groupId)
     }
     schedulerLogger.info({ groupId }, 'auto-vote unscheduled')
     return

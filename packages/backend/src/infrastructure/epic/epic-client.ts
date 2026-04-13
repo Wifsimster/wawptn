@@ -65,6 +65,24 @@ function setCache(key: string, data: unknown): void {
   cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS })
 }
 
+/** Health snapshot exposed to /api/admin/health. */
+export function getHealth(): {
+  state: 'closed' | 'open'
+  consecutiveFailures: number
+  circuitOpenUntil: string | null
+  cacheSize: number
+  enabled: boolean
+} {
+  const open = isCircuitOpen()
+  return {
+    state: open ? 'open' : 'closed',
+    consecutiveFailures,
+    circuitOpenUntil: open && circuitOpenUntil > 0 ? new Date(circuitOpenUntil).toISOString() : null,
+    cacheSize: cache.size,
+    enabled: isEpicEnabled(),
+  }
+}
+
 export function isEpicEnabled(): boolean {
   return !!(env.EPIC_CLIENT_ID && env.EPIC_CLIENT_SECRET && env.EPIC_REDIRECT_URI)
 }

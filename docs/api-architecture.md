@@ -66,6 +66,7 @@ Routes accessibles uniquement aux utilisateurs ayant `is_admin = true`.
 | DELETE | `/api/admin/personas/:id` | Supprime une persona (sauf celles par défaut) |
 | PATCH | `/api/admin/personas/:id/toggle` | Active ou désactive une persona |
 | GET | `/api/admin/stats` | Statistiques globales (utilisateurs, groupes, sessions) |
+| GET | `/api/admin/health` | Santé des intégrations externes (Steam, Epic, GOG, base de données) |
 
 ### Discord (feature-flagged)
 

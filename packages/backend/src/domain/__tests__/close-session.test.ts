@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // vi.hoisted — variables available inside vi.mock factories (which are hoisted)
 // ---------------------------------------------------------------------------
 
-const { mockDb, mockEmit, trxResults, dbResults, trxCallCounts, dbCallCounts } = vi.hoisted(() => {
+const { mockDb, trxResults, dbResults, trxCallCounts, dbCallCounts } = vi.hoisted(() => {
   /**
    * Chainable mock mimicking a Knex query builder.
    * Every method returns the same proxy, and `await` resolves to `resolveValue`.
@@ -61,15 +61,10 @@ const { mockDb, mockEmit, trxResults, dbResults, trxCallCounts, dbCallCounts } =
     },
   )
 
-  const mockEmit = (() => {}) as unknown as ReturnType<typeof vi.fn>
-
-  return { mockDb, mockEmit, trxResults, dbResults, trxCallCounts, dbCallCounts }
+  return { mockDb, trxResults, dbResults, trxCallCounts, dbCallCounts }
 })
 
-// Replace noop stubs with proper vi.fn after hoisting
-const emit = vi.fn()
-// We need mockEmit to be a vi.fn — but since vi.fn can't be created inside vi.hoisted,
-// we use a module-scope vi.fn and wire it up.
+// Module-scope vi.fn for the socket emit (created after hoisted block)
 const socketEmit = vi.fn()
 
 // ---------------------------------------------------------------------------

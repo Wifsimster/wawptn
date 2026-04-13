@@ -70,7 +70,23 @@ export async function notifyVoteClosed(
   result: VoteResult,
 ): Promise<void> {
   const group = await db('groups').where({ id: groupId }).first()
-  if (!group?.discord_webhook_url) return
+  if (!group) return
+
+  // Extra announcement webhooks registered via POST /api/discord/announcements.
+  // Broadcast the result to every webhook attached to the group so friends
+  // in #general or #announcements see the winner without having to join the
+  // primary group channel. Primary webhook (if set) is broadcast to first
+  // so it keeps its ordering.
+  const extraWebhooks: { webhook_url: string }[] = await db('group_announcement_webhooks')
+    .where({ group_id: groupId })
+    .select('webhook_url')
+
+  const targets = [
+    ...(group.discord_webhook_url ? [group.discord_webhook_url] : []),
+    ...extraWebhooks.map((row) => row.webhook_url),
+  ]
+
+  if (targets.length === 0) return
 
   const fields = [
     { name: 'Votes pour', value: `${result.yesCount}`, inline: true },
@@ -85,7 +101,7 @@ export async function notifyVoteClosed(
     })
   }
 
-  await postWebhook(group.discord_webhook_url, {
+  const payload = {
     embeds: [{
       title: '🏆 Résultat du vote !',
       description: `Le groupe **${group.name}** a choisi :\n\n# ${result.gameName}`,
@@ -95,5 +111,9 @@ export async function notifyVoteClosed(
       url: result.steamAppId ? `https://store.steampowered.com/app/${result.steamAppId}` : undefined,
       timestamp: new Date().toISOString(),
     }],
-  })
+  }
+
+  // Fire webhooks in parallel. postWebhook swallows its own errors so one
+  // broken webhook cannot prevent the others from delivering.
+  await Promise.all(targets.map((url) => postWebhook(url, payload)))
 }

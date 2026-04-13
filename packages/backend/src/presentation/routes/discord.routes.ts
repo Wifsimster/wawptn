@@ -908,4 +908,147 @@ userRouter.post('/webhook', requireAuth, async (req: Request, res: Response) => 
   res.json({ ok: true })
 })
 
+// ─── Extra announcement webhooks (Tom #4) ─────────────────────────────────
+// Lets a group owner broadcast vote results to additional channels beyond
+// the primary discord_webhook_url — typically #general or #announcements in
+// the same guild for cross-channel visibility. The primary webhook stays
+// where it is; these are additive. All three endpoints are owner-only and
+// premium-gated, matching the existing /webhook route above.
+
+const ANNOUNCEMENT_WEBHOOK_LIMIT = 5
+
+async function assertOwnerAndPremium(
+  userId: string,
+  groupId: string,
+  res: Response,
+): Promise<boolean> {
+  const membership = await db('group_members')
+    .where({ group_id: groupId, user_id: userId, role: 'owner' })
+    .first()
+  if (!membership) {
+    res.status(403).json({ error: 'forbidden', message: 'Only group owners can manage announcement channels' })
+    return false
+  }
+  const premium = await isUserPremium(userId)
+  if (!premium) {
+    res.status(403).json({ error: 'premium_required', message: 'Announcement channels require a premium subscription' })
+    return false
+  }
+  return true
+}
+
+// List announcement webhooks for a group. The webhook URL itself is NOT
+// returned — only the id and label — because the URL is a secret that
+// would otherwise be exposed to any group owner viewing the settings.
+userRouter.get('/announcements', requireAuth, async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const groupId = typeof req.query['groupId'] === 'string' ? req.query['groupId'] : ''
+  if (!groupId) {
+    res.status(400).json({ error: 'validation', message: 'groupId query parameter required' })
+    return
+  }
+
+  const membership = await db('group_members').where({ group_id: groupId, user_id: userId }).first()
+  if (!membership) {
+    res.status(403).json({ error: 'forbidden', message: 'Not a member of this group' })
+    return
+  }
+
+  const rows = await db('group_announcement_webhooks')
+    .where({ group_id: groupId })
+    .orderBy('created_at', 'asc')
+    .select('id', 'label', 'created_at as createdAt')
+
+  res.json({ data: rows, limit: ANNOUNCEMENT_WEBHOOK_LIMIT })
+})
+
+// Add an announcement webhook. Owner-only + premium; capped at
+// ANNOUNCEMENT_WEBHOOK_LIMIT per group to prevent a runaway fan-out.
+userRouter.post('/announcements', requireAuth, async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const { groupId, webhookUrl, label } = req.body as {
+    groupId?: string
+    webhookUrl?: string
+    label?: string
+  }
+
+  if (!groupId || !webhookUrl) {
+    res.status(400).json({ error: 'validation', message: 'groupId and webhookUrl are required' })
+    return
+  }
+  // Minimal URL sanity check — just enough to reject obvious junk without
+  // mirroring Discord's webhook format quirks inside the backend.
+  try {
+    const parsed = new URL(webhookUrl)
+    if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('discord.com')) {
+      res.status(400).json({ error: 'validation', message: 'webhookUrl must be an https://discord.com/... URL' })
+      return
+    }
+  } catch {
+    res.status(400).json({ error: 'validation', message: 'webhookUrl is not a valid URL' })
+    return
+  }
+  if (label !== undefined && (typeof label !== 'string' || label.length > 64)) {
+    res.status(400).json({ error: 'validation', message: 'label must be a string of at most 64 characters' })
+    return
+  }
+
+  if (!(await assertOwnerAndPremium(userId, groupId, res))) return
+
+  const countRow = await db('group_announcement_webhooks')
+    .where({ group_id: groupId })
+    .count('id as count')
+    .first()
+  const count = Number(countRow?.count ?? 0)
+  if (count >= ANNOUNCEMENT_WEBHOOK_LIMIT) {
+    res.status(422).json({
+      error: 'limit_reached',
+      message: `Maximum ${ANNOUNCEMENT_WEBHOOK_LIMIT} announcement channels per group`,
+    })
+    return
+  }
+
+  try {
+    const [row] = await db('group_announcement_webhooks')
+      .insert({
+        group_id: groupId,
+        webhook_url: webhookUrl,
+        label: label ?? null,
+        created_by: userId,
+      })
+      .returning(['id', 'label', 'created_at'])
+    res.status(201).json({
+      id: row.id,
+      label: row.label,
+      createdAt: row.created_at,
+    })
+  } catch (error) {
+    // Unique constraint on (group_id, webhook_url) — already registered
+    if (String(error).includes('duplicate')) {
+      res.status(409).json({ error: 'conflict', message: 'This channel is already registered' })
+      return
+    }
+    logger.error({ error: String(error), groupId }, 'failed to add announcement webhook')
+    res.status(500).json({ error: 'internal', message: 'Failed to add announcement channel' })
+  }
+})
+
+// Remove an announcement webhook by id. Owner-only, scoped to the caller's
+// groups so an owner can't accidentally wipe someone else's channel list.
+userRouter.delete('/announcements/:id', requireAuth, async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const webhookId = String(req.params['id'])
+
+  const row = await db('group_announcement_webhooks').where({ id: webhookId }).first()
+  if (!row) {
+    res.status(404).json({ error: 'not_found', message: 'Announcement channel not found' })
+    return
+  }
+
+  if (!(await assertOwnerAndPremium(userId, row.group_id, res))) return
+
+  await db('group_announcement_webhooks').where({ id: webhookId }).del()
+  res.json({ ok: true })
+})
+
 export { userRouter as discordUserRoutes }

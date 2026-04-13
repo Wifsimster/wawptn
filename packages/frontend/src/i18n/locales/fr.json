@@ -206,6 +206,8 @@
     "backToGroup": "Retour au groupe",
     "submitted": "Vote soumis !",
     "waiting": "En attente des autres... {{done}} sur {{total}} ont voté",
+    "participantVoted": "A déjà voté",
+    "participantWaiting": "N'a pas encore voté",
     "closeVote": "Clôturer le vote et révéler le gagnant",
     "voteError": "Erreur lors du vote",
     "closeError": "Erreur lors de la clôture du vote",

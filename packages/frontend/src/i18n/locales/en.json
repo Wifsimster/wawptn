@@ -197,6 +197,8 @@
     "backToGroup": "Back to group",
     "submitted": "Vote submitted!",
     "waiting": "Waiting for others... {{done}} out of {{total}} voted",
+    "participantVoted": "Has voted",
+    "participantWaiting": "Hasn't voted yet",
     "closeVote": "Close vote and reveal winner",
     "voteError": "Error while voting",
     "closeError": "Error while closing vote",

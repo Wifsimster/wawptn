@@ -72,6 +72,12 @@ export function VotePage() {
   // Timestamp of the user's most recent click on the Steam launch link.
   // Used to schedule a soft "still here? game not launching?" prompt.
   const [steamLaunchedAt, setSteamLaunchedAt] = useState<number | null>(null)
+  // Set of session participant IDs and the subset that has already cast at
+  // least one vote. Used to render per-participant progress on the waiting
+  // screen so members can see *who* the session is waiting on, not just a
+  // bare count.
+  const [participantIds, setParticipantIds] = useState<string[]>([])
+  const [votedUserIds, setVotedUserIds] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     if (!id) return
@@ -89,6 +95,8 @@ export function VotePage() {
         setVoterCount(data.voterCount)
         setTotalMembers(data.totalMembers)
         setIsParticipant(data.isParticipant !== false)
+        setParticipantIds(data.participantIds ?? [])
+        setVotedUserIds(new Set(data.votedUserIds ?? []))
 
         if (data.myVotes.length > 0) {
           setHasVoted(true)
@@ -110,6 +118,17 @@ export function VotePage() {
     socket.on('vote:cast', (data) => {
       setVoterCount(data.voterCount)
       if (data.totalParticipants) setTotalMembers(data.totalParticipants)
+      // Update the per-participant set so the waiting screen can show who
+      // the session is still waiting on. Idempotent — re-receiving the
+      // same userId is a no-op.
+      if (typeof data.userId === 'string') {
+        setVotedUserIds((prev) => {
+          if (prev.has(data.userId)) return prev
+          const next = new Set(prev)
+          next.add(data.userId)
+          return next
+        })
+      }
     })
 
     socket.on('vote:closed', (data) => {
@@ -181,6 +200,8 @@ export function VotePage() {
       setVoterCount(0)
       setTotalMembers(0)
       setIsParticipant(true)
+      setParticipantIds([])
+      setVotedUserIds(new Set())
     } catch (err) {
       toast.error(t('vote.rematchError'))
       console.error('Failed to start rematch:', err)
@@ -403,13 +424,42 @@ export function VotePage() {
           {t('vote.waiting', { done: voterCount, total: totalMembers })}
         </p>
 
-        <div className="relative w-48 mb-8">
+        <div className="relative w-48 mb-3">
           {/* Burst a fresh set of particles each time voterCount increments —
               the changing key remounts the component so the lazy initializer
               regenerates random positions and the animation replays. */}
           {voterCount > 0 && <CelebrationParticles key={voterCount} count={10} />}
           <Progress value={voterCount} max={totalMembers} />
         </div>
+
+        {/* Per-participant progress dots. Each dot represents one participant
+            in the session and lights up once that participant has cast at
+            least one vote. Lets members see *who* the session is waiting on
+            instead of just the bare X/Y count. Hidden when the session has
+            no participant data (legacy sessions before the junction table). */}
+        {participantIds.length > 0 && (
+          <div
+            role="list"
+            aria-label={t('vote.waiting', { done: voterCount, total: totalMembers })}
+            className="mb-8 flex flex-wrap items-center justify-center gap-1.5 max-w-xs"
+          >
+            {participantIds.map((pid) => {
+              const voted = votedUserIds.has(pid)
+              return (
+                <span
+                  key={pid}
+                  role="listitem"
+                  aria-label={voted ? t('vote.participantVoted') : t('vote.participantWaiting')}
+                  className={`h-2.5 w-2.5 rounded-full transition-colors duration-300 ${
+                    voted
+                      ? 'bg-primary shadow-[0_0_8px_rgba(120,200,255,0.45)]'
+                      : 'bg-muted-foreground/30'
+                  }`}
+                />
+              )
+            })}
+          </div>
+        )}
 
         {canClose && (
           <Button onClick={handleClose} disabled={closing}>

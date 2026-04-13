@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Check, ExternalLink, Loader2, RefreshCw, Vote, Search, Send, Info, Monitor, Apple, Gamepad2, Star, CircleOff } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -69,6 +69,9 @@ export function VotePage() {
   const [search, setSearch] = useState('')
   const [detailGame, setDetailGame] = useState<Game | null>(null)
   const [noSession, setNoSession] = useState(false)
+  // Timestamp of the user's most recent click on the Steam launch link.
+  // Used to schedule a soft "still here? game not launching?" prompt.
+  const [steamLaunchedAt, setSteamLaunchedAt] = useState<number | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -192,6 +195,31 @@ export function VotePage() {
     return games.filter(g => g.gameName.toLowerCase().includes(q))
   }, [games, search])
 
+  // Keep a stable ref to the latest handleRematch closure so the launch-timeout
+  // effect below doesn't have to re-create its setTimeout on every render.
+  const handleRematchRef = useRef(handleRematch)
+  handleRematchRef.current = handleRematch
+
+  // Soft "still here? game not launching?" prompt. Five minutes after the user
+  // clicks the Steam launch link, if they're still on the result screen, we
+  // pop a non-blocking toast offering to rematch. The Steam protocol handler
+  // can fail silently (uninstalled app, missing DLC, blocked URL) and there
+  // was previously no path back to the vote without restarting the flow.
+  useEffect(() => {
+    if (!steamLaunchedAt) return
+    const timer = setTimeout(() => {
+      toast(t('vote.launchTimeout'), {
+        description: t('vote.launchTimeoutDescription'),
+        duration: 15000,
+        action: {
+          label: t('vote.tryAnother'),
+          onClick: () => { void handleRematchRef.current() },
+        },
+      })
+    }, 5 * 60 * 1000)
+    return () => clearTimeout(timer)
+  }, [steamLaunchedAt, t])
+
   const canClose = session && (session.createdBy === user?.id)
   const prefersReducedMotion = useMemo(() =>
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches, []
@@ -297,7 +325,11 @@ export function VotePage() {
             <motion.div variants={resultFade}>
               {Number.isInteger(result.steamAppId) && result.steamAppId > 0 && (
                 <Button variant="steam" size="lg" asChild>
-                  <a href={`steam://run/${result.steamAppId}`} className="gap-2">
+                  <a
+                    href={`steam://run/${result.steamAppId}`}
+                    className="gap-2"
+                    onClick={() => setSteamLaunchedAt(Date.now())}
+                  >
                     <ExternalLink className="w-5 h-5" />
                     {t('vote.launchSteam')}
                   </a>

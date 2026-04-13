@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { DialogTestPage } from '@/pages/DialogTestPage'
 import { useNotificationListener } from '@/hooks/useNotificationListener'
 import { useChallengeListener } from '@/hooks/useChallengeListener'
+import { usePwaInstallPrompt } from '@/hooks/usePwaInstallPrompt'
 import { useNotificationStore } from '@/stores/notification.store'
 
 function App() {
@@ -40,6 +41,10 @@ function App() {
 
   // Global challenge unlock listener
   useChallengeListener()
+
+  // PWA install prompt — captures beforeinstallprompt and surfaces a
+  // sonner toast with a native install action.
+  usePwaInstallPrompt()
 
   // Dev-only dialog test page (no auth required)
   if (import.meta.env.DEV && window.location.pathname === '/test-dialogs') {

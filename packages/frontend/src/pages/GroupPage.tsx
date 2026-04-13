@@ -282,13 +282,13 @@ export function GroupPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <AppHeader maxWidth="wide">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')} className="shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-base sm:text-lg font-heading font-bold truncate max-w-[50vw] sm:max-w-none">{currentGroup.name}</h1>
+          <h1 className="text-base sm:text-lg font-heading font-bold truncate min-w-0 flex-1">{currentGroup.name}</h1>
           {onlineUserIds.length > 0 && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal shrink-0">
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal shrink-0 hidden sm:inline-flex">
               <span className="w-1.5 h-1.5 rounded-full bg-online animate-pulse" />
               {onlineUserIds.length} en ligne
             </Badge>
@@ -296,7 +296,7 @@ export function GroupPage() {
         </div>
       </AppHeader>
 
-      <main id="main-content" className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
+      <main id="main-content" className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 min-w-0">
         {/* Mobile: mini-bar that opens sidebar sheet */}
         <button
           type="button"
@@ -304,7 +304,7 @@ export function GroupPage() {
           onClick={() => setMobileSidebarOpen(true)}
           aria-label={t('group.openSidebar')}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="flex -space-x-2 shrink-0">
               {currentGroup.members.slice(0, 5).map((member) => (
                 <Avatar key={member.id} className="w-7 h-7 ring-2 ring-background">
@@ -337,9 +337,9 @@ export function GroupPage() {
           </div>
         </button>
 
-        <div className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-6">
+        <div className="lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-6">
           {/* Sidebar — hidden on mobile, shown on lg+ */}
-          <div className="hidden lg:block">
+          <div className="hidden lg:block min-w-0">
             <GroupSidebar
               members={currentGroup.members}
               groupId={id!}
@@ -367,7 +367,7 @@ export function GroupPage() {
           </div>
 
           {/* Main content: games grid */}
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-3 sm:space-y-4 min-w-0">
             {/* Action buttons — full-width stacked on mobile, grid on sm+ */}
             <div className="hidden sm:grid sm:grid-cols-2 gap-3">
               <Button

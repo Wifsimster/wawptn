@@ -116,6 +116,11 @@
   * {
     @apply border-border outline-ring;
   }
+  html, body {
+    /* Prevent horizontal overflow from edge-case wide children
+       while preserving sticky positioning (clip doesn't establish a scroll container) */
+    overflow-x: clip;
+  }
   body {
     @apply text-foreground antialiased;
     font-family: var(--font-sans);
@@ -590,6 +595,15 @@
   display: none;
 }
 .touch-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Hide scrollbar while preserving scroll — used on horizontal filter/toggle rows */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }

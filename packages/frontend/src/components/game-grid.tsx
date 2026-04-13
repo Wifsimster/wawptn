@@ -171,9 +171,9 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
   })
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="font-semibold">
+    <div className="space-y-3 min-w-0">
+      <div className="flex items-center justify-between min-w-0">
+        <h2 className="font-semibold truncate">
           {isFiltering
             ? t('group.commonGamesFiltered', { filtered: filteredGames.length, total: games.length })
             : t('group.commonGames', { count: games.length })}
@@ -181,72 +181,72 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
       </div>
 
       {!loading && games.length > 0 && (
-        <div className="space-y-2">
-          {/* Search + mode toggles */}
-          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-            <div className="relative flex-1" role="search">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t('group.searchGames')}
-                aria-label={t('group.searchGames')}
-                className="pl-9 pr-9"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label={t('group.clearSearch')}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            <div className="flex gap-1.5 shrink-0 overflow-x-auto scrollbar-none">
-              <Button
-                variant={filters.multiplayerOnly ? 'default' : 'secondary'}
-                size="sm"
-                onClick={() => onToggleMultiplayer(!filters.multiplayerOnly)}
-                className="gap-1.5"
+        <div className="space-y-2 min-w-0">
+          {/* Search */}
+          <div className="relative w-full" role="search">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('group.searchGames')}
+              aria-label={t('group.searchGames')}
+              className="pl-9 pr-9 w-full"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label={t('group.clearSearch')}
               >
-                <Users className="w-3.5 h-3.5" />
-                {t('group.multiplayerOnly')}
-              </Button>
-              <Button
-                variant={filters.coopOnly ? 'default' : 'secondary'}
-                size="sm"
-                onClick={() => onToggleCoop(!filters.coopOnly)}
-                className="gap-1.5"
-              >
-                <Handshake className="w-3.5 h-3.5" />
-                {t('group.coopOnly')}
-              </Button>
-              <Button
-                variant={filters.gamesOnly ? 'default' : 'secondary'}
-                size="sm"
-                onClick={() => onToggleGamesOnly(!filters.gamesOnly)}
-                className="gap-1.5"
-              >
-                <Monitor className="w-3.5 h-3.5" />
-                {t('group.gamesOnly')}
-              </Button>
-              <Button
-                variant={filters.controllerOnly ? 'default' : 'secondary'}
-                size="sm"
-                onClick={() => onToggleControllerOnly(!filters.controllerOnly)}
-                className="gap-1.5"
-              >
-                <Gamepad2 className="w-3.5 h-3.5" />
-                {t('group.controllerSupport')}
-              </Button>
-            </div>
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Mode toggles — wrap on mobile, horizontal on sm+ */}
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              variant={filters.multiplayerOnly ? 'default' : 'secondary'}
+              size="sm"
+              onClick={() => onToggleMultiplayer(!filters.multiplayerOnly)}
+              className="gap-1.5"
+            >
+              <Users className="w-3.5 h-3.5" />
+              {t('group.multiplayerOnly')}
+            </Button>
+            <Button
+              variant={filters.coopOnly ? 'default' : 'secondary'}
+              size="sm"
+              onClick={() => onToggleCoop(!filters.coopOnly)}
+              className="gap-1.5"
+            >
+              <Handshake className="w-3.5 h-3.5" />
+              {t('group.coopOnly')}
+            </Button>
+            <Button
+              variant={filters.gamesOnly ? 'default' : 'secondary'}
+              size="sm"
+              onClick={() => onToggleGamesOnly(!filters.gamesOnly)}
+              className="gap-1.5"
+            >
+              <Monitor className="w-3.5 h-3.5" />
+              {t('group.gamesOnly')}
+            </Button>
+            <Button
+              variant={filters.controllerOnly ? 'default' : 'secondary'}
+              size="sm"
+              onClick={() => onToggleControllerOnly(!filters.controllerOnly)}
+              className="gap-1.5"
+            >
+              <Gamepad2 className="w-3.5 h-3.5" />
+              {t('group.controllerSupport')}
+            </Button>
           </div>
 
           {/* Metacritic filter */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
               <Star className="w-3 h-3" />
               {t('group.metacritic')}
             </span>
@@ -255,7 +255,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                 key={threshold ?? 'all'}
                 variant={filters.minMetacritic === threshold ? 'default' : 'outline'}
                 size="sm"
-                className="h-8 px-3 text-xs"
+                className="h-8 px-2.5 text-xs"
                 onClick={() => onSetMinMetacritic(threshold)}
               >
                 {threshold === null ? t('group.allScores') : `${threshold}+`}
@@ -264,8 +264,8 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
           </div>
 
           {/* Sort */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
               <TrendingUp className="w-3 h-3" />
               {t('group.sortBy')}
             </span>
@@ -274,7 +274,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                 key={s}
                 variant={filters.sortBy === s ? 'default' : 'outline'}
                 size="sm"
-                className="h-8 px-3 text-xs"
+                className="h-8 px-2.5 text-xs"
                 onClick={() => onSetSortBy(s)}
               >
                 {t(`group.sort_${s}`)}

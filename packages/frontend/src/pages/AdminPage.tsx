@@ -4,6 +4,7 @@ import {
   ArrowLeft, Bot, Users, BarChart3, Save, RefreshCw, ShieldCheck,
   ShieldOff, Theater, Plus, Pencil, Trash2, Lock, Search, X,
   Activity, Zap, Clock, Globe, Terminal, Megaphone, Send,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -44,9 +45,12 @@ interface BotSettings {
 
 interface AdminStats {
   users: number
+  admins: number
   groups: number
   votingSessions: number
 }
+
+const USERS_PAGE_SIZE = 25
 
 interface AdminUser {
   id: string
@@ -208,7 +212,14 @@ export function AdminPage() {
   const [personas, setPersonas] = useState<AdminPersona[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+
+  // Users pagination + search
   const [userSearch, setUserSearch] = useState('')
+  const [debouncedUserSearch, setDebouncedUserSearch] = useState('')
+  const [usersOffset, setUsersOffset] = useState(0)
+  const [usersTotal, setUsersTotal] = useState(0)
+  const [usersLoading, setUsersLoading] = useState(false)
+  const usersRequestId = useRef(0)
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -221,20 +232,32 @@ export function AdminPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingPersonaId, setDeletingPersonaId] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (user && !user.isAdmin) {
-      navigate('/')
-      return
+  const loadUsers = useCallback(async (offset: number, q: string) => {
+    const requestId = ++usersRequestId.current
+    setUsersLoading(true)
+    try {
+      const res = await api.getAdminUsers({ limit: USERS_PAGE_SIZE, offset, q: q || undefined })
+      // Drop stale responses if a newer request has fired
+      if (requestId !== usersRequestId.current) return
+      setUsers(res.data)
+      setUsersTotal(res.total)
+      setUsersOffset(res.offset)
+    } catch {
+      if (requestId === usersRequestId.current) {
+        toast.error('Erreur lors du chargement des utilisateurs')
+      }
+    } finally {
+      if (requestId === usersRequestId.current) {
+        setUsersLoading(false)
+      }
     }
-    loadData()
-  }, [user, navigate])
+  }, [])
 
   const loadData = useCallback(async () => {
     try {
-      const [settingsData, statsData, usersData, personasData] = await Promise.all([
+      const [settingsData, statsData, personasData] = await Promise.all([
         api.getAdminBotSettings(),
         api.getAdminStats(),
-        api.getAdminUsers(),
         api.getAdminPersonas(),
       ])
       const s = settingsData as unknown as BotSettings
@@ -242,7 +265,6 @@ export function AdminPage() {
       if (s.persona_override === undefined) s.persona_override = null
       setSettings(s)
       setStats(statsData)
-      setUsers(usersData)
       setPersonas(personasData)
     } catch {
       toast.error('Erreur lors du chargement des données admin')
@@ -250,6 +272,38 @@ export function AdminPage() {
       setLoading(false)
     }
   }, [])
+
+  const handleRefresh = useCallback(() => {
+    void loadData()
+    void loadUsers(usersOffset, debouncedUserSearch)
+  }, [loadData, loadUsers, usersOffset, debouncedUserSearch])
+
+  // Debounce user search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedUserSearch(userSearch.trim()), 250)
+    return () => clearTimeout(timer)
+  }, [userSearch])
+
+  // Re-fetch first page whenever the debounced search changes (skip initial mount —
+  // the user-load effect below already fetches page 0 with an empty query).
+  const isFirstSearch = useRef(true)
+  useEffect(() => {
+    if (isFirstSearch.current) {
+      isFirstSearch.current = false
+      return
+    }
+    void loadUsers(0, debouncedUserSearch)
+  }, [debouncedUserSearch, loadUsers])
+
+  useEffect(() => {
+    if (user && !user.isAdmin) {
+      navigate('/')
+      return
+    }
+    void loadData()
+    void loadUsers(0, '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, navigate])
 
   async function handleSave() {
     if (!settings) return
@@ -269,11 +323,24 @@ export function AdminPage() {
     try {
       await api.setAdminUserRole(targetUser.id, newIsAdmin)
       setUsers(users.map(u => u.id === targetUser.id ? { ...u, isAdmin: newIsAdmin } : u))
+      // Keep the overview admin count in sync without refetching the full page
+      setStats(prev => prev ? { ...prev, admins: prev.admins + (newIsAdmin ? 1 : -1) } : prev)
       toast.success(newIsAdmin ? `${targetUser.displayName} promu admin` : `${targetUser.displayName} n'est plus admin`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur lors du changement de rôle')
     }
   }
+
+  const handleUsersPrev = useCallback(() => {
+    const next = Math.max(0, usersOffset - USERS_PAGE_SIZE)
+    void loadUsers(next, debouncedUserSearch)
+  }, [usersOffset, debouncedUserSearch, loadUsers])
+
+  const handleUsersNext = useCallback(() => {
+    const next = usersOffset + USERS_PAGE_SIZE
+    if (next >= usersTotal) return
+    void loadUsers(next, debouncedUserSearch)
+  }, [usersOffset, usersTotal, debouncedUserSearch, loadUsers])
 
   async function handleTogglePersona(personaId: string) {
     try {
@@ -379,13 +446,6 @@ export function AdminPage() {
     }
   }
 
-  const filteredUsers = userSearch.trim()
-    ? users.filter(u =>
-      u.displayName.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.steamId.includes(userSearch)
-    )
-    : users
-
   const activePersonas = personas.filter(p => p.isActive).length
 
   if (!user?.isAdmin) return null
@@ -430,7 +490,7 @@ export function AdminPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={loadData}
+            onClick={handleRefresh}
             disabled={loading}
             className="gap-2 shrink-0"
           >
@@ -476,9 +536,9 @@ export function AdminPage() {
                       {activePersonas}/{personas.length}
                     </span>
                   )}
-                  {tab.id === 'users' && users.length > 0 && (
+                  {tab.id === 'users' && stats && stats.users > 0 && (
                     <span className="relative z-10 hidden sm:inline text-[10px] font-mono text-muted-foreground">
-                      {users.length}
+                      {stats.users}
                     </span>
                   )}
                 </button>
@@ -497,7 +557,13 @@ export function AdminPage() {
               animate="center"
               exit="exit"
             >
-              <OverviewTab stats={stats} loading={loading} personas={personas} users={users} />
+              <OverviewTab
+                stats={stats}
+                loading={loading}
+                usersLoading={usersLoading}
+                personas={personas}
+                users={users}
+              />
             </motion.div>
           )}
 
@@ -563,12 +629,16 @@ export function AdminPage() {
               exit="exit"
             >
               <UsersTab
-                users={filteredUsers}
-                totalUsers={users.length}
-                loading={loading}
+                users={users}
+                totalUsers={usersTotal}
+                offset={usersOffset}
+                pageSize={USERS_PAGE_SIZE}
+                loading={usersLoading}
                 currentUserId={user?.id}
                 searchQuery={userSearch}
                 onSearchChange={setUserSearch}
+                onPrev={handleUsersPrev}
+                onNext={handleUsersNext}
                 onToggleAdmin={handleToggleAdmin}
               />
             </motion.div>
@@ -817,15 +887,17 @@ function NotificationsTab() {
 function OverviewTab({
   stats,
   loading,
+  usersLoading,
   personas,
   users,
 }: {
   stats: AdminStats | null
   loading: boolean
+  usersLoading: boolean
   personas: AdminPersona[]
   users: AdminUser[]
 }) {
-  const adminCount = users.filter(u => u.isAdmin).length
+  const adminCount = stats?.admins ?? 0
   const activePersonas = personas.filter(p => p.isActive).length
 
   const statCards = [
@@ -1022,16 +1094,13 @@ function OverviewTab({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {usersLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3].map(i => <Skeleton key={i} className="h-10" />)}
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  {[...users]
-                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                    .slice(0, 5)
-                    .map((u) => (
+                  {users.slice(0, 5).map((u) => (
                       <div
                         key={u.id}
                         className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/[0.02]"
@@ -1410,20 +1479,33 @@ function PersonasTab({
 function UsersTab({
   users,
   totalUsers,
+  offset,
+  pageSize,
   loading,
   currentUserId,
   searchQuery,
   onSearchChange,
+  onPrev,
+  onNext,
   onToggleAdmin,
 }: {
   users: AdminUser[]
   totalUsers: number
+  offset: number
+  pageSize: number
   loading: boolean
   currentUserId: string | undefined
   searchQuery: string
   onSearchChange: (q: string) => void
+  onPrev: () => void
+  onNext: () => void
   onToggleAdmin: (user: AdminUser) => void
 }) {
+  const rangeStart = totalUsers === 0 ? 0 : offset + 1
+  const rangeEnd = Math.min(offset + users.length, totalUsers)
+  const canPrev = offset > 0
+  const canNext = offset + pageSize < totalUsers
+
   return (
     <div className="space-y-5">
       {/* Search bar */}
@@ -1446,10 +1528,11 @@ function UsersTab({
           )}
         </div>
         <span className="text-xs font-mono text-muted-foreground/50">
-          {users.length === totalUsers
-            ? `${totalUsers} utilisateur${totalUsers > 1 ? 's' : ''}`
-            : `${users.length}/${totalUsers}`
-          }
+          {totalUsers === 0
+            ? '0 utilisateur'
+            : rangeStart === rangeEnd
+              ? `${rangeStart} sur ${totalUsers}`
+              : `${rangeStart}–${rangeEnd} sur ${totalUsers}`}
         </span>
       </div>
 
@@ -1544,7 +1627,43 @@ function UsersTab({
               Aucun utilisateur trouvé pour "{searchQuery}"
             </div>
           )}
+          {users.length === 0 && !searchQuery && (
+            <div className="text-center py-12 text-sm text-muted-foreground">
+              Aucun utilisateur
+            </div>
+          )}
         </motion.div>
+      )}
+
+      {/* Pagination */}
+      {!loading && totalUsers > pageSize && (
+        <div className="flex items-center justify-between pt-2">
+          <span className="text-[11px] font-mono text-muted-foreground/50">
+            Page {Math.floor(offset / pageSize) + 1} / {Math.max(1, Math.ceil(totalUsers / pageSize))}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onPrev}
+              disabled={!canPrev}
+              className="gap-1.5"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Précédent</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onNext}
+              disabled={!canNext}
+              className="gap-1.5"
+            >
+              <span className="hidden sm:inline">Suivant</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   )

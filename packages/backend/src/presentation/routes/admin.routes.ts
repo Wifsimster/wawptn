@@ -65,22 +65,42 @@ router.patch('/bot-settings', async (req: Request, res: Response) => {
 
 // ─── Users management ─────────────────────────────────────────────────────────
 
+interface UserRow {
+  id: string
+  steam_id: string
+  display_name: string
+  avatar_url: string
+  is_admin: boolean
+  created_at: Date
+}
+
 router.get('/users', async (req: Request, res: Response) => {
   try {
-    const limit = Math.min(Math.max(Number(req.query['limit']) || 50, 1), 100)
+    const limit = Math.min(Math.max(Number(req.query['limit']) || 25, 1), 100)
     const offset = Math.max(Number(req.query['offset']) || 0, 0)
+    const rawQ = typeof req.query['q'] === 'string' ? req.query['q'].trim() : ''
+    const q = rawQ.slice(0, 100)
 
-    const totalResult = await db('users').count('id as count').first()
+    const applyFilter = <T extends import('knex').Knex.QueryBuilder>(qb: T): T => {
+      if (q) {
+        qb.where((w) => {
+          w.whereILike('display_name', `%${q}%`).orWhereILike('steam_id', `%${q}%`)
+        })
+      }
+      return qb
+    }
+
+    const totalResult = await applyFilter(db('users')).count('id as count').first()
     const total = Number(totalResult?.count ?? 0)
 
-    const users = await db('users')
+    const users = await applyFilter(db('users'))
       .select('id', 'steam_id', 'display_name', 'avatar_url', 'is_admin', 'created_at')
-      .orderBy('created_at', 'asc')
+      .orderBy('created_at', 'desc')
       .limit(limit)
-      .offset(offset)
+      .offset(offset) as UserRow[]
 
     res.json({
-      data: users.map(u => ({
+      data: users.map((u: UserRow) => ({
         id: u.id,
         steamId: u.steam_id,
         displayName: u.display_name,
@@ -302,11 +322,13 @@ router.patch('/personas/:id/toggle', async (req: Request, res: Response) => {
 router.get('/stats', async (_req: Request, res: Response) => {
   try {
     const userCount = await db('users').count('id as count').first()
+    const adminCount = await db('users').where({ is_admin: true }).count('id as count').first()
     const groupCount = await db('groups').count('id as count').first()
     const sessionCount = await db('voting_sessions').count('id as count').first()
 
     res.json({
       users: Number(userCount?.count ?? 0),
+      admins: Number(adminCount?.count ?? 0),
       groups: Number(groupCount?.count ?? 0),
       votingSessions: Number(sessionCount?.count ?? 0),
     })

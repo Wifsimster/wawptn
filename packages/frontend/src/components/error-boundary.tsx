@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from 'react'
+import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { withTranslation, type WithTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 
@@ -15,6 +15,12 @@ class ErrorBoundaryInner extends Component<Props, State> {
 
   static getDerivedStateFromError(): State {
     return { hasError: true }
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    // Surface the underlying error so it shows up in the browser console
+    // instead of being silently swallowed by the boundary.
+    console.error('[ErrorBoundary]', error, info.componentStack)
   }
 
   render() {

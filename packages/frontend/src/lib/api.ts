@@ -196,8 +196,20 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(settings),
     }),
-  getAdminStats: () => request<{ users: number; groups: number; votingSessions: number }>('/admin/stats'),
-  getAdminUsers: () => request<{ id: string; steamId: string; displayName: string; avatarUrl: string; isAdmin: boolean; createdAt: string }[]>('/admin/users'),
+  getAdminStats: () => request<{ users: number; admins: number; groups: number; votingSessions: number }>('/admin/stats'),
+  getAdminUsers: (params?: { limit?: number; offset?: number; q?: string }) => {
+    const search = new URLSearchParams()
+    if (params?.limit !== undefined) search.set('limit', String(params.limit))
+    if (params?.offset !== undefined) search.set('offset', String(params.offset))
+    if (params?.q) search.set('q', params.q)
+    const qs = search.toString()
+    return request<{
+      data: { id: string; steamId: string; displayName: string; avatarUrl: string; isAdmin: boolean; createdAt: string }[]
+      total: number
+      limit: number
+      offset: number
+    }>(`/admin/users${qs ? `?${qs}` : ''}`)
+  },
   setAdminUserRole: (userId: string, isAdmin: boolean) =>
     request<{ ok: boolean }>(`/admin/users/${userId}/admin`, {
       method: 'PATCH',

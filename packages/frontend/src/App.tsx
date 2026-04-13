@@ -17,6 +17,7 @@ import { DialogTestPage } from '@/pages/DialogTestPage'
 import { useNotificationListener } from '@/hooks/useNotificationListener'
 import { useChallengeListener } from '@/hooks/useChallengeListener'
 import { usePwaInstallPrompt } from '@/hooks/usePwaInstallPrompt'
+import { useSocketConnectionStatus } from '@/hooks/useSocketConnectionStatus'
 import { useNotificationStore } from '@/stores/notification.store'
 
 function App() {
@@ -45,6 +46,12 @@ function App() {
   // PWA install prompt — captures beforeinstallprompt and surfaces a
   // sonner toast with a native install action.
   usePwaInstallPrompt()
+
+  // Socket connection status tracking — binds the socket store to the
+  // socket.io client's lifecycle events and pops a sonner toast on
+  // disconnect / reconnect so users aren't left guessing why events
+  // have stopped arriving.
+  useSocketConnectionStatus()
 
   // Dev-only dialog test page (no auth required)
   if (import.meta.env.DEV && window.location.pathname === '/test-dialogs') {

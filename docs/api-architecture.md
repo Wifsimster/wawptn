@@ -79,6 +79,7 @@ Routes activées uniquement si `DISCORD_BOT_API_SECRET` est configuré. Authenti
 | POST | `/api/discord/link/confirm` | Utilisateur | Confirme la liaison avec un code |
 | POST | `/api/discord/vote` | Bot | Enregistre un vote depuis Discord |
 | GET | `/api/discord/games` | Bot | Liste les jeux communs d'un canal lié |
+| GET | `/api/discord/stats` | Bot | Classement et statistiques d'un groupe (organisateurs, votants, jeux gagnants, séries) |
 | POST | `/api/discord/webhook` | Utilisateur | Configure le webhook Discord d'un groupe |
 
 ### Invitation (public)

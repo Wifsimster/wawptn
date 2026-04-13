@@ -725,6 +725,112 @@ router.get('/linked-channels', async (_req: Request, res: Response) => {
   res.json(channels)
 })
 
+// Group leaderboard: aggregates voting activity into three rankings so the
+// Discord bot can surface "who's the most active in this group". Used by the
+// /wawptn-stats slash command.
+router.get('/stats', async (req: Request, res: Response) => {
+  const userId = req.userId
+
+  if (!userId) {
+    res.status(403).json({ error: 'forbidden', message: 'Discord account not linked. Use /wawptn-link first.' })
+    return
+  }
+
+  const groupId = req.query['groupId'] as string
+  if (!groupId) {
+    res.status(400).json({ error: 'validation', message: 'groupId query parameter required' })
+    return
+  }
+
+  // Verify the requesting user is a member of the group — leaderboards are
+  // group-private and should never leak across groups.
+  const membership = await db('group_members')
+    .where({ group_id: groupId, user_id: userId })
+    .first()
+  if (!membership) {
+    res.status(403).json({ error: 'forbidden', message: 'Vous n\'êtes pas membre de ce groupe' })
+    return
+  }
+
+  const group = await db('groups').where({ id: groupId }).first()
+  if (!group) {
+    res.status(404).json({ error: 'not_found', message: 'Groupe introuvable' })
+    return
+  }
+
+  // ── Top vote launchers — who created the most voting sessions ──────────
+  // Limited to closed sessions so cancelled or stale draft sessions don't
+  // skew the count.
+  const launchers = await db('voting_sessions')
+    .join('users', 'voting_sessions.created_by', 'users.id')
+    .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed' })
+    .groupBy('users.id', 'users.display_name')
+    .select(
+      'users.id as userId',
+      'users.display_name as displayName',
+      db.raw('COUNT(voting_sessions.id)::int as count'),
+    )
+    .orderBy('count', 'desc')
+    .limit(5)
+
+  // ── Most active voters — distinct sessions each member has cast a vote in ──
+  const voters = await db('votes')
+    .join('voting_sessions', 'votes.session_id', 'voting_sessions.id')
+    .join('users', 'votes.user_id', 'users.id')
+    .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed' })
+    .groupBy('users.id', 'users.display_name')
+    .select(
+      'users.id as userId',
+      'users.display_name as displayName',
+      db.raw('COUNT(DISTINCT votes.session_id)::int as count'),
+    )
+    .orderBy('count', 'desc')
+    .limit(5)
+
+  // ── Top winning games — count of times each game won a session ─────────
+  const topGames = await db('voting_sessions')
+    .where({ group_id: groupId, status: 'closed' })
+    .whereNotNull('winning_game_app_id')
+    .groupBy('winning_game_app_id', 'winning_game_name')
+    .select(
+      'winning_game_app_id as steamAppId',
+      'winning_game_name as gameName',
+      db.raw('COUNT(*)::int as wins'),
+    )
+    .orderBy('wins', 'desc')
+    .limit(5)
+
+  // ── Streak leaders — best consecutive participation streak in this group ──
+  const streakLeaders = await db('streaks')
+    .join('users', 'streaks.user_id', 'users.id')
+    .where({ 'streaks.group_id': groupId })
+    .where('streaks.best_streak', '>', 0)
+    .orderBy('streaks.best_streak', 'desc')
+    .orderBy('streaks.current_streak', 'desc')
+    .limit(5)
+    .select(
+      'users.id as userId',
+      'users.display_name as displayName',
+      'streaks.current_streak as currentStreak',
+      'streaks.best_streak as bestStreak',
+    )
+
+  const totalSessionsRow = await db('voting_sessions')
+    .where({ group_id: groupId, status: 'closed' })
+    .count('id as count')
+    .first()
+
+  res.json({
+    groupId,
+    groupName: group.name,
+    totalSessions: Number(totalSessionsRow?.count ?? 0),
+    launchers,
+    voters,
+    topGames,
+    streakLeaders,
+  })
+})
+
 // ─── User-authenticated routes (called from web frontend) ─────────────────────
 
 const userRouter = Router()

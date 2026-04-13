@@ -1,7 +1,21 @@
 import { db } from '../infrastructure/database/connection.js'
 import { logger } from '../infrastructure/logger/logger.js'
+import type { IGroupRepository } from './repositories/group-repository.js'
 
 const streakLogger = logger.child({ module: 'streaks' })
+
+/**
+ * Optional dependencies for streak functions.
+ *
+ * This is a proof-of-concept for dependency injection via the repository
+ * layer. For now the implementations still access `db` directly; future
+ * passes will progressively route queries through `deps.groupRepository`
+ * (and siblings) so these functions can be unit-tested without a real
+ * database.
+ */
+export interface StreakDeps {
+  groupRepository?: IGroupRepository
+}
 
 /**
  * Update a user's voting streak for a group after a session closes.
@@ -20,6 +34,7 @@ export async function updateStreak(
   userId: string,
   groupId: string,
   sessionId: string,
+  _deps: StreakDeps = {},
 ): Promise<void> {
   // Find the session that closed immediately before this one in the same group
   const previousSession = await db('voting_sessions')

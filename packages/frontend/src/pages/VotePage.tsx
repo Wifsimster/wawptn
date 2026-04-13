@@ -412,8 +412,26 @@ export function VotePage() {
           />
         </div>
 
-        {/* Game grid */}
-        <div role="list" className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 overflow-y-auto pb-24">
+        {/* Scrollable grid area: holds the sticky selection badge so users
+            don't lose track of their pick count while scrolling on mobile. */}
+        <div className="flex-1 overflow-y-auto pb-24">
+          {/* Sticky selection counter — appears at the top of the scroll
+              container as soon as the user picks at least one game. The
+              floating bottom bar still shows the same count and the submit
+              CTA, but on mobile the bottom bar is easily covered by the
+              scrolling thumb, so this pill keeps the context visible at the
+              top of the viewport. */}
+          {selectedGames.size > 0 && (
+            <div
+              aria-hidden="true"
+              className="sticky top-0 z-10 -mx-1 mb-3 flex justify-center pointer-events-none"
+            >
+              <span className="rounded-full border border-primary/40 bg-background/85 px-3 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur">
+                {t('vote.gamesSelected', { count: selectedGames.size })}
+              </span>
+            </div>
+          )}
+          <div role="list" className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {filteredGames.map(game => {
             const isSelected = selectedGames.has(game.steamAppId)
             return (
@@ -477,6 +495,7 @@ export function VotePage() {
               </div>
             )
           })}
+          </div>
         </div>
 
         {/* Game detail dialog */}

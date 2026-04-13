@@ -3,6 +3,7 @@ import { logger } from '../infrastructure/logger/logger.js'
 import { evaluateChallenges } from './challenges/challenge-service.js'
 import { updateStreak } from './streaks.js'
 import { domainEvents } from './events/event-bus.js'
+import { recordSessionEvent } from './session-audit-trail.js'
 import type { VoteResult } from '@wawptn/types'
 
 /**
@@ -81,6 +82,25 @@ export async function closeSession(sessionId: string, groupId: string): Promise<
   const participantIds: string[] = await db('voting_session_participants')
     .where({ session_id: sessionId })
     .pluck('user_id')
+
+  // Pin a snapshot of who was eligible to vote at close time + the final
+  // tally to the session_audit_trail. This is the canonical record for
+  // dispute resolution: even if a member is later removed from the group
+  // or the session is purged, the closed-state evidence stays intact (the
+  // row CASCADEs on session delete by design — that's a deliberate scope
+  // choice; system-wide retention belongs in a separate ETL).
+  await recordSessionEvent({
+    sessionId,
+    event: 'session_closed',
+    metadata: {
+      groupId,
+      participantIds,
+      winnerAppId,
+      winnerName,
+      yesCount: result.yesCount,
+      totalVoters: result.totalVoters,
+    },
+  })
 
   // Emit domain event — side effects (Socket.io, Discord, in-app notifs) are
   // handled by subscribers registered in infrastructure/effects/session-effects.ts

@@ -30,15 +30,19 @@ setInterval(() => {
 }, EVICTION_INTERVAL_MS).unref()
 
 /** Check if a user has an active premium subscription (cached, 60s TTL).
- * Admins always receive premium access regardless of subscription state. */
+ * Admins always receive premium access regardless of subscription state.
+ * Users explicitly granted premium by an admin are also considered premium. */
 export async function isUserPremium(userId: string): Promise<boolean> {
   const now = Date.now()
   const cached = premiumCache.get(userId)
   if (cached && cached.expiresAt > now) return cached.value
 
-  // Admins always have premium access
-  const user = await db('users').where({ id: userId }).select('is_admin').first()
-  if (user?.is_admin) {
+  // Admins and admin-granted premium users always have premium access
+  const user = await db('users')
+    .where({ id: userId })
+    .select('is_admin', 'admin_granted_premium')
+    .first()
+  if (user?.is_admin || user?.admin_granted_premium) {
     premiumCache.set(userId, { value: true, expiresAt: now + PREMIUM_CACHE_TTL_MS })
     return true
   }

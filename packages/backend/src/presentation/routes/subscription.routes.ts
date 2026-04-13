@@ -8,18 +8,22 @@ import { logger } from '../../infrastructure/logger/logger.js'
 export const subscriptionRoutes = Router()
 
 // GET /api/subscription/me — current subscription state
-// Admins are reported as active premium so client-side PremiumGate unlocks features.
+// Admins and admin-granted premium users are reported as active premium so
+// the client-side PremiumGate unlocks features regardless of Stripe state.
 subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
   try {
     const [user, subscription] = await Promise.all([
-      db('users').where({ id: req.userId }).select('is_admin').first(),
+      db('users')
+        .where({ id: req.userId })
+        .select('is_admin', 'admin_granted_premium')
+        .first(),
       db('subscriptions')
         .where({ user_id: req.userId })
         .select('tier', 'status', 'current_period_end')
         .first(),
     ])
 
-    if (user?.is_admin) {
+    if (user?.is_admin || user?.admin_granted_premium) {
       res.json({
         tier: 'premium',
         status: 'active',

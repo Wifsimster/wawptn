@@ -8,7 +8,8 @@ import { encryptToken } from '../../infrastructure/crypto/token-cipher.js'
 import { authLogger, steamLogger, epicLogger, gogLogger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
 import { requireAuth } from '../middleware/auth.middleware.js'
-import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, SESSION_TOKEN_BYTES, CSRF_COOKIE_NAME } from '../../config/session.js'
+import { SESSION_COOKIE_NAME, CSRF_COOKIE_NAME } from '../../config/session.js'
+import { createUserSession, getSessionUserId, findOrCreateSteamUser } from '../../domain/auth-service.js'
 
 const EPIC_LINK_STATE_COOKIE = 'wawptn.epic_link_state'
 const GOG_LINK_STATE_COOKIE = 'wawptn.gog_link_state'
@@ -19,30 +20,6 @@ const router = Router()
 function isAllowedReturnPath(path: string): boolean {
   return /^\/join\/[a-f0-9]{64}$/.test(path)
     || /^\/discord\/link\?code=[A-Za-z0-9]+$/.test(path)
-}
-
-// Create a session for a user and return the token
-async function createSession(userId: string): Promise<{ token: string; expiresAt: Date }> {
-  const token = crypto.randomBytes(SESSION_TOKEN_BYTES).toString('hex')
-  const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_MS)
-
-  await db('sessions').insert({
-    user_id: userId,
-    token,
-    expires_at: expiresAt,
-  })
-
-  return { token, expiresAt }
-}
-
-// Look up session by token, return user ID if valid
-async function getSessionUserId(token: string): Promise<string | null> {
-  const session = await db('sessions')
-    .where({ token })
-    .where('expires_at', '>', new Date())
-    .first()
-
-  return session?.user_id ?? null
 }
 
 // Initiate Steam OpenID login
@@ -114,60 +91,24 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
       return
     }
 
-    // Find or create user via direct DB queries
-    let user = await db('users').where({ steam_id: steamId }).first()
-
-    if (user) {
-      // Update existing user profile
-      await db('users').where({ id: user.id }).update({
-        display_name: profile.personaname,
-        avatar_url: profile.avatarfull,
-        profile_url: profile.profileurl,
-        updated_at: db.fn.now(),
-      })
-    } else {
-      // Create new user
-      const [newUser] = await db('users').insert({
-        steam_id: steamId,
-        display_name: profile.personaname,
-        avatar_url: profile.avatarfull,
-        profile_url: profile.profileurl,
-        email: `${steamId}@steam.wawptn.app`,
-        email_verified: false,
-        library_visible: true,
-      }).returning('*')
-      user = newUser
-
-      // Create account link
-      await db('accounts').insert({
-        user_id: user.id,
-        provider_id: 'steam',
-        account_id: steamId,
-      })
-
-      authLogger.info({ steamId, displayName: profile.personaname }, 'new user created')
-    }
+    // Find or create the user via the auth domain service
+    const user = await findOrCreateSteamUser(steamId, {
+      displayName: profile.personaname,
+      avatarUrl: profile.avatarfull,
+      profileUrl: profile.profileurl,
+    })
 
     // Admin promotion: set is_admin based on ADMIN_STEAM_ID env var
-    if (env.ADMIN_STEAM_ID && steamId === env.ADMIN_STEAM_ID && !user.is_admin) {
-      await db('users').where({ id: user.id }).update({ is_admin: true })
-      authLogger.info({ steamId }, 'admin status granted on login')
-    }
-
-    // Ensure account link exists (for pre-migration users)
-    const existingAccount = await db('accounts')
-      .where({ user_id: user.id, provider_id: 'steam' })
-      .first()
-    if (!existingAccount) {
-      await db('accounts').insert({
-        user_id: user.id,
-        provider_id: 'steam',
-        account_id: steamId,
-      })
+    if (env.ADMIN_STEAM_ID && steamId === env.ADMIN_STEAM_ID) {
+      const existing = await db('users').where({ id: user.id }).first()
+      if (existing && !existing.is_admin) {
+        await db('users').where({ id: user.id }).update({ is_admin: true })
+        authLogger.info({ steamId }, 'admin status granted on login')
+      }
     }
 
     // Create session
-    const session = await createSession(user.id)
+    const session = await createUserSession(user.id)
 
     // Set signed session cookie
     res.cookie(SESSION_COOKIE_NAME, session.token, {

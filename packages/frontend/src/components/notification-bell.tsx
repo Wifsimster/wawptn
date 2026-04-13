@@ -1,9 +1,15 @@
 import { useState, useMemo } from 'react'
-import { Bell, CheckCheck } from 'lucide-react'
+import { Bell, BellRing, CheckCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { useNotificationStore } from '@/stores/notification.store'
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  type NotificationPermissionState,
+} from '@/lib/pwa'
 import type { Notification } from '@wawptn/types'
 
 export function NotificationBell() {
@@ -11,7 +17,24 @@ export function NotificationBell() {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [now, setNow] = useState(() => Date.now())
+  // Initialise the permission state lazily from the Notification API so
+  // we don't need an effect to seed it (ESLint enforces that pattern).
+  const [permission, setPermission] = useState<NotificationPermissionState>(
+    () => getNotificationPermission(),
+  )
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationStore()
+
+  const handleEnableNotifications = async () => {
+    const result = await requestNotificationPermission()
+    setPermission(result)
+    if (result === 'granted') {
+      toast.success(t('pwa.notificationsEnabled'))
+    } else if (result === 'denied') {
+      toast.error(t('pwa.notificationsDenied'))
+    } else if (result === 'unsupported') {
+      toast.error(t('pwa.notificationsUnsupported'))
+    }
+  }
 
   // Use unreadCount as animation key so the bell re-animates on each new notification
   const bellAnimationKey = useMemo(() => unreadCount, [unreadCount])
@@ -104,6 +127,20 @@ export function NotificationBell() {
                   </button>
                 )}
               </div>
+
+              {/* Enable native notifications row — appears only when the
+                  browser supports notifications AND the user hasn't
+                  answered the permission prompt yet. Disappears once
+                  they click "Enable" and grant or deny. */}
+              {permission === 'default' && (
+                <button
+                  onClick={handleEnableNotifications}
+                  className="flex items-center gap-2 px-3 py-2 border-b border-border text-xs text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors"
+                >
+                  <BellRing className="w-3.5 h-3.5 text-primary" />
+                  {t('pwa.enableNotifications')}
+                </button>
+              )}
 
               {/* Notification list */}
               <div className="overflow-y-auto flex-1">

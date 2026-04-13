@@ -392,6 +392,15 @@
   "persona": {
     "today": "Persona du jour"
   },
+  "pwa": {
+    "installPromptTitle": "Installer WAWPTN",
+    "installPromptDescription": "Accédez à l'app plus vite depuis votre écran d'accueil.",
+    "installAction": "Installer",
+    "enableNotifications": "Activer les notifications",
+    "notificationsEnabled": "Notifications activées",
+    "notificationsDenied": "Permission refusée (vérifiez vos paramètres navigateur)",
+    "notificationsUnsupported": "Non supporté sur ce navigateur"
+  },
   "notifications": {
     "title": "Notifications",
     "empty": "Aucune notification",

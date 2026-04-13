@@ -355,6 +355,15 @@
     "unlocked": "Unlocked ✓",
     "unlockedToast": "{{icon}} Challenge unlocked: {{title}}"
   },
+  "pwa": {
+    "installPromptTitle": "Install WAWPTN",
+    "installPromptDescription": "Get faster access from your home screen.",
+    "installAction": "Install",
+    "enableNotifications": "Enable notifications",
+    "notificationsEnabled": "Notifications enabled",
+    "notificationsDenied": "Permission denied (check your browser settings)",
+    "notificationsUnsupported": "Not supported in this browser"
+  },
   "notifications": {
     "title": "Notifications",
     "empty": "No notifications",

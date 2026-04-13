@@ -116,6 +116,67 @@ export function buildRandomGameEmbed(
   return embed
 }
 
+export interface StatsResponse {
+  groupName: string
+  totalSessions: number
+  launchers: Array<{ userId: string; displayName: string; count: number }>
+  voters: Array<{ userId: string; displayName: string; count: number }>
+  topGames: Array<{ steamAppId: number; gameName: string; wins: number }>
+  streakLeaders: Array<{ userId: string; displayName: string; currentStreak: number; bestStreak: number }>
+}
+
+const RANK_MEDALS = ['🥇', '🥈', '🥉', '🏅', '🏅']
+
+function formatRankedList<T>(rows: T[], render: (row: T, rank: number) => string): string {
+  if (rows.length === 0) return '_Pas encore de données_'
+  return rows.map((row, i) => `${RANK_MEDALS[i] ?? '•'} ${render(row, i + 1)}`).join('\n')
+}
+
+export function buildStatsEmbed(stats: StatsResponse): EmbedBuilder {
+  const embed = new EmbedBuilder()
+    .setTitle(`📊 Stats — ${stats.groupName}`)
+    .setColor(0x5865F2)
+    .setTimestamp()
+
+  if (stats.totalSessions === 0) {
+    embed.setDescription("Ce groupe n'a pas encore terminé de session de vote. Lancez-en une pour commencer le classement !")
+    return embed
+  }
+
+  embed.setDescription(`**${stats.totalSessions}** session${stats.totalSessions > 1 ? 's' : ''} de vote terminée${stats.totalSessions > 1 ? 's' : ''}.`)
+
+  embed.addFields(
+    {
+      name: '🚀 Top organisateurs',
+      value: formatRankedList(stats.launchers, (l) => `**${l.displayName}** — ${l.count} session${l.count > 1 ? 's' : ''}`),
+      inline: false,
+    },
+    {
+      name: '🗳️ Top votants',
+      value: formatRankedList(stats.voters, (v) => `**${v.displayName}** — ${v.count} vote${v.count > 1 ? 's' : ''}`),
+      inline: false,
+    },
+    {
+      name: '🏆 Jeux gagnants',
+      value: formatRankedList(stats.topGames, (g) => `**${g.gameName}** — ${g.wins} victoire${g.wins > 1 ? 's' : ''}`),
+      inline: false,
+    },
+  )
+
+  if (stats.streakLeaders.length > 0) {
+    embed.addFields({
+      name: '🔥 Séries de participation',
+      value: formatRankedList(stats.streakLeaders, (s) => {
+        const cur = s.currentStreak > 0 ? ` (en cours : ${s.currentStreak})` : ''
+        return `**${s.displayName}** — record ${s.bestStreak}${cur}`
+      }),
+      inline: false,
+    })
+  }
+
+  return embed
+}
+
 export function buildLinkEmbed(linkCode: string, frontendUrl: string): EmbedBuilder[] {
   const embed = new EmbedBuilder()
     .setTitle('🔗 Lier votre compte WAWPTN')

@@ -398,6 +398,12 @@
     "reconnected": "Reconnecté",
     "connectionError": "Erreur de connexion"
   },
+  "wishlist": {
+    "addLabel": "Ajouter à ma liste d'envies",
+    "removeLabel": "Retirer de ma liste d'envies",
+    "addTooltip": "Ajouter à ma liste",
+    "inList": "Dans ma liste"
+  },
   "pwa": {
     "installPromptTitle": "Installer WAWPTN",
     "installPromptDescription": "Accédez à l'app plus vite depuis votre écran d'accueil.",

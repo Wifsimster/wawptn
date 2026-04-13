@@ -197,6 +197,16 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(settings),
     }),
+  // Wishlist — Sarah #3
+  getWishlist: () => request<{ data: { steamAppId: number; createdAt: string }[] }>('/auth/me/wishlist'),
+  addToWishlist: (steamAppId: number) =>
+    request<{ ok: true }>('/auth/me/wishlist', {
+      method: 'POST',
+      body: JSON.stringify({ steamAppId }),
+    }),
+  removeFromWishlist: (steamAppId: number) =>
+    request<{ ok: true }>(`/auth/me/wishlist/${steamAppId}`, { method: 'DELETE' }),
+
   getAdminStats: () => request<{ users: number; admins: number; groups: number; votingSessions: number }>('/admin/stats'),
   getAdminHealth: () => request<{
     timestamp: string;

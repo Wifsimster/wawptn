@@ -65,6 +65,9 @@ Routes accessibles uniquement aux utilisateurs ayant `is_admin = true`.
 | PATCH | `/api/admin/personas/:id` | Modifie une persona existante |
 | DELETE | `/api/admin/personas/:id` | Supprime une persona (sauf celles par défaut) |
 | PATCH | `/api/admin/personas/:id/toggle` | Active ou désactive une persona |
+| GET | `/api/auth/me/wishlist` | Liste des jeux dans la wishlist de l'utilisateur courant |
+| POST | `/api/auth/me/wishlist` | Ajoute un jeu à la wishlist (idempotent) |
+| DELETE | `/api/auth/me/wishlist/:steamAppId` | Retire un jeu de la wishlist |
 | GET | `/api/admin/stats` | Statistiques globales (utilisateurs, groupes, sessions) |
 | GET | `/api/admin/health` | Santé des intégrations externes (Steam, Epic, GOG, base de données) |
 

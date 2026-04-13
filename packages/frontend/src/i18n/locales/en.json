@@ -361,6 +361,12 @@
     "reconnected": "Back online",
     "connectionError": "Connection error"
   },
+  "wishlist": {
+    "addLabel": "Add to wishlist",
+    "removeLabel": "Remove from wishlist",
+    "addTooltip": "Add to wishlist",
+    "inList": "In your wishlist"
+  },
   "pwa": {
     "installPromptTitle": "Install WAWPTN",
     "installPromptDescription": "Get faster access from your home screen.",

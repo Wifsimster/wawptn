@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { EmptyState } from '@/components/empty-state'
+import { useWishlistStore } from '@/stores/wishlist.store'
 
 interface Game {
   steamAppId: number
@@ -456,6 +457,19 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
 }
 
 function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<string, unknown>) => string }) {
+  // Subscribe only to our own steamAppId's wishlist state so siblings
+  // don't re-render when unrelated cards are starred. Zustand bails out
+  // when the selected boolean hasn't actually changed, which keeps the
+  // grid cheap even with hundreds of cards.
+  const isWishlisted = useWishlistStore((s) => s.ids.has(game.steamAppId))
+  const toggleWishlist = useWishlistStore((s) => s.toggle)
+
+  const handleWishlistClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    void toggleWishlist(game.steamAppId)
+  }
+
   return (
     <div role="listitem" className="relative group rounded-lg overflow-hidden ring-1 ring-white/[0.06] hover:ring-primary/20 transition-all duration-300" style={{ transition: 'opacity 150ms ease, box-shadow 0.3s, ring-color 0.3s' }}>
       <Tooltip>
@@ -509,6 +523,27 @@ function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<s
           </TooltipContent>
         </Tooltip>
       )}
+      {/* Wishlist star — positioned below the owner-count badge when that
+          badge is present, otherwise top-right. Click swallows the event
+          so taps don't also trigger the underlying tooltip trigger. */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={handleWishlistClick}
+            aria-label={isWishlisted ? t('wishlist.removeLabel') : t('wishlist.addLabel')}
+            aria-pressed={isWishlisted}
+            className={`absolute ${game.ownerCount < game.totalMembers ? 'top-8' : 'top-1'} right-1 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition-all hover:bg-black/80 ${
+              isWishlisted ? 'text-reward' : 'text-white/60 hover:text-white'
+            }`}
+          >
+            <Star className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-current' : ''}`} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="text-xs">
+          {isWishlisted ? t('wishlist.inList') : t('wishlist.addTooltip')}
+        </TooltipContent>
+      </Tooltip>
       <div className="absolute bottom-7 right-1 flex gap-0.5">
         {game.isFree && (
           <span className="text-xs font-bold bg-score-good text-white px-1.5 py-0.5 rounded">

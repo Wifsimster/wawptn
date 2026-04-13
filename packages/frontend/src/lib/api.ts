@@ -197,7 +197,15 @@ export const api = {
       body: JSON.stringify(settings),
     }),
   getAdminStats: () => request<{ users: number; groups: number; votingSessions: number }>('/admin/stats'),
-  getAdminUsers: () => request<{ id: string; steamId: string; displayName: string; avatarUrl: string; isAdmin: boolean; createdAt: string }[]>('/admin/users'),
+  getAdminUsers: async () => {
+    const res = await request<{
+      data: { id: string; steamId: string; displayName: string; avatarUrl: string; isAdmin: boolean; createdAt: string }[]
+      total: number
+      limit: number
+      offset: number
+    }>('/admin/users')
+    return res.data
+  },
   setAdminUserRole: (userId: string, isAdmin: boolean) =>
     request<{ ok: boolean }>(`/admin/users/${userId}/admin`, {
       method: 'PATCH',

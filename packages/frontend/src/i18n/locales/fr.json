@@ -392,6 +392,12 @@
   "persona": {
     "today": "Persona du jour"
   },
+  "socket": {
+    "lostConnection": "Connexion perdue",
+    "tryingToReconnect": "Tentative de reconnexion...",
+    "reconnected": "Reconnecté",
+    "connectionError": "Erreur de connexion"
+  },
   "pwa": {
     "installPromptTitle": "Installer WAWPTN",
     "installPromptDescription": "Accédez à l'app plus vite depuis votre écran d'accueil.",

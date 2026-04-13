@@ -355,6 +355,12 @@
     "unlocked": "Unlocked ✓",
     "unlockedToast": "{{icon}} Challenge unlocked: {{title}}"
   },
+  "socket": {
+    "lostConnection": "Connection lost",
+    "tryingToReconnect": "Trying to reconnect...",
+    "reconnected": "Back online",
+    "connectionError": "Connection error"
+  },
   "pwa": {
     "installPromptTitle": "Install WAWPTN",
     "installPromptDescription": "Get faster access from your home screen.",

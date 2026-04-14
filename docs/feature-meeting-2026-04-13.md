@@ -125,3 +125,75 @@
 ---
 
 *Notes générées automatiquement via 6 sous-agents personas lus en parallèle sur le code à HEAD 62fb3a9.*
+
+---
+
+## Rétrospective — livraison
+
+**Date de clôture :** 2026-04-14 · **Branche :** `claude/multi-agent-feature-meeting-mKUMa` · **Total : 16 PR fusionnées.**
+
+Chaque item actionnable de la réunion a été livré, merge incluse. Le tableau ci-dessous référence la PR qui clôt chaque item, du plan d'action ci-dessus et du backlog initial.
+
+### Sprint 1 — Fondations de confiance
+
+| Item | PR | Commit |
+|------|----|--------|
+| Audit log + rate limit admin (Priya #1) | [#117](https://github.com/wifsimster/wawptn/pull/117) | `41426f1` |
+| Contrainte unique + lock sur votes (Priya #3) *→ rescopée en validation serveur* | [#117](https://github.com/wifsimster/wawptn/pull/117) | `41426f1` |
+| Rotation de session sur changement de privilèges (Priya #4) | [#117](https://github.com/wifsimster/wawptn/pull/117) | `41426f1` |
+| Middleware de validation Zod (Priya #2) | [#126](https://github.com/wifsimster/wawptn/pull/126) | `c5e8651` |
+| Audit trail de session (Marcus #3) | [#124](https://github.com/wifsimster/wawptn/pull/124) | `e0a9c66` |
+
+### Sprint 2 — Boucle de rétention & temps réel
+
+| Item | PR | Commit |
+|------|----|--------|
+| Durabilité de l'auto-vote scheduler (Marcus #4) | [#117](https://github.com/wifsimster/wawptn/pull/117) | `41426f1` |
+| Store Socket.io résilient + toast de statut (Yuki #1) | [#129](https://github.com/wifsimster/wawptn/pull/129) | `7889ca5` |
+| Événements `vote:progress` par participant (Marcus #2) | [#122](https://github.com/wifsimster/wawptn/pull/122) | `70ac12e` |
+
+### Sprint 3 — Récompense & virality
+
+| Item | PR | Commit |
+|------|----|--------|
+| Particules live sur l'écran d'attente (Léo #1) | [#117](https://github.com/wifsimster/wawptn/pull/117) | `41426f1` |
+| Badge sticky du compteur en mobile (Léo #2) | [#117](https://github.com/wifsimster/wawptn/pull/117) | `41426f1` |
+| Carte de breakdown animée sur la révélation (Léo #3) | [#117](https://github.com/wifsimster/wawptn/pull/117) | `41426f1` |
+| Banner « X jeux masqués par Metacritic » (Léo #5) | [#119](https://github.com/wifsimster/wawptn/pull/119) | `808477e` |
+| Re-queue toast en cas d'échec Steam (Sarah #5) | [#120](https://github.com/wifsimster/wawptn/pull/120) | `ec68312` |
+| Diffusion multi-canal des résultats Discord (Tom #4) | [#125](https://github.com/wifsimster/wawptn/pull/125) | `bfa86d2` |
+
+### Backlog traité
+
+| Item | PR | Commit |
+|------|----|--------|
+| Leaderboard Discord `/wawptn-stats` (Tom #1) | [#118](https://github.com/wifsimster/wawptn/pull/118) | `aec40b8` |
+| Per-server bot config `/wawptn-config` (Tom #2) | [#128](https://github.com/wifsimster/wawptn/pull/128) | `da796a5` |
+| `/api/admin/health` endpoint (Marcus #5 backend) | [#121](https://github.com/wifsimster/wawptn/pull/121) | `50a1522` |
+| Admin health card (Marcus #5 frontend) | [#123](https://github.com/wifsimster/wawptn/pull/123) | `c49e428` |
+| Wishlist par utilisateur (Sarah #3) | [#130](https://github.com/wifsimster/wawptn/pull/130) | `4bfd3b9` |
+| PWA : notifications natives + install prompt (Yuki #3) | [#127](https://github.com/wifsimster/wawptn/pull/127) | `dba0052` |
+| Déduplication inter-plateformes + colonne `igdb_id` (Marcus #1) | [#131](https://github.com/wifsimster/wawptn/pull/131) | `7214222` |
+
+### Items déjà en prod avant la réunion
+
+Certains items proposés par les personas étaient en fait déjà implémentés dans le code (les personas avaient travaillé sur une vue partiellement datée) :
+
+- **Sarah #1 / Marcus #4 / Tom #3 — Exécuteur de votes planifiés** : déjà câblé dans `packages/backend/src/index.ts` via `startVoteScheduler()` et `startAutoVoteScheduler()`. Le seul gap réel (durabilité après redémarrage) est corrigé par [#117](https://github.com/wifsimster/wawptn/pull/117).
+- **Sarah #2 / Léo #4 — JoinPage enrichie + deep-link PWA** : `packages/frontend/src/pages/JoinPage.tsx` affichait déjà avatars, dernier gagnant, top 3 jeux, et le bouton Steam login passait déjà `returnTo=/join/${token}` pour l'auto-join post-auth.
+- **Sarah #4 — Dashboard statistiques de groupe** : `packages/frontend/src/components/group-stats.tsx` montrait déjà totalSessions, topGames, memberParticipation, recentWinners. Les leaderboards côté Discord restaient à ajouter et ont été livrés via Tom #1 ([#118](https://github.com/wifsimster/wawptn/pull/118)).
+
+### Items explicitement hors scope
+
+- **IGDB API live** — la colonne `games.igdb_id` existe désormais, mais aucun appel IGDB n'est fait. L'intégration Twitch OAuth + rate-limiting + backfill est prévue en suite à [#131](https://github.com/wifsimster/wawptn/pull/131).
+- **Web-push à distance via VAPID** — Yuki #3 ([#127](https://github.com/wifsimster/wawptn/pull/127)) livre les notifications natives via `ServiceWorkerRegistration.showNotification()` (en-local, pas besoin de serveur push). Le push distant reste une PR séparée.
+- **Migration complète de chaque caller vers `useSocketEvent`** — [#129](https://github.com/wifsimster/wawptn/pull/129) livre l'infra et migre `useChallengeListener` comme vitrine. `useNotificationListener`, `VotePage`, `GroupPage` sont laissés sur l'ancien pattern pour limiter le rayon de review.
+
+### Statistiques
+
+- **16 PR** fusionnées sur `main`
+- **6 personas** consultées (Product, UX, Backend, Frontend, QA/Security, Discord)
+- **7 migrations** de schéma : `admin_audit_log`, `session_audit_trail`, `group_announcement_webhooks`, `discord_guild_settings`, `game_wishlists`, `games.igdb_id`, `20260413_b..g`
+- **3 packages** touchés : `@wawptn/backend`, `@wawptn/frontend`, `@wawptn/discord`
+- **31 tests backend** passants (contre 14 au début de la session)
+- **0 régression CI** sur les 16 PR — chaque merge a traversé `Lint & Type Check` au vert

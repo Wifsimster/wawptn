@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction, EmbedBuilder } from 'discord.js'
 import { backendApi } from '../lib/api.js'
+import { resolveGroup } from '../lib/resolve-group.js'
 
 interface CommonGamesResponse {
   groupName: string
@@ -13,18 +14,25 @@ interface CommonGamesResponse {
 
 export const data = new SlashCommandBuilder()
   .setName('wawptn-games')
-  .setDescription('Afficher les jeux en commun du groupe lié à ce canal')
+  .setDescription('Afficher les jeux en commun du groupe')
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  const channelId = interaction.channelId
+  await interaction.deferReply({ ephemeral: true })
 
-  await interaction.deferReply()
+  const group = await resolveGroup(interaction)
+  if (!group) return
 
   try {
-    const result = await backendApi<CommonGamesResponse>(`/api/discord/games?channelId=${channelId}`)
+    const result = await backendApi<CommonGamesResponse>(
+      `/api/discord/games?groupId=${group.groupId}`,
+      { discordUserId: interaction.user.id },
+    )
 
     if (result.games.length === 0) {
-      await interaction.editReply({ content: '😕 Aucun jeu en commun trouvé pour ce groupe.' })
+      await interaction.editReply({
+        content: `😕 Aucun jeu en commun trouvé pour **${group.groupName}**.`,
+        components: [],
+      })
       return
     }
 
@@ -39,10 +47,19 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .setColor(0x5865F2)
       .setFooter({ text: `${result.games.length} jeux en commun au total` })
 
-    await interaction.editReply({ embeds: [embed] })
+    // Post the game list publicly in the channel.
+    if (interaction.channel && 'send' in interaction.channel) {
+      await interaction.channel.send({ embeds: [embed] })
+    }
+
+    await interaction.editReply({
+      content: `✅ Jeux en commun affichés pour **${group.groupName}**.`,
+      components: [],
+    })
   } catch (error) {
     await interaction.editReply({
       content: `❌ Erreur : ${error instanceof Error ? error.message : 'Impossible de récupérer les jeux'}`,
+      components: [],
     })
   }
 }

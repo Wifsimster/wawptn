@@ -207,19 +207,46 @@ router.post('/vote', async (req: Request, res: Response) => {
   res.json({ ok: true })
 })
 
-// Get common games for a channel-linked group
+// Get common games — resolved either by a channel link or an explicit groupId
 router.get('/games', async (req: Request, res: Response) => {
-  const channelId = req.query['channelId'] as string
+  const channelId = req.query['channelId'] as string | undefined
+  const groupId = req.query['groupId'] as string | undefined
 
-  if (!channelId) {
-    res.status(400).json({ error: 'validation', message: 'channelId query parameter required' })
+  if (!channelId && !groupId) {
+    res.status(400).json({ error: 'validation', message: 'channelId or groupId query parameter required' })
     return
   }
 
-  const group = await db('groups').where({ discord_channel_id: channelId }).first()
-  if (!group) {
-    res.status(404).json({ error: 'not_found', message: 'Aucun groupe lié à ce canal Discord' })
-    return
+  let group
+  if (groupId) {
+    // When querying by groupId, the caller must be a linked Discord user
+    // and a member of the group.
+    const userId = req.userId
+    if (!userId) {
+      res.status(403).json({ error: 'forbidden', message: 'Discord account not linked. Use /wawptn-link first.' })
+      return
+    }
+
+    const membership = await db('group_members')
+      .where({ group_id: groupId, user_id: userId })
+      .first()
+
+    if (!membership) {
+      res.status(403).json({ error: 'forbidden', message: 'Vous n\'êtes pas membre de ce groupe' })
+      return
+    }
+
+    group = await db('groups').where({ id: groupId }).first()
+    if (!group) {
+      res.status(404).json({ error: 'not_found', message: 'Group not found' })
+      return
+    }
+  } else {
+    group = await db('groups').where({ discord_channel_id: channelId }).first()
+    if (!group) {
+      res.status(404).json({ error: 'not_found', message: 'Aucun groupe lié à ce canal Discord' })
+      return
+    }
   }
 
   const memberIds = await db('group_members').where({ group_id: group.id }).pluck('user_id')

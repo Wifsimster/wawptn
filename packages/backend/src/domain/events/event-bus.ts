@@ -17,6 +17,20 @@ export interface SessionClosedEvent {
   participantIds: string[]
 }
 
+/**
+ * Emitted after a vote has been persisted (from either the web UI or the
+ * Discord bot), so subscribers can push a debounced live update out to
+ * whichever channels are listening. Does NOT replace the existing
+ * Socket.io `vote:cast` emission — it's strictly for domain-level
+ * side effects like the Discord live-count updater.
+ */
+export interface VoteCastEvent {
+  sessionId: string
+  groupId: string
+  userId: string
+  source: 'web' | 'discord'
+}
+
 export interface ChallengeUnlockedEvent {
   userId: string
   challengeId: string
@@ -28,6 +42,7 @@ export interface ChallengeUnlockedEvent {
 export interface DomainEventMap {
   'session:created': [SessionCreatedEvent]
   'session:closed': [SessionClosedEvent]
+  'vote:cast': [VoteCastEvent]
   'challenge:unlocked': [ChallengeUnlockedEvent]
 }
 

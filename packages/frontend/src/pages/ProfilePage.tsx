@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import {
   ArrowLeft, RefreshCw, ExternalLink, Check, Clock,
-  Gamepad2, Link, Unlink, AlertTriangle, Timer, Trophy, Target,
+  Gamepad2, Link, Unlink, AlertTriangle, Timer, Trophy, Target, MessageCircle,
 } from 'lucide-react'
 import { PlatformIcon } from '@/components/icons/platforms'
 import { useTranslation } from 'react-i18next'
@@ -40,6 +40,10 @@ interface TopGame {
   playtimeForever: number
 }
 
+type DiscordState =
+  | { linked: true; discordId: string; discordUsername: string; linkedAt: string }
+  | { linked: false }
+
 interface Profile {
   id: string
   steamId: string
@@ -50,6 +54,7 @@ interface Profile {
   createdAt: string
   platforms: Platform[]
   topGames?: TopGame[]
+  discord?: DiscordState
 }
 
 /* ── Helpers ── */
@@ -263,6 +268,19 @@ export function ProfilePage() {
     try {
       await api.unlinkPlatform(platformId)
       toast.success(t('profile.platformUnlinked', { platform: PLATFORM_NAMES[platformId] || platformId }))
+      loadProfile()
+    } catch {
+      toast.error(t('profile.unlinkError'))
+    } finally {
+      setUnlinking(null)
+    }
+  }
+
+  async function handleUnlinkDiscord() {
+    setUnlinking('discord')
+    try {
+      await api.unlinkDiscord()
+      toast.success(t('profile.discordUnlinked'))
       loadProfile()
     } catch {
       toast.error(t('profile.unlinkError'))
@@ -538,6 +556,56 @@ export function ProfilePage() {
               </motion.div>
             ))}
           </motion.div>
+        </motion.section>
+
+        {/* ── Discord Link ── */}
+        <motion.section variants={fadeUp}>
+          <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+            <MessageCircle className="w-4 h-4 shrink-0" />
+            Discord
+          </h3>
+          <div
+            className="flex items-start gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm border-l-[3px] transition-all duration-300 hover:bg-card/80"
+            style={{ borderLeftColor: 'oklch(0.55 0.18 270)' }}
+          >
+            <MessageCircle className="w-5 h-5 shrink-0 text-muted-foreground mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium text-sm">Discord</span>
+                {profile.discord?.linked ? (
+                  <span className="flex items-center gap-1 text-[10px] text-success font-medium">
+                    <Check className="w-3 h-3" />
+                    {t('profile.connected')}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">
+                    {t('profile.notConnected')}
+                  </span>
+                )}
+              </div>
+              {profile.discord?.linked ? (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('profile.discordLinkedAs', { username: profile.discord.discordUsername })}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  {t('profile.discordLinkInstructions')}
+                </p>
+              )}
+            </div>
+            {profile.discord?.linked && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleUnlinkDiscord}
+                disabled={unlinking === 'discord'}
+                className="shrink-0 h-8 text-xs text-destructive hover:text-destructive"
+              >
+                <Unlink className="w-3.5 h-3.5 mr-1" />
+                {t('profile.disconnect')}
+              </Button>
+            )}
+          </div>
         </motion.section>
 
         {/* ── Top Games Showcase ── */}

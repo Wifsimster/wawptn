@@ -364,6 +364,13 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
       .limit(5)
       .select('game_name as gameName', 'steam_app_id as steamAppId', 'header_image_url as headerImageUrl', 'playtime_forever as playtimeForever')
 
+    // Include Discord link status so the profile UI can render a "Link
+    // your Discord" section without a second round-trip.
+    const discordLink = await db('discord_links')
+      .where({ user_id: userId })
+      .select('discord_id', 'discord_username', 'linked_at')
+      .first()
+
     res.json({
       id: user.id,
       steamId: user.steam_id,
@@ -379,6 +386,14 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
         headerImageUrl: g.headerImageUrl,
         playtimeForever: Number(g.playtimeForever),
       })),
+      discord: discordLink
+        ? {
+          linked: true as const,
+          discordId: discordLink.discord_id,
+          discordUsername: discordLink.discord_username,
+          linkedAt: discordLink.linked_at,
+        }
+        : { linked: false as const },
     })
   } catch (error) {
     authLogger.error({ error: String(error) }, 'get profile failed')

@@ -180,6 +180,68 @@ export interface DiscordGroupConfig {
   discordWebhookUrl: string | null
 }
 
+// ── Bot HTTP contract ──────────────────────────────────────────────────
+// The backend talks to the Discord bot process over HTTP so the bot
+// (which holds the persistent Gateway connection) can send, edit, and
+// close interactive vote messages. These shapes are the wire format.
+
+/** Per-game vote tally used by every live/close message payload. */
+export interface DiscordVoteTally {
+  steamAppId: number
+  gameName: string
+  headerImageUrl: string | null
+  yesCount: number
+  noCount: number
+}
+
+/** Vote summary attached to create/update payloads. */
+export interface DiscordVoteSummary {
+  voterCount: number
+  totalParticipants: number
+  tallies: DiscordVoteTally[]
+}
+
+export interface DiscordSessionCreatedRequest {
+  sessionId: string
+  groupId: string
+  groupName: string
+  channelId: string
+  creatorName: string
+  games: Array<{
+    steamAppId: number
+    gameName: string
+    headerImageUrl: string | null
+  }>
+  summary: DiscordVoteSummary
+}
+
+export interface DiscordSessionCreatedResponse {
+  messageId: string
+}
+
+export interface DiscordSessionUpdateRequest {
+  sessionId: string
+  groupName: string
+  channelId: string
+  messageId: string
+  creatorName: string
+  games: Array<{
+    steamAppId: number
+    gameName: string
+    headerImageUrl: string | null
+  }>
+  summary: DiscordVoteSummary
+}
+
+export interface DiscordSessionClosedRequest {
+  sessionId: string
+  groupName: string
+  channelId: string
+  messageId: string
+  result: VoteResult
+  summary: DiscordVoteSummary
+}
+
 // ============================================
 // Challenges
 // ============================================

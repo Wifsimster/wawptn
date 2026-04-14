@@ -30,6 +30,11 @@ export const env = {
 
   // Discord Bot (optional — feature-flagged)
   DISCORD_BOT_API_SECRET: process.env['DISCORD_BOT_API_SECRET'] || '',
+  /** URL of the Discord bot's internal HTTP API. When the bot is colocated
+   *  with the backend this is loopback; in a split deployment it points at
+   *  the bot's private address. Empty string disables bot-backed Discord
+   *  posting (and the backend silently falls back to webhook-only mode). */
+  DISCORD_BOT_HTTP_URL: process.env['DISCORD_BOT_HTTP_URL'] || '',
 
   // LLM (optional — enables Discord bot conversational mode, OpenAI-compatible API)
   LLM_API_KEY: process.env['LLM_API_KEY'] || '',

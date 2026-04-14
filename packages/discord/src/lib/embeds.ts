@@ -1,5 +1,5 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js'
-import type { VoteResult } from '@wawptn/types'
+import type { DiscordVoteSummary, DiscordVoteTally, VoteResult } from '@wawptn/types'
 
 export interface SessionGame {
   steamAppId: number
@@ -8,20 +8,101 @@ export interface SessionGame {
   headerImageUrl: string | null
 }
 
-export function buildSessionCreatedEmbed(
-  groupName: string,
+/** Discord hard limit: 5 action rows × 5 buttons per row. Two buttons per
+ *  game (👍/👎) means 12 games per message max. We cap early and display a
+ *  "vote on the web" hint when truncation happens so Discord voters know
+ *  the overflow exists. */
+const MAX_GAMES_WITH_BUTTONS = 12
+
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text
+  return text.slice(0, max - 1) + '…'
+}
+
+function tallyFor(summary: DiscordVoteSummary | undefined, steamAppId: number): DiscordVoteTally | undefined {
+  return summary?.tallies.find((t) => t.steamAppId === steamAppId)
+}
+
+function renderGameLine(index: number, game: SessionGame, tally: DiscordVoteTally | undefined): string {
+  const prefix = `**${index + 1}.** ${game.gameName}`
+  if (!tally || (tally.yesCount === 0 && tally.noCount === 0)) return prefix
+  return `${prefix} — 👍 ${tally.yesCount} · 👎 ${tally.noCount}`
+}
+
+function buildVoteRows(
   games: SessionGame[],
-  creatorName: string,
   sessionId: string,
+  options: { disabled?: boolean } = {},
+): ActionRowBuilder<ButtonBuilder>[] {
+  const visible = games.slice(0, MAX_GAMES_WITH_BUTTONS)
+  const rows: ActionRowBuilder<ButtonBuilder>[] = []
+
+  // Two buttons per game = 2 per row of width 5, so we fit 2 games per row.
+  // Using label "👍 <name>" / "👎 <name>" lets voters tell games apart.
+  for (let i = 0; i < visible.length; i += 2) {
+    const row = new ActionRowBuilder<ButtonBuilder>()
+    const chunk = visible.slice(i, i + 2)
+    for (const game of chunk) {
+      const shortName = truncate(game.gameName, 18)
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`vote:${sessionId}:${game.steamAppId}:yes`)
+          .setLabel(`👍 ${shortName}`)
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(!!options.disabled),
+        new ButtonBuilder()
+          .setCustomId(`vote:${sessionId}:${game.steamAppId}:no`)
+          .setLabel(`👎 ${shortName}`)
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!!options.disabled),
+      )
+    }
+    rows.push(row)
+  }
+  return rows
+}
+
+interface BuildSessionEmbedParams {
+  groupName: string
+  creatorName: string
+  sessionId: string
+  games: SessionGame[]
+  summary?: DiscordVoteSummary
+}
+
+/**
+ * Builds the "vote opened" / "live update" message.
+ * The same function is reused for every update — the only difference
+ * between the initial post and a live edit is the `summary` payload.
+ */
+export function buildSessionEmbed(
+  params: BuildSessionEmbedParams,
 ): { embeds: EmbedBuilder[]; components: ActionRowBuilder<ButtonBuilder>[] } {
+  const { groupName, creatorName, sessionId, games, summary } = params
+
+  const visibleCount = Math.min(games.length, MAX_GAMES_WITH_BUTTONS)
+  const hiddenCount = games.length - visibleCount
+
   const gameList = games
-    .slice(0, 25)
-    .map((g, i) => `**${i + 1}.** ${g.gameName}`)
+    .slice(0, visibleCount)
+    .map((g, i) => renderGameLine(i, g, tallyFor(summary, g.steamAppId)))
     .join('\n')
+
+  const extraLine = hiddenCount > 0
+    ? `\n\n_+${hiddenCount} autre${hiddenCount > 1 ? 's' : ''} jeu${hiddenCount > 1 ? 'x' : ''} — votez sur le site pour les voir tous._`
+    : ''
+
+  const progressLine = summary
+    ? `\n\n🗳️ **${summary.voterCount}/${summary.totalParticipants}** ont voté`
+    : ''
 
   const embed = new EmbedBuilder()
     .setTitle('🗳️ Vote lancé !')
-    .setDescription(`**${creatorName}** a lancé un vote dans le groupe **${groupName}**.\n\nVotez 👍 ou 👎 sur chaque jeu. Faut se décider ce soir !\n\n${gameList}`)
+    .setDescription(
+      `**${creatorName}** a lancé un vote dans **${groupName}**.\n` +
+      `Cliquez 👍 ou 👎 sur chaque jeu. Les votes du site et de Discord comptent ensemble.\n\n` +
+      `${gameList}${extraLine}${progressLine}`,
+    )
     .setColor(0x5865F2)
     .setTimestamp()
 
@@ -29,25 +110,80 @@ export function buildSessionCreatedEmbed(
     embed.setThumbnail(games[0].headerImageUrl)
   }
 
-  // Create vote buttons for each game (max 5 rows of 5 buttons = 25 games)
-  const rows: ActionRowBuilder<ButtonBuilder>[] = []
+  const components = buildVoteRows(games, sessionId)
+  return { embeds: [embed], components }
+}
 
-  for (let i = 0; i < Math.min(games.length, 25); i += 5) {
-    const row = new ActionRowBuilder<ButtonBuilder>()
-    const chunk = games.slice(i, i + 5)
+interface BuildSessionClosedEmbedParams {
+  groupName: string
+  sessionId: string
+  games: SessionGame[]
+  result: VoteResult
+  summary?: DiscordVoteSummary
+}
 
-    for (const game of chunk) {
-      row.addComponents(
-        new ButtonBuilder()
-          .setCustomId(`vote:${sessionId}:${game.steamAppId}:yes`)
-          .setLabel(`👍 ${game.gameName.slice(0, 70)}`)
-          .setStyle(ButtonStyle.Success),
-      )
-    }
-    rows.push(row)
+/**
+ * Final state of the message once the session closes: winner highlighted,
+ * all buttons disabled so nobody keeps clicking, and the per-game tallies
+ * preserved so you can scroll back and see the full picture.
+ */
+export function buildSessionClosedEmbed(
+  params: BuildSessionClosedEmbedParams,
+): { embeds: EmbedBuilder[]; components: ActionRowBuilder<ButtonBuilder>[] } {
+  const { groupName, sessionId, games, result, summary } = params
+
+  const tallies = games
+    .slice(0, MAX_GAMES_WITH_BUTTONS)
+    .map((g, i) => renderGameLine(i, g, tallyFor(summary, g.steamAppId)))
+    .join('\n')
+
+  const winnerEmbed = new EmbedBuilder()
+    .setTitle('🏆 Le groupe a choisi !')
+    .setDescription(
+      `Le groupe **${groupName}** a choisi :\n\n# ${result.gameName}\n\n` +
+      `${result.yesCount} vote${result.yesCount > 1 ? 's' : ''} sur ${result.totalVoters} participant${result.totalVoters > 1 ? 's' : ''}.\n\n` +
+      `**Résultats détaillés :**\n${tallies}`,
+    )
+    .setColor(0x57F287)
+    .setTimestamp()
+
+  if (result.headerImageUrl) {
+    winnerEmbed.setImage(result.headerImageUrl)
+  }
+  if (result.steamAppId) {
+    winnerEmbed.setURL(`https://store.steampowered.com/app/${result.steamAppId}`)
   }
 
-  return { embeds: [embed], components: rows }
+  // Rebuild the vote rows in disabled state so the closed message still
+  // shows every game that was in the vote, but nobody can click them.
+  const rows = buildVoteRows(games, sessionId, { disabled: true })
+
+  // Append the Steam launch link as a separate row if it fits (Discord
+  // allows up to 5 action rows total).
+  if (result.steamAppId && rows.length < 5) {
+    rows.push(
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setLabel('Lancer sur Steam')
+          .setStyle(ButtonStyle.Link)
+          .setURL(`steam://run/${result.steamAppId}`)
+          .setEmoji('🚀'),
+      ),
+    )
+  }
+
+  return { embeds: [winnerEmbed], components: rows }
+}
+
+// ── Legacy helpers kept for the existing setup/stats/random commands ───────
+
+export function buildSessionCreatedEmbed(
+  groupName: string,
+  games: SessionGame[],
+  creatorName: string,
+  sessionId: string,
+): { embeds: EmbedBuilder[]; components: ActionRowBuilder<ButtonBuilder>[] } {
+  return buildSessionEmbed({ groupName, creatorName, sessionId, games })
 }
 
 export function buildVoteClosedEmbed(
@@ -79,7 +215,6 @@ export function buildVoteClosedEmbed(
     embed.setURL(`https://store.steampowered.com/app/${result.steamAppId}`)
   }
 
-  // Steam launch button (Link-style buttons work in bot messages)
   const components: ActionRowBuilder<ButtonBuilder>[] = []
   if (result.steamAppId) {
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(

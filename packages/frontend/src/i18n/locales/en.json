@@ -367,7 +367,10 @@
     "topGames": "Most played games",
     "statsGames": "games",
     "statsHours": "hours",
-    "statsPlatforms": "connected"
+    "statsPlatforms": "connected",
+    "discordLinkedAs": "Linked to Discord as {{username}}",
+    "discordLinkInstructions": "Open Discord and run /wawptn-link in a server where the bot is installed to get a code, then paste it on the link page.",
+    "discordUnlinked": "Discord account unlinked."
   },
   "recommendations": {
     "title": "Suggestions",

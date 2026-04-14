@@ -7,6 +7,7 @@ import { motion, type Variants } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useGroupStore } from '@/stores/group.store'
 import { ApiError } from '@/lib/api'
+import { track } from '@/lib/analytics'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -132,15 +133,23 @@ export function GroupsPage() {
       setCreatedGroupId(result.id)
       fetchGroups()
       toast.success(t('createGroup.success'))
+      track('group.created', { fromEmptyState: groups.length === 0 })
     } catch (err) {
       if (err instanceof ApiError && err.code === 'premium_required') {
+        track('group.create_failed', { reason: 'premium_required' })
         toast.error(t('premium.groupLimitReached', { max: 2 }))
         navigate('/subscription')
         return
       }
       const msg = err instanceof Error ? err.message : t('createGroup.error')
       setCreateError(msg)
-      toast.error(msg)
+      track('group.create_failed', { reason: 'error' })
+      toast.error(msg, {
+        action: {
+          label: t('common.retry'),
+          onClick: () => handleCreate(),
+        },
+      })
     }
   }
 
@@ -166,14 +175,22 @@ export function GroupsPage() {
       fetchGroups()
       navigate(`/groups/${result.id}`)
       toast.success(t('joinGroup.success'))
+      track('group.joined')
     } catch (err) {
       if (err instanceof ApiError && err.code === 'premium_required') {
+        track('group.join_failed', { reason: 'premium_required' })
         toast.error(t('premium.memberLimitReached', { max: 8 }))
         return
       }
       const msg = err instanceof Error ? err.message : t('joinGroup.error')
       setJoinError(msg)
-      toast.error(msg)
+      track('group.join_failed', { reason: 'error' })
+      toast.error(msg, {
+        action: {
+          label: t('common.retry'),
+          onClick: () => handleJoin(),
+        },
+      })
     }
   }
 

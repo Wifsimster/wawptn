@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { track } from '@/lib/analytics'
 
 interface InviteLinkProps {
   token: string
@@ -40,12 +41,14 @@ export function InviteLink({ token }: InviteLinkProps) {
   const handleCopy = async () => {
     await copyToClipboard(url)
     toast.success(t('invite.copied'))
+    track('invite.link_copied', { surface: 'copy' })
   }
 
   const handleDiscordShare = async () => {
     const discordText = `${t('invite.discordMessage')}\n${url}`
     await copyToClipboard(discordText)
     toast.success(t('invite.discordCopied'))
+    track('invite.shared', { surface: 'discord' })
   }
 
   const handleShare = async () => {
@@ -55,6 +58,7 @@ export function InviteLink({ token }: InviteLinkProps) {
         text: t('invite.shareText'),
         url,
       })
+      track('invite.shared', { surface: 'native' })
     } catch (err) {
       // User cancelled share or not supported — fall back to copy
       if (err instanceof Error && err.name !== 'AbortError') {

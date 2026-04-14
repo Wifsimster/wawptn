@@ -4,6 +4,9 @@
     "tagline": "On joue à quoi ce soir ?",
     "skipToContent": "Aller au contenu principal"
   },
+  "common": {
+    "retry": "Réessayer"
+  },
   "login": {
     "subtitle": "Connecte ton compte Steam, crée un groupe avec tes amis, et votez pour le jeu de ce soir.",
     "signIn": "Se connecter avec Steam",
@@ -77,7 +80,12 @@
     "searchGames": "Rechercher un jeu...",
     "noCommonGames": "Aucun jeu en commun trouvé. Vérifie que tous les membres ont synchronisé leur bibliothèque et que leur profil Steam est public.",
     "noCommonGamesTitle": "Aucun jeu en commun",
-    "noCommonGamesDescription": "Vérifie que tous les membres ont synchronisé leur bibliothèque et que leur profil Steam est public.",
+    "noCommonGamesDescription": "Pas de panique — c'est presque toujours l'une des raisons ci-dessous.",
+    "noCommonGamesHint1": "Profil Steam en privé : demande aux membres de le passer en public (Paramètres Steam → Confidentialité → Détails du jeu).",
+    "noCommonGamesHint2": "Bibliothèque masquée : la confidentialité de la liste de jeux doit aussi être publique.",
+    "noCommonGamesHint3": "Nouveaux membres : leur bibliothèque n'est peut-être pas encore synchronisée — clique sur « Resynchroniser » ci-dessous.",
+    "retrySync": "Resynchroniser",
+    "syncing": "Synchronisation…",
     "noSearchResults": "Aucun jeu ne correspond à tes filtres.",
     "noSearchResultsTitle": "Aucun jeu trouvé",
     "noSearchResultsDescription": "Aucun jeu ne correspond à tes filtres. Essaie de modifier ou réinitialiser les filtres.",

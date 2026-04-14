@@ -29,6 +29,7 @@ import { isStripeEnabled } from './infrastructure/stripe/stripe-client.js'
 import { personaRoutes } from './presentation/routes/persona.routes.js'
 import { notificationRoutes, adminNotificationRoutes } from './presentation/routes/notification.routes.js'
 import { challengeRoutes } from './presentation/routes/challenge.routes.js'
+import { eventRoutes } from './presentation/routes/events.routes.js'
 import { startNotificationCleanup } from './infrastructure/notifications/notification-cleanup.js'
 import { registerSessionEffects } from './infrastructure/effects/session-effects.js'
 
@@ -129,6 +130,12 @@ async function main() {
 
   // Challenge routes (requires authenticated user)
   app.use('/api/challenges', requireAuth, challengeRoutes)
+
+  // Adoption-funnel analytics ingestion (public, best-effort user id lookup).
+  // Intentionally NOT gated by requireAuth so we can track pre-login events
+  // (e.g. landing-page → login clicks) and so a dead session never prevents
+  // the final vote.completed event from being recorded.
+  app.use('/api/events', eventRoutes)
 
   // Strict rate limiter for admin mutation endpoints (privilege grants,
   // persona CRUD, bot settings). Capped well below normal usage so a

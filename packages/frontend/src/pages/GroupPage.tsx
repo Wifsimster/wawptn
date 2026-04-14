@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/lib/api'
+import { track } from '@/lib/analytics'
 import { getSocket } from '@/lib/socket'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -147,11 +148,18 @@ export function GroupPage() {
   const handleSync = async () => {
     if (!id) return
     setSyncing(true)
+    track('sync.triggered')
     try {
       await api.syncLibraries(id)
       toast.success(t('group.syncSuccess'))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('group.syncError'))
+      const msg = err instanceof Error ? err.message : t('group.syncError')
+      toast.error(msg, {
+        action: {
+          label: t('common.retry'),
+          onClick: () => handleSync(),
+        },
+      })
     } finally {
       setTimeout(() => setSyncing(false), 3000)
     }
@@ -162,6 +170,11 @@ export function GroupPage() {
     try {
       const hasActiveFilters = filters && (filters.multiplayer || filters.coop || filters.free)
       await api.createVoteSession(id, participantIds, activeFilter, scheduledAt, hasActiveFilters ? filters : undefined)
+      track('vote.started', {
+        participantCount: participantIds.length,
+        scheduled: !!scheduledAt,
+        hasFilters: !!hasActiveFilters,
+      })
       navigate(`/groups/${id}/vote`)
     } catch (err) {
       if (err instanceof Error && err.message.includes('already open')) {
@@ -177,6 +190,7 @@ export function GroupPage() {
     try {
       const result = await api.generateInvite(id)
       setInviteToken(result.inviteToken)
+      track('invite.generated')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('group.generateInviteError'))
     }
@@ -434,6 +448,8 @@ export function GroupPage() {
               games={commonGames}
               loading={loadingGames}
               filters={gameFilters}
+              onSyncLibraries={handleSync}
+              syncing={syncing}
               onToggleMultiplayer={(value) => setGameFilters(prev => ({
                 ...prev,
                 multiplayerOnly: value,

@@ -4,6 +4,9 @@
     "tagline": "What Are We Playing Tonight?",
     "skipToContent": "Skip to content"
   },
+  "common": {
+    "retry": "Retry"
+  },
   "login": {
     "subtitle": "Connect your Steam account, create a group with friends, and vote on tonight's game.",
     "signIn": "Sign in with Steam",
@@ -74,7 +77,12 @@
     "searchGames": "Search for a game...",
     "noCommonGames": "No common games found. Make sure all members have synced their library and their Steam profile is public.",
     "noCommonGamesTitle": "No common games",
-    "noCommonGamesDescription": "Make sure all members have synced their library and their Steam profile is public.",
+    "noCommonGamesDescription": "Don't worry — it's almost always one of the reasons below.",
+    "noCommonGamesHint1": "Private Steam profile: ask members to make it public (Steam Settings → Privacy → Game Details).",
+    "noCommonGamesHint2": "Hidden library: the game list privacy also needs to be public.",
+    "noCommonGamesHint3": "New members: their library may not be synced yet — hit \"Re-sync\" below.",
+    "retrySync": "Re-sync",
+    "syncing": "Syncing…",
     "noSearchResults": "No games match your filters.",
     "noSearchResultsTitle": "No games found",
     "noSearchResultsDescription": "No games match your filters. Try adjusting or resetting the filters.",

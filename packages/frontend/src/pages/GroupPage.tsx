@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Vote, ChevronUp, Dices } from 'lucide-react'
+import { ArrowLeft, Users as UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
+import type { CommonGame } from '@wawptn/types'
 import { useGroupStore } from '@/stores/group.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/lib/api'
@@ -24,6 +25,7 @@ import { GroupSidebar } from '@/components/group-sidebar'
 import { GameGrid, type GameFilters } from '@/components/game-grid'
 import { RandomPickModal } from '@/components/random-pick-modal'
 import { VoteSetupDialog } from '@/components/vote-setup-dialog'
+import { TonightPickHero } from '@/components/tonight-pick-hero'
 
 export function GroupPage() {
   const { t } = useTranslation()
@@ -31,7 +33,7 @@ export function GroupPage() {
   const navigate = useNavigate()
   const { currentGroup, fetchGroup, leaveGroup, deleteGroup, renameGroup } = useGroupStore()
   const { user } = useAuthStore()
-  const [commonGames, setCommonGames] = useState<{ steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string; ownerCount: number; totalMembers: number; isMultiplayer: boolean | null; isCoop: boolean | null; genres: { id: string; description: string }[] | null; metacriticScore: number | null; type: string | null; shortDescription: string | null; platforms: { windows: boolean; mac: boolean; linux: boolean } | null; recommendationsTotal: number | null; releaseDate: string | null; comingSoon: boolean | null; controllerSupport: string | null; isFree: boolean | null }[]>([])
+  const [commonGames, setCommonGames] = useState<CommonGame[]>([])
   const [syncing, setSyncing] = useState(false)
   const [voteHistory, setVoteHistory] = useState<{ id: string; winningGameAppId: number; winningGameId?: string; winningGameName: string; closedAt: string; createdBy: string }[]>([])
   const [inviteToken, setInviteToken] = useState<string | null>(null)
@@ -74,10 +76,23 @@ export function GroupPage() {
 
   const activeFilter = gameFilters.multiplayerOnly ? 'multiplayer' : gameFilters.coopOnly ? 'coop' : undefined
 
+  // Ref mirror of activeFilter so socket listeners always see the latest
+  // value without needing to tear down and re-subscribe on every toggle.
+  // Previously `activeFilter` was in the effect deps which caused all socket
+  // listeners to churn (and risked missing events during re-subscription).
+  const activeFilterRef = useRef(activeFilter)
+  useEffect(() => { activeFilterRef.current = activeFilter }, [activeFilter])
+
+  // Refetch common games when the server-side filter changes. Separate from
+  // the socket effect so it doesn't cause re-subscription churn.
+  useEffect(() => {
+    if (!id) return
+    loadCommonGames(id, activeFilter)
+  }, [id, activeFilter, loadCommonGames])
+
   useEffect(() => {
     if (!id) return
     fetchGroup(id)
-    loadCommonGames(id, activeFilter)
     loadVoteHistory(id)
 
     const socket = getSocket()
@@ -107,7 +122,7 @@ export function GroupPage() {
       fetchGroup(id)
       toast(t('group.groupRenamed', { name: data.newName }))
     })
-    socket.on('library:synced', () => loadCommonGames(id, activeFilter))
+    socket.on('library:synced', () => loadCommonGames(id, activeFilterRef.current))
     socket.on('session:created', (data) => {
       // Don't notify the user who started the vote
       if (data.createdBy === user?.id) return
@@ -143,7 +158,7 @@ export function GroupPage() {
       socket.off('library:synced')
       socket.off('session:created')
     }
-  }, [id, fetchGroup, navigate, loadCommonGames, activeFilter, t, user?.id])
+  }, [id, fetchGroup, navigate, loadCommonGames, t, user?.id])
 
   const handleSync = async () => {
     if (!id) return
@@ -304,50 +319,48 @@ export function GroupPage() {
           {onlineUserIds.length > 0 && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal shrink-0 hidden sm:inline-flex">
               <span className="w-1.5 h-1.5 rounded-full bg-online animate-pulse" />
-              {onlineUserIds.length} en ligne
+              {t('group.onlineCount', { count: onlineUserIds.length })}
             </Badge>
           )}
         </div>
       </AppHeader>
 
       <main id="main-content" className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 min-w-0">
-        {/* Mobile: mini-bar that opens sidebar sheet */}
+        {/* Mobile: compact member pill strip — replaces the old "Ouvrir"
+            mini-bar. Tapping it still opens the sidebar sheet, but the
+            visual weight is cut in half and the bouncing chevron is gone. */}
         <button
           type="button"
-          className="lg:hidden mb-4 w-full min-h-[44px] rounded-lg border border-border bg-card/50 p-3 active:bg-card/80 active:scale-[0.98] transition-all"
+          className="lg:hidden mb-3 w-full min-h-[40px] rounded-full border border-border/60 bg-card/30 px-3 py-1.5 active:bg-card/60 active:scale-[0.99] transition-all"
           onClick={() => setMobileSidebarOpen(true)}
           aria-label={t('group.openSidebar')}
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex -space-x-2 shrink-0">
-              {currentGroup.members.slice(0, 5).map((member) => (
-                <Avatar key={member.id} className="w-7 h-7 ring-2 ring-background">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex -space-x-1.5 shrink-0">
+              {currentGroup.members.slice(0, 4).map((member) => (
+                <Avatar key={member.id} className="w-6 h-6 ring-2 ring-background">
                   <AvatarImage src={member.avatarUrl} alt={member.displayName} />
-                  <AvatarFallback className="text-[10px]">{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
+                  <AvatarFallback className="text-[9px]">{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
               ))}
-              {currentGroup.members.length > 5 && (
-                <div className="w-7 h-7 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-[10px] text-muted-foreground font-medium">
-                  +{currentGroup.members.length - 5}
+              {currentGroup.members.length > 4 && (
+                <div className="w-6 h-6 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-[9px] text-muted-foreground font-medium">
+                  +{currentGroup.members.length - 4}
                 </div>
               )}
             </div>
-            <div className="flex-1 min-w-0 text-left">
-              <p className="text-sm font-medium truncate">{currentGroup.name}</p>
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-xs text-muted-foreground">{t('group.members', { count: currentGroup.members.length })}</p>
-                {onlineUserIds.length > 0 && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
-                    <span className="w-1.5 h-1.5 rounded-full bg-online animate-pulse" />
-                    {onlineUserIds.length} en ligne
-                  </Badge>
-                )}
-              </div>
+            <div className="flex-1 min-w-0 text-left flex items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {t('group.members', { count: currentGroup.members.length })}
+              </span>
+              {onlineUserIds.length > 0 && (
+                <span className="flex items-center gap-1 text-[11px] text-emerald-500 whitespace-nowrap">
+                  <span className="w-1.5 h-1.5 rounded-full bg-online animate-pulse" />
+                  {t('group.onlineCount', { count: onlineUserIds.length })}
+                </span>
+              )}
             </div>
-            <div className="flex flex-col items-center shrink-0">
-              <ChevronUp className="w-5 h-5 text-muted-foreground animate-bounce" />
-              <span className="text-[9px] text-muted-foreground leading-none">Ouvrir</span>
-            </div>
+            <UsersIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           </div>
         </button>
 
@@ -380,50 +393,32 @@ export function GroupPage() {
             />
           </div>
 
-          {/* Main content: games grid */}
+          {/* Main content: hero + games grid */}
           <div className="space-y-3 sm:space-y-4 min-w-0">
-            {/* Action buttons — full-width stacked on mobile, grid on sm+ */}
-            <div className="hidden sm:grid sm:grid-cols-2 gap-3">
+            {/* Hero: "Tonight's Pick" — dominant CTA at the top of the page.
+                Replaces the old 2-button grid (Start vote / Random pick) and
+                surfaces a client-scored recommendation so a first-time user
+                can start a vote in one tap without touching any filter. */}
+            <TonightPickHero
+              games={commonGames}
+              loading={loadingGames}
+              voteHistory={voteHistory}
+              members={currentGroup.members}
+              onStartVote={() => setVoteSetupOpen(true)}
+              onRandomPick={() => setRandomPickOpen(true)}
+            />
+
+            {/* Mobile: fixed bottom action bar — kept as the persistent
+                primary CTA on small screens so the vote is always one tap
+                away even when the user has scrolled the grid. */}
+            <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <Button
                 onClick={() => setVoteSetupOpen(true)}
-                className="h-auto py-4 flex-col card-hover-glow"
+                className="w-full h-12 gap-2 active:scale-[0.98] transition-transform"
               >
-                <Vote className="w-6 h-6 mb-1" />
-                <span className="text-lg font-heading font-bold block">{t('group.startVote')}</span>
-                <span className="text-sm opacity-80">{t('group.commonGamesCount', { count: commonGames.length })}</span>
+                <span className="font-heading font-bold">{t('group.startVote')}</span>
+                <span className="opacity-80 text-sm">· {t('group.commonGamesCount', { count: commonGames.length })}</span>
               </Button>
-
-              <Button
-                variant="secondary"
-                onClick={() => setRandomPickOpen(true)}
-                disabled={commonGames.length === 0}
-                className="h-auto py-4 flex-col card-hover-glow"
-              >
-                <Dices className="w-6 h-6 mb-1" />
-                <span className="text-lg font-heading font-bold block">{t('group.randomPick')}</span>
-                <span className="text-sm opacity-80">{t('group.randomPickHint')}</span>
-              </Button>
-            </div>
-
-            {/* Mobile: fixed bottom action bar */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => setVoteSetupOpen(true)}
-                  className="flex-1 h-12 gap-2 active:scale-[0.98] transition-transform"
-                >
-                  <Vote className="w-5 h-5" />
-                  <span className="font-heading font-bold">{t('group.startVote')}</span>
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => setRandomPickOpen(true)}
-                  disabled={commonGames.length === 0}
-                  className="h-12 px-4 active:scale-[0.98] transition-transform"
-                >
-                  <Dices className="w-5 h-5" />
-                </Button>
-              </div>
             </div>
             {/* Spacer for fixed bottom bar on mobile */}
             <div className="h-16 sm:hidden" />
@@ -491,6 +486,7 @@ export function GroupPage() {
                 controllerOnly: false,
                 sortBy: 'popularity',
               })}
+              onApplyPreset={(patch) => setGameFilters(prev => ({ ...prev, ...patch }))}
             />
           </div>
         </div>

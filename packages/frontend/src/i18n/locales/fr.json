@@ -182,6 +182,14 @@
     "autoVoteDuration60": "1h",
     "autoVoteDuration120": "2h",
     "autoVoteDuration180": "3h",
+    "onlineCount_one": "{{count}} en ligne",
+    "onlineCount_other": "{{count}} en ligne",
+    "moreFilters": "Plus de filtres",
+    "moreFiltersDescription": "Affine ta liste avec des critères avancés.",
+    "clearFilter": "Retirer le filtre {{name}}",
+    "includeDLC": "DLC inclus",
+    "secondaryFilters": "Options secondaires",
+    "done": "Terminé",
     "autoVotePresetsToggle": "Afficher les suggestions",
     "autoVotePresetsEmpty": "Aucune suggestion. Tu peux saisir une expression cron personnalisée.",
     "autoVotePresetDaily18": "Tous les jours à 18h00",
@@ -195,6 +203,24 @@
     "autoVotePresetSunday20": "Tous les dimanches à 20h00",
     "autoVotePresetFridaySaturday20": "Vendredi et samedi à 20h00",
     "autoVotePresetWeekend20": "Le week-end à 20h00 (sam-dim)"
+  },
+  "filterPresets": {
+    "label": "Ambiance",
+    "coopNight": "Soirée coop",
+    "couchCoop": "Canapé coop",
+    "partyMulti": "Party multi",
+    "topRated": "Top notés"
+  },
+  "tonightPick": {
+    "eyebrow": "Idée pour ce soir",
+    "emptyTitle": "Prêts pour un vote ?",
+    "emptyDescription": "Dès que vos bibliothèques seront synchronisées, on vous proposera une idée parfaite pour ce soir.",
+    "everyoneOwns": "Tout le monde l'a",
+    "ready": "Prêt à voter",
+    "reasonNever": "Jamais joué ensemble",
+    "reasonTopRated": "Le mieux noté",
+    "reasonMostOwned": "Le plus possédé",
+    "reasonComeback": "Retour gagnant"
   },
   "voteSetup": {
     "title": "Qui joue ce soir ?",

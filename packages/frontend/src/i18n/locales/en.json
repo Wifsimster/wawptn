@@ -173,6 +173,14 @@
     "autoVoteDuration60": "1h",
     "autoVoteDuration120": "2h",
     "autoVoteDuration180": "3h",
+    "onlineCount_one": "{{count}} online",
+    "onlineCount_other": "{{count}} online",
+    "moreFilters": "More filters",
+    "moreFiltersDescription": "Fine-tune the list with advanced criteria.",
+    "clearFilter": "Remove {{name}} filter",
+    "includeDLC": "DLC included",
+    "secondaryFilters": "Secondary options",
+    "done": "Done",
     "autoVotePresetsToggle": "Show suggestions",
     "autoVotePresetsEmpty": "No suggestions. You can still type a custom cron expression.",
     "autoVotePresetDaily18": "Every day at 6:00 PM",
@@ -186,6 +194,24 @@
     "autoVotePresetSunday20": "Every Sunday at 8:00 PM",
     "autoVotePresetFridaySaturday20": "Friday and Saturday at 8:00 PM",
     "autoVotePresetWeekend20": "Weekends at 8:00 PM (Sat-Sun)"
+  },
+  "filterPresets": {
+    "label": "Vibe",
+    "coopNight": "Co-op night",
+    "couchCoop": "Couch co-op",
+    "partyMulti": "Party multi",
+    "topRated": "Top rated"
+  },
+  "tonightPick": {
+    "eyebrow": "Tonight's pick",
+    "emptyTitle": "Ready to vote?",
+    "emptyDescription": "Once your libraries are synced, we'll surface a tailored pick for tonight.",
+    "everyoneOwns": "Everyone owns it",
+    "ready": "Ready to vote",
+    "reasonNever": "Never played together",
+    "reasonTopRated": "Top rated",
+    "reasonMostOwned": "Most owned",
+    "reasonComeback": "Comeback kings"
   },
   "voteSetup": {
     "title": "Who's playing tonight?",

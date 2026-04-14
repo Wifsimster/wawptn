@@ -745,10 +745,26 @@ router.get('/bot-settings', async (_req: Request, res: Response) => {
     .where('key', 'like', 'bot.%')
     .select('key', 'value')
 
+  // app_settings.value is a jsonb column but the seed migration and the
+  // admin PATCH endpoint both call JSON.stringify() before inserting, so
+  // the exact shape that comes back from knex/pg depends on how the row
+  // was written. Defensively unwrap string values so the Discord bot's
+  // scheduler receives a plain cron expression like `0 21 * * 5` instead
+  // of the JSON-encoded `"0 21 * * 5"` with literal quotes — the latter
+  // fails cron.validate() silently and no reminder ever gets scheduled.
+  // This mirrors the parse helper in loadGlobalBotDefaults() below.
   const settings: Record<string, unknown> = {}
   for (const row of rows) {
     const shortKey = row.key.replace(/^bot\./, '')
-    settings[shortKey] = row.value
+    let value: unknown = row.value
+    if (typeof value === 'string') {
+      try {
+        value = JSON.parse(value)
+      } catch {
+        // Not JSON — leave as-is (plain string, already usable).
+      }
+    }
+    settings[shortKey] = value
   }
 
   res.json(settings)

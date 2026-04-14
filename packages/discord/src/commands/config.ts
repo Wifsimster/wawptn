@@ -5,6 +5,7 @@ import {
   type ChatInputCommandInteraction,
 } from 'discord.js'
 import { getGuildSettings, updateGuildSettings } from '../lib/api.js'
+import { triggerReminder } from '../scheduler.js'
 
 // Matches a 5-field cron expression loosely enough to reject obvious
 // nonsense while still allowing ranges, lists and step values. The
@@ -55,6 +56,21 @@ export const data = new SlashCommandBuilder()
             { name: 'Rappel du vendredi', value: 'friday_schedule' },
             { name: 'Rappel du milieu de semaine', value: 'wednesday_schedule' },
             { name: 'Fuseau horaire', value: 'schedule_timezone' },
+          ),
+      ),
+  )
+  .addSubcommand((sub) =>
+    sub
+      .setName('test-reminder')
+      .setDescription('Envoie un rappel de test maintenant dans ce canal')
+      .addStringOption((opt) =>
+        opt
+          .setName('type')
+          .setDescription('Quel type de rappel tester')
+          .setRequired(true)
+          .addChoices(
+            { name: 'Rappel du vendredi', value: 'friday' },
+            { name: 'Rappel du milieu de semaine', value: 'weekday' },
           ),
       ),
   )
@@ -149,6 +165,27 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       })
 
       await interaction.editReply({ content: `♻️ ${field} réinitialisé à la valeur globale.` })
+      return
+    }
+
+    if (sub === 'test-reminder') {
+      // Ephemeral confirmation, but the reminder itself is a public message
+      // in the current channel so the admin can see exactly what would fire
+      // on the next cron tick (permissions, persona copy, embed style).
+      const kind = interaction.options.getString('type', true) as 'friday' | 'weekday'
+      const label = kind === 'friday' ? 'vendredi' : 'semaine'
+
+      try {
+        const { personaName } = await triggerReminder(interaction.client, interaction.channelId, kind)
+        await interaction.editReply({
+          content: `✅ Rappel de test **${label}** envoyé dans ce canal (persona : ${personaName}).`,
+        })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erreur inconnue'
+        await interaction.editReply({
+          content: `❌ Impossible d'envoyer le rappel de test : ${message}`,
+        })
+      }
       return
     }
 

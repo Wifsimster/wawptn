@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { ShareButton } from '@/components/share-button'
 import { CelebrationParticles } from '@/components/celebration-particles'
+import { decodeHtmlEntities } from '@/lib/utils'
 
 interface Game {
   steamAppId: number
@@ -783,7 +784,7 @@ function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }: GameD
         {/* Short description */}
         {game.shortDescription && (
           <p className="text-sm text-muted-foreground leading-relaxed">
-            {game.shortDescription}
+            {decodeHtmlEntities(game.shortDescription)}
           </p>
         )}
 

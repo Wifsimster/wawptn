@@ -18,6 +18,7 @@ import {
 import type { CommonGame } from '@wawptn/types'
 import { EmptyState } from '@/components/empty-state'
 import { useWishlistStore } from '@/stores/wishlist.store'
+import { decodeHtmlEntities } from '@/lib/utils'
 
 // Reuse the shared wire type so we don't drift from the API shape. The
 // grid previously redeclared a subset inline, which silently allowed the
@@ -748,7 +749,7 @@ function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<s
         </TooltipTrigger>
         {game.shortDescription && (
           <TooltipContent side="bottom" className="max-w-xs text-xs">
-            {game.shortDescription}
+            {decodeHtmlEntities(game.shortDescription)}
           </TooltipContent>
         )}
       </Tooltip>

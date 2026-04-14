@@ -10,9 +10,15 @@ import { env } from '../../config/env.js'
 import { requireAuth } from '../middleware/auth.middleware.js'
 import { SESSION_COOKIE_NAME, CSRF_COOKIE_NAME } from '../../config/session.js'
 import { createUserSession, getSessionUserId, findOrCreateSteamUser } from '../../domain/auth-service.js'
+import {
+  findLiveDiscordAuthIntent,
+  consumeDiscordAuthIntent,
+  materializeGroupForIntent,
+} from '../../domain/discord-auth-intent.js'
 
 const EPIC_LINK_STATE_COOKIE = 'wawptn.epic_link_state'
 const GOG_LINK_STATE_COOKIE = 'wawptn.gog_link_state'
+const DISCORD_INTENT_COOKIE = 'wawptn.discord_intent'
 
 const router = Router()
 
@@ -21,6 +27,95 @@ function isAllowedReturnPath(path: string): boolean {
   return /^\/join\/[a-f0-9]{64}$/.test(path)
     || /^\/discord\/link\?code=[A-Za-z0-9]+$/.test(path)
 }
+
+/**
+ * Discord magic-link entry point.
+ *
+ * The Discord bot issues a one-shot nonce via POST /api/discord/intent
+ * (see discord.routes.ts) and replies to the user in Discord with a URL
+ * pointing at this endpoint. Flow:
+ *
+ *   1. Validate the nonce exists and is live.
+ *   2. Park it in a signed, short-lived cookie scoped to the Steam
+ *      callback path so the callback can consume it after auth.
+ *   3. Kick off Steam OpenID, reusing the existing CSRF + return flow.
+ *
+ * Nothing is mutated here — the intent is only marked consumed once the
+ * Steam callback successfully materialises a user session.
+ */
+router.get('/discord/intent/:nonce', async (req: Request, res: Response) => {
+  const nonce = String(req.params['nonce'] ?? '')
+  if (!/^[a-f0-9]{64}$/.test(nonce)) {
+    authLogger.warn('discord intent rejected: malformed nonce')
+    res.redirect(`${env.CORS_ORIGIN}/?error=discord_intent_invalid`)
+    return
+  }
+
+  const intent = await findLiveDiscordAuthIntent(nonce)
+  if (!intent) {
+    authLogger.warn({ nonce }, 'discord intent rejected: unknown, expired, or consumed')
+    res.redirect(`${env.CORS_ORIGIN}/?error=discord_intent_expired`)
+    return
+  }
+
+  // Park the nonce in a signed cookie for the Steam callback. We intentionally
+  // do NOT consume the intent here — the one-shot mutation happens inside the
+  // Steam callback so an abandoned Steam login doesn't burn the nonce.
+  res.cookie(DISCORD_INTENT_COOKIE, nonce, {
+    httpOnly: true,
+    signed: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 10 * 60 * 1000,
+    path: '/api/auth/steam/callback',
+  })
+
+  // If the user already has a live WAWPTN session, skip Steam entirely and
+  // materialise the group membership straight away. Returning users should
+  // get a one-tap experience.
+  const existingToken = req.signedCookies?.[SESSION_COOKIE_NAME]
+  if (existingToken) {
+    const existingUserId = await getSessionUserId(existingToken)
+    if (existingUserId) {
+      try {
+        const consumed = await consumeDiscordAuthIntent(nonce)
+        if (!consumed) {
+          res.clearCookie(DISCORD_INTENT_COOKIE, { path: '/api/auth/steam/callback' })
+          res.redirect(`${env.CORS_ORIGIN}/?error=discord_intent_expired`)
+          return
+        }
+        const result = await materializeGroupForIntent(existingUserId, intent)
+        res.clearCookie(DISCORD_INTENT_COOKIE, { path: '/api/auth/steam/callback' })
+        res.redirect(`${env.CORS_ORIGIN}/groups/${result.groupId}`)
+        return
+      } catch (error) {
+        if (error instanceof Error && error.message === 'banned') {
+          res.clearCookie(DISCORD_INTENT_COOKIE, { path: '/api/auth/steam/callback' })
+          res.redirect(`${env.CORS_ORIGIN}/?error=group_banned`)
+          return
+        }
+        authLogger.error({ error: String(error), nonce }, 'discord intent fast-path failed')
+        res.clearCookie(DISCORD_INTENT_COOKIE, { path: '/api/auth/steam/callback' })
+        res.redirect(`${env.CORS_ORIGIN}/?error=discord_intent_failed`)
+        return
+      }
+    }
+  }
+
+  // No live session — set the CSRF cookie and redirect to Steam.
+  const csrfState = crypto.randomBytes(16).toString('hex')
+  res.cookie(CSRF_COOKIE_NAME, csrfState, {
+    httpOnly: true,
+    signed: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 10 * 60 * 1000,
+    path: '/api/auth/steam/callback',
+  })
+
+  const returnUrl = `${env.API_URL}/api/auth/steam/callback`
+  res.redirect(getSteamLoginUrl(returnUrl))
+})
 
 // Initiate Steam OpenID login
 router.get('/steam/login', (req: Request, res: Response) => {
@@ -124,6 +219,41 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
     syncUserLibrary(user.id, steamId).catch(err => {
       steamLogger.error({ error: String(err), steamId }, 'background library sync failed')
     })
+
+    // Discord magic-link flow: if a Discord auth intent was parked in
+    // the cookie before the Steam hop, consume it and materialise the
+    // group membership. This is the one-shot step — any subsequent
+    // replay of the same nonce is rejected by consumeDiscordAuthIntent.
+    const discordIntentNonce = req.signedCookies?.[DISCORD_INTENT_COOKIE]
+    res.clearCookie(DISCORD_INTENT_COOKIE, { path: '/api/auth/steam/callback' })
+    if (typeof discordIntentNonce === 'string' && /^[a-f0-9]{64}$/.test(discordIntentNonce)) {
+      try {
+        const intent = await findLiveDiscordAuthIntent(discordIntentNonce)
+        if (intent) {
+          const consumed = await consumeDiscordAuthIntent(discordIntentNonce)
+          if (consumed) {
+            const result = await materializeGroupForIntent(user.id, intent)
+            // Clear the older invite-return cookie defensively — a
+            // Discord intent always wins over a stale invite redirect.
+            res.clearCookie('wawptn.invite_return', { path: '/api/auth/steam/callback' })
+            res.redirect(`${env.CORS_ORIGIN}/groups/${result.groupId}`)
+            return
+          }
+        }
+        authLogger.warn({ nonce: discordIntentNonce }, 'discord intent not live at callback time')
+      } catch (error) {
+        if (error instanceof Error && error.message === 'banned') {
+          res.redirect(`${env.CORS_ORIGIN}/?error=group_banned`)
+          return
+        }
+        authLogger.error(
+          { error: String(error), nonce: discordIntentNonce },
+          'discord intent materialisation failed at callback',
+        )
+        res.redirect(`${env.CORS_ORIGIN}/?error=discord_intent_failed`)
+        return
+      }
+    }
 
     // Redirect to invite join page if cookie present, otherwise home
     const inviteReturn = req.signedCookies?.['wawptn.invite_return']

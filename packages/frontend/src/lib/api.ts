@@ -43,6 +43,9 @@ export const api = {
       id: string; name: string; connected: boolean; comingSoon?: boolean; linkable?: boolean; needsRelink?: boolean;
       accountId?: string | null; gameCount?: number; lastSyncedAt?: string | null; profileUrl?: string | null;
     }[];
+    discord:
+      | { linked: true; discordId: string; discordUsername: string; linkedAt: string }
+      | { linked: false };
   }>('/auth/profile'),
   syncProfile: () => request<{ ok: boolean }>('/auth/profile/sync', { method: 'POST' }),
   syncPlatform: (platformId: string) => request<{ ok: boolean }>(`/auth/${platformId}/sync`, { method: 'POST' }),
@@ -57,6 +60,9 @@ export const api = {
   confirmDiscordLink: (code: string) => request<{ ok: boolean; discordUsername: string }>('/discord/link/confirm', {
     method: 'POST',
     body: JSON.stringify({ code }),
+  }),
+  unlinkDiscord: () => request<{ ok: boolean; wasLinked: boolean }>('/discord/link', {
+    method: 'DELETE',
   }),
 
   // Invite preview (public, no auth — mounted at /invite, not /api)

@@ -1,6 +1,7 @@
 import { Client, GatewayIntentBits, Events, REST, Routes, type Interaction, type Message } from 'discord.js'
 import { validateEnv, env } from './env.js'
 import { backendApi } from './lib/api.js'
+import { startHttpApi } from './http/server.js'
 import { startScheduler, notifyBackOnline } from './scheduler.js'
 import { getTodayPersona, getDefaultPersona, getPersonaById, type Persona } from './personas.js'
 import { getBotSettings } from './lib/api.js'
@@ -65,6 +66,14 @@ client.once(Events.ClientReady, async (c) => {
     console.log(`Registered ${commandData.length} slash commands`)
   } catch (error) {
     console.error('Failed to register slash commands:', error)
+  }
+
+  // Start the internal HTTP API the backend uses to push session events
+  // (create/update/close) onto the Gateway-connected client.
+  try {
+    startHttpApi(c)
+  } catch (err) {
+    console.error('[startup] Failed to start bot HTTP API:', err)
   }
 
   // Start scheduled reminder messages (fetches settings from backend)

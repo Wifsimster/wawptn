@@ -4,6 +4,7 @@
 import { domainEvents } from '../../domain/events/event-bus.js'
 import { getIO } from '../socket/socket.js'
 import { notifySessionCreated, notifyVoteClosed } from '../discord/notifier.js'
+import { scheduleVoteUpdate } from '../discord/live-vote-updater.js'
 import { createNotification } from '../notifications/notification-service.js'
 import { logger } from '../logger/logger.js'
 import { db } from '../database/connection.js'
@@ -23,7 +24,7 @@ export function registerSessionEffects(): void {
       logger.warn({ error: String(err), groupId: event.groupId }, 'socket emit session:created failed')
     }
 
-    // Send Discord webhook (non-blocking)
+    // Send Discord notification (bot-backed or webhook fallback). Non-blocking.
     notifySessionCreated(event.groupId, event.sessionId, event.games).catch((err) =>
       logger.warn({ error: String(err), groupId: event.groupId }, 'Discord session notification failed')
     )
@@ -52,6 +53,17 @@ export function registerSessionEffects(): void {
     }
   })
 
+  // Vote cast — drives the debounced Discord live-count updater. Both web
+  // and Discord vote paths emit this event, so any vote from any source
+  // keeps the Discord message in sync with the canonical DB tally.
+  domainEvents.on('vote:cast', (event) => {
+    try {
+      scheduleVoteUpdate(event.sessionId)
+    } catch (err) {
+      logger.warn({ error: String(err), sessionId: event.sessionId }, 'vote:cast live-update schedule failed')
+    }
+  })
+
   domainEvents.on('session:closed', async (event) => {
     // Emit Socket.io event
     try {
@@ -60,8 +72,8 @@ export function registerSessionEffects(): void {
       logger.warn({ error: String(err), groupId: event.groupId }, 'socket emit vote:closed failed')
     }
 
-    // Discord webhook
-    notifyVoteClosed(event.groupId, event.result).catch((err) =>
+    // Discord notification (bot-backed close edit + announcement webhooks)
+    notifyVoteClosed(event.groupId, event.sessionId, event.result).catch((err) =>
       logger.warn({ error: String(err), groupId: event.groupId }, 'Discord notification failed')
     )
 

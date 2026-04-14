@@ -8,6 +8,7 @@ import { env } from '../../config/env.js'
 import { requireAuth } from '../middleware/auth.middleware.js'
 import { isUserPremium } from '../middleware/tier.middleware.js'
 import { createVotingSession } from '../../domain/create-session.js'
+import { domainEvents } from '../../domain/events/event-bus.js'
 import { isLLMEnabled, generateChatResponse, type ChatContext } from '../../infrastructure/llm/client.js'
 
 /** Check if a group's owner has premium. Returns false if no owner found. */
@@ -202,6 +203,16 @@ router.post('/vote', async (req: Request, res: Response) => {
     userId,
     voterCount: Number(voterCount?.count || 0),
     totalParticipants,
+  })
+
+  // Emit a domain event so the Discord live-count updater re-renders the
+  // interactive message with fresh tallies. `source: 'discord'` helps
+  // downstream logging tell web-cast and bot-cast votes apart.
+  domainEvents.emit('vote:cast', {
+    sessionId,
+    groupId: session.group_id,
+    userId,
+    source: 'discord',
   })
 
   res.json({ ok: true })
@@ -1022,6 +1033,16 @@ userRouter.post('/link/confirm', requireAuth, async (req: Request, res: Response
   logger.info({ userId, discordId: linkCode.discord_id }, 'Discord account linked')
 
   res.json({ ok: true, discordUsername: linkCode.discord_username })
+})
+
+// Unlink Discord: Remove the linked Discord account for the current user.
+// Safe to call even if the user isn't linked (idempotent) so the frontend
+// doesn't have to special-case the empty state.
+userRouter.delete('/link', requireAuth, async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const deleted = await db('discord_links').where({ user_id: userId }).del()
+  logger.info({ userId, deleted }, 'Discord account unlinked')
+  res.json({ ok: true, wasLinked: deleted > 0 })
 })
 
 // Set webhook URL for a group (group owner only)

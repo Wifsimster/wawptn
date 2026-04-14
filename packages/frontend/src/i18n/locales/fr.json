@@ -376,7 +376,10 @@
     "topGames": "Jeux les plus joués",
     "statsGames": "jeux",
     "statsHours": "heures",
-    "statsPlatforms": "connectées"
+    "statsPlatforms": "connectées",
+    "discordLinkedAs": "Lié à Discord en tant que {{username}}",
+    "discordLinkInstructions": "Ouvre Discord et tape /wawptn-link dans un serveur avec le bot pour recevoir un code, puis colle-le sur la page de liaison.",
+    "discordUnlinked": "Compte Discord délié."
   },
   "recommendations": {
     "title": "Suggestions",

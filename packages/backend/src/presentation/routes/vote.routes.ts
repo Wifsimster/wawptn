@@ -5,6 +5,7 @@ import { closeSession } from '../../domain/close-session.js'
 import { createVotingSession } from '../../domain/create-session.js'
 import { isUserPremium } from '../middleware/tier.middleware.js'
 import { evaluateChallenges } from '../../domain/challenges/challenge-service.js'
+import { domainEvents } from '../../domain/events/event-bus.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 
 const router = Router()
@@ -329,6 +330,10 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
     voterCount: Number(voterCount?.count || 0),
     totalParticipants,
   })
+
+  // Emit a domain event so downstream side effects (Discord live-count
+  // updater, etc.) react without the route having to know about them.
+  domainEvents.emit('vote:cast', { sessionId, groupId, userId, source: 'web' })
 
   // Evaluate participation challenges (non-blocking)
   evaluateChallenges(userId, ['participation']).catch(err =>

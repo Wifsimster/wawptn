@@ -9,6 +9,7 @@ import { updateGroupSchedule } from '../../infrastructure/scheduler/auto-vote-sc
 import { logger } from '../../infrastructure/logger/logger.js'
 import { isUserPremium, FREE_TIER_LIMITS, PREMIUM_TIER_LIMITS } from '../middleware/tier.middleware.js'
 import { requireGroupMembership } from '../middleware/group-membership.middleware.js'
+import { isBannedFromGroup } from '../../domain/discord-auth-intent.js'
 
 const router = Router()
 
@@ -319,6 +320,7 @@ router.post('/join', async (req: Request, res: Response) => {
   const group = await db('groups')
     .where({ invite_token_hash: hash })
     .where('invite_expires_at', '>', new Date())
+    .whereNull('archived_at')
     .first()
 
   if (!group) {
@@ -333,6 +335,23 @@ router.post('/join', async (req: Request, res: Response) => {
 
   if (existing) {
     res.json({ id: group.id, name: group.name, alreadyMember: true })
+    return
+  }
+
+  // Ban check (decision D16): a kicked user must not be able to rejoin
+  // via a still-live invite link. Also blocks users whose Discord identity
+  // was banned before a WAWPTN account existed for them.
+  const linkedDiscord = await db('discord_links').where({ user_id: userId }).first()
+  const banned = await isBannedFromGroup({
+    groupId: group.id,
+    userId,
+    discordId: linkedDiscord?.discord_id ?? null,
+  })
+  if (banned) {
+    res.status(403).json({
+      error: 'banned',
+      message: 'Vous avez été retiré de ce salon. Contactez le propriétaire.',
+    })
     return
   }
 

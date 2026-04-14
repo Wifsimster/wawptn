@@ -10,6 +10,7 @@ import { isUserPremium } from '../middleware/tier.middleware.js'
 import { createVotingSession } from '../../domain/create-session.js'
 import { domainEvents } from '../../domain/events/event-bus.js'
 import { isLLMEnabled, generateChatResponse, type ChatContext } from '../../infrastructure/llm/client.js'
+import { createDiscordAuthIntent } from '../../domain/discord-auth-intent.js'
 
 /** Check if a group's owner has premium. Returns false if no owner found. */
 async function isGroupOwnerPremium(groupId: string): Promise<boolean> {
@@ -22,7 +23,11 @@ const router = Router()
 
 // ─── Bot-authenticated routes (called by the Discord bot) ─────────────────────
 
-// Setup: Link a Discord channel to a WAWPTN group
+// Setup: Link a Discord channel to a WAWPTN group.
+//
+// Discord channel binding is now part of the base product (design meeting
+// decision C4 — 2026-04-14). The previous premium gate has been removed;
+// every user can bind a channel to their group.
 router.post('/setup', async (req: Request, res: Response) => {
   const { groupId, discordChannelId, discordGuildId } = req.body as {
     groupId: string
@@ -41,13 +46,6 @@ router.post('/setup', async (req: Request, res: Response) => {
     return
   }
 
-  // Discord bot integration requires premium
-  const ownerPremium = await isGroupOwnerPremium(groupId)
-  if (!ownerPremium) {
-    res.status(403).json({ error: 'premium_required', message: 'Discord bot integration requires a premium subscription' })
-    return
-  }
-
   await db('groups').where({ id: groupId }).update({
     discord_channel_id: discordChannelId,
     discord_guild_id: discordGuildId,
@@ -56,6 +54,53 @@ router.post('/setup', async (req: Request, res: Response) => {
   logger.info({ groupId, discordChannelId, discordGuildId }, 'Discord channel linked to group')
 
   res.json({ ok: true, groupName: group.name })
+})
+
+/**
+ * Magic-link intent issuance (bot-auth).
+ *
+ * Called by the Discord bot when a user runs `/wawptn setup` (or any
+ * slash command that needs a linked WAWPTN session). The bot passes
+ * the Discord identity and the target channel/guild; the backend mints
+ * a one-shot nonce and returns the URL the bot should surface in its
+ * ephemeral reply.
+ *
+ * The URL is an absolute API endpoint — the browser hits it directly,
+ * and the backend bounces the user through Steam OpenID before
+ * materialising their `group_members` row.
+ */
+router.post('/intent', async (req: Request, res: Response) => {
+  const { discordUserId, discordUsername, discordChannelId, discordGuildId, channelName } = req.body as {
+    discordUserId?: string
+    discordUsername?: string
+    discordChannelId?: string
+    discordGuildId?: string
+    channelName?: string | null
+  }
+
+  if (!discordUserId || !discordUsername || !discordChannelId || !discordGuildId) {
+    res.status(400).json({
+      error: 'validation',
+      message: 'discordUserId, discordUsername, discordChannelId, and discordGuildId are required',
+    })
+    return
+  }
+
+  try {
+    const { nonce, expiresAt } = await createDiscordAuthIntent({
+      discordId: discordUserId,
+      discordUsername,
+      discordChannelId,
+      discordGuildId,
+      channelName: channelName ?? null,
+    })
+
+    const url = `${env.API_URL}/api/auth/discord/intent/${nonce}`
+    res.json({ nonce, url, expiresAt })
+  } catch (error) {
+    authLogger.error({ error: String(error), discordUserId }, 'failed to create discord auth intent')
+    res.status(500).json({ error: 'internal', message: 'Failed to create auth intent' })
+  }
 })
 
 // Link status: Check if a Discord user is linked

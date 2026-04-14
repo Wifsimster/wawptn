@@ -164,6 +164,74 @@ export interface SteamLibrarySyncStatus {
 }
 
 // ============================================
+// Profile comparison
+// ============================================
+
+/**
+ * One game row inside a public profile — used by both the single
+ * profile view and the two-user comparison view. `playtimeForever`
+ * is in minutes, matching Steam's raw value.
+ */
+export interface PublicProfileGame {
+  steamAppId: number
+  gameName: string
+  headerImageUrl: string | null
+  playtimeForever: number | null
+}
+
+/**
+ * Public view of another user's profile, scoped to a viewer they
+ * share at least one group with. The list of fields that are
+ * actually populated depends on the target user's visibility
+ * settings — see the backend route for the exact gating rules.
+ */
+export interface PublicUserProfile {
+  id: string
+  displayName: string
+  avatarUrl: string | null
+  /** Total number of games in the target's library (always visible). */
+  gameCount: number
+  /** Total minutes across the library, only if `visibilityFullLibrary`. */
+  totalPlaytimeMinutes: number | null
+  /** Games in common with the viewer, always populated. */
+  commonGamesWithViewer: PublicProfileGame[]
+  /** Full top-N library, only populated if `visibilityFullLibrary`. */
+  topGames: PublicProfileGame[] | null
+  /** Last time we successfully refreshed their library from Steam. */
+  lastSyncedAt: string | null
+  /** True if the target has opted in to sharing their full library. */
+  visibilityFullLibrary: boolean
+  /** True if the target has opted in to sharing last-played timestamps. */
+  visibilityLastPlayed: boolean
+}
+
+/**
+ * Side-by-side comparison of two users, scoped to what the viewer
+ * is authorized to see. Both `a` and `b` must be co-members of at
+ * least one group with the viewer.
+ */
+export interface UserCompareResult {
+  a: PublicUserProfile
+  b: PublicUserProfile
+  commonGames: Array<{
+    steamAppId: number
+    gameName: string
+    headerImageUrl: string | null
+    playtimeA: number | null
+    playtimeB: number | null
+  }>
+  onlyAGames: PublicProfileGame[]
+  onlyBGames: PublicProfileGame[]
+  overlapRatio: number
+}
+
+/** Self-settings payload for the visibility toggles. */
+export interface ProfileVisibilitySettings {
+  visibilityFullLibrary: boolean
+  visibilityLastPlayed: boolean
+}
+
+// ============================================
 // Discord
 // ============================================
 

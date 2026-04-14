@@ -8,6 +8,8 @@ import { GroupPage } from '@/pages/GroupPage'
 import { VotePage } from '@/pages/VotePage'
 import { JoinPage } from '@/pages/JoinPage'
 import { ProfilePage } from '@/pages/ProfilePage'
+import { UserProfilePage } from '@/pages/UserProfilePage'
+import { ComparePage } from '@/pages/ComparePage'
 import { DiscordLinkPage } from '@/pages/DiscordLinkPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { AdminPage } from '@/pages/AdminPage'
@@ -91,6 +93,8 @@ function App() {
     <Routes>
       <Route path="/" element={<GroupsPage />} />
       <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/u/:userId" element={<UserProfilePage />} />
+      <Route path="/compare" element={<ComparePage />} />
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/subscription" element={<SubscriptionPage />} />
       <Route path="/groups/:id" element={<GroupPage />} />

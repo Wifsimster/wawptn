@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil, Bell, BellOff, CalendarClock, Lock } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
@@ -77,6 +78,7 @@ function getLastSeenLabel(lastSeenTs: number | undefined): string {
 
 export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onStartVote, compact = false }: GroupSidebarProps) {
   const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmKick, setConfirmKick] = useState<Member | null>(null)
@@ -190,7 +192,13 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
           : getLastSeenLabel(lastSeenMap.get(member.id))
         return (
           <div key={member.id} className={`flex items-center gap-3 min-h-[48px] py-1.5 px-1 -mx-1 rounded-md group transition-opacity ${!isOnline ? 'opacity-60' : ''}`}>
-            <div className="relative">
+            <button
+              type="button"
+              onClick={() => !isSelf && navigate(`/u/${member.id}`)}
+              disabled={isSelf}
+              className={`relative shrink-0 rounded-full ${isSelf ? 'cursor-default' : 'hover:ring-2 hover:ring-primary/40 transition-shadow cursor-pointer'}`}
+              aria-label={isSelf ? member.displayName : `Voir le profil de ${member.displayName}`}
+            >
               <Avatar className="w-8 h-8">
                 <AvatarImage src={member.avatarUrl} alt={member.displayName} />
                 <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
@@ -199,12 +207,22 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                 className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 ${compact ? 'border-background' : 'border-card'} ${isOnline ? 'bg-online animate-pulse' : 'bg-muted-foreground/40'}`}
                 aria-label={presenceLabel}
               />
-            </div>
+            </button>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className={`text-sm font-medium truncate ${!isOnline ? 'text-muted-foreground' : ''}`}>{member.displayName}</span>
+                    {isSelf ? (
+                      <span className={`text-sm font-medium truncate ${!isOnline ? 'text-muted-foreground' : ''}`}>{member.displayName}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/u/${member.id}`)}
+                        className={`text-sm font-medium truncate text-left hover:text-primary transition-colors ${!isOnline ? 'text-muted-foreground' : ''}`}
+                      >
+                        {member.displayName}
+                      </button>
+                    )}
                   </TooltipTrigger>
                   <TooltipContent side="top" className="text-xs">
                     {member.displayName}

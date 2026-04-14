@@ -3,8 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import {
   ArrowLeft, RefreshCw, ExternalLink, Check, Clock,
-  Gamepad2, Link, Unlink, AlertTriangle, Timer, Trophy, Target, MessageCircle,
+  Gamepad2, Link, Unlink, AlertTriangle, Timer, Trophy, Target, MessageCircle, Eye,
 } from 'lucide-react'
+import type { ProfileVisibilitySettings } from '@wawptn/types'
+import { Checkbox } from '@/components/ui/checkbox'
 import { PlatformIcon } from '@/components/icons/platforms'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -182,6 +184,24 @@ export function ProfilePage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const { challenges, totalUnlocked, totalChallenges, fetchChallenges } = useChallengeStore()
+  const [visibility, setVisibility] = useState<ProfileVisibilitySettings | null>(null)
+  const [visibilitySaving, setVisibilitySaving] = useState<keyof ProfileVisibilitySettings | null>(null)
+
+  useEffect(() => {
+    api.getVisibility().then(setVisibility).catch(() => { /* silent — section just won't render */ })
+  }, [])
+
+  const updateVisibility = async (key: keyof ProfileVisibilitySettings, value: boolean) => {
+    setVisibilitySaving(key)
+    try {
+      const next = await api.updateVisibility({ [key]: value })
+      setVisibility(next)
+    } catch {
+      toast.error(t('error.description'))
+    } finally {
+      setVisibilitySaving(null)
+    }
+  }
 
   const loadProfile = useCallback(async () => {
     try {
@@ -607,6 +627,50 @@ export function ProfilePage() {
             )}
           </div>
         </motion.section>
+
+        {/* ── Visibility settings (issue #142) ── */}
+        {visibility && (
+          <motion.section variants={fadeUp}>
+            <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+              <Eye className="w-4 h-4 shrink-0" />
+              Confidentialité
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+              Les jeux que vous avez en commun avec un autre membre sont toujours
+              visibles pour lui. Vous choisissez ci-dessous ce qui est partagé au-delà.
+            </p>
+            <div className="space-y-2">
+              <label className="flex items-start gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm cursor-pointer hover:bg-card/80 transition-colors">
+                <Checkbox
+                  checked={visibility.visibilityFullLibrary}
+                  disabled={visibilitySaving === 'visibilityFullLibrary'}
+                  onCheckedChange={(checked) => updateVisibility('visibilityFullLibrary', checked === true)}
+                  className="mt-0.5"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Partager ma bibliothèque complète</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Les membres de vos groupes pourront voir vos top jeux et votre temps de jeu total.
+                  </p>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm cursor-pointer hover:bg-card/80 transition-colors">
+                <Checkbox
+                  checked={visibility.visibilityLastPlayed}
+                  disabled={visibilitySaving === 'visibilityLastPlayed'}
+                  onCheckedChange={(checked) => updateVisibility('visibilityLastPlayed', checked === true)}
+                  className="mt-0.5"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Partager mes heures par jeu</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Affiche votre temps de jeu sur chaque titre commun avec un autre membre.
+                  </p>
+                </div>
+              </label>
+            </div>
+          </motion.section>
+        )}
 
         {/* ── Top Games Showcase ── */}
         {profile.topGames && profile.topGames.length > 0 && (

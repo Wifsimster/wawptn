@@ -1,32 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Search, X, Users, Handshake, Star, ChevronDown, Gamepad2, Monitor, TrendingUp, SearchX, RefreshCw, ShieldAlert, EyeOff } from 'lucide-react'
+import { Search, X, Users, Handshake, Star, ChevronDown, Gamepad2, Monitor, TrendingUp, SearchX, RefreshCw, ShieldAlert, EyeOff, SlidersHorizontal, Sparkles, Sofa, Trophy, Zap } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+  ResponsiveDialogFooter,
+} from '@/components/ui/responsive-dialog'
+import type { CommonGame } from '@wawptn/types'
 import { EmptyState } from '@/components/empty-state'
 import { useWishlistStore } from '@/stores/wishlist.store'
 
-interface Game {
-  steamAppId: number
-  gameId?: string
-  gameName: string
-  headerImageUrl: string
-  ownerCount: number
-  totalMembers: number
-  genres: { id: string; description: string }[] | null
-  metacriticScore: number | null
-  type: string | null
-  shortDescription: string | null
-  platforms: { windows: boolean; mac: boolean; linux: boolean } | null
-  recommendationsTotal: number | null
-  releaseDate: string | null
-  comingSoon: boolean | null
-  controllerSupport: string | null
-  isFree: boolean | null
+// Reuse the shared wire type so we don't drift from the API shape. The
+// grid previously redeclared a subset inline, which silently allowed the
+// `headerImageUrl` nullability to diverge from the rest of the app.
+type Game = CommonGame
+
+function resolveHeaderImage(game: Game): string {
+  return (
+    game.headerImageUrl ||
+    `https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/header.jpg`
+  )
 }
 
 export interface GameFilters {
@@ -51,6 +53,8 @@ interface GameGridProps {
   onToggleControllerOnly: (value: boolean) => void
   onSetSortBy: (value: 'owners' | 'popularity' | 'name') => void
   onResetFilters: () => void
+  /** Apply a smart preset patch over the current filter state. */
+  onApplyPreset: (patch: Partial<GameFilters>) => void
   /** Trigger a library re-sync from the "no common games" empty state. */
   onSyncLibraries?: () => void
   /** True while a sync is in-flight — disables the retry button and shows a spinner. */
@@ -62,14 +66,84 @@ const VIRTUALIZE_THRESHOLD = 100
 
 const METACRITIC_THRESHOLDS = [null, 60, 70, 75, 80, 85, 90] as const
 
+/**
+ * Smart filter presets. Each preset is a partial patch over the current
+ * GameFilters state — applying one just overwrites the fields it cares
+ * about and leaves the rest alone. This keeps presets composable with
+ * the search input and lets users layer a text query on top of a mood.
+ * Reason chips are intentionally opinionated so the page feels curated
+ * rather than a spreadsheet of toggles.
+ */
+type FilterPreset = {
+  id: string
+  labelKey: string
+  icon: typeof Sparkles
+  patch: Partial<GameFilters>
+}
+
+const FILTER_PRESETS: FilterPreset[] = [
+  {
+    id: 'coopNight',
+    labelKey: 'filterPresets.coopNight',
+    icon: Handshake,
+    patch: { coopOnly: true, multiplayerOnly: false, gamesOnly: true, controllerOnly: false, minMetacritic: null },
+  },
+  {
+    id: 'couchCoop',
+    labelKey: 'filterPresets.couchCoop',
+    icon: Sofa,
+    patch: { coopOnly: true, multiplayerOnly: false, gamesOnly: true, controllerOnly: true, minMetacritic: null },
+  },
+  {
+    id: 'partyMulti',
+    labelKey: 'filterPresets.partyMulti',
+    icon: Zap,
+    patch: { multiplayerOnly: true, coopOnly: false, gamesOnly: true, controllerOnly: false, minMetacritic: 70 },
+  },
+  {
+    id: 'topRated',
+    labelKey: 'filterPresets.topRated',
+    icon: Trophy,
+    patch: { gamesOnly: true, minMetacritic: 80, sortBy: 'popularity' },
+  },
+]
+
+/**
+ * Return the id of the currently-matching preset, or null. We consider a
+ * preset "active" when every field it patches matches the current state —
+ * so switching away from a preset removes its highlight immediately.
+ */
+function matchActivePreset(filters: GameFilters): string | null {
+  for (const preset of FILTER_PRESETS) {
+    const match = (Object.keys(preset.patch) as (keyof GameFilters)[]).every(
+      (k) => filters[k] === preset.patch[k],
+    )
+    if (match) return preset.id
+  }
+  return null
+}
+
 const normalize = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
-export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggleCoop, onToggleGenre, onSetMinMetacritic, onToggleGamesOnly, onToggleControllerOnly, onSetSortBy, onResetFilters, onSyncLibraries, syncing }: GameGridProps) {
+export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggleCoop, onToggleGenre, onSetMinMetacritic, onToggleGamesOnly, onToggleControllerOnly, onSetSortBy, onResetFilters, onApplyPreset, onSyncLibraries, syncing }: GameGridProps) {
   const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
   const [showAll, setShowAll] = useState(false)
   const [genreExpanded, setGenreExpanded] = useState(false)
+  const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false)
+
+  // Count how many "advanced" filter knobs are active. Drives the small
+  // badge on the "Plus de filtres" button so users can see at a glance
+  // whether the drawer is hiding state from them.
+  const advancedFilterCount =
+    (filters.selectedGenres.length > 0 ? 1 : 0) +
+    (filters.minMetacritic !== null ? 1 : 0) +
+    (filters.controllerOnly ? 1 : 0) +
+    (!filters.gamesOnly ? 1 : 0) +
+    (filters.sortBy !== 'popularity' ? 1 : 0)
+
+  const activePresetId = matchActivePreset(filters)
 
   // Collect all unique genres from games
   const availableGenres = useMemo(() => {
@@ -204,35 +278,59 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
 
       {!loading && games.length > 0 && (
         <div className="space-y-2 min-w-0">
-          {/* Search */}
-          <div className="relative w-full" role="search">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('group.searchGames')}
-              aria-label={t('group.searchGames')}
-              className="pl-9 pr-9 w-full"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label={t('group.clearSearch')}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+          {/* Search + "Plus de filtres" entry on the same row — keeps the
+              primary surface compact and pushes advanced knobs (metacritic,
+              sort, genres, gamesOnly, controllerOnly) into a drawer. */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 min-w-0" role="search">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t('group.searchGames')}
+                aria-label={t('group.searchGames')}
+                className="pl-9 pr-9 w-full"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label={t('group.clearSearch')}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFiltersDrawerOpen(true)}
+              className="gap-1.5 shrink-0 h-10"
+              aria-haspopup="dialog"
+              aria-expanded={filtersDrawerOpen}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{t('group.moreFilters')}</span>
+              {advancedFilterCount > 0 && (
+                <Badge variant="secondary" className="ml-0.5 h-4 px-1.5 text-[10px]">
+                  {advancedFilterCount}
+                </Badge>
+              )}
+            </Button>
           </div>
 
-          {/* Mode toggles — wrap on mobile, horizontal on sm+ */}
+          {/* Smart mode chips — only the 2 highest-signal toggles remain on
+              the main surface. Users get instant feedback without opening
+              the drawer. `aria-pressed` makes the toggle state available
+              to screen readers (variant change alone wasn't enough). */}
           <div className="flex flex-wrap gap-1.5">
             <Button
               variant={filters.multiplayerOnly ? 'default' : 'secondary'}
               size="sm"
               onClick={() => onToggleMultiplayer(!filters.multiplayerOnly)}
               className="gap-1.5"
+              aria-pressed={filters.multiplayerOnly}
             >
               <Users className="w-3.5 h-3.5" />
               {t('group.multiplayerOnly')}
@@ -242,119 +340,253 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
               size="sm"
               onClick={() => onToggleCoop(!filters.coopOnly)}
               className="gap-1.5"
+              aria-pressed={filters.coopOnly}
             >
               <Handshake className="w-3.5 h-3.5" />
               {t('group.coopOnly')}
             </Button>
-            <Button
-              variant={filters.gamesOnly ? 'default' : 'secondary'}
-              size="sm"
-              onClick={() => onToggleGamesOnly(!filters.gamesOnly)}
-              className="gap-1.5"
-            >
-              <Monitor className="w-3.5 h-3.5" />
-              {t('group.gamesOnly')}
-            </Button>
-            <Button
-              variant={filters.controllerOnly ? 'default' : 'secondary'}
-              size="sm"
-              onClick={() => onToggleControllerOnly(!filters.controllerOnly)}
-              className="gap-1.5"
-            >
-              <Gamepad2 className="w-3.5 h-3.5" />
-              {t('group.controllerSupport')}
-            </Button>
           </div>
 
-          {/* Metacritic filter */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
-              <Star className="w-3 h-3" />
-              {t('group.metacritic')}
+          {/* Preset chips row — opinionated shortcuts that patch several
+              filter fields at once. Scrolls horizontally on tight screens
+              so all presets stay reachable without wrapping. */}
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-1 px-1 pb-0.5">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1 shrink-0 pr-1">
+              <Sparkles className="w-3 h-3" />
+              {t('filterPresets.label')}
             </span>
-            {METACRITIC_THRESHOLDS.map((threshold) => (
-              <Button
-                key={threshold ?? 'all'}
-                variant={filters.minMetacritic === threshold ? 'default' : 'outline'}
-                size="sm"
-                className="h-8 px-2.5 text-xs"
-                onClick={() => onSetMinMetacritic(threshold)}
-              >
-                {threshold === null ? t('group.allScores') : `${threshold}+`}
-              </Button>
-            ))}
+            {FILTER_PRESETS.map((preset) => {
+              const Icon = preset.icon
+              const isActive = activePresetId === preset.id
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => onApplyPreset(preset.patch)}
+                  aria-pressed={isActive}
+                  className={`inline-flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary/60 text-secondary-foreground hover:bg-secondary'
+                  }`}
+                >
+                  <Icon className="w-3 h-3" />
+                  {t(preset.labelKey)}
+                </button>
+              )
+            })}
           </div>
 
-          {/* Sort */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
-              <TrendingUp className="w-3 h-3" />
-              {t('group.sortBy')}
-            </span>
-            {(['owners', 'popularity', 'name'] as const).map((s) => (
-              <Button
-                key={s}
-                variant={filters.sortBy === s ? 'default' : 'outline'}
-                size="sm"
-                className="h-8 px-2.5 text-xs"
-                onClick={() => onSetSortBy(s)}
-              >
-                {t(`group.sort_${s}`)}
-              </Button>
-            ))}
-          </div>
-
-          {/* Genre filter */}
-          {availableGenres.length > 0 && (
-            <div className="space-y-1.5">
-              <button
-                type="button"
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => setGenreExpanded(!genreExpanded)}
-              >
-                <ChevronDown className={`w-3 h-3 transition-transform ${genreExpanded ? 'rotate-180' : ''}`} />
-                {t('group.genres')}
-                {filters.selectedGenres.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-xs">
-                    {filters.selectedGenres.length}
-                  </Badge>
-                )}
-              </button>
-              {genreExpanded && (
-                <div className="flex flex-wrap gap-2">
-                  {availableGenres.map((genre) => {
-                    const isSelected = filters.selectedGenres.includes(genre.id)
-                    return (
-                      <button
-                        key={genre.id}
-                        type="button"
-                        onClick={() => onToggleGenre(genre.id)}
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
-                          isSelected
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                        }`}
-                      >
-                        {genre.description}
-                      </button>
-                    )
-                  })}
-                  {filters.selectedGenres.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => filters.selectedGenres.forEach(id => onToggleGenre(id))}
-                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    >
-                      <X className="w-3 h-3 mr-0.5" />
-                      {t('group.clearGenres')}
-                    </button>
-                  )}
-                </div>
+          {/* Active advanced-filter summary row — dismissible chips so
+              state hidden in the drawer is never invisible. */}
+          {advancedFilterCount > 0 && (
+            <div className="flex flex-wrap gap-1.5 items-center">
+              {filters.minMetacritic !== null && (
+                <button
+                  type="button"
+                  onClick={() => onSetMinMetacritic(null)}
+                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+                  aria-label={t('group.clearFilter', { name: `Metacritic ${filters.minMetacritic}+` })}
+                >
+                  <Star className="w-3 h-3" />
+                  {filters.minMetacritic}+
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+              {filters.controllerOnly && (
+                <button
+                  type="button"
+                  onClick={() => onToggleControllerOnly(false)}
+                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+                  aria-label={t('group.clearFilter', { name: t('group.controllerSupport') })}
+                >
+                  <Gamepad2 className="w-3 h-3" />
+                  {t('group.controllerSupport')}
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+              {!filters.gamesOnly && (
+                <button
+                  type="button"
+                  onClick={() => onToggleGamesOnly(true)}
+                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+                  aria-label={t('group.clearFilter', { name: t('group.gamesOnly') })}
+                >
+                  <Monitor className="w-3 h-3" />
+                  {t('group.includeDLC')}
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+              {filters.sortBy !== 'popularity' && (
+                <button
+                  type="button"
+                  onClick={() => onSetSortBy('popularity')}
+                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+                  aria-label={t('group.clearFilter', { name: t('group.sortBy') })}
+                >
+                  <TrendingUp className="w-3 h-3" />
+                  {t(`group.sort_${filters.sortBy}`)}
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+              {filters.selectedGenres.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => filters.selectedGenres.forEach((id) => onToggleGenre(id))}
+                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+                  aria-label={t('group.clearGenres')}
+                >
+                  {t('group.genres')} · {filters.selectedGenres.length}
+                  <X className="w-3 h-3" />
+                </button>
               )}
             </div>
           )}
         </div>
       )}
+
+      {/* Advanced filters drawer — holds everything that used to shout
+          from the main panel: metacritic, sort, genres, and the less-used
+          "gamesOnly / controller" toggles. Keeps the main surface calm. */}
+      <ResponsiveDialog open={filtersDrawerOpen} onOpenChange={setFiltersDrawerOpen}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>{t('group.moreFilters')}</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>{t('group.moreFiltersDescription')}</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <div className="px-4 pb-4 space-y-5 max-h-[70vh] overflow-y-auto">
+            {/* Metacritic */}
+            <section>
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-2">
+                <Star className="w-3 h-3" />
+                {t('group.metacritic')}
+              </h3>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {METACRITIC_THRESHOLDS.map((threshold) => (
+                  <Button
+                    key={threshold ?? 'all'}
+                    variant={filters.minMetacritic === threshold ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-8 px-2.5 text-xs"
+                    onClick={() => onSetMinMetacritic(threshold)}
+                    aria-pressed={filters.minMetacritic === threshold}
+                  >
+                    {threshold === null ? t('group.allScores') : `${threshold}+`}
+                  </Button>
+                ))}
+              </div>
+            </section>
+
+            {/* Sort */}
+            <section>
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-2">
+                <TrendingUp className="w-3 h-3" />
+                {t('group.sortBy')}
+              </h3>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {(['owners', 'popularity', 'name'] as const).map((s) => (
+                  <Button
+                    key={s}
+                    variant={filters.sortBy === s ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-8 px-2.5 text-xs"
+                    onClick={() => onSetSortBy(s)}
+                    aria-pressed={filters.sortBy === s}
+                  >
+                    {t(`group.sort_${s}`)}
+                  </Button>
+                ))}
+              </div>
+            </section>
+
+            {/* Secondary toggles */}
+            <section>
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                {t('group.secondaryFilters')}
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  variant={filters.gamesOnly ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => onToggleGamesOnly(!filters.gamesOnly)}
+                  className="gap-1.5"
+                  aria-pressed={filters.gamesOnly}
+                >
+                  <Monitor className="w-3.5 h-3.5" />
+                  {t('group.gamesOnly')}
+                </Button>
+                <Button
+                  variant={filters.controllerOnly ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => onToggleControllerOnly(!filters.controllerOnly)}
+                  className="gap-1.5"
+                  aria-pressed={filters.controllerOnly}
+                >
+                  <Gamepad2 className="w-3.5 h-3.5" />
+                  {t('group.controllerSupport')}
+                </Button>
+              </div>
+            </section>
+
+            {/* Genres */}
+            {availableGenres.length > 0 && (
+              <section>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors mb-2"
+                  onClick={() => setGenreExpanded(!genreExpanded)}
+                  aria-expanded={genreExpanded}
+                >
+                  <ChevronDown className={`w-3 h-3 transition-transform ${genreExpanded ? 'rotate-180' : ''}`} />
+                  {t('group.genres')}
+                  {filters.selectedGenres.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-xs">
+                      {filters.selectedGenres.length}
+                    </Badge>
+                  )}
+                </button>
+                {genreExpanded && (
+                  <div className="flex flex-wrap gap-2">
+                    {availableGenres.map((genre) => {
+                      const isSelected = filters.selectedGenres.includes(genre.id)
+                      return (
+                        <button
+                          key={genre.id}
+                          type="button"
+                          onClick={() => onToggleGenre(genre.id)}
+                          aria-pressed={isSelected}
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                            isSelected
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                          }`}
+                        >
+                          {genre.description}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+          <ResponsiveDialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                onResetFilters()
+                setFiltersDrawerOpen(false)
+              }}
+              disabled={advancedFilterCount === 0 && !filters.multiplayerOnly && !filters.coopOnly}
+            >
+              {t('group.clearFilters')}
+            </Button>
+            <Button onClick={() => setFiltersDrawerOpen(false)}>
+              {t('group.done')}
+            </Button>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* Metacritic-hidden banner: explains *why* games disappeared and gives
           a one-tap path back to the full list. Only mounts when the filter
@@ -502,7 +734,7 @@ function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<s
         <TooltipTrigger asChild>
           <div>
             <img
-              src={game.headerImageUrl}
+              src={resolveHeaderImage(game)}
               alt={game.gameName}
               width={460}
               height={215}

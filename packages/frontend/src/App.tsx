@@ -19,6 +19,7 @@ import { useChallengeListener } from '@/hooks/useChallengeListener'
 import { usePwaInstallPrompt } from '@/hooks/usePwaInstallPrompt'
 import { useSocketConnectionStatus } from '@/hooks/useSocketConnectionStatus'
 import { useNotificationStore } from '@/stores/notification.store'
+import { useWishlistStore } from '@/stores/wishlist.store'
 
 function App() {
   const { user, loading, fetchUser } = useAuthStore()
@@ -30,9 +31,13 @@ function App() {
   useEffect(() => {
     if (user) {
       connectSocket()
+      // Seed the wishlist store for authenticated users so every game
+      // card renders with the correct star state on first paint.
+      void useWishlistStore.getState().fetch()
     } else {
       disconnectSocket()
       useNotificationStore.getState().clear()
+      useWishlistStore.getState().clear()
     }
     return () => disconnectSocket()
   }, [user])

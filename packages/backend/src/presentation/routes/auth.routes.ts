@@ -208,6 +208,68 @@ router.get('/me/referrals', requireAuth, async (req: Request, res: Response) => 
   }
 })
 
+// ─── Wishlist (Sarah #3) ──────────────────────────────────────────────────
+
+/**
+ * List the current user's wishlist. Returns lightweight steam_app_ids
+ * keyed on createdAt so the frontend can render star state on game
+ * cards without a second round-trip per card. The frontend stores this
+ * as a Set<number> for O(1) lookup during render.
+ */
+router.get('/me/wishlist', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!
+    const rows = await db('game_wishlists')
+      .where({ user_id: userId })
+      .orderBy('created_at', 'desc')
+      .select('steam_app_id as steamAppId', 'created_at as createdAt')
+    res.json({ data: rows })
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'get wishlist failed')
+    res.status(500).json({ error: 'internal', message: 'Failed to get wishlist' })
+  }
+})
+
+router.post('/me/wishlist', requireAuth, async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const { steamAppId } = req.body as { steamAppId?: unknown }
+  if (typeof steamAppId !== 'number' || !Number.isInteger(steamAppId) || steamAppId <= 0) {
+    res.status(400).json({ error: 'validation', message: 'steamAppId must be a positive integer' })
+    return
+  }
+
+  try {
+    // Idempotent upsert — calling POST for a game that's already in the
+    // wishlist is a no-op, not a 409. Matches the "toggle star" UX on
+    // the client: pressing the star twice from two tabs shouldn't error.
+    await db('game_wishlists')
+      .insert({ user_id: userId, steam_app_id: steamAppId })
+      .onConflict(['user_id', 'steam_app_id'])
+      .ignore()
+    res.status(201).json({ ok: true })
+  } catch (error) {
+    authLogger.error({ error: String(error), steamAppId }, 'add to wishlist failed')
+    res.status(500).json({ error: 'internal', message: 'Failed to add to wishlist' })
+  }
+})
+
+router.delete('/me/wishlist/:steamAppId', requireAuth, async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const steamAppId = Number.parseInt(String(req.params['steamAppId'] ?? ''), 10)
+  if (!Number.isInteger(steamAppId) || steamAppId <= 0) {
+    res.status(400).json({ error: 'validation', message: 'steamAppId must be a positive integer' })
+    return
+  }
+
+  try {
+    await db('game_wishlists').where({ user_id: userId, steam_app_id: steamAppId }).del()
+    res.json({ ok: true })
+  } catch (error) {
+    authLogger.error({ error: String(error), steamAppId }, 'remove from wishlist failed')
+    res.status(500).json({ error: 'internal', message: 'Failed to remove from wishlist' })
+  }
+})
+
 // Get full profile with platform connections
 router.get('/profile', requireAuth, async (req: Request, res: Response) => {
   try {

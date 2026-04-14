@@ -22,6 +22,7 @@ import {
 import { AppHeader } from '@/components/app-header'
 import { AppFooter } from '@/components/app-footer'
 import { InviteLink } from '@/components/invite-link'
+import { PersonaBadge } from '@/components/persona-badge'
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 16 },
@@ -247,6 +248,9 @@ export function GroupsPage() {
             </Button>
           </div>
         </div>
+
+        {/* Today's bot persona — greeting card */}
+        <PersonaBadge />
 
         {/* Search Groups */}
         {groups.length > 3 && (

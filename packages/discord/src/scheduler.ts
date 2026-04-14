@@ -127,6 +127,47 @@ export async function notifyBackOnline(client: Client): Promise<void> {
   await sendToLinkedChannels(client, persona.backOnlineMessages)
 }
 
+// ─── Manual test trigger ──────────────────────────────────────────────────────
+
+/**
+ * Sends a reminder embed to a single channel right now, bypassing the cron
+ * schedule. Used by `/wawptn-config test-reminder` so admins can verify the
+ * persona voice, channel permissions and end-to-end delivery without having
+ * to wait until the next Friday 21:00.
+ *
+ * Throws on any failure so the caller can surface the error back to the
+ * invoking slash command.
+ */
+export async function triggerReminder(
+  client: Client,
+  channelId: string,
+  kind: 'friday' | 'weekday',
+): Promise<{ personaName: string; message: string }> {
+  const persona = getPersona()
+  const pool = kind === 'friday' ? persona.fridayMessages : persona.weekdayMessages
+
+  if (!Array.isArray(pool) || pool.length === 0) {
+    throw new Error(
+      `La persona « ${persona.name} » ne contient pas de message ${kind === 'friday' ? 'vendredi' : 'semaine'}.`,
+    )
+  }
+
+  const message = pickRandom(pool)
+  const embed = buildReminderEmbed(message)
+
+  const channel = await client.channels.fetch(channelId)
+  if (!channel || !channel.isTextBased()) {
+    throw new Error('Ce canal ne peut pas recevoir de messages texte.')
+  }
+
+  await (channel as TextChannel).send({ embeds: [embed] })
+  console.log(
+    `[scheduler] Manual ${kind} reminder sent to channel ${channelId} (persona: ${persona.name})`,
+  )
+
+  return { personaName: persona.name, message }
+}
+
 // ─── Dynamic cron scheduling ──────────────────────────────────────────────────
 
 function stopAllGuildTasks(): void {
@@ -183,13 +224,21 @@ function scheduleGuildReminders(
 }
 
 async function rebuildGuildCrons(client: Client, settings: BotSettings): Promise<void> {
-  stopAllGuildTasks()
-
+  // Fetch channels FIRST. The previous version stopped all existing tasks up
+  // front and then awaited the HTTP call, so any transient backend error left
+  // the bot with zero rappels scheduled until the next settings refresh —
+  // which is exactly the failure mode the user hit ("never once rappel works").
   let channels: LinkedChannel[] = []
   try {
     channels = await getLinkedChannels()
   } catch (err) {
-    console.error('[scheduler] Failed to fetch linked channels for per-guild scheduling:', err)
+    console.error('[scheduler] Failed to fetch linked channels — keeping existing tasks alive:', err)
+    return
+  }
+
+  if (channels.length === 0) {
+    console.log('[scheduler] No linked channels found — clearing reminder schedule')
+    stopAllGuildTasks()
     return
   }
 
@@ -204,9 +253,18 @@ async function rebuildGuildCrons(client: Client, settings: BotSettings): Promise
     else byGuild.set(key, [channel])
   }
 
-  // Fall back to the global defaults whenever a guild has no explicit
-  // override. The backend loadGlobalBotDefaults() endpoint returns the
-  // resolved values already, so each guild call is a single round-trip.
+  // Resolve each guild's effective schedule BEFORE stopping the old tasks so
+  // we spend as little time as possible with no cron scheduled. Per-guild
+  // overrides come from /api/discord/guild-settings which already merges
+  // against the global defaults, so we only hit it when we know a guildId.
+  interface ResolvedGuild {
+    key: string | null
+    channels: LinkedChannel[]
+    friday: string
+    weekday: string
+    timezone: string
+  }
+  const resolved: ResolvedGuild[] = []
   for (const [guildKey, guildChannels] of byGuild) {
     let friday = settings.friday_schedule
     let weekday = settings.wednesday_schedule
@@ -223,15 +281,27 @@ async function rebuildGuildCrons(client: Client, settings: BotSettings): Promise
       }
     }
 
-    scheduleGuildReminders(client, guildKey, guildChannels, friday, weekday, timezone)
+    resolved.push({ key: guildKey, channels: guildChannels, friday, weekday, timezone })
   }
+
+  stopAllGuildTasks()
+  for (const { key, channels: guildChannels, friday, weekday, timezone } of resolved) {
+    scheduleGuildReminders(client, key, guildChannels, friday, weekday, timezone)
+  }
+  console.log(
+    `[scheduler] Reminder schedule rebuilt: ${guildTasks.size} guild(s), ${channels.length} linked channel(s)`,
+  )
 }
 
 function scheduleCrons(client: Client, settings: BotSettings): void {
   // Per-guild reminder crons — rebuilt whenever global or per-guild
-  // settings change. The call is async so we fire-and-forget and let
-  // the old tasks keep running until the new ones take over.
-  void rebuildGuildCrons(client, settings)
+  // settings change. The call is async so we fire-and-forget, but we
+  // attach a catch handler because a bare `void` on a rejected promise
+  // becomes a silent unhandled rejection — which is exactly how rappels
+  // were disappearing from the schedule without a single log line.
+  rebuildGuildCrons(client, settings).catch((err) => {
+    console.error('[scheduler] rebuildGuildCrons failed:', err)
+  })
 
   // Persona change announcement at midnight (global, not per-guild).
   personaAnnounceTask?.stop()

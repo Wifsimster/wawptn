@@ -25,6 +25,7 @@ export type AdminAuditAction =
   | 'persona.delete'
   | 'persona.toggle'
   | 'bot_settings.update'
+  | 'games.dedupe'
 
 interface RecordAdminActionInput {
   /** Express request, used to extract the actor id and forensic context. */

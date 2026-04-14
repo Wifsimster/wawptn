@@ -280,10 +280,9 @@ export async function getOwnedGames(userId: string): Promise<EpicOwnedGame[] | n
   }
 }
 
-export function normalizeGameName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
+// Re-export the shared canonical name normaliser. The old location kept
+// its own copy of a weak lowercase-strip normaliser; Marcus #1 centralised
+// the logic in domain/game-name.ts so the cross-platform dedupe and the
+// Epic/GOG sync paths stay in lockstep. Callers can keep importing
+// `normalizeGameName` from here.
+export { normalizeGameName } from '../../domain/game-name.js'

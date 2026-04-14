@@ -273,10 +273,8 @@ export async function getOwnedGames(userId: string): Promise<GogOwnedGame[] | nu
   }
 }
 
-export function normalizeGameName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
+// Re-export the shared canonical name normaliser. See Marcus #1 notes
+// on epic-client.ts — the logic lives in domain/game-name.ts so the
+// dedupe and sync paths agree on what "two different titles mean the
+// same game" looks like.
+export { normalizeGameName } from '../../domain/game-name.js'

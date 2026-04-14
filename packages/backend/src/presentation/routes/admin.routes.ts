@@ -8,6 +8,7 @@ import { invalidateAllUserSessions } from '../../domain/auth-service.js'
 import { getHealth as getSteamHealth } from '../../infrastructure/steam/steam-client.js'
 import { getHealth as getEpicHealth } from '../../infrastructure/epic/epic-client.js'
 import { getHealth as getGogHealth } from '../../infrastructure/gog/gog-client.js'
+import { mergeDuplicateGames } from '../../domain/game-dedupe.js'
 import { validateBody } from '../middleware/validate.middleware.js'
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
@@ -504,6 +505,30 @@ router.get('/health', async (_req: Request, res: Response) => {
       gog: safe(getGogHealth, { state: 'open', consecutiveFailures: -1, circuitOpenUntil: null, cacheSize: 0, enabled: false }),
     },
   })
+})
+
+// ─── Cross-platform game dedupe (Marcus #1) ──────────────────────────────
+// One-shot idempotent pass that merges canonical games whose normalised
+// names collide. Useful to run after a big normalizer change or when
+// cross-platform "not seeing my friend's game" reports come in.
+//
+// The utility in domain/game-dedupe.ts is safe to re-run; a second call
+// after the first merged everything it could will be a no-op. We record
+// the invocation in the admin audit log with the summary stats so admins
+// can see who triggered the last pass.
+router.post('/games/dedupe', async (req: Request, res: Response) => {
+  try {
+    const result = await mergeDuplicateGames()
+    await recordAdminAction({
+      req,
+      action: 'games.dedupe',
+      metadata: { ...result },
+    })
+    res.json(result)
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'admin games dedupe failed')
+    res.status(500).json({ error: 'internal', message: 'Failed to run game dedupe pass' })
+  }
 })
 
 export { router as adminRoutes }

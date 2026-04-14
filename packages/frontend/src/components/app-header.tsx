@@ -15,7 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { PersonaBadge } from '@/components/persona-badge'
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -65,9 +64,6 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
           <span className={cn('font-heading font-bold text-lg tracking-[-0.03em]', children ? 'hidden sm:inline' : 'inline')}>WAWPTN</span>
         </button>
         <div className={cn('flex-1', children && 'hidden sm:block')} />
-
-        {/* Today's bot persona */}
-        {user && <PersonaBadge />}
 
         {/* Notifications */}
         {user && <NotificationBell />}

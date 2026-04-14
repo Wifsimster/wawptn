@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { decodeHtmlEntities } from '@/lib/utils'
 
 interface Member {
   id: string
@@ -229,7 +230,7 @@ export function TonightPickHero({
             </div>
             {game.shortDescription && (
               <p className="text-sm text-muted-foreground mt-2 line-clamp-2 hidden sm:block">
-                {game.shortDescription}
+                {decodeHtmlEntities(game.shortDescription)}
               </p>
             )}
           </div>

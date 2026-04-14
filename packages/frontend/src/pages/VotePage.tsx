@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
+import { track } from '@/lib/analytics'
 import { AppHeader } from '@/components/app-header'
 import { AppFooter } from '@/components/app-footer'
 import { CountdownTimer } from '@/components/countdown-timer'
@@ -78,6 +79,21 @@ export function VotePage() {
   // bare count.
   const [participantIds, setParticipantIds] = useState<string[]>([])
   const [votedUserIds, setVotedUserIds] = useState<Set<string>>(() => new Set())
+
+  // Fire vote.completed exactly once, when the result first arrives (either
+  // via the close API response or the vote:closed socket event). Guarding on
+  // steamAppId keeps a synthetic null-reset from double-firing the event.
+  const completedSessionRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!result || !session) return
+    if (completedSessionRef.current === session.id) return
+    completedSessionRef.current = session.id
+    track('vote.completed', {
+      yesCount: result.yesCount,
+      totalVoters: result.totalVoters,
+      hasWinner: Number.isInteger(result.steamAppId) && result.steamAppId > 0,
+    })
+  }, [result, session])
 
   useEffect(() => {
     if (!id) return
@@ -349,7 +365,10 @@ export function VotePage() {
                   <a
                     href={`steam://run/${result.steamAppId}`}
                     className="gap-2"
-                    onClick={() => setSteamLaunchedAt(Date.now())}
+                    onClick={() => {
+                      setSteamLaunchedAt(Date.now())
+                      track('game.launched_in_steam', { steamAppId: result.steamAppId })
+                    }}
                   >
                     <ExternalLink className="w-5 h-5" />
                     {t('vote.launchSteam')}

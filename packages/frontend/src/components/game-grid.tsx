@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Search, X, Users, Handshake, Star, ChevronDown, Gamepad2, Monitor, TrendingUp, SearchX } from 'lucide-react'
+import { Search, X, Users, Handshake, Star, ChevronDown, Gamepad2, Monitor, TrendingUp, SearchX, RefreshCw, ShieldAlert, EyeOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -51,6 +51,10 @@ interface GameGridProps {
   onToggleControllerOnly: (value: boolean) => void
   onSetSortBy: (value: 'owners' | 'popularity' | 'name') => void
   onResetFilters: () => void
+  /** Trigger a library re-sync from the "no common games" empty state. */
+  onSyncLibraries?: () => void
+  /** True while a sync is in-flight — disables the retry button and shows a spinner. */
+  syncing?: boolean
 }
 
 const DISPLAY_CAP = 50
@@ -61,7 +65,7 @@ const METACRITIC_THRESHOLDS = [null, 60, 70, 75, 80, 85, 90] as const
 const normalize = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
-export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggleCoop, onToggleGenre, onSetMinMetacritic, onToggleGamesOnly, onToggleControllerOnly, onSetSortBy, onResetFilters }: GameGridProps) {
+export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggleCoop, onToggleGenre, onSetMinMetacritic, onToggleGamesOnly, onToggleControllerOnly, onSetSortBy, onResetFilters, onSyncLibraries, syncing }: GameGridProps) {
   const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
   const [showAll, setShowAll] = useState(false)
@@ -383,6 +387,28 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
           icon={Gamepad2}
           title={t('group.noCommonGamesTitle')}
           description={t('group.noCommonGamesDescription')}
+          action={onSyncLibraries ? {
+            label: syncing ? t('group.syncing') : t('group.retrySync'),
+            onClick: onSyncLibraries,
+            loading: syncing,
+            icon: RefreshCw,
+          } : undefined}
+          hint={(
+            <ul className="space-y-2 text-xs text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                <span>{t('group.noCommonGamesHint1')}</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <EyeOff className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                <span>{t('group.noCommonGamesHint2')}</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Users className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                <span>{t('group.noCommonGamesHint3')}</span>
+              </li>
+            </ul>
+          )}
         />
       ) : filteredGames.length === 0 ? (
         <EmptyState

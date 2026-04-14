@@ -70,6 +70,7 @@ Routes accessibles uniquement aux utilisateurs ayant `is_admin = true`.
 | DELETE | `/api/auth/me/wishlist/:steamAppId` | Retire un jeu de la wishlist |
 | GET | `/api/admin/stats` | Statistiques globales (utilisateurs, groupes, sessions) |
 | GET | `/api/admin/health` | Santé des intégrations externes (Steam, Epic, GOG, base de données) |
+| POST | `/api/admin/games/dedupe` | Lance une passe de déduplication inter-plateformes des jeux canoniques |
 
 ### Discord (feature-flagged)
 

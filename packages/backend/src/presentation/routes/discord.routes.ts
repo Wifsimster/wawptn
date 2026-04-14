@@ -1106,7 +1106,17 @@ userRouter.delete('/link', requireAuth, async (req: Request, res: Response) => {
   res.json({ ok: true, wasLinked: deleted > 0 })
 })
 
-// Set webhook URL for a group (group owner only)
+// Set the primary webhook URL for a group (group owner only).
+//
+// The primary webhook is what the bot uses to post vote result
+// announcements back into the bound Discord channel. It is now part of
+// the base product (free) because without it the "Le salon Discord EST
+// le groupe" experience silently breaks: a user binds a channel, votes
+// close, and nothing ever appears in the channel. See design meeting
+// decision C4 (2026-04-14) and issue #143 for the tier reshuffle
+// rationale. Multi-channel broadcasting via `group_announcement_webhooks`
+// remains premium — this free tier only covers ONE webhook per group,
+// enforced by the single `discord_webhook_url` column on `groups`.
 userRouter.post('/webhook', requireAuth, async (req: Request, res: Response) => {
   const userId = req.userId!
   const { groupId, webhookUrl } = req.body as { groupId: string; webhookUrl: string }
@@ -1122,13 +1132,6 @@ userRouter.post('/webhook', requireAuth, async (req: Request, res: Response) => 
 
   if (!membership) {
     res.status(403).json({ error: 'forbidden', message: 'Only group owners can set the webhook URL' })
-    return
-  }
-
-  // Discord webhook requires premium
-  const premium = await isUserPremium(userId)
-  if (!premium) {
-    res.status(403).json({ error: 'premium_required', message: 'Discord webhook requires a premium subscription' })
     return
   }
 

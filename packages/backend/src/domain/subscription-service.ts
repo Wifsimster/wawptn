@@ -1,14 +1,24 @@
 import { db } from '../infrastructure/database/connection.js'
 
-/** Tier limits for free users */
+/** Tier limits for free users.
+ *
+ * Raised on 2026-04-14 alongside the "Le salon Discord EST le groupe"
+ * feature (decision C2: implicit enrollment from Discord channel
+ * presence means typical group sizes float up beyond invite-link era).
+ * Free tier now comfortably covers a Discord-native friend group who
+ * bind one channel per crew. */
 export const FREE_TIER_LIMITS = {
-  maxGroups: 2,
-  maxMembersPerGroup: 8,
+  maxGroups: 3,
+  maxMembersPerGroup: 10,
 } as const
 
-/** Tier limits for premium users */
+/** Tier limits for premium users.
+ *
+ * Member cap raised 20 → 30 on 2026-04-14 for the same reason as
+ * FREE_TIER_LIMITS above. Premium groups (multi-channel broadcasts,
+ * auto-vote cron) skew toward larger, more active communities. */
 export const PREMIUM_TIER_LIMITS = {
-  maxMembersPerGroup: 20,
+  maxMembersPerGroup: 30,
 } as const
 
 /** In-memory cache for premium status with TTL */

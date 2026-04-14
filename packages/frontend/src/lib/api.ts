@@ -193,6 +193,19 @@ export const api = {
     stats: { totalUnlocked: number; totalChallenges: number };
   }>('/challenges/me'),
 
+  // User profile comparison (issue #142)
+  getPublicProfile: (userId: string) =>
+    request<import('@wawptn/types').PublicUserProfile>(`/users/${userId}/profile`),
+  compareProfiles: (a: string, b: string) =>
+    request<import('@wawptn/types').UserCompareResult>(`/users/compare?a=${a}&b=${b}`),
+  getVisibility: () =>
+    request<import('@wawptn/types').ProfileVisibilitySettings>('/users/me/visibility'),
+  updateVisibility: (patch: Partial<import('@wawptn/types').ProfileVisibilitySettings>) =>
+    request<import('@wawptn/types').ProfileVisibilitySettings>('/users/me/visibility', {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+
   // Persona
   getCurrentPersona: () => request<{ id: string; name: string; embedColor: number; introMessage: string }>('/persona/current'),
 

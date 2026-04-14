@@ -30,6 +30,7 @@ import { personaRoutes } from './presentation/routes/persona.routes.js'
 import { notificationRoutes, adminNotificationRoutes } from './presentation/routes/notification.routes.js'
 import { challengeRoutes } from './presentation/routes/challenge.routes.js'
 import { eventRoutes } from './presentation/routes/events.routes.js'
+import { userProfileRoutes } from './presentation/routes/user-profile.routes.js'
 import { startNotificationCleanup } from './infrastructure/notifications/notification-cleanup.js'
 import { registerSessionEffects } from './infrastructure/effects/session-effects.js'
 
@@ -130,6 +131,11 @@ async function main() {
 
   // Challenge routes (requires authenticated user)
   app.use('/api/challenges', requireAuth, challengeRoutes)
+
+  // User profile routes — view another member's profile and compare
+  // stats. All endpoints require auth; per-endpoint co-member checks
+  // live inside the route file. See issue #142 for the design.
+  app.use('/api/users', requireAuth, userProfileRoutes)
 
   // Adoption-funnel analytics ingestion (public, best-effort user id lookup).
   // Intentionally NOT gated by requireAuth so we can track pre-login events

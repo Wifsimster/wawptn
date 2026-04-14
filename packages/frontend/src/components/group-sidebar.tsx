@@ -18,6 +18,7 @@ import {
 import { InviteLink } from '@/components/invite-link'
 import { GroupStats } from '@/components/group-stats'
 import { GameRecommendations } from '@/components/game-recommendations'
+import { CronAutocomplete } from '@/components/cron-autocomplete'
 import { useSubscriptionStore } from '@/stores/subscription.store'
 
 interface Member {
@@ -521,10 +522,10 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
             <div className="px-4 pb-4 space-y-4">
               <div>
                 <label htmlFor="auto-vote-cron" className="text-sm font-medium mb-2 block">{t('group.autoVoteSchedule')}</label>
-                <Input
+                <CronAutocomplete
                   id="auto-vote-cron"
                   value={autoVoteCron}
-                  onChange={(e) => setAutoVoteCron(e.target.value)}
+                  onChange={setAutoVoteCron}
                   placeholder={t('group.autoVotePlaceholder')}
                   autoFocus
                 />

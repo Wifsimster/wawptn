@@ -15,6 +15,15 @@
     "create": "Créer",
     "noGroups": "Aucun groupe",
     "noGroupsHint": "Crée un groupe et invite tes amis pour commencer.",
+    "welcomeTitle": "Bienvenue sur WAWPTN !",
+    "welcomeSubtitle": "Plus besoin de débattre 30 minutes avant de lancer une partie.",
+    "welcomeStep1": "Crée ton premier groupe",
+    "welcomeStep1Desc": "Donne-lui un nom de soirée, tribu ou team.",
+    "welcomeStep2": "Invite tes amis",
+    "welcomeStep2Desc": "Partage un lien, ils se connectent avec Steam en 30 secondes.",
+    "welcomeStep3": "Lancez un vote",
+    "welcomeStep3Desc": "On vote, on découvre le jeu commun, on joue. Simple.",
+    "welcomeCta": "Créer mon premier groupe",
     "logout": "Se déconnecter",
     "logoutConfirmTitle": "Se déconnecter ?",
     "logoutConfirmDescription": "Tu seras redirigé vers la page de connexion.",
@@ -36,17 +45,22 @@
     "submit": "Créer",
     "success": "Groupe créé !",
     "error": "Impossible de créer le groupe",
-    "required": "Veuillez entrer un nom de groupe"
+    "required": "Veuillez entrer un nom de groupe",
+    "inviteReadyTitle": "Invite tes amis dès maintenant",
+    "inviteReadyHint": "Partage ce lien — ils pourront rejoindre en un clic avec Steam.",
+    "goToGroup": "Aller au groupe"
   },
   "joinGroup": {
     "title": "Rejoindre un groupe",
-    "description": "Colle le token d'invitation reçu.",
-    "label": "Token d'invitation",
-    "placeholder": "Token d'invitation...",
+    "description": "Colle le lien d'invitation que tu as reçu.",
+    "label": "Lien d'invitation",
+    "placeholder": "Colle ici le lien reçu...",
     "submit": "Rejoindre",
     "success": "Groupe rejoint !",
     "error": "Impossible de rejoindre le groupe",
-    "required": "Veuillez entrer un token d'invitation"
+    "required": "Veuillez entrer un lien d'invitation",
+    "paste": "Coller",
+    "pasteError": "Impossible de lire le presse-papiers"
   },
   "group": {
     "back": "Retour",

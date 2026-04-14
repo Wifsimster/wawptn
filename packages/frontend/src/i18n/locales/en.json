@@ -15,6 +15,15 @@
     "create": "Create",
     "noGroups": "No groups",
     "noGroupsHint": "Create a group and invite your friends to get started.",
+    "welcomeTitle": "Welcome to WAWPTN!",
+    "welcomeSubtitle": "Stop arguing for 30 minutes about what to play tonight.",
+    "welcomeStep1": "Create your first group",
+    "welcomeStep1Desc": "Name it after your party, squad or team.",
+    "welcomeStep2": "Invite your friends",
+    "welcomeStep2Desc": "Share a link — they join with Steam in 30 seconds.",
+    "welcomeStep3": "Run a vote",
+    "welcomeStep3Desc": "Everyone votes, you see the common game, you play. Simple.",
+    "welcomeCta": "Create my first group",
     "logout": "Log out",
     "logoutConfirmTitle": "Log out?",
     "logoutConfirmDescription": "You will be redirected to the login page.",
@@ -33,17 +42,22 @@
     "submit": "Create",
     "success": "Group created!",
     "error": "Unable to create group",
-    "required": "Please enter a group name"
+    "required": "Please enter a group name",
+    "inviteReadyTitle": "Invite your friends now",
+    "inviteReadyHint": "Share this link — they can join in one click with Steam.",
+    "goToGroup": "Go to group"
   },
   "joinGroup": {
     "title": "Join a group",
-    "description": "Paste the invite token you received.",
-    "label": "Invite token",
-    "placeholder": "Invite token...",
+    "description": "Paste the invite link you received.",
+    "label": "Invite link",
+    "placeholder": "Paste the link you received...",
     "submit": "Join",
     "success": "Group joined!",
     "error": "Unable to join group",
-    "required": "Please enter an invite token"
+    "required": "Please enter an invite link",
+    "paste": "Paste",
+    "pasteError": "Unable to read clipboard"
   },
   "group": {
     "back": "Back",

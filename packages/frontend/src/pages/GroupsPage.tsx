@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Plus, LogIn, Users, Gamepad2, Trophy, Crown, Search, X, RefreshCw, ChevronRight } from 'lucide-react'
+import { Plus, LogIn, Users, Gamepad2, Trophy, Crown, Search, X, RefreshCw, ChevronRight, Vote, Sparkles, ClipboardPaste } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { motion, type Variants } from 'framer-motion'
@@ -49,9 +49,20 @@ export function GroupsPage() {
   const [groupName, setGroupName] = useState('')
   const [inviteToken, setInviteToken] = useState('')
   const [inviteResult, setInviteResult] = useState<string | null>(null)
+  const [createdGroupId, setCreatedGroupId] = useState<string | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
   const [joinError, setJoinError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Extract raw token from an invite URL (e.g. https://wawptn.app/invite/abc123 → abc123)
+  // Falls back to the raw input if it doesn't look like a URL.
+  const extractInviteToken = (raw: string): string => {
+    const input = raw.trim()
+    if (!input) return input
+    const urlMatch = input.match(/\/invite\/([A-Za-z0-9_-]+)/)
+    if (urlMatch && urlMatch[1]) return urlMatch[1]
+    return input
+  }
 
   const normalize = (s: string) =>
     s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -63,7 +74,18 @@ export function GroupsPage() {
   }, [groups, searchQuery])
 
   useEffect(() => {
-    fetchGroups()
+    let cancelled = false
+    void (async () => {
+      try {
+        await fetchGroups()
+      } catch {
+        // errors are surfaced via store/toast; swallow here to avoid unhandled rejections
+      }
+      if (cancelled) return
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [fetchGroups])
 
   const handlePullRefresh = useCallback(async () => {
@@ -102,9 +124,12 @@ export function GroupsPage() {
     }
     setCreateError(null)
     try {
-      await createGroup(groupName.trim())
+      const result = await createGroup(groupName.trim())
       setGroupName('')
-      setShowCreate(false)
+      // Keep the dialog open and surface the fresh invite link so the user can
+      // invite friends immediately — this is the core adoption loop.
+      setInviteResult(result.inviteToken)
+      setCreatedGroupId(result.id)
       fetchGroups()
       toast.success(t('createGroup.success'))
     } catch (err) {
@@ -119,14 +144,23 @@ export function GroupsPage() {
     }
   }
 
+  const handleFinishCreate = () => {
+    const id = createdGroupId
+    setShowCreate(false)
+    setInviteResult(null)
+    setCreatedGroupId(null)
+    if (id) navigate(`/groups/${id}`)
+  }
+
   const handleJoin = async () => {
-    if (!inviteToken.trim()) {
+    const token = extractInviteToken(inviteToken)
+    if (!token) {
       setJoinError(t('joinGroup.required'))
       return
     }
     setJoinError(null)
     try {
-      const result = await joinGroup(inviteToken.trim())
+      const result = await joinGroup(token)
       setInviteToken('')
       setShowJoin(false)
       fetchGroups()
@@ -140,6 +174,18 @@ export function GroupsPage() {
       const msg = err instanceof Error ? err.message : t('joinGroup.error')
       setJoinError(msg)
       toast.error(msg)
+    }
+  }
+
+  const handlePasteInvite = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      if (text) {
+        setInviteToken(text)
+        setJoinError(null)
+      }
+    } catch {
+      toast.error(t('joinGroup.pasteError'))
     }
   }
 
@@ -210,42 +256,69 @@ export function GroupsPage() {
         )}
 
         {/* Create Group Dialog */}
-        <ResponsiveDialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) setInviteResult(null) }}>
+        <ResponsiveDialog
+          open={showCreate}
+          onOpenChange={(open) => {
+            setShowCreate(open)
+            if (!open) {
+              setInviteResult(null)
+              setCreatedGroupId(null)
+              setGroupName('')
+              setCreateError(null)
+            }
+          }}
+        >
           <ResponsiveDialogContent>
             <ResponsiveDialogHeader>
-              <ResponsiveDialogTitle>{t('createGroup.title')}</ResponsiveDialogTitle>
-              <ResponsiveDialogDescription>{t('createGroup.description')}</ResponsiveDialogDescription>
+              <ResponsiveDialogTitle>
+                {inviteResult ? t('createGroup.inviteReadyTitle') : t('createGroup.title')}
+              </ResponsiveDialogTitle>
+              <ResponsiveDialogDescription>
+                {inviteResult ? t('createGroup.inviteReadyHint') : t('createGroup.description')}
+              </ResponsiveDialogDescription>
             </ResponsiveDialogHeader>
-            <div className="mt-4 space-y-2">
-              <label htmlFor="group-name" className="text-sm font-medium">
-                {t('createGroup.label')}
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  id="group-name"
-                  value={groupName}
-                  onChange={(e) => { setGroupName(e.target.value); setCreateError(null) }}
-                  placeholder={t('createGroup.placeholder')}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-                  maxLength={100}
-                  autoFocus
-                  aria-invalid={!!createError}
-                  aria-describedby={createError ? 'group-name-error' : undefined}
-                />
-                <Button onClick={handleCreate}>{t('createGroup.submit')}</Button>
+            {!inviteResult && (
+              <div className="mt-4 space-y-2">
+                <label htmlFor="group-name" className="text-sm font-medium">
+                  {t('createGroup.label')}
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    id="group-name"
+                    value={groupName}
+                    onChange={(e) => { setGroupName(e.target.value); setCreateError(null) }}
+                    placeholder={t('createGroup.placeholder')}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                    maxLength={100}
+                    autoFocus
+                    aria-invalid={!!createError}
+                    aria-describedby={createError ? 'group-name-error' : undefined}
+                  />
+                  <Button onClick={handleCreate}>{t('createGroup.submit')}</Button>
+                </div>
+                {createError && (
+                  <p id="group-name-error" role="alert" className="text-sm text-destructive">
+                    {createError}
+                  </p>
+                )}
               </div>
-              {createError && (
-                <p id="group-name-error" role="alert" className="text-sm text-destructive">
-                  {createError}
-                </p>
-              )}
-            </div>
-            {inviteResult && <InviteLink token={inviteResult} />}
+            )}
+            {inviteResult && (
+              <>
+                <InviteLink token={inviteResult} />
+                <div className="mt-4 flex justify-end">
+                  <Button onClick={handleFinishCreate}>
+                    {t('createGroup.goToGroup')}
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </>
+            )}
           </ResponsiveDialogContent>
         </ResponsiveDialog>
 
         {/* Join Group Dialog */}
-        <ResponsiveDialog open={showJoin} onOpenChange={setShowJoin}>
+        <ResponsiveDialog open={showJoin} onOpenChange={(open) => { setShowJoin(open); if (!open) { setInviteToken(''); setJoinError(null) } }}>
           <ResponsiveDialogContent>
             <ResponsiveDialogHeader>
               <ResponsiveDialogTitle>{t('joinGroup.title')}</ResponsiveDialogTitle>
@@ -262,11 +335,20 @@ export function GroupsPage() {
                   onChange={(e) => { setInviteToken(e.target.value); setJoinError(null) }}
                   placeholder={t('joinGroup.placeholder')}
                   onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-                  maxLength={128}
+                  maxLength={512}
                   autoFocus
                   aria-invalid={!!joinError}
                   aria-describedby={joinError ? 'invite-token-error' : undefined}
                 />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handlePasteInvite}
+                  aria-label={t('joinGroup.paste')}
+                  title={t('joinGroup.paste')}
+                >
+                  <ClipboardPaste className="w-4 h-4" />
+                </Button>
                 <Button onClick={handleJoin}>{t('joinGroup.submit')}</Button>
               </div>
               {joinError && (
@@ -291,25 +373,63 @@ export function GroupsPage() {
           </div>
         ) : groups.length === 0 ? (
           <motion.div
-            className="text-center py-16 relative overflow-hidden"
+            className="py-10 sm:py-16 relative overflow-hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-heading font-extrabold text-[20vw] sm:text-[12rem] leading-none landing-question-mark pointer-events-none select-none">
+            <span
+              aria-hidden="true"
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-heading font-extrabold text-[20vw] sm:text-[12rem] leading-none landing-question-mark pointer-events-none select-none"
+            >
               ?
             </span>
-            <div className="relative z-10">
-              <h3 className="text-xl font-semibold mb-2">{t('groups.noGroups')}</h3>
-              <p className="text-muted-foreground mb-6">{t('groups.noGroupsHint')}</p>
-              <div className="flex justify-center gap-3">
-                <Button variant="secondary" onClick={() => setShowJoin(true)}>
+            <div className="relative z-10 text-center max-w-xl mx-auto">
+              <h3 className="text-2xl font-heading font-bold tracking-[-0.02em] mb-2">
+                {t('groups.welcomeTitle')}
+              </h3>
+              <p className="text-muted-foreground mb-8">
+                {t('groups.welcomeSubtitle')}
+              </p>
+
+              <ol className="text-left space-y-4 mb-8">
+                <li className="flex items-start gap-3">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 border border-primary/20 text-primary shrink-0">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{t('groups.welcomeStep1')}</p>
+                    <p className="text-xs text-muted-foreground">{t('groups.welcomeStep1Desc')}</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-neon/10 border border-neon/20 text-neon shrink-0">
+                    <Vote className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{t('groups.welcomeStep2')}</p>
+                    <p className="text-xs text-muted-foreground">{t('groups.welcomeStep2Desc')}</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-reward/10 border border-reward/20 text-reward shrink-0">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{t('groups.welcomeStep3')}</p>
+                    <p className="text-xs text-muted-foreground">{t('groups.welcomeStep3Desc')}</p>
+                  </div>
+                </li>
+              </ol>
+
+              <div className="flex flex-col sm:flex-row justify-center gap-3">
+                <Button size="lg" onClick={() => setShowCreate(true)}>
+                  <Plus className="w-4 h-4" />
+                  {t('groups.welcomeCta')}
+                </Button>
+                <Button size="lg" variant="secondary" onClick={() => setShowJoin(true)}>
                   <LogIn className="w-4 h-4" />
                   {t('groups.join')}
-                </Button>
-                <Button onClick={() => setShowCreate(true)}>
-                  <Plus className="w-4 h-4" />
-                  {t('groups.create')}
                 </Button>
               </div>
             </div>

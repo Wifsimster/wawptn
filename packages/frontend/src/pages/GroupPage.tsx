@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Users as UsersIcon } from 'lucide-react'
+import { ArrowLeft, Users as UsersIcon, Link2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
+import { motion } from 'framer-motion'
 import type { CommonGame } from '@wawptn/types'
 import { useGroupStore } from '@/stores/group.store'
 import { useAuthStore } from '@/stores/auth.store'
@@ -18,6 +19,7 @@ import {
   ResponsiveDialogContent,
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
 } from '@/components/ui/responsive-dialog'
 import { AppHeader } from '@/components/app-header'
 import { AppFooter } from '@/components/app-footer'
@@ -27,13 +29,14 @@ import { RandomPickModal } from '@/components/random-pick-modal'
 import { VoteSetupDialog } from '@/components/vote-setup-dialog'
 import { TonightPickHero } from '@/components/tonight-pick-hero'
 import { PersonaBadge } from '@/components/persona-badge'
+import { DiscordChannelPicker, type DiscordChannelSelection } from '@/components/discord-channel-picker'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 export function GroupPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { currentGroup, fetchGroup, leaveGroup, deleteGroup, renameGroup } = useGroupStore()
+  const { currentGroup, fetchGroup, leaveGroup, deleteGroup, renameGroup, bindDiscordChannel } = useGroupStore()
   useDocumentTitle(currentGroup?.name ?? t('groups.title'))
   const { user } = useAuthStore()
   const [commonGames, setCommonGames] = useState<CommonGame[]>([])
@@ -56,6 +59,12 @@ export function GroupPage() {
   const [randomPickOpen, setRandomPickOpen] = useState(false)
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([])
   const [todayPersona, setTodayPersona] = useState<{ id: string; name: string; embedColor: number; introMessage: string } | null>(null)
+  const [discordDialogOpen, setDiscordDialogOpen] = useState(false)
+  const [discordSelection, setDiscordSelection] = useState<DiscordChannelSelection>({
+    guildId: null,
+    channelId: null,
+  })
+  const [bindingDiscord, setBindingDiscord] = useState(false)
   // Mirrors the backend's "one open session per group" guard so the group
   // detail page can surface a "join existing vote" CTA instead of walking
   // users through the setup dialog only to bounce off a 409 on the vote
@@ -334,6 +343,30 @@ export function GroupPage() {
     }
   }
 
+  const handleBindDiscord = async () => {
+    if (!id) return
+    if (!discordSelection.guildId || !discordSelection.channelId) return
+    setBindingDiscord(true)
+    try {
+      await bindDiscordChannel(id, discordSelection.guildId, discordSelection.channelId)
+      toast.success(t('group.discordBannerSaveSuccess'))
+      track('group.discord_bound', { from: 'banner' })
+      setDiscordDialogOpen(false)
+      setDiscordSelection({ guildId: null, channelId: null })
+      // Drop the OAuth session server-side now that it has served its
+      // purpose — mirrors the create-dialog cleanup in GroupsPage.
+      void api.clearDiscordOAuthSession().catch(() => {})
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'discord_channel_taken') {
+        toast.error(t('createGroup.discordChannelTaken'))
+        return
+      }
+      toast.error(err instanceof Error ? err.message : t('group.discordBannerSaveError'))
+    } finally {
+      setBindingDiscord(false)
+    }
+  }
+
   const handleDeleteHistory = async (sessionId: string) => {
     if (!id) return
     try {
@@ -492,6 +525,31 @@ export function GroupPage() {
 
           {/* Main content: hero + games grid */}
           <div className="space-y-3 sm:space-y-4 min-w-0">
+            {/* Owner-only prompt: if the group has no Discord channel
+                bound yet, surface a persistent banner inviting the owner
+                to link one. The banner stays visible until a channel is
+                bound (no dismiss — Discord binding is core, not optional
+                post-creation). Hidden for non-owners and for already-
+                bound groups. */}
+            {currentUserRole === 'owner' && !currentGroup.discordChannelId && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 sm:p-4 flex items-start gap-3">
+                  <Link2 className="w-5 h-5 mt-0.5 shrink-0 text-primary" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{t('group.discordBannerTitle')}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t('group.discordBannerHint')}</p>
+                  </div>
+                  <Button size="sm" onClick={() => setDiscordDialogOpen(true)} className="shrink-0">
+                    {t('group.discordBannerCta')}
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
             {/* Per-group "persona du jour" — hero variant. Pre-fetched via
                 the enriched group detail response, refreshed live via the
                 `persona:changed` socket event (midnight flip or owner
@@ -557,6 +615,46 @@ export function GroupPage() {
               activeFilter={activeFilter}
               onStartVote={handleStartVote}
             />
+
+            {/* Link-a-Discord-channel dialog — opened from the banner
+                above. Reuses the same <DiscordChannelPicker/> as the
+                create-group dialog so the UX is identical. */}
+            <ResponsiveDialog
+              open={discordDialogOpen}
+              onOpenChange={(open) => {
+                setDiscordDialogOpen(open)
+                if (!open) {
+                  setDiscordSelection({ guildId: null, channelId: null })
+                  void api.clearDiscordOAuthSession().catch(() => {})
+                }
+              }}
+            >
+              <ResponsiveDialogContent>
+                <ResponsiveDialogHeader>
+                  <ResponsiveDialogTitle>{t('group.discordBannerDialogTitle')}</ResponsiveDialogTitle>
+                  <ResponsiveDialogDescription>
+                    {t('createGroup.discordSectionHint')}
+                  </ResponsiveDialogDescription>
+                </ResponsiveDialogHeader>
+                <div className="mt-4 space-y-4">
+                  <DiscordChannelPicker
+                    value={discordSelection}
+                    onChange={setDiscordSelection}
+                  />
+                  <div className="flex items-center justify-end gap-2">
+                    <Button variant="ghost" onClick={() => setDiscordDialogOpen(false)}>
+                      {t('common.cancel', 'Annuler')}
+                    </Button>
+                    <Button
+                      onClick={handleBindDiscord}
+                      disabled={!discordSelection.guildId || !discordSelection.channelId || bindingDiscord}
+                    >
+                      {t('group.discordBannerSave')}
+                    </Button>
+                  </div>
+                </div>
+              </ResponsiveDialogContent>
+            </ResponsiveDialog>
 
             <GameGrid
               games={commonGames}

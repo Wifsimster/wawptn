@@ -395,33 +395,142 @@ router.post('/', async (req: Request, res: Response) => {
   }
 })
 
-// Rename group (owner only)
+// Update group (owner only)
+//
+// Accepts an optional `name` rename and/or an optional Discord binding
+// (`discordGuildId` + `discordChannelId`, which must come as a pair or
+// both null to unbind). Callers must provide at least one field.
+//
+// The Discord binding path is the post-creation counterpart to the
+// pair-fields accepted on POST /groups: it powers the "link a Discord
+// channel" banner shown on the group detail page when the owner skipped
+// the picker at creation time.
 router.patch('/:id', requireGroupMembership({ role: 'owner' }), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['id'])
-  const { name } = req.body as { name: string }
+  const body = req.body as {
+    name?: string
+    discordGuildId?: string | null
+    discordChannelId?: string | null
+  }
 
-  if (!name || name.trim().length === 0) {
-    res.status(400).json({ error: 'validation', message: 'Group name is required' })
+  const hasName = typeof body.name === 'string'
+  const hasDiscord =
+    Object.prototype.hasOwnProperty.call(body, 'discordGuildId') ||
+    Object.prototype.hasOwnProperty.call(body, 'discordChannelId')
+
+  if (!hasName && !hasDiscord) {
+    res.status(400).json({
+      error: 'validation',
+      message: 'At least one of name, discordGuildId, or discordChannelId must be provided',
+    })
     return
   }
 
-  if (name.trim().length > 100) {
-    res.status(400).json({ error: 'validation', message: 'Group name must be 100 characters or less' })
-    return
+  const updates: Record<string, unknown> = { updated_at: db.fn.now() }
+  let trimmedName: string | null = null
+
+  if (hasName) {
+    const name = body.name as string
+    if (!name || name.trim().length === 0) {
+      res.status(400).json({ error: 'validation', message: 'Group name is required' })
+      return
+    }
+    if (name.trim().length > 100) {
+      res.status(400).json({ error: 'validation', message: 'Group name must be 100 characters or less' })
+      return
+    }
+    trimmedName = name.trim()
+    updates['name'] = trimmedName
   }
 
-  const trimmedName = name.trim()
+  // Normalise & validate the Discord binding pair. Mirrors the rules on
+  // POST /groups: both fields together, both snowflakes, or both null to
+  // unbind. Partial state is rejected because every downstream consumer
+  // assumes "bound" means both IDs are present.
+  let guildId: string | null | undefined
+  let channelId: string | null | undefined
+  if (hasDiscord) {
+    guildId = typeof body.discordGuildId === 'string' && body.discordGuildId.trim()
+      ? body.discordGuildId.trim()
+      : null
+    channelId = typeof body.discordChannelId === 'string' && body.discordChannelId.trim()
+      ? body.discordChannelId.trim()
+      : null
 
-  await db('groups').where({ id: groupId }).update({
-    name: trimmedName,
-    updated_at: db.fn.now(),
+    if ((guildId && !channelId) || (!guildId && channelId)) {
+      res.status(400).json({
+        error: 'validation',
+        message: 'discordGuildId and discordChannelId must be provided together',
+      })
+      return
+    }
+    if (guildId && !DISCORD_SNOWFLAKE_RE.test(guildId)) {
+      res.status(400).json({ error: 'validation', message: 'Invalid discordGuildId format' })
+      return
+    }
+    if (channelId && !DISCORD_SNOWFLAKE_RE.test(channelId)) {
+      res.status(400).json({ error: 'validation', message: 'Invalid discordChannelId format' })
+      return
+    }
+
+    // Pre-check channel uniqueness so a collision returns a readable 409
+    // instead of the raw 23505 from the partial unique index. The index
+    // stays the source of truth — this SELECT is cosmetic error mapping
+    // and is racy by design. We exclude the current group so re-binding
+    // to the same channel (a no-op) doesn't look like a conflict.
+    if (channelId) {
+      const existing = await db('groups')
+        .where({ discord_channel_id: channelId })
+        .whereNot('id', groupId)
+        .whereNull('archived_at')
+        .first('id')
+      if (existing) {
+        res.status(409).json({
+          error: 'discord_channel_taken',
+          message: 'This Discord channel is already bound to another group',
+        })
+        return
+      }
+    }
+
+    updates['discord_guild_id'] = guildId
+    updates['discord_channel_id'] = channelId
+  }
+
+  try {
+    await db('groups').where({ id: groupId }).update(updates)
+  } catch (err) {
+    const pgErr = err as { code?: string; constraint?: string }
+    if (pgErr?.code === '23505' && pgErr?.constraint === 'uniq_groups_one_active_per_discord_channel') {
+      res.status(409).json({
+        error: 'discord_channel_taken',
+        message: 'This Discord channel is already bound to another group',
+      })
+      return
+    }
+    throw err
+  }
+
+  if (trimmedName !== null) {
+    getIO().to(`group:${groupId}`).emit('group:renamed', { groupId, newName: trimmedName })
+    logger.info({ userId, groupId, newName: trimmedName }, 'group renamed')
+  }
+
+  if (hasDiscord) {
+    logger.info(
+      { userId, groupId, discordGuildId: guildId, discordChannelId: channelId },
+      'group discord binding updated',
+    )
+  }
+
+  const fresh = await db('groups').where({ id: groupId }).first()
+  res.json({
+    id: groupId,
+    name: fresh?.name ?? trimmedName,
+    discordGuildId: fresh?.discord_guild_id ?? null,
+    discordChannelId: fresh?.discord_channel_id ?? null,
   })
-
-  getIO().to(`group:${groupId}`).emit('group:renamed', { groupId, newName: trimmedName })
-
-  logger.info({ userId, groupId, newName: trimmedName }, 'group renamed')
-  res.json({ id: groupId, name: trimmedName })
 })
 
 // Toggle Discord notifications for current user

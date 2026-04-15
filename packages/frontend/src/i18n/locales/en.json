@@ -212,7 +212,14 @@
     "autoVotePresetSaturday20": "Every Saturday at 8:00 PM",
     "autoVotePresetSunday20": "Every Sunday at 8:00 PM",
     "autoVotePresetFridaySaturday20": "Friday and Saturday at 8:00 PM",
-    "autoVotePresetWeekend20": "Weekends at 8:00 PM (Sat-Sun)"
+    "autoVotePresetWeekend20": "Weekends at 8:00 PM (Sat-Sun)",
+    "discordBannerTitle": "Link a Discord channel to this group",
+    "discordBannerHint": "Announcements and votes will be posted automatically in the channel you pick.",
+    "discordBannerCta": "Link a channel",
+    "discordBannerDialogTitle": "Link a Discord channel",
+    "discordBannerSave": "Link channel",
+    "discordBannerSaveSuccess": "Discord channel linked to the group!",
+    "discordBannerSaveError": "Unable to link the Discord channel"
   },
   "filterPresets": {
     "label": "Vibe",

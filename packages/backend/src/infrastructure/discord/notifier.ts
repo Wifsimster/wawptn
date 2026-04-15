@@ -1,5 +1,6 @@
 import { db } from '../database/connection.js'
 import { logger } from '../logger/logger.js'
+import { env } from '../../config/env.js'
 import type { VoteResult } from '@wawptn/types'
 import { postSessionClosed, postSessionCreated, isBotClientEnabled } from './bot-client.js'
 import { buildVoteSummary } from './vote-summary.js'
@@ -73,9 +74,16 @@ export async function notifySessionCreated(
 
   const creatorName = creator?.display_name || 'Un membre'
 
+  // Track whether the bot-backed path successfully posted. If it did, we
+  // skip the webhook fallback to avoid a duplicate announcement in the
+  // same guild. If it DIDN'T (bot disabled, channel unlinked, or HTTP call
+  // failed), the webhook takes over so that starting a vote on the web
+  // still surfaces in Discord whenever ANY integration is configured.
+  let botHandled = false
+
   // ── Primary: bot-backed interactive message ─────────────────────────
   // Requires a linked channel AND the bot HTTP URL configured. When
-  // either is missing we silently fall back to webhook-only mode.
+  // either is missing we silently fall back to webhook-only mode below.
   if (group.discord_channel_id && isBotClientEnabled()) {
     const summary = await buildVoteSummary(sessionId)
     const response = await postSessionCreated({
@@ -105,27 +113,38 @@ export async function notifySessionCreated(
         { sessionId, groupId, messageId: response.messageId, channelId: group.discord_channel_id },
         'Discord session message posted',
       )
+      botHandled = true
     }
   }
 
   // ── Fallback: legacy primary webhook ────────────────────────────────
-  // Only used when there is NO linked bot channel. Kept so groups that
-  // configured a webhook URL pre-bot continue to receive notifications.
-  if (!group.discord_channel_id && group.discord_webhook_url) {
+  // Fires when the bot-backed path didn't (or couldn't) handle the event
+  // — either because no channel is linked, the bot is disabled, or the
+  // HTTP call failed — and a webhook URL is configured for the group.
+  // This is the "simple path" for groups that only set up a Discord
+  // webhook without running the bot.
+  if (!botHandled && group.discord_webhook_url) {
     const gameList = games
       .slice(0, 25)
       .map((g, i) => `**${i + 1}.** ${g.gameName}`)
       .join('\n')
 
+    const voteUrl = `${env.CORS_ORIGIN}/groups/${groupId}/vote`
+
     await postWebhook(group.discord_webhook_url, {
       embeds: [{
         title: '🎮 Nouvelle session de vote !',
-        description: `**${creatorName}** a lancé un vote dans **${group.name}**.\n\n${gameList}\n\nVotez sur le site !`,
+        description: `**${creatorName}** a lancé un vote dans **${group.name}**.\n\n${gameList}\n\n[Votez sur le site](${voteUrl})`,
         color: 0x5865F2,
+        url: voteUrl,
         timestamp: new Date().toISOString(),
         thumbnail: games[0]?.headerImageUrl ? { url: games[0].headerImageUrl } : undefined,
       }],
     })
+    logger.info(
+      { sessionId, groupId },
+      'Discord session webhook posted (fallback)',
+    )
   }
 }
 
@@ -136,6 +155,12 @@ export async function notifyVoteClosed(
 ): Promise<void> {
   const group = await db('groups').where({ id: groupId }).first()
   if (!group) return
+
+  // Track whether the bot-backed interactive message was successfully
+  // transitioned into its closed state. If it was, we skip the primary
+  // webhook broadcast to avoid a duplicate winner announcement in the
+  // same channel.
+  let botClosed = false
 
   // ── Primary: edit the bot's interactive message into closed state ───
   if (isBotClientEnabled()) {
@@ -154,6 +179,7 @@ export async function notifyVoteClosed(
         result,
         summary,
       })
+      botClosed = true
     }
   }
 
@@ -166,10 +192,12 @@ export async function notifyVoteClosed(
     .where({ group_id: groupId })
     .select('webhook_url')
 
-  // When the group has no linked channel we also want the legacy
-  // primary webhook (if set) to receive the result — otherwise it is
-  // skipped because the bot already posted a closed state above.
-  const primaryFallback = !group.discord_channel_id && group.discord_webhook_url
+  // Primary webhook fallback: fires whenever the bot didn't post a closed
+  // state (bot disabled, session was never posted by the bot, or the close
+  // HTTP call failed) and a webhook URL is configured. Mirrors the
+  // notifySessionCreated fallback so groups that rely on webhook-only get
+  // both the open announcement AND the winner reveal.
+  const primaryFallback = !botClosed && group.discord_webhook_url
     ? [group.discord_webhook_url]
     : []
 

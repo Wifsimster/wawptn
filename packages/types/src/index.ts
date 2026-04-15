@@ -28,6 +28,8 @@ export interface Group {
   inviteUseCount: number
   inviteMaxUses: number
   commonGameThreshold: number | null
+  discordGuildId: string | null
+  discordChannelId: string | null
   createdAt: string
   updatedAt: string
 }

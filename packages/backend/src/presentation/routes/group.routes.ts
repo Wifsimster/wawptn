@@ -97,6 +97,8 @@ router.get('/', async (req: Request, res: Response) => {
         }
       : null,
     todayPersona: personaMap.get(g.id) || null,
+    discordGuildId: g.discord_guild_id ?? null,
+    discordChannelId: g.discord_channel_id ?? null,
   })))
 })
 
@@ -133,6 +135,8 @@ router.get('/:id', requireGroupMembership(), async (req: Request, res: Response)
     commonGameThreshold: group.common_game_threshold,
     autoVoteSchedule: group.auto_vote_schedule || null,
     autoVoteDurationMinutes: group.auto_vote_duration_minutes || 120,
+    discordGuildId: group.discord_guild_id ?? null,
+    discordChannelId: group.discord_channel_id ?? null,
     createdAt: group.created_at,
     members,
     todayPersona,
@@ -263,10 +267,26 @@ router.patch('/:id/persona-settings', requireGroupMembership({ role: 'owner' }),
   })
 })
 
+// Discord snowflake IDs are 17–20 digits. Reject anything else before we
+// even hit the DB so a malformed value cannot corrupt the unique index.
+const DISCORD_SNOWFLAKE_RE = /^\d{17,20}$/
+
 // Create group
+//
+// Optional `discordGuildId` + `discordChannelId` let the client bind a
+// Discord channel to the new group in the same request. This is the
+// "Discord is core" shortcut surfaced in the create dialog; the bot's
+// existing `/wawptn setup` path (POST /api/discord/setup) remains the
+// entry point from inside Discord. Both fields must be present together,
+// or both omitted — accepting just one would leave the group in a half-
+// bound state the read endpoints cannot meaningfully display.
 router.post('/', async (req: Request, res: Response) => {
   const userId = req.userId!
-  const { name } = req.body as { name: string }
+  const { name, discordGuildId, discordChannelId } = req.body as {
+    name: string
+    discordGuildId?: string | null
+    discordChannelId?: string | null
+  }
 
   if (!name || name.trim().length === 0) {
     res.status(400).json({ error: 'validation', message: 'Group name is required' })
@@ -275,6 +295,29 @@ router.post('/', async (req: Request, res: Response) => {
 
   if (name.trim().length > 100) {
     res.status(400).json({ error: 'validation', message: 'Group name must be 100 characters or less' })
+    return
+  }
+
+  // Normalise Discord fields: undefined/null/empty string all mean
+  // "not bound". Any other value must be a snowflake AND must come in
+  // the pair (guild + channel).
+  const guildId = typeof discordGuildId === 'string' && discordGuildId.trim() ? discordGuildId.trim() : null
+  const channelId = typeof discordChannelId === 'string' && discordChannelId.trim() ? discordChannelId.trim() : null
+
+  if ((guildId && !channelId) || (!guildId && channelId)) {
+    res.status(400).json({
+      error: 'validation',
+      message: 'discordGuildId and discordChannelId must be provided together',
+    })
+    return
+  }
+
+  if (guildId && !DISCORD_SNOWFLAKE_RE.test(guildId)) {
+    res.status(400).json({ error: 'validation', message: 'Invalid discordGuildId format' })
+    return
+  }
+  if (channelId && !DISCORD_SNOWFLAKE_RE.test(channelId)) {
+    res.status(400).json({ error: 'validation', message: 'Invalid discordChannelId format' })
     return
   }
 
@@ -288,31 +331,68 @@ router.post('/', async (req: Request, res: Response) => {
     }
   }
 
+  // Pre-check channel uniqueness so the user gets a readable 409 instead
+  // of a raw 23505 from the partial unique index added in migration
+  // 20260415_c. The index is still the source of truth — this SELECT is
+  // just cosmetic error-mapping and is racy by design.
+  if (channelId) {
+    const existing = await db('groups')
+      .where({ discord_channel_id: channelId })
+      .whereNull('archived_at')
+      .first('id')
+    if (existing) {
+      res.status(409).json({
+        error: 'discord_channel_taken',
+        message: 'This Discord channel is already bound to another group',
+      })
+      return
+    }
+  }
+
   const { token, hash } = generateInviteToken()
   const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000) // 72 hours
 
-  const [group] = await db('groups').insert({
-    name: name.trim(),
-    created_by: userId,
-    invite_token_hash: hash,
-    invite_expires_at: expiresAt,
-    invite_use_count: 0,
-    invite_max_uses: 10,
-  }).returning('*')
+  try {
+    const [group] = await db('groups').insert({
+      name: name.trim(),
+      created_by: userId,
+      invite_token_hash: hash,
+      invite_expires_at: expiresAt,
+      invite_use_count: 0,
+      invite_max_uses: 10,
+      discord_guild_id: guildId,
+      discord_channel_id: channelId,
+    }).returning('*')
 
-  // Add creator as owner
-  await db('group_members').insert({
-    group_id: group.id,
-    user_id: userId,
-    role: 'owner',
-  })
+    // Add creator as owner
+    await db('group_members').insert({
+      group_id: group.id,
+      user_id: userId,
+      role: 'owner',
+    })
 
-  res.status(201).json({
-    id: group.id,
-    name: group.name,
-    inviteToken: token,
-    inviteExpiresAt: expiresAt.toISOString(),
-  })
+    res.status(201).json({
+      id: group.id,
+      name: group.name,
+      inviteToken: token,
+      inviteExpiresAt: expiresAt.toISOString(),
+      discordGuildId: group.discord_guild_id ?? null,
+      discordChannelId: group.discord_channel_id ?? null,
+    })
+  } catch (err) {
+    // 23505 = unique_violation. The partial unique index on
+    // discord_channel_id (see migration 20260415_c) can race past the
+    // pre-check above — map it back to the same 409.
+    const pgErr = err as { code?: string; constraint?: string }
+    if (pgErr?.code === '23505' && pgErr?.constraint === 'uniq_groups_one_active_per_discord_channel') {
+      res.status(409).json({
+        error: 'discord_channel_taken',
+        message: 'This Discord channel is already bound to another group',
+      })
+      return
+    }
+    throw err
+  }
 })
 
 // Rename group (owner only)

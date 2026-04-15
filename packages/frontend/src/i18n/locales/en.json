@@ -112,6 +112,7 @@
     "syncError": "Sync error",
     "startVoteError": "Unable to start vote",
     "voteAlreadyOpen": "A vote is already in progress for this group. Joining the existing vote.",
+    "joinActiveVote": "Join the active vote",
     "generateInviteError": "Unable to generate invite",
     "history": "Game night history",
     "historyUpgradeCta": "Go premium to see the full history",
@@ -213,7 +214,12 @@
     "reasonNever": "Never played together",
     "reasonTopRated": "Top rated",
     "reasonMostOwned": "Most owned",
-    "reasonComeback": "Comeback kings"
+    "reasonComeback": "Comeback kings",
+    "voteInProgressEyebrow": "Vote in progress",
+    "voteInProgressTitle": "A vote is in progress",
+    "voteInProgressDescription": "Join your friends to cast your pick and reveal tonight's game.",
+    "voteScheduledTitle": "A vote is scheduled",
+    "voteScheduledDescription": "A vote has already been scheduled in this group. Open it to see the details."
   },
   "voteSetup": {
     "title": "Who's playing tonight?",

@@ -120,7 +120,7 @@ test.describe('Modals on mobile', () => {
       await page.goto('/groups/group-1')
       await page.waitForTimeout(500)
       // Wait for group page to load
-      await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByText('Lancer un vote')).toBeVisible({ timeout: 10000 })
 
       // Tap the avatar bar to open mobile sidebar
       await page.getByRole('button', { name: 'Voir les membres' }).click()
@@ -144,7 +144,7 @@ test.describe('Modals on mobile', () => {
     test('shows vote history in sidebar', async ({ page }) => {
       await page.goto('/groups/group-1')
       await page.waitForTimeout(500)
-      await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByText('Lancer un vote')).toBeVisible({ timeout: 10000 })
 
       await page.getByRole('button', { name: 'Voir les membres' }).click()
 
@@ -173,7 +173,7 @@ test.describe('Modals on mobile', () => {
 
       await page.goto('/groups/group-2')
       await page.waitForTimeout(500)
-      await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByText('Lancer un vote')).toBeVisible({ timeout: 10000 })
 
       await page.getByRole('button', { name: 'Voir les membres' }).click()
       const sidebar = page.getByRole('dialog')
@@ -198,7 +198,7 @@ test.describe('Modals on mobile', () => {
     test('opens from sidebar and confirms deletion', async ({ page }) => {
       await page.goto('/groups/group-1')
       await page.waitForTimeout(500)
-      await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByText('Lancer un vote')).toBeVisible({ timeout: 10000 })
 
       await page.getByRole('button', { name: 'Voir les membres' }).click()
       const sidebar = page.getByRole('dialog')
@@ -222,7 +222,7 @@ test.describe('Modals on mobile', () => {
     test('shows kick dialog for non-self members (owner view)', async ({ page }) => {
       await page.goto('/groups/group-1')
       await page.waitForTimeout(500)
-      await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByText('Lancer un vote')).toBeVisible({ timeout: 10000 })
 
       await page.getByRole('button', { name: 'Voir les membres' }).click()
       const sidebar = page.getByRole('dialog')
@@ -245,11 +245,11 @@ test.describe('Modals on mobile', () => {
     test.beforeEach(async ({ page }) => {
       await page.goto('/groups/group-1')
       await page.waitForTimeout(500)
-      await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByText('Lancer un vote')).toBeVisible({ timeout: 10000 })
     })
 
     test('opens with all members selected by default', async ({ page }) => {
-      await page.getByText('Lancer un vote pour ce soir').click()
+      await page.getByText('Lancer un vote').click()
 
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
@@ -258,7 +258,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('toggles individual member selection via checkbox', async ({ page }) => {
-      await page.getByText('Lancer un vote pour ce soir').click()
+      await page.getByText('Lancer un vote').click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400) // Wait for drawer animation to settle
@@ -273,7 +273,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('select all / deselect all toggle', async ({ page }) => {
-      await page.getByText('Lancer un vote pour ce soir').click()
+      await page.getByText('Lancer un vote').click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400)
@@ -288,7 +288,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('proceeds to confirmation step and starts vote', async ({ page }) => {
-      await page.getByText('Lancer un vote pour ce soir').click()
+      await page.getByText('Lancer un vote').click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400)
@@ -306,7 +306,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('schedule vote option shows date picker', async ({ page }) => {
-      await page.getByText('Lancer un vote pour ce soir').click()
+      await page.getByText('Lancer un vote').click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400)
@@ -324,7 +324,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('back button returns to member selection', async ({ page }) => {
-      await page.getByText('Lancer un vote pour ce soir').click()
+      await page.getByText('Lancer un vote').click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400)
@@ -339,7 +339,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('disables Suivant when fewer than 2 members selected', async ({ page }) => {
-      await page.getByText('Lancer un vote pour ce soir').click()
+      await page.getByText('Lancer un vote').click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400)

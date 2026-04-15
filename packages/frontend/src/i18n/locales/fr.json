@@ -68,7 +68,7 @@
   "group": {
     "back": "Retour",
     "lastSession": "Dernière soirée",
-    "startVote": "Lancer un vote pour ce soir",
+    "startVote": "Lancer un vote",
     "commonGamesCount": "{{count}} jeux en commun",
     "members": "Membres ({{count}})",
     "syncLibraries": "Synchroniser les bibliothèques",
@@ -387,7 +387,7 @@
     "notPlayedLong": "Pas joué depuis longtemps",
     "popularForgotten": "Populaire mais oublié",
     "startVote": "Lancer un vote",
-    "startVoteHint": "Lancer un vote pour ce soir"
+    "startVoteHint": "Lancer un vote"
   },
   "landing": {
     "headline": "On joue à quoi ce soir ?",

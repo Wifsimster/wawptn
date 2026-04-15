@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Check, ExternalLink, Loader2, RefreshCw, Vote, Search, Send, Info, Monitor, Apple, Gamepad2, Star, CircleOff } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion, animate, type Variants } from 'framer-motion'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
@@ -259,9 +259,6 @@ export function VotePage() {
   }, [steamLaunchedAt, t])
 
   const canClose = session && (session.createdBy === user?.id)
-  const prefersReducedMotion = useMemo(() =>
-    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches, []
-  )
 
   // No active session
   if (noSession) {
@@ -288,132 +285,24 @@ export function VotePage() {
     )
   }
 
-  // Result screen
+  // Result screen — extracted into its own component so it owns its reveal
+  // choreography, focus management and reduced-motion hooks without polluting
+  // the parent. The parent keeps the effects that depend on lifecycle state
+  // (completedSessionRef, launch-timeout toast) since they read `session` /
+  // `steamLaunchedAt`.
   if (result) {
-    const resultStagger = {
-      visible: { transition: { staggerChildren: prefersReducedMotion ? 0 : 0.15 } },
-    }
-    const resultFade = {
-      hidden: { opacity: 0, y: prefersReducedMotion ? 0 : 12 },
-      visible: { opacity: 1, y: 0, transition: { duration: prefersReducedMotion ? 0.2 : 0.5 } },
-    }
-
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <AnimatePresence>
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={resultStagger}
-            className="text-center max-w-md w-full"
-          >
-            <motion.p variants={resultFade} className="text-sm text-muted-foreground mb-4 uppercase tracking-widest">{t('vote.tonightYouPlay')}</motion.p>
-            {result.headerImageUrl && (
-              <motion.div
-                variants={resultFade}
-                className="relative mb-6"
-              >
-                {/* Reward glow behind the image */}
-                <div className="absolute -inset-4 bg-reward/20 blur-3xl rounded-3xl pointer-events-none" aria-hidden="true" />
-                <img
-                  src={result.headerImageUrl}
-                  alt={result.gameName}
-                  className="relative w-full rounded-lg shadow-2xl ring-1 ring-reward/20"
-                />
-              </motion.div>
-            )}
-            <motion.h1 variants={resultFade} className="text-3xl font-heading font-bold mb-2">{result.gameName}</motion.h1>
-            <motion.p variants={resultFade} className="text-muted-foreground mb-4">
-              {t('vote.votedFor', { yes: result.yesCount, total: result.totalVoters })}
-            </motion.p>
-
-            {/* Consensus breakdown — animated bar fills from 0 to the win
-                percentage so the magnitude of the agreement feels earned
-                instead of being dropped in as a static line of text. */}
-            {result.totalVoters > 0 && (() => {
-              const percent = Math.round((result.yesCount / result.totalVoters) * 100)
-              return (
-                <motion.div variants={resultFade} className="mb-8 w-full max-w-xs mx-auto">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-                    <span>{t('vote.consensusPercent', { percent })}</span>
-                    <span>{result.yesCount}/{result.totalVoters}</span>
-                  </div>
-                  <div
-                    role="progressbar"
-                    aria-valuenow={percent}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    className="h-2 w-full overflow-hidden rounded-full bg-secondary"
-                  >
-                    <motion.div
-                      className="h-full rounded-full bg-reward shadow-[0_0_12px_rgba(255,215,128,0.45)]"
-                      initial={{ width: '0%' }}
-                      animate={{ width: `${percent}%` }}
-                      transition={{
-                        duration: prefersReducedMotion ? 0.2 : 1.1,
-                        delay: prefersReducedMotion ? 0 : 0.5,
-                        ease: [0.22, 1, 0.36, 1],
-                      }}
-                    />
-                  </div>
-                </motion.div>
-              )
-            })()}
-
-            <motion.div variants={resultFade}>
-              {Number.isInteger(result.steamAppId) && result.steamAppId > 0 && (
-                <Button variant="steam" size="lg" asChild>
-                  <a
-                    href={`steam://run/${result.steamAppId}`}
-                    className="gap-2"
-                    onClick={() => {
-                      setSteamLaunchedAt(Date.now())
-                      track('game.launched_in_steam', { steamAppId: result.steamAppId })
-                    }}
-                  >
-                    <ExternalLink className="w-5 h-5" />
-                    {t('vote.launchSteam')}
-                  </a>
-                </Button>
-              )}
-
-              <Button
-                variant="secondary"
-                className="block mx-auto mt-4"
-                onClick={handleRematch}
-                disabled={rematching}
-              >
-                {rematching ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-                {t('vote.rematch')}
-              </Button>
-
-              <Button
-                variant="ghost"
-                className="block mx-auto mt-4"
-                onClick={() => navigate(`/groups/${id}`)}
-              >
-                {t('vote.backToGroup')}
-              </Button>
-
-              {session?.id && (
-                <div className="flex justify-center mt-4">
-                  <ShareButton
-                    sessionId={session.id}
-                    title={result.gameName}
-                    description={`${result.yesCount} membres ont voté pour ${result.gameName}`}
-                    variant="outline"
-                    size="sm"
-                  />
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        </AnimatePresence>
-      </div>
+      <ResultScreen
+        result={result}
+        sessionId={session?.id ?? null}
+        rematching={rematching}
+        onRematch={handleRematch}
+        onBack={() => navigate(`/groups/${id}`)}
+        onSteamLaunch={(steamAppId) => {
+          setSteamLaunchedAt(Date.now())
+          track('game.launched_in_steam', { steamAppId })
+        }}
+      />
     )
   }
 
@@ -665,6 +554,365 @@ export function VotePage() {
         </div>
       </main>
       <AppFooter />
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Result Screen
+// ---------------------------------------------------------------------------
+
+interface ResultScreenProps {
+  result: VoteResult
+  sessionId: string | null
+  rematching: boolean
+  onRematch: () => void
+  onBack: () => void
+  onSteamLaunch: (steamAppId: number) => void
+}
+
+/**
+ * The reveal screen — the payoff of the whole app. Sequencing is intentional:
+ * eyebrow → image (spring + warm glow) → confetti burst → heading → consensus
+ * bar with count-up → CTA ladder. The CTA ladder demotes "Relancer un vote"
+ * to a small rescue link since rematching throws away the group's decision.
+ * Everything collapses to a single fade when prefers-reduced-motion is on.
+ */
+function ResultScreen({
+  result,
+  sessionId,
+  rematching,
+  onRematch,
+  onBack,
+  onSteamLaunch,
+}: ResultScreenProps) {
+  const { t } = useTranslation()
+  const shouldReduceMotion = useReducedMotion() ?? false
+  const headingRef = useRef<HTMLHeadingElement>(null)
+
+  const hasWinner = Number.isInteger(result.steamAppId) && result.steamAppId > 0
+  const percent =
+    result.totalVoters > 0
+      ? Math.round((result.yesCount / result.totalVoters) * 100)
+      : 0
+  // Suppress the consensus block in the solo case — "100 % of 1" reads as
+  // clinical rather than celebratory and just eats vertical space.
+  const showConsensus = hasWinner && result.totalVoters > 1
+  const isUnanimous = percent === 100 && result.totalVoters > 1
+
+  // Animated count-up for the consensus percentage. Framer-motion's
+  // imperative `animate` drives a React state through its onUpdate callback;
+  // under reduced motion we skip the animation and show the final value
+  // directly (derived during render, no setState in the effect body).
+  const [animatedPercent, setAnimatedPercent] = useState(0)
+  const displayPercent = shouldReduceMotion ? percent : animatedPercent
+  useEffect(() => {
+    if (!showConsensus || shouldReduceMotion) return
+    const controls = animate(0, percent, {
+      duration: 1.1,
+      delay: 0.3,
+      ease: 'easeOut',
+      onUpdate: (v) => setAnimatedPercent(Math.round(v)),
+    })
+    return () => controls.stop()
+  }, [percent, shouldReduceMotion, showConsensus])
+
+  // Move focus to the heading on mount so screen reader users hear the reveal
+  // as a state change instead of silently landing on a new UI.
+  useEffect(() => {
+    headingRef.current?.focus({ preventScroll: true })
+  }, [])
+
+  // One-shot celebration burst — fires after the image lands. Skipped under
+  // reduced-motion and when there's no winner to celebrate.
+  const [particlesVisible, setParticlesVisible] = useState(false)
+  useEffect(() => {
+    if (shouldReduceMotion || !hasWinner) return
+    const timer = setTimeout(() => setParticlesVisible(true), 550)
+    return () => clearTimeout(timer)
+  }, [shouldReduceMotion, hasWinner])
+
+  // No-winner branch: drops the hero image + consensus bar and keeps only the
+  // rescue actions. Rematch is promoted to the primary button here since it's
+  // the only meaningful forward motion.
+  if (!hasWinner) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <motion.div
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: shouldReduceMotion ? 0.15 : 0.4 }}
+          className="text-center max-w-md"
+          role="status"
+          aria-live="polite"
+        >
+          <CircleOff
+            className="w-16 h-16 mx-auto mb-4 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-3xl font-heading font-bold mb-2 focus:outline-none"
+          >
+            {t('vote.noWinner')}
+          </h1>
+          <p className="text-muted-foreground mb-8">
+            {t('vote.noWinnerDescription')}
+          </p>
+          <div className="flex flex-col items-center gap-3">
+            <Button onClick={onRematch} disabled={rematching}>
+              {rematching ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              {t('vote.rematch')}
+            </Button>
+            <Button variant="ghost" onClick={onBack}>
+              {t('vote.backToGroup')}
+            </Button>
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
+
+  // Reveal choreography. Kept simple under reduced motion: no stagger, no
+  // spring, no keyframes — a single 0.15s fade replaces the whole sequence.
+  const container: Variants = {
+    hidden: {},
+    visible: {
+      transition: {
+        staggerChildren: shouldReduceMotion ? 0 : 0.12,
+        delayChildren: shouldReduceMotion ? 0 : 0.08,
+      },
+    },
+  }
+
+  const eyebrow: Variants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 8 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: shouldReduceMotion ? 0.15 : 0.4, ease: 'easeOut' },
+    },
+  }
+
+  const imageVariants: Variants = shouldReduceMotion
+    ? {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { duration: 0.15 } },
+      }
+    : {
+        hidden: { opacity: 0, scale: 0.94 },
+        visible: {
+          opacity: 1,
+          scale: 1,
+          transition: { type: 'spring', stiffness: 140, damping: 18 },
+        },
+      }
+
+  const fadeUp: Variants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 10 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0.15 : 0.45,
+        ease: 'easeOut',
+      },
+    },
+  }
+
+  const consensusText = isUnanimous
+    ? t('vote.unanimous')
+    : t('vote.consensusPercent', { percent: displayPercent })
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <AnimatePresence>
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={container}
+          className="text-center max-w-md w-full"
+        >
+          {/* Wrap the title block in a live region so SR users get the full
+              "tonight you play → game name" announcement as one payload. */}
+          <div role="status" aria-live="polite" aria-atomic="true">
+            <motion.p
+              variants={eyebrow}
+              className="text-sm text-muted-foreground mb-4 uppercase tracking-widest"
+            >
+              {t('vote.tonightYouPlay')}
+            </motion.p>
+
+            {result.headerImageUrl && (
+              <motion.div variants={imageVariants} className="relative mb-6">
+                {/* Warm reward glow that breathes around the image. The
+                    cool primary rim underneath adds depth without stealing
+                    focus from the orange payoff colour. */}
+                <motion.div
+                  aria-hidden="true"
+                  className="absolute -inset-6 bg-reward/30 blur-3xl rounded-3xl pointer-events-none"
+                  animate={
+                    shouldReduceMotion
+                      ? undefined
+                      : { opacity: [0.55, 0.85, 0.55], scale: [1, 1.04, 1] }
+                  }
+                  transition={{
+                    duration: 2.4,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  }}
+                />
+                <div
+                  aria-hidden="true"
+                  className="absolute -inset-3 bg-primary/15 blur-2xl rounded-3xl pointer-events-none"
+                />
+                <img
+                  src={result.headerImageUrl}
+                  alt=""
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                  }}
+                  className="relative w-full rounded-lg shadow-[0_30px_80px_-20px_oklch(0.82_0.17_70/0.45)] ring-1 ring-reward/40"
+                />
+                {/* Changing the key forces a fresh mount so the particle
+                    generator re-randomises positions on rematch reveals. */}
+                {particlesVisible && (
+                  <CelebrationParticles
+                    key={`result-burst-${result.steamAppId}`}
+                    count={26}
+                  />
+                )}
+              </motion.div>
+            )}
+
+            <motion.h1
+              ref={headingRef}
+              tabIndex={-1}
+              variants={fadeUp}
+              className="text-3xl font-heading font-bold mb-4 break-words text-balance focus:outline-none"
+            >
+              {result.gameName}
+            </motion.h1>
+          </div>
+
+          {showConsensus && (
+            <motion.div
+              variants={fadeUp}
+              className="mb-8 w-full max-w-xs mx-auto"
+            >
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                <span className="tabular-nums">{consensusText}</span>
+                <span className="tabular-nums">
+                  {result.yesCount}/{result.totalVoters}
+                </span>
+              </div>
+              <div
+                role="progressbar"
+                aria-label={t('vote.consensusLabel')}
+                aria-valuenow={percent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuetext={`${percent}% — ${result.yesCount}/${result.totalVoters}`}
+                className="h-2 w-full overflow-hidden rounded-full bg-secondary"
+              >
+                <motion.div
+                  className="h-full rounded-full bg-gradient-to-r from-reward to-amber-300 shadow-[0_0_12px_rgba(255,215,128,0.45)]"
+                  initial={{ width: '0%' }}
+                  animate={{ width: `${percent}%` }}
+                  transition={{
+                    duration: shouldReduceMotion ? 0.15 : 1.1,
+                    delay: shouldReduceMotion ? 0 : 0.3,
+                    ease: 'easeOut',
+                  }}
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {/* CTA ladder — Launch is the hero. Share + Back are equal-weight
+              siblings on the row below. Rematch is demoted to a small text
+              link because it throws away the group's decision, so it should
+              read as a rescue hatch rather than a competing call-to-action. */}
+          <motion.div
+            variants={fadeUp}
+            className="flex flex-col items-center gap-3"
+          >
+            <motion.div
+              animate={
+                shouldReduceMotion
+                  ? undefined
+                  : {
+                      boxShadow: [
+                        '0 0 0 0 rgba(102,192,244,0)',
+                        '0 0 0 10px rgba(102,192,244,0.18)',
+                        '0 0 0 0 rgba(102,192,244,0)',
+                      ],
+                    }
+              }
+              transition={{
+                duration: 2.8,
+                repeat: Infinity,
+                delay: 2.2,
+                ease: 'easeInOut',
+              }}
+              className="rounded-lg"
+            >
+              <Button
+                variant="steam"
+                size="lg"
+                asChild
+                className="h-14 px-10 text-base"
+              >
+                <a
+                  href={`steam://run/${result.steamAppId}`}
+                  className="gap-2"
+                  onClick={() => onSteamLaunch(result.steamAppId)}
+                >
+                  <ExternalLink className="w-5 h-5" />
+                  {t('vote.launchSteam')}
+                </a>
+              </Button>
+            </motion.div>
+
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              {sessionId && (
+                <ShareButton
+                  sessionId={sessionId}
+                  title={result.gameName}
+                  description={t('vote.shareDescription', {
+                    count: result.yesCount,
+                    title: result.gameName,
+                  })}
+                  variant="outline"
+                  size="sm"
+                />
+              )}
+              <Button variant="ghost" size="sm" onClick={onBack}>
+                {t('vote.backToGroup')}
+              </Button>
+            </div>
+
+            <button
+              type="button"
+              onClick={onRematch}
+              disabled={rematching}
+              className="mt-1 inline-flex items-center gap-1.5 px-2 py-2 min-h-[44px] text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 decoration-dotted rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {rematching ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <RefreshCw className="w-3 h-3" />
+              )}
+              {t('vote.rematch')}
+            </button>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
     </div>
   )
 }

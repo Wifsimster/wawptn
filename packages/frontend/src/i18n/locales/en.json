@@ -253,6 +253,12 @@
     "tonightYouPlay": "Tonight you're playing",
     "votedFor": "{{yes}} out of {{total}} voted for it",
     "consensusPercent": "{{percent}}% consensus",
+    "consensusLabel": "Consensus level",
+    "unanimous": "Unanimous pick",
+    "noWinner": "No winner tonight",
+    "noWinnerDescription": "Nobody agreed on a game. Start a new round to try again.",
+    "shareDescription_one": "1 member voted for {{title}}",
+    "shareDescription_other": "{{count}} members voted for {{title}}",
     "launchSteam": "Launch on Steam",
     "launchTimeout": "Game not launching?",
     "launchTimeoutDescription": "If Steam isn't responding, we can rematch on another game.",
@@ -464,5 +470,16 @@
     "broadcastSend": "Send",
     "broadcastSuccess": "Announcement sent to {{count}} users",
     "broadcastError": "Unable to send announcement"
+  },
+  "share": {
+    "button": "Share",
+    "copyLink": "Copy link",
+    "shareOnTwitter": "Share on Twitter",
+    "shareOnDiscord": "Share on Discord",
+    "webShare": "More options…",
+    "linkCopied": "Link copied!",
+    "linkCopiedDiscord": "Link copied — ready to paste in Discord!",
+    "twitterText": "Tonight we're playing {{title}}! #WAWPTN",
+    "shareTitle": "WAWPTN — Vote result"
   }
 }

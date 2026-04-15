@@ -265,6 +265,7 @@
     "backHome": "Retour à l'accueil"
   },
   "vote": {
+    "title": "Vote",
     "tonightYouPlay": "Ce soir vous jouez à",
     "votedFor": "{{yes}} sur {{total}} ont voté pour",
     "consensusPercent": "{{percent}} % de consensus",

@@ -256,6 +256,7 @@
     "backHome": "Back to home"
   },
   "vote": {
+    "title": "Vote",
     "tonightYouPlay": "Tonight you're playing",
     "votedFor": "{{yes}} out of {{total}} voted for it",
     "consensusPercent": "{{percent}}% consensus",

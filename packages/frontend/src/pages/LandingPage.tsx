@@ -307,6 +307,7 @@ export function LandingPage() {
                       'freeFeature2',
                       'freeFeature3',
                       'freeFeature4',
+                      'freeFeature5',
                     ] as const
                   ).map((key) => (
                     <li key={key} className="flex items-start gap-3">
@@ -363,6 +364,7 @@ export function LandingPage() {
                       'premiumFeature3',
                       'premiumFeature4',
                       'premiumFeature5',
+                      'premiumFeature6',
                     ] as const
                   ).map((key) => (
                     <li key={key} className="flex items-start gap-3">

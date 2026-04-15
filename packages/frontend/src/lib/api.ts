@@ -166,7 +166,14 @@ export const api = {
     request<{ result: { steamAppId: number; gameId?: string; gameName: string; headerImageUrl: string | null; yesCount: number; totalVoters: number } }>(
       `/groups/${groupId}/vote/${sessionId}/close`, { method: 'POST' }
     ),
-  getVoteHistory: (groupId: string) => request<{ id: string; winningGameAppId: number; winningGameId?: string; winningGameName: string; closedAt: string; createdBy: string }[]>(
+  getVoteHistory: (groupId: string) => request<{
+    data: { id: string; winningGameAppId: number; winningGameId?: string; winningGameName: string; closedAt: string; createdBy: string }[]
+    total: number
+    limit: number
+    offset: number
+    freeLimitApplied: boolean
+    freeLimit: number
+  }>(
     `/groups/${groupId}/vote/history`
   ),
   rematchVote: (groupId: string, sessionId: string) =>

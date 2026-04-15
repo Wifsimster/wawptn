@@ -3,10 +3,14 @@ const API_BASE = '/api'
 export class ApiError extends Error {
   code: string
   status: number
-  constructor(message: string, code: string, status: number) {
+  /** Any extra fields the server included in the JSON error body (e.g.
+   *  the `inviteUrl` returned with a `bot_not_in_guild` response). */
+  details: Record<string, unknown>
+  constructor(message: string, code: string, status: number, details: Record<string, unknown> = {}) {
     super(message)
     this.code = code
     this.status = status
+    this.details = details
   }
 }
 
@@ -21,11 +25,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   })
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText, error: 'unknown' }))
+    const error = await res.json().catch(() => ({ message: res.statusText, error: 'unknown' })) as Record<string, unknown>
     throw new ApiError(
-      error.message || `Request failed: ${res.status}`,
-      error.error || 'unknown',
+      (typeof error['message'] === 'string' ? error['message'] : undefined) || `Request failed: ${res.status}`,
+      (typeof error['error'] === 'string' ? error['error'] : undefined) || 'unknown',
       res.status,
+      error,
     )
   }
 
@@ -73,17 +78,33 @@ export const api = {
   },
 
   // Groups
-  getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null; todayPersona: { id: string; name: string; embedColor: number; introMessage: string } | null }[]>('/groups'),
+  getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null; todayPersona: { id: string; name: string; embedColor: number; introMessage: string } | null; discordGuildId: string | null; discordChannelId: string | null }[]>('/groups'),
   getGroup: (id: string) => request<{
     id: string; name: string; createdBy: string; commonGameThreshold: number | null; createdAt: string;
     autoVoteSchedule: string | null; autoVoteDurationMinutes: number;
+    discordGuildId: string | null; discordChannelId: string | null;
     members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string; notificationsEnabled: boolean }[];
     todayPersona: { id: string; name: string; embedColor: number; introMessage: string } | null;
   }>(`/groups/${id}`),
-  createGroup: (name: string) => request<{ id: string; name: string; inviteToken: string; inviteExpiresAt: string }>('/groups', {
-    method: 'POST',
-    body: JSON.stringify({ name }),
-  }),
+  createGroup: (input: { name: string; discordGuildId?: string | null; discordChannelId?: string | null }) =>
+    request<{ id: string; name: string; inviteToken: string; inviteExpiresAt: string; discordGuildId: string | null; discordChannelId: string | null }>('/groups', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  // Discord OAuth2 picker — powers the "bind a Discord channel at group
+  // creation" flow. The authorize URL is opened in a popup; guilds and
+  // channels are fetched after the callback page has closed itself.
+  getDiscordOAuthAuthorizeUrl: () => request<{ url: string }>('/discord/oauth/authorize'),
+  listDiscordGuilds: () =>
+    request<{ guilds: { id: string; name: string; iconUrl: string | null; canManage: boolean }[] }>(
+      '/discord/guilds',
+    ),
+  listDiscordChannels: (guildId: string) =>
+    request<{ channels: { id: string; name: string; type: number }[] }>(
+      `/discord/guilds/${guildId}/channels`,
+    ),
+  clearDiscordOAuthSession: () => request<{ ok: boolean }>('/discord/oauth/session', { method: 'DELETE' }),
   renameGroup: (groupId: string, name: string) => request<{ id: string; name: string }>(`/groups/${groupId}`, {
     method: 'PATCH',
     body: JSON.stringify({ name }),

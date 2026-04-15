@@ -36,6 +36,25 @@ export const env = {
    *  posting (and the backend silently falls back to webhook-only mode). */
   DISCORD_BOT_HTTP_URL: process.env['DISCORD_BOT_HTTP_URL'] || '',
 
+  // Discord OAuth2 + REST (optional — feature-flagged)
+  /** Discord application client ID. Required for the in-app "bind a Discord
+   *  channel at group creation" picker flow. Empty disables the picker and
+   *  the frontend falls back to the bot's `/wawptn setup` slash command. */
+  DISCORD_CLIENT_ID: process.env['DISCORD_CLIENT_ID'] || '',
+  /** Discord application client secret. Paired with DISCORD_CLIENT_ID for
+   *  the OAuth2 token exchange on /api/discord/oauth/callback. */
+  DISCORD_CLIENT_SECRET: process.env['DISCORD_CLIENT_SECRET'] || '',
+  /** Absolute redirect URI registered with the Discord application. Must
+   *  match the value in the Discord developer portal exactly. Defaults to
+   *  `${API_URL}/api/discord/oauth/callback` when empty. */
+  DISCORD_OAUTH_REDIRECT_URI: process.env['DISCORD_OAUTH_REDIRECT_URI'] || '',
+  /** Bot token used to list channels inside a guild the user picked —
+   *  user OAuth tokens cannot enumerate guild channels, so we fall back
+   *  to the bot token for that specific call. The bot must already be a
+   *  member of the target guild (we surface an "invite the bot" hint
+   *  otherwise). Empty disables the picker. */
+  DISCORD_BOT_TOKEN: process.env['DISCORD_BOT_TOKEN'] || '',
+
   // LLM (optional — enables Discord bot conversational mode, OpenAI-compatible API)
   LLM_API_KEY: process.env['LLM_API_KEY'] || '',
   LLM_BASE_URL: process.env['LLM_BASE_URL'] || 'https://models.inference.ai.azure.com',

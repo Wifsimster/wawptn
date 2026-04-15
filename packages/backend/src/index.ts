@@ -23,6 +23,7 @@ import { requireAuth } from './presentation/middleware/auth.middleware.js'
 import { requireBotAuth } from './presentation/middleware/bot-auth.middleware.js'
 import { requireAdmin } from './presentation/middleware/admin.middleware.js'
 import { discordRoutes, discordUserRoutes } from './presentation/routes/discord.routes.js'
+import { discordOAuthRoutes } from './presentation/routes/discord-oauth.routes.js'
 import { adminRoutes } from './presentation/routes/admin.routes.js'
 import { subscriptionRoutes, subscriptionWebhookRouter } from './presentation/routes/subscription.routes.js'
 import { isStripeEnabled } from './infrastructure/stripe/stripe-client.js'
@@ -163,6 +164,11 @@ async function main() {
 
   // Discord user-facing routes (session auth, no bot auth required)
   app.use('/api/discord', discordUserRoutes)
+
+  // Discord OAuth2 picker routes (session auth) — powers the in-app
+  // "bind a Discord channel at group creation" flow. Mounted separately
+  // from discordUserRoutes to keep the 1300+ line legacy file stable.
+  app.use('/api/discord', discordOAuthRoutes)
 
   // Discord bot API routes (bot auth for bot-originated requests)
   if (env.DISCORD_BOT_API_SECRET) {

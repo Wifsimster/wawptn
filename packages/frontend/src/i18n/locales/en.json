@@ -383,8 +383,8 @@
   },
   "landing": {
     "headline": "What are we playing tonight?",
-    "headlineLine1": "Stop debating.",
-    "headlineLine2": "Start playing.",
+    "headlineLine1": "What are we playing",
+    "headlineLine2": "tonight?",
     "subheadline": "Connect your Steam account, gather your squad, and let the vote settle it. No more thirty-minute negotiations before every session.",
     "cta": "Sign in with Steam",
     "ctaSubtext": "100% free · No password · Ready in 30 seconds",

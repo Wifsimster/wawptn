@@ -392,8 +392,8 @@
   },
   "landing": {
     "headline": "On joue à quoi ce soir ?",
-    "headlineLine1": "Ce soir, on arrête de débattre.",
-    "headlineLine2": "On joue.",
+    "headlineLine1": "On joue à quoi",
+    "headlineLine2": "ce soir ?",
     "subheadline": "Connecte ton compte Steam, rassemble ta team et laisse le vote trancher. Fini les trente minutes de négociations avant chaque partie.",
     "cta": "Se connecter avec Steam",
     "ctaSubtext": "100% gratuit · Aucun mot de passe · Prêt en 30 secondes",

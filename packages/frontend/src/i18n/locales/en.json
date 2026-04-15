@@ -111,6 +111,7 @@
     "syncSuccess": "Sync started!",
     "syncError": "Sync error",
     "startVoteError": "Unable to start vote",
+    "voteAlreadyOpen": "A vote is already in progress for this group. Joining the existing vote.",
     "generateInviteError": "Unable to generate invite",
     "history": "Game night history",
     "voteStarted": "A vote has just been started!",

@@ -33,6 +33,26 @@ export interface CreateSessionResult {
   games: SessionGame[]
 }
 
+/** Shape the "already open" 409 conflict uniformly in one place so both the
+ *  in-transaction pre-check and the post-insert unique-violation handler
+ *  throw the exact same error object. */
+function conflictError(): Error & { statusCode: number; errorCode: string } {
+  const err = new Error('A voting session is already open') as Error & {
+    statusCode: number
+    errorCode: string
+  }
+  err.statusCode = 409
+  err.errorCode = 'conflict'
+  return err
+}
+
+/** Postgres SQLSTATE 23505 = unique_violation. node-postgres exposes this on
+ *  `err.code`; Knex wraps it but keeps the original property. We only care
+ *  about the string match so we coerce to string defensively. */
+function isUniqueViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === '23505'
+}
+
 /**
  * Create a voting session for a group.
  * Computes common games, sorts by popularity, inserts session + participants + games,
@@ -110,8 +130,20 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
     return a.gameName.localeCompare(b.gameName)
   })
 
-  // Atomic check-and-create: use a transaction with FOR UPDATE to prevent
-  // concurrent requests from both passing the "no open session" check
+  // Atomic check-and-create. Two layers of protection:
+  //
+  //  1. In-transaction `SELECT ... FOR UPDATE` + pre-check. Catches the
+  //     common case early so we can return a clean 409 without wasting
+  //     an INSERT and surfacing a Postgres error. NOTE: under READ
+  //     COMMITTED, FOR UPDATE on a query returning zero rows does NOT
+  //     acquire predicate locks, so it alone cannot prevent two
+  //     concurrent "start vote" requests from both passing this check.
+  //
+  //  2. Partial unique index `uniq_voting_sessions_one_open_per_group`
+  //     on `(group_id) WHERE status = 'open'`. The database rejects the
+  //     second concurrent insert with Postgres error 23505, which we
+  //     translate into the same 409 conflict below. This is the real
+  //     race-proof guarantee.
   const session = await db.transaction(async (trx) => {
     const existingSession = await trx('voting_sessions')
       .where({ group_id: groupId, status: 'open' })
@@ -119,18 +151,27 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
       .first()
 
     if (existingSession) {
-      const err = new Error('A voting session is already open') as Error & { statusCode: number; errorCode: string }
-      err.statusCode = 409
-      err.errorCode = 'conflict'
-      throw err
+      throw conflictError()
     }
 
-    const [sess] = await trx('voting_sessions').insert({
-      group_id: groupId,
-      status: 'open',
-      created_by: createdBy,
-      ...(scheduledAt ? { scheduled_at: scheduledAt } : {}),
-    }).returning('*')
+    let sess
+    try {
+      [sess] = await trx('voting_sessions').insert({
+        group_id: groupId,
+        status: 'open',
+        created_by: createdBy,
+        ...(scheduledAt ? { scheduled_at: scheduledAt } : {}),
+      }).returning('*')
+    } catch (err) {
+      // Postgres 23505 = unique_violation. Raised when a concurrent
+      // transaction won the race and committed its own open session
+      // first. Translate to the same 409 the pre-check produces so
+      // callers only ever see one shape.
+      if (isUniqueViolation(err) && /uniq_voting_sessions_one_open_per_group/.test(String(err))) {
+        throw conflictError()
+      }
+      throw err
+    }
 
     await trx('voting_session_participants').insert(
       validMembers.map(uid => ({

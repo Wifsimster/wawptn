@@ -123,6 +123,7 @@ export async function notifySessionCreated(
   // HTTP call failed — and a webhook URL is configured for the group.
   // This is the "simple path" for groups that only set up a Discord
   // webhook without running the bot.
+  let webhookPosted = false
   if (!botHandled && group.discord_webhook_url) {
     const gameList = games
       .slice(0, 25)
@@ -141,9 +142,30 @@ export async function notifySessionCreated(
         thumbnail: games[0]?.headerImageUrl ? { url: games[0].headerImageUrl } : undefined,
       }],
     })
+    webhookPosted = true
     logger.info(
       { sessionId, groupId },
       'Discord session webhook posted (fallback)',
+    )
+  }
+
+  // Diagnostic: the group is linked to a Discord channel but neither
+  // transport got the message out. This is almost always a deployment
+  // misconfiguration (DISCORD_BOT_HTTP_URL missing on the backend, bot
+  // HTTP API unreachable across the docker network, etc.) and leaves the
+  // user staring at an empty channel wondering why vote start never
+  // showed up. Log loudly so operators can diagnose it from the backend
+  // logs instead of having to trace it through several async layers.
+  if (!botHandled && !webhookPosted && group.discord_channel_id) {
+    logger.warn(
+      {
+        sessionId,
+        groupId,
+        channelId: group.discord_channel_id,
+        botEnabled: isBotClientEnabled(),
+        hasWebhook: !!group.discord_webhook_url,
+      },
+      'Discord session notification dropped: channel is linked but no transport could post (check DISCORD_BOT_HTTP_URL and bot reachability, or configure a webhook URL)',
     )
   }
 }
@@ -171,7 +193,11 @@ export async function notifyVoteClosed(
     const session = await db('voting_sessions').where({ id: sessionId }).first()
     if (session?.discord_message_id && session.discord_channel_id) {
       const summary = await buildVoteSummary(sessionId)
-      await postSessionClosed({
+      // Trust the bot-client's success signal — a silent failure here
+      // used to set botClosed unconditionally, which swallowed close
+      // errors and prevented the webhook fallback from firing. The
+      // return value is the ONLY way to know the edit actually landed.
+      botClosed = await postSessionClosed({
         sessionId,
         groupName: group.name,
         channelId: session.discord_channel_id,
@@ -179,7 +205,9 @@ export async function notifyVoteClosed(
         result,
         summary,
       })
-      botClosed = true
+      if (botClosed) {
+        logger.info({ sessionId, groupId, messageId: session.discord_message_id }, 'Discord session closed message edited')
+      }
     }
   }
 
@@ -206,7 +234,26 @@ export async function notifyVoteClosed(
     ...extraWebhooks.map((row) => row.webhook_url),
   ]
 
-  if (targets.length === 0) return
+  if (targets.length === 0) {
+    // Mirror notifySessionCreated: if the group has a linked channel but
+    // nothing made it out for the close (bot unreachable, no webhook
+    // configured), surface the drop in the logs so operators can actually
+    // see why the winner never showed up in Discord. Matches the "check
+    // DISCORD_BOT_HTTP_URL" hint from the open-side drop for consistency.
+    if (!botClosed && group.discord_channel_id) {
+      logger.warn(
+        {
+          sessionId,
+          groupId,
+          channelId: group.discord_channel_id,
+          botEnabled: isBotClientEnabled(),
+          hasWebhook: !!group.discord_webhook_url,
+        },
+        'Discord vote-closed notification dropped: channel is linked but no transport could post (check DISCORD_BOT_HTTP_URL and bot reachability, or configure a webhook URL)',
+      )
+    }
+    return
+  }
 
   const fields = [
     { name: 'Votes pour', value: `${result.yesCount}`, inline: true },

@@ -247,4 +247,49 @@ describe('notifySessionCreated', () => {
     expect(postSessionCreatedMock).not.toHaveBeenCalled()
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it('drops the notification (but does not throw) when channel is linked, bot is disabled, and no webhook is set', async () => {
+    // Regression guard for the "still no Discord message" bug: a group
+    // that only went through `/wawptn-setup` has discord_channel_id but
+    // no webhook. If the backend is misconfigured so isBotClientEnabled()
+    // returns false, notifySessionCreated used to silently do nothing.
+    // It still has nothing to send, but it must not throw and must not
+    // try to post anywhere.
+    setDbResult('groups', {
+      id: 'g1',
+      name: 'Test Group',
+      discord_channel_id: 'chan-123',
+      discord_webhook_url: null,
+    })
+    setDbResult('voting_sessions', { display_name: 'Frank' })
+
+    isBotClientEnabledMock.mockReturnValue(false)
+
+    await expect(notifySessionCreated('g1', 'sess-1', games)).resolves.toBeUndefined()
+
+    expect(postSessionCreatedMock).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('drops the notification when channel is linked, bot enabled, bot fails, and no webhook is set', async () => {
+    // Similar regression guard for the bot-enabled-but-unreachable case
+    // (e.g. DISCORD_BOT_HTTP_URL points at a dead host). With no webhook
+    // configured there's still no transport to fall back to, but the
+    // function must return cleanly so the caller's .catch() doesn't fire.
+    setDbResult('groups', {
+      id: 'g1',
+      name: 'Test Group',
+      discord_channel_id: 'chan-123',
+      discord_webhook_url: null,
+    })
+    setDbResult('voting_sessions', { display_name: 'Grace' })
+
+    isBotClientEnabledMock.mockReturnValue(true)
+    postSessionCreatedMock.mockResolvedValue(null)
+
+    await expect(notifySessionCreated('g1', 'sess-1', games)).resolves.toBeUndefined()
+
+    expect(postSessionCreatedMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })

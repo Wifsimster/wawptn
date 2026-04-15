@@ -362,12 +362,11 @@ router.post('/vote/start', async (req: Request, res: Response) => {
     return
   }
 
-  // Discord bot actions require group owner premium
-  const ownerPremium = await isGroupOwnerPremium(groupId)
-  if (!ownerPremium) {
-    res.status(403).json({ error: 'premium_required', message: 'Discord bot integration requires a premium subscription' })
-    return
-  }
+  // Bidirectional voting (start a vote from Discord, see it on the web,
+  // vote from either side) is part of the free tier — it's the core
+  // promise of the product per the C4 design decision (2026-04-14).
+  // Other Discord bot features (daily challenges, LLM chat) keep their
+  // own premium gates lower in this file.
 
   // Get all group members as participants
   const memberIds = await db('group_members')
@@ -1148,7 +1147,17 @@ userRouter.delete('/link', requireAuth, async (req: Request, res: Response) => {
   res.json({ ok: true, wasLinked: deleted > 0 })
 })
 
-// Set webhook URL for a group (group owner only)
+// Set webhook URL for a group (group owner only).
+//
+// Binding a Discord destination to a group is part of the free tier
+// (C4 design decision — 2026-04-14). Both binding paths must be free
+// for the promise to hold: `/setup` for users who deploy the bot in
+// their guild, and this `/webhook` endpoint for users who only want
+// one-way announcements without running a bot. Keeping only one of
+// them free would leave webhook-only adopters behind the paywall.
+//
+// Announcement webhooks (multi-channel broadcast) stay premium — see
+// `/announcements` below.
 userRouter.post('/webhook', requireAuth, async (req: Request, res: Response) => {
   const userId = req.userId!
   const { groupId, webhookUrl } = req.body as { groupId: string; webhookUrl: string }
@@ -1164,13 +1173,6 @@ userRouter.post('/webhook', requireAuth, async (req: Request, res: Response) => 
 
   if (!membership) {
     res.status(403).json({ error: 'forbidden', message: 'Only group owners can set the webhook URL' })
-    return
-  }
-
-  // Discord webhook requires premium
-  const premium = await isUserPremium(userId)
-  if (!premium) {
-    res.status(403).json({ error: 'premium_required', message: 'Discord webhook requires a premium subscription' })
     return
   }
 

@@ -115,6 +115,7 @@
     "syncError": "Erreur de synchronisation",
     "startVoteError": "Impossible de lancer le vote",
     "voteAlreadyOpen": "Un vote est déjà en cours dans ce groupe. Vous rejoignez le vote existant.",
+    "joinActiveVote": "Rejoindre le vote en cours",
     "generateInviteError": "Impossible de générer l'invitation",
     "history": "Historique des soirées",
     "historyUpgradeCta": "Passez premium pour voir l'historique complet",
@@ -222,7 +223,12 @@
     "reasonNever": "Jamais joué ensemble",
     "reasonTopRated": "Le mieux noté",
     "reasonMostOwned": "Le plus possédé",
-    "reasonComeback": "Retour gagnant"
+    "reasonComeback": "Retour gagnant",
+    "voteInProgressEyebrow": "Vote en cours",
+    "voteInProgressTitle": "Un vote est en cours",
+    "voteInProgressDescription": "Rejoins tes amis pour donner ta voix et découvrir le jeu de ce soir.",
+    "voteScheduledTitle": "Un vote est planifié",
+    "voteScheduledDescription": "Un vote a déjà été programmé dans ce groupe. Ouvre-le pour voir les détails."
   },
   "voteSetup": {
     "title": "Qui joue ce soir ?",

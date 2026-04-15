@@ -28,6 +28,15 @@ interface TonightPickHeroProps {
   members: Member[]
   onStartVote: () => void
   onRandomPick: () => void
+  /**
+   * If a voting session is already open for this group, the hero renders a
+   * "join existing vote" variant instead of the normal "start a vote" CTA.
+   * The backend enforces one open session per group, so surfacing this at
+   * the group detail page prevents users from walking through the setup
+   * dialog only to land on a 409 toast on the vote page.
+   */
+  activeVoteSession?: { id: string; scheduledAt: string | null } | null
+  onJoinActiveVote?: () => void
 }
 
 type PickReason = 'neverPlayed' | 'topRated' | 'mostOwned' | 'comeback'
@@ -115,6 +124,8 @@ export function TonightPickHero({
   members,
   onStartVote,
   onRandomPick,
+  activeVoteSession,
+  onJoinActiveVote,
 }: TonightPickHeroProps) {
   const { t } = useTranslation()
   const pick = useMemo(() => scoreGames(games, voteHistory), [games, voteHistory])
@@ -123,6 +134,79 @@ export function TonightPickHero({
     return (
       <div className="relative overflow-hidden rounded-xl border border-border/60 bg-card/40">
         <Skeleton className="w-full h-[220px] sm:h-[260px]" />
+      </div>
+    )
+  }
+
+  // A vote is already open for this group → show a dedicated "join" hero
+  // instead of the normal pick, since creating another vote would just
+  // bounce off the backend's one-open-session-per-group guard. We key
+  // the "scheduled" vs "in progress" copy off the presence of a
+  // `scheduledAt` timestamp rather than comparing against `Date.now()` to
+  // keep the render pure — the VotePage itself handles countdown vs live
+  // display once the user clicks through.
+  if (activeVoteSession && onJoinActiveVote) {
+    const isScheduled = !!activeVoteSession.scheduledAt
+    const avatars = members.slice(0, 5)
+    return (
+      <div className="relative overflow-hidden rounded-xl border border-primary/40 bg-card/40 ring-1 ring-primary/20">
+        {/* Soft animated glow to draw attention away from the regular hero. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/5 to-transparent pointer-events-none"
+        />
+        <div className="relative p-4 sm:p-6 flex flex-col sm:flex-row gap-4 sm:gap-5 items-start sm:items-center">
+          <div className="shrink-0 w-12 h-12 rounded-full bg-primary/15 flex items-center justify-center">
+            <Vote className="w-6 h-6 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+              </span>
+              <span className="text-[11px] uppercase tracking-wider text-primary font-bold">
+                {t('tonightPick.voteInProgressEyebrow')}
+              </span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-heading font-bold leading-tight">
+              {isScheduled
+                ? t('tonightPick.voteScheduledTitle')
+                : t('tonightPick.voteInProgressTitle')}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isScheduled
+                ? t('tonightPick.voteScheduledDescription')
+                : t('tonightPick.voteInProgressDescription')}
+            </p>
+          </div>
+          <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
+            <Button
+              onClick={onJoinActiveVote}
+              className="h-11 px-5 gap-2 font-heading font-bold text-base shrink-0 card-hover-glow w-full sm:w-auto"
+            >
+              <Vote className="w-4 h-4" />
+              {t('group.joinActiveVote')}
+            </Button>
+            {members.length > 0 && (
+              <div className="flex -space-x-2 self-center sm:self-end">
+                {avatars.map((member) => (
+                  <Avatar key={member.id} className="w-6 h-6 ring-2 ring-background">
+                    <AvatarImage src={member.avatarUrl} alt={member.displayName} />
+                    <AvatarFallback className="text-[10px]">
+                      {member.displayName.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+                {members.length > 5 && (
+                  <div className="w-6 h-6 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-[9px] text-muted-foreground font-medium">
+                    +{members.length - 5}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     )
   }

@@ -54,6 +54,12 @@ export function GroupPage() {
   const [randomPickOpen, setRandomPickOpen] = useState(false)
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([])
   const [todayPersona, setTodayPersona] = useState<{ id: string; name: string; embedColor: number; introMessage: string } | null>(null)
+  // Mirrors the backend's "one open session per group" guard so the group
+  // detail page can surface a "join existing vote" CTA instead of walking
+  // users through the setup dialog only to bounce off a 409 on the vote
+  // page. Populated on mount via GET /groups/:id/vote and kept fresh via
+  // the `session:created` and `vote:closed` socket events.
+  const [activeVoteSession, setActiveVoteSession] = useState<{ id: string; scheduledAt: string | null } | null>(null)
   const lastSeenMapRef = useRef<Map<string, number>>(new Map())
 
   const loadCommonGames = useCallback(async (groupId: string, filter?: string) => {
@@ -82,6 +88,20 @@ export function GroupPage() {
     }
   }
 
+  const loadActiveVoteSession = async (groupId: string) => {
+    try {
+      const data = await api.getVoteSession(groupId)
+      if (data.session) {
+        setActiveVoteSession({ id: data.session.id, scheduledAt: data.session.scheduledAt })
+      } else {
+        setActiveVoteSession(null)
+      }
+    } catch {
+      // Non-critical: if we can't tell, fall back to the normal start-vote
+      // flow and let the backend's 409 handler catch any race.
+    }
+  }
+
   const activeFilter = gameFilters.multiplayerOnly ? 'multiplayer' : gameFilters.coopOnly ? 'coop' : undefined
 
   // Ref mirror of activeFilter so socket listeners always see the latest
@@ -102,6 +122,7 @@ export function GroupPage() {
     if (!id) return
     fetchGroup(id)
     loadVoteHistory(id)
+    loadActiveVoteSession(id)
 
     const socket = getSocket()
     socket.emit('group:join', id)
@@ -135,6 +156,17 @@ export function GroupPage() {
     })
     socket.on('library:synced', () => loadCommonGames(id, activeFilterRef.current))
     socket.on('session:created', (data) => {
+      // Track the new session locally so the hero flips to the "join vote"
+      // variant and any in-flight setup dialog is short-circuited. Also
+      // covers the user who started the vote — their local state was
+      // already updated in handleStartVote, but keeping this listener
+      // authoritative avoids subtle drift if two tabs are open.
+      setActiveVoteSession({ id: data.sessionId, scheduledAt: data.scheduledAt ?? null })
+      // If the user had the setup dialog open (e.g. a teammate beat them
+      // to the punch), close it — otherwise they'd walk through the form
+      // just to hit the 409 conflict handler on submit.
+      setVoteSetupOpen(false)
+
       // Don't notify the user who started the vote
       if (data.createdBy === user?.id) return
 
@@ -155,6 +187,13 @@ export function GroupPage() {
         toast(t('group.voteStartedOthers'))
       }
     })
+    socket.on('vote:closed', () => {
+      // Vote finished — clear the in-progress flag so the hero flips back
+      // to the normal "start a vote" CTA and the next vote can be created
+      // without bouncing off the 409 guard.
+      setActiveVoteSession(null)
+      loadVoteHistory(id)
+    })
 
     return () => {
       socket.emit('group:leave', id)
@@ -169,6 +208,7 @@ export function GroupPage() {
       socket.off('group:renamed')
       socket.off('library:synced')
       socket.off('session:created')
+      socket.off('vote:closed')
     }
   }, [id, fetchGroup, navigate, loadCommonGames, t, user?.id])
 
@@ -196,7 +236,10 @@ export function GroupPage() {
     if (!id) return
     try {
       const hasActiveFilters = filters && (filters.multiplayer || filters.coop || filters.free)
-      await api.createVoteSession(id, participantIds, activeFilter, scheduledAt, hasActiveFilters ? filters : undefined)
+      const result = await api.createVoteSession(id, participantIds, activeFilter, scheduledAt, hasActiveFilters ? filters : undefined)
+      // Record the new session locally so the hero flips immediately even
+      // if the socket event loses the race with the navigation.
+      setActiveVoteSession({ id: result.session.id, scheduledAt: result.session.scheduledAt })
       track('vote.started', {
         participantCount: participantIds.length,
         scheduled: !!scheduledAt,
@@ -206,16 +249,35 @@ export function GroupPage() {
     } catch (err) {
       // 409 conflict = another vote is already open for this group. The
       // backend enforces "one open session per group" via a partial
-      // unique index; redirect the user to the existing vote so they
-      // can join it instead of landing on an error toast.
+      // unique index. We normally prevent reaching this path by
+      // short-circuiting the CTA when `activeVoteSession` is populated,
+      // but a race (two clients clicking "start vote" at once) can still
+      // land here. Refresh the local state so future clicks route to the
+      // join variant, then redirect the user to the existing vote.
       if (err instanceof ApiError && err.status === 409) {
         toast.info(t('group.voteAlreadyOpen'))
+        loadActiveVoteSession(id)
         navigate(`/groups/${id}/vote`)
       } else {
         toast.error(err instanceof Error ? err.message : t('group.startVoteError'))
       }
     }
   }
+
+  // Unified CTA entry point for the "start vote" buttons scattered across
+  // the hero, the mobile bottom bar, and the sidebar. When a vote is
+  // already open we skip the setup dialog entirely and drop the user on
+  // the existing vote page. This is the fix for the UX bug where users
+  // would walk through the dialog only to be told a vote is already in
+  // progress on the next page.
+  const openVoteFlow = useCallback(() => {
+    if (!id) return
+    if (activeVoteSession) {
+      navigate(`/groups/${id}/vote`)
+    } else {
+      setVoteSetupOpen(true)
+    }
+  }, [id, activeVoteSession, navigate])
 
   const handleGenerateInvite = async () => {
     if (!id) return
@@ -415,7 +477,7 @@ export function GroupPage() {
               onDeleteHistory={handleDeleteHistory}
               onToggleNotifications={handleToggleNotifications}
               onUpdateAutoVote={handleUpdateAutoVote}
-              onStartVote={() => setVoteSetupOpen(true)}
+              onStartVote={openVoteFlow}
             />
           </div>
 
@@ -442,20 +504,30 @@ export function GroupPage() {
               loading={loadingGames}
               voteHistory={voteHistory}
               members={currentGroup.members}
-              onStartVote={() => setVoteSetupOpen(true)}
+              onStartVote={openVoteFlow}
               onRandomPick={() => setRandomPickOpen(true)}
+              activeVoteSession={activeVoteSession}
+              onJoinActiveVote={() => navigate(`/groups/${id}/vote`)}
             />
 
             {/* Mobile: fixed bottom action bar — kept as the persistent
                 primary CTA on small screens so the vote is always one tap
-                away even when the user has scrolled the grid. */}
+                away even when the user has scrolled the grid. Flips to
+                "join vote" when a session is already open so the user
+                isn't walked through the setup dialog for nothing. */}
             <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <Button
-                onClick={() => setVoteSetupOpen(true)}
+                onClick={openVoteFlow}
                 className="w-full h-12 gap-2 active:scale-[0.98] transition-transform"
               >
-                <span className="font-heading font-bold">{t('group.startVote')}</span>
-                <span className="opacity-80 text-sm">· {t('group.commonGamesCount', { count: commonGames.length })}</span>
+                {activeVoteSession ? (
+                  <span className="font-heading font-bold">{t('group.joinActiveVote')}</span>
+                ) : (
+                  <>
+                    <span className="font-heading font-bold">{t('group.startVote')}</span>
+                    <span className="opacity-80 text-sm">· {t('group.commonGamesCount', { count: commonGames.length })}</span>
+                  </>
+                )}
               </Button>
             </div>
             {/* Spacer for fixed bottom bar on mobile */}
@@ -558,7 +630,7 @@ export function GroupPage() {
               onDeleteHistory={handleDeleteHistory}
               onToggleNotifications={handleToggleNotifications}
               onUpdateAutoVote={handleUpdateAutoVote}
-              onStartVote={() => setVoteSetupOpen(true)}
+              onStartVote={openVoteFlow}
               compact
             />
           </ResponsiveDialogContent>

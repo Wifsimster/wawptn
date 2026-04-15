@@ -75,19 +75,30 @@ export function NotificationBell() {
     }
   }
 
+  const bellLabel = unreadCount > 0
+    ? t('notifications.titleWithCount', {
+        defaultValue: '{{title}} ({{count}} non lues)',
+        title: t('notifications.title'),
+        count: unreadCount,
+      })
+    : t('notifications.title')
+
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={handleOpen}
+        aria-haspopup="menu"
+        aria-expanded={open}
         className="relative flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors p-2 -m-1 min-h-[44px] min-w-[44px]"
-        aria-label={t('notifications.title')}
+        aria-label={bellLabel}
       >
         <motion.div
           key={bellAnimationKey}
           animate={{ rotate: [0, 12, -12, 8, -8, 0] }}
           transition={{ duration: 0.4 }}
         >
-          <Bell className="w-5 h-5" />
+          <Bell className="w-5 h-5" aria-hidden="true" />
         </motion.div>
         <AnimatePresence>
           {unreadCount > 0 && (
@@ -95,6 +106,7 @@ export function NotificationBell() {
               initial={{ scale: 0 }}
               animate={{ scale: [0, 1.2, 1] }}
               exit={{ scale: 0 }}
+              aria-hidden="true"
               className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-destructive rounded-full"
             />
           )}
@@ -105,13 +117,15 @@ export function NotificationBell() {
         {open && (
           <>
             {/* Backdrop */}
-            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setOpen(false)} />
 
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.15 }}
+              role="dialog"
+              aria-label={t('notifications.title')}
               className="absolute right-0 top-full mt-1 z-50 w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-5rem)] rounded-md border border-border bg-popover shadow-md overflow-hidden flex flex-col"
             >
               {/* Header */}
@@ -119,10 +133,11 @@ export function NotificationBell() {
                 <span className="text-sm font-medium">{t('notifications.title')}</span>
                 {unreadCount > 0 && (
                   <button
+                    type="button"
                     onClick={() => markAllAsRead()}
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <CheckCheck className="w-3.5 h-3.5" />
+                    <CheckCheck className="w-3.5 h-3.5" aria-hidden="true" />
                     {t('notifications.markAllRead')}
                   </button>
                 )}
@@ -134,10 +149,11 @@ export function NotificationBell() {
                   they click "Enable" and grant or deny. */}
               {permission === 'default' && (
                 <button
+                  type="button"
                   onClick={handleEnableNotifications}
                   className="flex items-center gap-2 px-3 py-2 border-b border-border text-xs text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors"
                 >
-                  <BellRing className="w-3.5 h-3.5 text-primary" />
+                  <BellRing className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
                   {t('pwa.enableNotifications')}
                 </button>
               )}

@@ -56,11 +56,12 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
           </div>
         )}
         <button
+          type="button"
           onClick={() => navigate('/')}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0"
           aria-label={t('app.name') + ' — ' + t('app.tagline')}
         >
-          <WawptnLogo size={28} className="text-primary" />
+          <WawptnLogo size={28} className="text-primary" aria-hidden="true" />
           <span className={cn('font-heading font-bold text-lg tracking-[-0.03em]', children ? 'hidden sm:inline' : 'inline')}>WAWPTN</span>
         </button>
         <div className={cn('flex-1', children && 'hidden sm:block')} />
@@ -72,6 +73,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
+              type="button"
               className="flex items-center justify-center rounded-full hover:ring-2 hover:ring-primary/20 transition-all p-1.5 -m-1 min-h-[44px] min-w-[44px]"
               aria-label={t('profile.title')}
             >

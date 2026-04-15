@@ -41,7 +41,7 @@ export function CelebrationParticles({ count = 18 }: CelebrationParticlesProps =
   const [particles] = useState<Particle[]>(() => createParticles(count))
 
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div className="pointer-events-none absolute inset-0 overflow-hidden motion-reduce:hidden" aria-hidden="true">
       {particles.map(p => (
         <motion.div
           key={p.id}

@@ -27,6 +27,7 @@ import {
 import { ShareButton } from '@/components/share-button'
 import { CelebrationParticles } from '@/components/celebration-particles'
 import { decodeHtmlEntities } from '@/lib/utils'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 interface Game {
   steamAppId: number
@@ -54,6 +55,7 @@ interface VoteResult {
 
 export function VotePage() {
   const { t } = useTranslation()
+  useDocumentTitle(t('vote.title'))
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuthStore()
@@ -312,9 +314,9 @@ export function VotePage() {
     const isScheduledSession = scheduledDate && scheduledDate.getTime() > Date.now()
 
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-3 sm:px-4 py-4">
-        <Check className="w-16 h-16 text-success mb-4" />
-        <h2 className="text-2xl font-heading font-bold mb-2">{t('vote.submitted')}</h2>
+      <main id="main-content" className="min-h-screen flex flex-col items-center justify-center px-3 sm:px-4 py-4">
+        <Check className="w-16 h-16 text-success mb-4" aria-hidden="true" />
+        <h1 className="text-2xl font-heading font-bold mb-2">{t('vote.submitted')}</h1>
 
         {isScheduledSession && (
           <div className="mb-6 text-center">
@@ -384,16 +386,16 @@ export function VotePage() {
         >
           {t('vote.backToGroup')}
         </Button>
-      </div>
+      </main>
     )
   }
 
   // Non-participant view
   if (!isParticipant) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <Vote className="w-16 h-16 text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-heading font-bold mb-2">{t('vote.sessionInProgress')}</h2>
+      <main id="main-content" className="min-h-screen flex flex-col items-center justify-center p-4">
+        <Vote className="w-16 h-16 text-muted-foreground mb-4" aria-hidden="true" />
+        <h1 className="text-2xl font-heading font-bold mb-2">{t('vote.sessionInProgress')}</h1>
         <p className="text-muted-foreground mb-6">
           {t('vote.notParticipant')}
         </p>
@@ -403,7 +405,7 @@ export function VotePage() {
         >
           {t('vote.backToGroup')}
         </Button>
-      </div>
+      </main>
     )
   }
 
@@ -418,21 +420,22 @@ export function VotePage() {
 
       <main id="main-content" className="flex-1 flex flex-col p-4 max-w-2xl mx-auto w-full">
         <div className="text-center mb-4">
-          <h2 className="text-xl font-heading font-bold">{t('vote.selectGamesTitle')}</h2>
+          <h1 className="text-xl font-heading font-bold">{t('vote.selectGamesTitle')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {t('vote.selectGamesHint', { count: games.length })}
           </p>
         </div>
 
         {/* Search bar */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="relative mb-4" role="search">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('group.searchGames')}
-            className="w-full rounded-lg border border-border bg-background pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            aria-label={t('group.searchGames')}
+            className="w-full rounded-lg border border-border bg-background pl-10 pr-4 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:border-primary/30"
           />
         </div>
 
@@ -637,7 +640,7 @@ function ResultScreen({
   // the only meaningful forward motion.
   if (!hasWinner) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <main id="main-content" className="min-h-screen flex flex-col items-center justify-center p-4">
         <motion.div
           initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -674,7 +677,7 @@ function ResultScreen({
             </Button>
           </div>
         </motion.div>
-      </div>
+      </main>
     )
   }
 
@@ -730,7 +733,7 @@ function ResultScreen({
     : t('vote.consensusPercent', { percent: displayPercent })
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+    <main id="main-content" className="min-h-screen flex flex-col items-center justify-center p-4">
       <AnimatePresence>
         <motion.div
           initial="hidden"
@@ -913,7 +916,7 @@ function ResultScreen({
           </motion.div>
         </motion.div>
       </AnimatePresence>
-    </div>
+    </main>
   )
 }
 

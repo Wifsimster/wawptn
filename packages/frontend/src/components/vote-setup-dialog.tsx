@@ -210,7 +210,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                 tabIndex={0}
                 onClick={toggleAll}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleAll() } }}
-                className="flex items-center gap-3 py-3 px-2 -mx-2 rounded-md cursor-pointer hover:bg-accent/50 active:bg-accent/10 transition-colors"
+                className="flex items-center gap-3 py-3 px-2 -mx-2 rounded-md cursor-pointer hover:bg-accent/50 active:bg-accent/10 transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
               >
                 <Checkbox
                   id="select-all"
@@ -376,7 +376,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                     value={scheduledDate}
                     min={minDateTime}
                     onChange={(e) => setScheduledDate(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-3 text-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:border-primary/30"
                   />
                   <p className="text-xs text-muted-foreground">
                     {t('voteSetup.scheduleHint')}

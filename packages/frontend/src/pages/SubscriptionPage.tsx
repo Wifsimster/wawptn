@@ -10,9 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useSubscriptionStore } from '@/stores/subscription.store'
 import { api } from '@/lib/api'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 export function SubscriptionPage() {
   const { t } = useTranslation()
+  useDocumentTitle(t('subscription.title'))
   const navigate = useNavigate()
   const { tier, status, currentPeriodEnd, loading, fetchSubscription } = useSubscriptionStore()
   const [searchParams] = useSearchParams()

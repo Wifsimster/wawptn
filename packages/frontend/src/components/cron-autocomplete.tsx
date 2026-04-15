@@ -115,6 +115,9 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
     return match ? t(match.labelKey) : null
   }, [value, t])
 
+  const listboxId = id ? `${id}-listbox` : undefined
+  const activeOptionId = id && activeIndex >= 0 ? `${id}-option-${activeIndex}` : undefined
+
   return (
     <div ref={containerRef} className="relative">
       <div className="relative">
@@ -124,7 +127,8 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
-          aria-controls={id ? `${id}-listbox` : undefined}
+          aria-controls={listboxId}
+          aria-activedescendant={open ? activeOptionId : undefined}
           value={value}
           onChange={(e) => {
             onChange(e.target.value)
@@ -166,7 +170,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
           ) : (
             <ul
               ref={listRef}
-              id={id ? `${id}-listbox` : undefined}
+              id={listboxId}
               role="listbox"
               className="max-h-60 overflow-y-auto py-1"
             >
@@ -176,6 +180,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
                 return (
                   <li
                     key={preset.expression}
+                    id={id ? `${id}-option-${index}` : undefined}
                     data-index={index}
                     role="option"
                     aria-selected={isSelected}

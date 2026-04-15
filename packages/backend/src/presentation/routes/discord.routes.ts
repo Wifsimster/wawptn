@@ -1192,8 +1192,17 @@ userRouter.post('/webhook', requireAuth, async (req: Request, res: Response) => 
 // Lets a group owner broadcast vote results to additional channels beyond
 // the primary discord_webhook_url — typically #general or #announcements in
 // the same guild for cross-channel visibility. The primary webhook stays
-// where it is; these are additive. All three endpoints are owner-only and
-// premium-gated, matching the existing /webhook route above.
+// where it is; these are additive.
+//
+// These endpoints stay PREMIUM explicitly, by arbitration (2026-04-15, #143).
+// When the C4 "Salon = Groupe" decision made the primary binding free
+// (`/setup` and `/webhook` above), the premium line was redrawn to cover
+// only features with (a) real runtime cost, or (b) broadcast scope beyond
+// the single bound channel. Announcement webhooks are case (b): one POST
+// here fans out to up to ANNOUNCEMENT_WEBHOOK_LIMIT channels, so they are
+// explicitly premium and not part of the base binding promise.
+//
+// Related explicitly-premium endpoints in this file: `/chat` (LLM cost).
 
 const ANNOUNCEMENT_WEBHOOK_LIMIT = 5
 

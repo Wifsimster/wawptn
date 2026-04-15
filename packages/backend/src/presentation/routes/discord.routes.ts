@@ -6,6 +6,7 @@ import { getIO } from '../../infrastructure/socket/socket.js'
 import { logger, authLogger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
 import { requireAuth } from '../middleware/auth.middleware.js'
+import { requireBotAuth } from '../middleware/bot-auth.middleware.js'
 import { isUserPremium } from '../middleware/tier.middleware.js'
 import { createVotingSession } from '../../domain/create-session.js'
 import { domainEvents } from '../../domain/events/event-bus.js'
@@ -903,7 +904,14 @@ async function loadGlobalBotDefaults(): Promise<GlobalBotDefaults> {
   }
 }
 
-router.get('/guild-settings/:guildId', async (req: Request, res: Response) => {
+// Bot auth is enforced here (and on the PUT below) in addition to the
+// mount-level `requireBotAuth` in index.ts. Defense-in-depth: (1) makes the
+// auth contract visible when reading the route in isolation — the reviewer
+// who flagged this file (no access control!) was right to be worried — and
+// (2) keeps the route safe if the index.ts mount-order ever regresses or
+// `DISCORD_BOT_API_SECRET` falls out of the env and the routes collide with
+// the unauthed `discordUserRoutes` mount.
+router.get('/guild-settings/:guildId', requireBotAuth, async (req: Request, res: Response) => {
   const guildId = String(req.params['guildId'] ?? '')
   if (!/^\d{5,32}$/.test(guildId)) {
     res.status(400).json({ error: 'validation', message: 'guildId must be a Discord snowflake' })
@@ -929,7 +937,7 @@ router.get('/guild-settings/:guildId', async (req: Request, res: Response) => {
   })
 })
 
-router.put('/guild-settings/:guildId', async (req: Request, res: Response) => {
+router.put('/guild-settings/:guildId', requireBotAuth, async (req: Request, res: Response) => {
   const guildId = String(req.params['guildId'] ?? '')
   if (!/^\d{5,32}$/.test(guildId)) {
     res.status(400).json({ error: 'validation', message: 'guildId must be a Discord snowflake' })

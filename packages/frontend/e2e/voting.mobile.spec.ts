@@ -411,10 +411,10 @@ test.describe('Voting system on mobile', () => {
     test('complete flow: start vote -> select games -> submit -> close -> result', async ({ page }) => {
       // Step 1: Start from group page
       await page.goto('/groups/group-1')
-      await expect(page.getByText('Lancer un vote pour ce soir')).toBeVisible({ timeout: 15000 })
+      await expect(page.getByText('Lancer un vote')).toBeVisible({ timeout: 15000 })
 
       // Step 2: Open vote setup
-      await page.getByText('Lancer un vote pour ce soir').click()
+      await page.getByText('Lancer un vote').click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400) // Wait for drawer animation

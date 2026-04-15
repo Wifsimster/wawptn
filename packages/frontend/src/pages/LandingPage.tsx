@@ -392,7 +392,7 @@ export function LandingPage() {
               WAWPTN — {t('app.tagline')} — v{__APP_VERSION__} — {new Date(__BUILD_TIME__).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
-          <p className="text-xs">{t('login.privacy')}</p>
+          <p>{t('login.privacy')}</p>
         </div>
       </footer>
     </div>

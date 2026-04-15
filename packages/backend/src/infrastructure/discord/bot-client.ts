@@ -108,15 +108,22 @@ export async function postSessionUpdate(payload: DiscordSessionUpdateRequest): P
  * Ask the bot to edit the message into its closed state (winner reveal +
  * disabled buttons). Also best-effort: a failure here does not block the
  * session close.
+ *
+ * Returns `true` when the bot successfully edited the message, `false`
+ * otherwise (disabled, HTTP error, or non-2xx response). Callers use this
+ * to decide whether to fire the webhook fallback so a dead bot never
+ * results in a silently missing winner announcement.
  */
-export async function postSessionClosed(payload: DiscordSessionClosedRequest): Promise<void> {
-  if (!isBotClientEnabled()) return
+export async function postSessionClosed(payload: DiscordSessionClosedRequest): Promise<boolean> {
+  if (!isBotClientEnabled()) return false
   try {
     await postJson('/internal/session/closed', { body: payload })
+    return true
   } catch (err) {
     logger.warn(
       { error: String(err), sessionId: payload.sessionId, messageId: payload.messageId },
       'bot-client: session/closed failed',
     )
+    return false
   }
 }

@@ -24,6 +24,11 @@ services:
       - API_URL=https://wawptn.battistella.ovh
       - CORS_ORIGIN=https://wawptn.battistella.ovh
       - DISCORD_BOT_API_SECRET=${DISCORD_BOT_API_SECRET}
+      # Reach the bot's internal HTTP API across the compose network so that
+      # starting/closing a vote on the web surfaces in the linked Discord
+      # channel. Without this the backend's isBotClientEnabled() short-circuits
+      # to false and no bot-backed message is ever posted.
+      - DISCORD_BOT_HTTP_URL=http://wawptn-discord:3001
       - ADMIN_STEAM_ID=${ADMIN_STEAM_ID:-}
     depends_on:
       postgres:
@@ -57,6 +62,12 @@ services:
       - DISCORD_APPLICATION_ID=${DISCORD_APPLICATION_ID}
       - DISCORD_BOT_API_SECRET=${DISCORD_BOT_API_SECRET}
       - BACKEND_URL=http://wawptn:8080
+      # Bind the internal HTTP API on all interfaces so the backend container
+      # can reach it over the compose network. The default 127.0.0.1 only
+      # accepts connections from inside this container, which makes the
+      # backend -> bot link unreachable and silently drops vote messages.
+      - DISCORD_BOT_HTTP_HOST=0.0.0.0
+      - DISCORD_BOT_HTTP_PORT=3001
     depends_on:
       wawptn:
         condition: service_healthy

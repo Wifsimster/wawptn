@@ -37,6 +37,7 @@ export function GroupPage() {
   const [commonGames, setCommonGames] = useState<CommonGame[]>([])
   const [syncing, setSyncing] = useState(false)
   const [voteHistory, setVoteHistory] = useState<{ id: string; winningGameAppId: number; winningGameId?: string; winningGameName: string; closedAt: string; createdBy: string }[]>([])
+  const [voteHistoryTruncated, setVoteHistoryTruncated] = useState(false)
   const [inviteToken, setInviteToken] = useState<string | null>(null)
   const [loadingGames, setLoadingGames] = useState(true)
   const [gameFilters, setGameFilters] = useState<GameFilters>({
@@ -69,8 +70,13 @@ export function GroupPage() {
 
   const loadVoteHistory = async (groupId: string) => {
     try {
+      // The endpoint returns { data, total, limit, offset, freeLimitApplied, freeLimit }.
+      // Free users are capped server-side to the 10 most recent sessions;
+      // `freeLimitApplied` tells us whether to show an upgrade CTA beneath
+      // the list.
       const history = await api.getVoteHistory(groupId)
-      setVoteHistory(history.filter((h: { winningGameName: string }) => h.winningGameName).slice(0, 5))
+      setVoteHistory(history.data.filter((h) => h.winningGameName).slice(0, 5))
+      setVoteHistoryTruncated(history.freeLimitApplied)
     } catch {
       // Non-critical, fail silently
     }
@@ -393,6 +399,7 @@ export function GroupPage() {
               syncing={syncing}
               inviteToken={inviteToken}
               voteHistory={voteHistory}
+              voteHistoryTruncated={voteHistoryTruncated}
               onlineMembers={onlineMembers}
               lastSeenMap={lastSeenMap}
               currentUserId={user?.id || ''}
@@ -535,6 +542,7 @@ export function GroupPage() {
               syncing={syncing}
               inviteToken={inviteToken}
               voteHistory={voteHistory}
+              voteHistoryTruncated={voteHistoryTruncated}
               onlineMembers={onlineMembers}
               lastSeenMap={lastSeenMap}
               currentUserId={user?.id || ''}

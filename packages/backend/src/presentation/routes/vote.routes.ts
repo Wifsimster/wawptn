@@ -3,7 +3,7 @@ import { db } from '../../infrastructure/database/connection.js'
 import { getIO } from '../../infrastructure/socket/socket.js'
 import { closeSession } from '../../domain/close-session.js'
 import { createVotingSession } from '../../domain/create-session.js'
-import { isUserPremium } from '../middleware/tier.middleware.js'
+import { isUserPremium, FREE_TIER_LIMITS, PREMIUM_TIER_LIMITS } from '../middleware/tier.middleware.js'
 import { evaluateChallenges } from '../../domain/challenges/challenge-service.js'
 import { domainEvents } from '../../domain/events/event-bus.js'
 import { logger } from '../../infrastructure/logger/logger.js'
@@ -490,8 +490,24 @@ router.get('/:groupId/vote/history', async (req: Request, res: Response) => {
     return
   }
 
-  const limit = Math.min(Math.max(Number(req.query['limit']) || 10, 1), 50)
-  const offset = Math.max(Number(req.query['offset']) || 0, 0)
+  // Free users see only the most recent N sessions (no offset paging into
+  // older history). Premium users can page through everything up to the
+  // premium cap per request. The frontend reads `freeLimitApplied` to show
+  // an upgrade CTA when a free user's query would have returned more.
+  const premium = await isUserPremium(userId)
+  const freeMax = FREE_TIER_LIMITS.maxVoteHistorySessions
+  const premiumMax = PREMIUM_TIER_LIMITS.maxVoteHistorySessions
+
+  const requestedLimit = Math.max(Number(req.query['limit']) || 10, 1)
+  const requestedOffset = Math.max(Number(req.query['offset']) || 0, 0)
+
+  // Premium: respect the caller's limit up to the premium cap, allow offset.
+  // Free: hard-cap limit at freeMax AND force offset to 0 — free users can
+  // only see the head of the list, not page into the back catalog.
+  const limit = premium
+    ? Math.min(requestedLimit, premiumMax)
+    : Math.min(requestedLimit, freeMax)
+  const offset = premium ? requestedOffset : 0
 
   const totalResult = await db('voting_sessions')
     .where({ group_id: groupId, status: 'closed' })
@@ -506,7 +522,18 @@ router.get('/:groupId/vote/history', async (req: Request, res: Response) => {
     .offset(offset)
     .select('id', 'winning_game_app_id as winningGameAppId', 'winning_game_id as winningGameId', 'winning_game_name as winningGameName', 'closed_at as closedAt', 'created_by as createdBy')
 
-  res.json({ data: sessions, total, limit, offset })
+  // A free user hit the wall whenever the group actually has more closed
+  // sessions than the free cap. Premium never triggers the CTA.
+  const freeLimitApplied = !premium && total > freeMax
+
+  res.json({
+    data: sessions,
+    total,
+    limit,
+    offset,
+    freeLimitApplied,
+    freeLimit: freeMax,
+  })
 })
 
 export { router as voteRoutes }

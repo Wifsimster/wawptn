@@ -46,6 +46,9 @@ interface GroupSidebarProps {
   syncing: boolean
   inviteToken: string | null
   voteHistory: VoteHistoryEntry[]
+  /** True when the free tier cap chopped the history — the sidebar shows an
+   *  "upgrade to see full history" link instead of silently truncating. */
+  voteHistoryTruncated: boolean
   onlineMembers: Set<string>
   lastSeenMap: Map<string, number>
   currentUserId: string
@@ -76,7 +79,7 @@ function getLastSeenLabel(lastSeenTs: number | undefined): string {
   return 'Hors ligne'
 }
 
-export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onStartVote, compact = false }: GroupSidebarProps) {
+export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, voteHistoryTruncated, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onStartVote, compact = false }: GroupSidebarProps) {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -151,6 +154,21 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
         </div>
       ))}
     </div>
+  )
+
+  // Shown under the history list when the free tier cap was hit. Renders
+  // only when we actually have at least one session displayed AND the
+  // backend flagged the response as truncated — we never nag on empty
+  // histories. Premium users never see this.
+  const historyUpgradeCta = voteHistoryTruncated && voteHistory.length > 0 && !isPremium && (
+    <button
+      type="button"
+      onClick={() => navigate('/subscription')}
+      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors w-full text-left px-1"
+    >
+      <Lock className="w-3 h-3 shrink-0" />
+      <span>{t('group.historyUpgradeCta')}</span>
+    </button>
   )
 
   const onlineCount = members.filter(m => onlineMembers.has(m.id)).length
@@ -385,6 +403,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                 {t('group.history')}
               </h2>
               {historySection}
+              {historyUpgradeCta}
             </div>
           )}
           <GameRecommendations groupId={groupId} onStartVote={onStartVote} compact />
@@ -406,6 +425,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
               </CardHeader>
               <CardContent className="p-3 sm:p-4 pt-0 space-y-2">
                 {historySection}
+                {historyUpgradeCta}
               </CardContent>
             </Card>
           )}

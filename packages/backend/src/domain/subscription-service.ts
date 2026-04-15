@@ -3,12 +3,17 @@ import { db } from '../infrastructure/database/connection.js'
 /** Tier limits for free users */
 export const FREE_TIER_LIMITS = {
   maxGroups: 2,
-  maxMembersPerGroup: 8,
+  maxMembersPerGroup: 12,
+  maxVoteHistorySessions: 10,
 } as const
 
 /** Tier limits for premium users */
 export const PREMIUM_TIER_LIMITS = {
-  maxMembersPerGroup: 20,
+  maxMembersPerGroup: 30,
+  /** Server-side cap on the history endpoint. Premium users can page
+   *  up to this many sessions per request; the overall history is
+   *  still unlimited via offset. */
+  maxVoteHistorySessions: 100,
 } as const
 
 /** In-memory cache for premium status with TTL */

@@ -417,6 +417,9 @@ function hashCode(str: string): number {
  * Uses Europe/Paris timezone so the persona changes at midnight local time.
  * Uses API-loaded personas if available, falls back to hardcoded.
  * Filters out disabled personas if provided.
+ *
+ * Global / app-wide fallback — prefer `getTodayPersonaForGroup` when a
+ * group context is available so each group gets its own persona.
  */
 export function getTodayPersona(disabledIds: string[] = []): Persona {
   const pool = getPersonaPool()
@@ -426,6 +429,43 @@ export function getTodayPersona(disabledIds: string[] = []): Persona {
   const finalPool = available.length > 0 ? available : pool // fallback if all disabled
   const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }) // YYYY-MM-DD
   const index = hashCode(dateStr) % finalPool.length
+  return finalPool[index]!
+}
+
+/**
+ * Returns today's persona for a specific group. The selection key is
+ * `${YYYY-MM-DD}:${groupId}` so each group draws its own deterministic
+ * persona from the shared pool — exactly matching the backend hash in
+ * `packages/backend/src/domain/persona-selection.ts`.
+ *
+ * Override priority: explicit `override` arg > rotation disabled (default
+ * persona) > filtered hash pick. If `rotationEnabled === false` the group
+ * always sees the default persona (index 0).
+ */
+export function getTodayPersonaForGroup(
+  groupId: string,
+  opts: {
+    disabledIds?: string[]
+    rotationEnabled?: boolean | null
+    override?: string | null
+  } = {},
+): Persona {
+  const pool = getPersonaPool()
+  if (opts.override) {
+    const forced = pool.find(p => p.id === opts.override)
+    if (forced) return forced
+  }
+  if (opts.rotationEnabled === false) {
+    return pool[0]!
+  }
+  const disabled = opts.disabledIds ?? []
+  const available = disabled.length > 0
+    ? pool.filter(p => !disabled.includes(p.id))
+    : pool
+  const finalPool = available.length > 0 ? available : pool
+  const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' })
+  const key = `${dateStr}:${groupId}`
+  const index = hashCode(key) % finalPool.length
   return finalPool[index]!
 }
 

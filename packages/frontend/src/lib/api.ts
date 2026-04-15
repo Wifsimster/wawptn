@@ -73,11 +73,12 @@ export const api = {
   },
 
   // Groups
-  getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null }[]>('/groups'),
+  getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null; todayPersona: { id: string; name: string; embedColor: number; introMessage: string } | null }[]>('/groups'),
   getGroup: (id: string) => request<{
     id: string; name: string; createdBy: string; commonGameThreshold: number | null; createdAt: string;
     autoVoteSchedule: string | null; autoVoteDurationMinutes: number;
-    members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string; notificationsEnabled: boolean }[]
+    members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string; notificationsEnabled: boolean }[];
+    todayPersona: { id: string; name: string; embedColor: number; introMessage: string } | null;
   }>(`/groups/${id}`),
   createGroup: (name: string) => request<{ id: string; name: string; inviteToken: string; inviteExpiresAt: string }>('/groups', {
     method: 'POST',
@@ -206,8 +207,25 @@ export const api = {
       body: JSON.stringify(patch),
     }),
 
-  // Persona
+  // Persona — the app-wide endpoint is the global fallback (login page).
+  // Prefer `getGroupPersona(groupId)` for the per-group "persona du jour".
   getCurrentPersona: () => request<{ id: string; name: string; embedColor: number; introMessage: string }>('/persona/current'),
+  getGroupPersona: (groupId: string) =>
+    request<{ persona: { id: string; name: string; embedColor: number; introMessage: string }; date: string }>(`/groups/${groupId}/persona/current`),
+  getGroupPersonaSettings: (groupId: string) =>
+    request<import('@wawptn/types').GroupPersonaSettings>(`/groups/${groupId}/persona-settings`),
+  updateGroupPersonaSettings: (
+    groupId: string,
+    patch: import('@wawptn/types').GroupPersonaSettingsUpdate,
+  ) =>
+    request<
+      import('@wawptn/types').GroupPersonaSettings & {
+        todayPersona: { id: string; name: string; embedColor: number; introMessage: string } | null
+      }
+    >(`/groups/${groupId}/persona-settings`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
 
   // Admin
   getAdminBotSettings: () => request<Record<string, unknown>>('/admin/bot-settings'),

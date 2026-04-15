@@ -7,7 +7,14 @@ import {
   type BotSettings,
   type LinkedChannel,
 } from './lib/api.js'
-import { getTodayPersona, getDefaultPersona, getPersonaById, loadPersonasFromApi, startPersonaCacheRefresh } from './personas.js'
+import {
+  getTodayPersona,
+  getTodayPersonaForGroup,
+  getDefaultPersona,
+  getPersonaById,
+  loadPersonasFromApi,
+  startPersonaCacheRefresh,
+} from './personas.js'
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -43,6 +50,40 @@ function getPersona() {
   return getTodayPersona(disabled)
 }
 
+/**
+ * Per-group variant: layers the group's own overrides on top of the
+ * global bot settings. Each group draws its own deterministic persona
+ * from the shared pool via `djb2("${date}:${groupId}")`. Mirrors the
+ * backend's `selectPersonaForGroup` exactly so both ends always pick
+ * the same persona for the same group on the same day.
+ */
+function getPersonaForChannel(channel: LinkedChannel) {
+  const globalOverride = currentSettings?.persona_override || null
+  const groupOverride = channel.personaSettings.personaOverride || null
+  const effectiveOverride = groupOverride ?? globalOverride
+  if (effectiveOverride) {
+    const forced = getPersonaById(effectiveOverride)
+    if (forced) return forced
+  }
+
+  const rotationEnabled =
+    channel.personaSettings.rotationEnabled ??
+    currentSettings?.persona_rotation_enabled ??
+    true
+  if (!rotationEnabled) {
+    return getDefaultPersona()
+  }
+
+  const disabled = new Set<string>([
+    ...(currentSettings?.disabled_personas ?? []),
+    ...(channel.personaSettings.disabledPersonas ?? []),
+  ])
+  return getTodayPersonaForGroup(channel.groupId, {
+    disabledIds: Array.from(disabled),
+    rotationEnabled: true,
+  })
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function pickRandom(pool: string[]): string {
@@ -51,6 +92,17 @@ function pickRandom(pool: string[]): string {
 
 function buildReminderEmbed(message: string): EmbedBuilder {
   const persona = getPersona()
+  return new EmbedBuilder()
+    .setDescription(message)
+    .setColor(persona.embedColor)
+    .setFooter({ text: `WAWPTN — ${persona.name}` })
+}
+
+function buildReminderEmbedForChannel(
+  channel: LinkedChannel,
+  message: string,
+): EmbedBuilder {
+  const persona = getPersonaForChannel(channel)
   return new EmbedBuilder()
     .setDescription(message)
     .setColor(persona.embedColor)
@@ -66,21 +118,28 @@ async function sendPersonaAnnouncement(client: Client): Promise<void> {
       return
     }
 
-    const persona = getPersona()
-    const embed = new EmbedBuilder()
-      .setDescription(persona.introMessage)
-      .setColor(persona.embedColor)
-      .setFooter({ text: `WAWPTN — Persona du jour : ${persona.name}` })
-
-    for (const { channelId, groupName } of channels) {
+    // Each linked channel announces *its own group's* persona. With 50
+    // groups this means 50 distinct intro messages at midnight — the bot
+    // no longer broadcasts a single global persona to every server.
+    for (const channel of channels) {
       try {
-        const channel = await client.channels.fetch(channelId)
-        if (channel?.isTextBased()) {
-          await (channel as TextChannel).send({ embeds: [embed] })
-          console.log(`[scheduler] Sent persona announcement to channel ${channelId} (${groupName})`)
+        const persona = getPersonaForChannel(channel)
+        const embed = new EmbedBuilder()
+          .setDescription(persona.introMessage)
+          .setColor(persona.embedColor)
+          .setFooter({ text: `WAWPTN — Persona du jour : ${persona.name}` })
+        const dchannel = await client.channels.fetch(channel.channelId)
+        if (dchannel?.isTextBased()) {
+          await (dchannel as TextChannel).send({ embeds: [embed] })
+          console.log(
+            `[scheduler] Sent persona announcement to channel ${channel.channelId} (${channel.groupName}) — persona: ${persona.name}`,
+          )
         }
       } catch (err) {
-        console.error(`[scheduler] Failed to send persona announcement to channel ${channelId} (${groupName}):`, err)
+        console.error(
+          `[scheduler] Failed to send persona announcement to channel ${channel.channelId} (${channel.groupName}):`,
+          err,
+        )
       }
     }
   } catch (err) {
@@ -88,32 +147,59 @@ async function sendPersonaAnnouncement(client: Client): Promise<void> {
   }
 }
 
+type ReminderPool = 'friday' | 'weekday' | 'backOnline'
+
+function selectReminderMessage(channel: LinkedChannel, kind: ReminderPool): string | null {
+  const persona = getPersonaForChannel(channel)
+  const pool =
+    kind === 'friday'
+      ? persona.fridayMessages
+      : kind === 'weekday'
+        ? persona.weekdayMessages
+        : persona.backOnlineMessages
+  if (!Array.isArray(pool) || pool.length === 0) return null
+  return pickRandom(pool)
+}
+
 async function sendToChannels(
   client: Client,
   channels: LinkedChannel[],
-  pool: string[],
+  kind: ReminderPool,
 ): Promise<void> {
   if (channels.length === 0) return
-  const message = pickRandom(pool)
-  const embed = buildReminderEmbed(message)
 
-  for (const { channelId, groupName } of channels) {
+  // Each channel resolves its own persona + message so per-group settings
+  // (disabled list, override) are honoured individually.
+  for (const channel of channels) {
     try {
-      const channel = await client.channels.fetch(channelId)
-      if (channel?.isTextBased()) {
-        await (channel as TextChannel).send({ embeds: [embed] })
-        console.log(`[scheduler] Sent reminder to channel ${channelId} (${groupName})`)
+      const message = selectReminderMessage(channel, kind)
+      if (!message) {
+        console.warn(
+          `[scheduler] No ${kind} message available for channel ${channel.channelId} (${channel.groupName})`,
+        )
+        continue
+      }
+      const embed = buildReminderEmbedForChannel(channel, message)
+      const dchannel = await client.channels.fetch(channel.channelId)
+      if (dchannel?.isTextBased()) {
+        await (dchannel as TextChannel).send({ embeds: [embed] })
+        console.log(
+          `[scheduler] Sent ${kind} reminder to channel ${channel.channelId} (${channel.groupName})`,
+        )
       }
     } catch (err) {
-      console.error(`[scheduler] Failed to send to channel ${channelId} (${groupName}):`, err)
+      console.error(
+        `[scheduler] Failed to send ${kind} reminder to channel ${channel.channelId} (${channel.groupName}):`,
+        err,
+      )
     }
   }
 }
 
-async function sendToLinkedChannels(client: Client, pool: string[]): Promise<void> {
+async function sendToLinkedChannels(client: Client, kind: ReminderPool): Promise<void> {
   try {
     const channels = await getLinkedChannels()
-    await sendToChannels(client, channels, pool)
+    await sendToChannels(client, channels, kind)
   } catch (err) {
     console.error('[scheduler] Failed to fetch linked channels:', err)
   }
@@ -123,8 +209,8 @@ async function sendToLinkedChannels(client: Client, pool: string[]): Promise<voi
 
 export async function notifyBackOnline(client: Client): Promise<void> {
   const persona = getPersona()
-  console.log(`[persona] Today's persona: ${persona.name} (${persona.id})`)
-  await sendToLinkedChannels(client, persona.backOnlineMessages)
+  console.log(`[persona] Today's global persona: ${persona.name} (${persona.id})`)
+  await sendToLinkedChannels(client, 'backOnline')
 }
 
 // ─── Manual test trigger ──────────────────────────────────────────────────────
@@ -143,7 +229,12 @@ export async function triggerReminder(
   channelId: string,
   kind: 'friday' | 'weekday',
 ): Promise<{ personaName: string; message: string }> {
-  const persona = getPersona()
+  // Look up the linked channel so we can use per-group persona selection
+  // — the preview must match what the real scheduled reminder will send.
+  const linked = await getLinkedChannels()
+  const channelInfo = linked.find((c) => c.channelId === channelId)
+
+  const persona = channelInfo ? getPersonaForChannel(channelInfo) : getPersona()
   const pool = kind === 'friday' ? persona.fridayMessages : persona.weekdayMessages
 
   if (!Array.isArray(pool) || pool.length === 0) {
@@ -153,7 +244,9 @@ export async function triggerReminder(
   }
 
   const message = pickRandom(pool)
-  const embed = buildReminderEmbed(message)
+  const embed = channelInfo
+    ? buildReminderEmbedForChannel(channelInfo, message)
+    : buildReminderEmbed(message)
 
   const channel = await client.channels.fetch(channelId)
   if (!channel || !channel.isTextBased()) {
@@ -192,10 +285,11 @@ function scheduleGuildReminders(
     tasks.friday = cron.schedule(
       friday,
       () => {
-        const persona = getPersona()
-        console.log(`[scheduler] Friday reminder triggered for guild ${guildKey ?? '<legacy>'} with persona: ${persona.name}`)
+        console.log(
+          `[scheduler] Friday reminder triggered for guild ${guildKey ?? '<legacy>'} — ${channels.length} channel(s), per-group personas`,
+        )
         const jitterMs = Math.floor(Math.random() * 15 * 60 * 1000)
-        setTimeout(() => sendToChannels(client, channels, persona.fridayMessages), jitterMs)
+        setTimeout(() => sendToChannels(client, channels, 'friday'), jitterMs)
       },
       { timezone },
     )
@@ -208,10 +302,11 @@ function scheduleGuildReminders(
     tasks.weekday = cron.schedule(
       weekday,
       () => {
-        const persona = getPersona()
-        console.log(`[scheduler] Weekday reminder triggered for guild ${guildKey ?? '<legacy>'} with persona: ${persona.name}`)
+        console.log(
+          `[scheduler] Weekday reminder triggered for guild ${guildKey ?? '<legacy>'} — ${channels.length} channel(s), per-group personas`,
+        )
         const jitterMs = Math.floor(Math.random() * 15 * 60 * 1000)
-        setTimeout(() => sendToChannels(client, channels, persona.weekdayMessages), jitterMs)
+        setTimeout(() => sendToChannels(client, channels, 'weekday'), jitterMs)
       },
       { timezone },
     )

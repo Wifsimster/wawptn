@@ -26,6 +26,7 @@ import { GameGrid, type GameFilters } from '@/components/game-grid'
 import { RandomPickModal } from '@/components/random-pick-modal'
 import { VoteSetupDialog } from '@/components/vote-setup-dialog'
 import { TonightPickHero } from '@/components/tonight-pick-hero'
+import { PersonaBadge } from '@/components/persona-badge'
 
 export function GroupPage() {
   const { t } = useTranslation()
@@ -51,6 +52,7 @@ export function GroupPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [randomPickOpen, setRandomPickOpen] = useState(false)
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([])
+  const [todayPersona, setTodayPersona] = useState<{ id: string; name: string; embedColor: number; introMessage: string } | null>(null)
   const lastSeenMapRef = useRef<Map<string, number>>(new Map())
 
   const loadCommonGames = useCallback(async (groupId: string, filter?: string) => {
@@ -98,6 +100,9 @@ export function GroupPage() {
     const socket = getSocket()
     socket.emit('group:join', id)
 
+    socket.on('persona:changed', (data) => {
+      if (data.groupId === id) setTodayPersona(data.persona)
+    })
     socket.on('group:presence', (data) => setOnlineUserIds(data.onlineUserIds))
     socket.on('member:online', (data) => setOnlineUserIds((prev) => prev.includes(data.userId) ? prev : [...prev, data.userId]))
     socket.on('member:offline', (data) => {
@@ -147,6 +152,7 @@ export function GroupPage() {
 
     return () => {
       socket.emit('group:leave', id)
+      socket.off('persona:changed')
       socket.off('group:presence')
       socket.off('member:online')
       socket.off('member:offline')
@@ -287,6 +293,14 @@ export function GroupPage() {
     }
   }
 
+  // Keep the hero persona in sync with the group detail response. The
+  // socket listener above applies live midnight/override flips on top.
+  useEffect(() => {
+    if (currentGroup?.todayPersona) {
+      setTodayPersona(currentGroup.todayPersona)
+    }
+  }, [currentGroup?.todayPersona])
+
   const onlineMembers = useMemo(() => new Set(onlineUserIds), [onlineUserIds])
   const lastSeenMap = lastSeenMapRef.current
   const currentUserRole = currentGroup?.members.find(m => m.id === user?.id)?.role || 'member'
@@ -395,6 +409,18 @@ export function GroupPage() {
 
           {/* Main content: hero + games grid */}
           <div className="space-y-3 sm:space-y-4 min-w-0">
+            {/* Per-group "persona du jour" — hero variant. Pre-fetched via
+                the enriched group detail response, refreshed live via the
+                `persona:changed` socket event (midnight flip or owner
+                override). */}
+            {todayPersona && (
+              <PersonaBadge
+                groupId={id}
+                persona={todayPersona}
+                variant="hero"
+              />
+            )}
+
             {/* Hero: "Tonight's Pick" — dominant CTA at the top of the page.
                 Replaces the old 2-button grid (Start vote / Random pick) and
                 surfaces a client-scored recommendation so a first-time user

@@ -10,6 +10,12 @@ import { logger } from '../../infrastructure/logger/logger.js'
 import { isUserPremium, FREE_TIER_LIMITS, PREMIUM_TIER_LIMITS } from '../middleware/tier.middleware.js'
 import { requireGroupMembership } from '../middleware/group-membership.middleware.js'
 import { isBannedFromGroup } from '../../domain/discord-auth-intent.js'
+import {
+  selectPersonaForGroup,
+  selectPersonasForGroups,
+  invalidateGroupPersonaCache,
+  parisDate,
+} from '../../domain/persona-selection.js'
 
 const router = Router()
 
@@ -72,6 +78,10 @@ router.get('/', async (req: Request, res: Response) => {
     })
   )
 
+  // Enrich with each group's "persona du jour" — computed in a single
+  // batch so the list page doesn't need an N+1 cascade of follow-up calls.
+  const personaMap = await selectPersonasForGroups(groupIds)
+
   res.json(groups.map(g => ({
     id: g.id,
     name: g.name,
@@ -86,6 +96,7 @@ router.get('/', async (req: Request, res: Response) => {
           closedAt: lastSessionMap.get(g.id)!.closed_at,
         }
       : null,
+    todayPersona: personaMap.get(g.id) || null,
   })))
 })
 
@@ -113,6 +124,8 @@ router.get('/:id', requireGroupMembership(), async (req: Request, res: Response)
       'group_members.notifications_enabled as notificationsEnabled'
     )
 
+  const todayPersona = await selectPersonaForGroup(groupId)
+
   res.json({
     id: group.id,
     name: group.name,
@@ -122,6 +135,131 @@ router.get('/:id', requireGroupMembership(), async (req: Request, res: Response)
     autoVoteDurationMinutes: group.auto_vote_duration_minutes || 120,
     createdAt: group.created_at,
     members,
+    todayPersona,
+  })
+})
+
+// GET /api/groups/:id/persona/current — group's current "persona du jour".
+// Public to any group member. Drives the per-group PersonaBadge on the
+// groups list and the hero on the group detail page.
+router.get('/:id/persona/current', requireGroupMembership(), async (req: Request, res: Response) => {
+  try {
+    const groupId = String(req.params['id'])
+    const persona = await selectPersonaForGroup(groupId)
+
+    if (!persona) {
+      res.status(404).json({ error: 'not_found', message: 'No active personas' })
+      return
+    }
+
+    res.json({ persona, date: parisDate() })
+  } catch (error) {
+    logger.error({ error: String(error), groupId: req.params['id'] }, 'group persona: failed to get current')
+    res.status(500).json({ error: 'internal', message: 'Failed to get group persona' })
+  }
+})
+
+// GET /api/groups/:id/persona-settings — returns the effective per-group
+// overrides (rows are lazy-created so missing rows return defaults).
+router.get('/:id/persona-settings', requireGroupMembership(), async (req: Request, res: Response) => {
+  const groupId = String(req.params['id'])
+  const row = await db('group_persona_settings').where({ group_id: groupId }).first()
+  res.json({
+    groupId,
+    rotationEnabled: row?.rotation_enabled ?? null,
+    disabledPersonas: (row?.disabled_personas as string[] | null) ?? [],
+    personaOverride: row?.persona_override ?? null,
+    overrideExpiresAt: row?.override_expires_at ? new Date(row.override_expires_at).toISOString() : null,
+  })
+})
+
+// PATCH /api/groups/:id/persona-settings — owner-only. Creates the row
+// lazily on first write and invalidates the per-group cache so the next
+// read picks up the change immediately. Emits `persona:changed` on the
+// group room so connected clients refresh their badge in real time.
+router.patch('/:id/persona-settings', requireGroupMembership({ role: 'owner' }), async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const groupId = String(req.params['id'])
+  const { rotationEnabled, disabledPersonas, personaOverride, overrideExpiresAt } = req.body as {
+    rotationEnabled?: boolean | null
+    disabledPersonas?: string[]
+    personaOverride?: string | null
+    overrideExpiresAt?: string | null
+  }
+
+  // Validate disabled list shape
+  if (disabledPersonas !== undefined && !Array.isArray(disabledPersonas)) {
+    res.status(400).json({ error: 'validation', message: 'disabledPersonas must be an array of persona ids' })
+    return
+  }
+  if (
+    disabledPersonas !== undefined &&
+    disabledPersonas.some((id) => typeof id !== 'string' || id.length === 0 || id.length > 50)
+  ) {
+    res.status(400).json({ error: 'validation', message: 'disabledPersonas entries must be non-empty persona ids' })
+    return
+  }
+
+  // Validate override references a real persona id
+  if (personaOverride !== undefined && personaOverride !== null) {
+    if (typeof personaOverride !== 'string' || personaOverride.length === 0 || personaOverride.length > 50) {
+      res.status(400).json({ error: 'validation', message: 'personaOverride must be a persona id or null' })
+      return
+    }
+    const exists = await db('personas').where({ id: personaOverride, is_active: true }).first()
+    if (!exists) {
+      res.status(400).json({ error: 'validation', message: 'personaOverride must reference an active persona' })
+      return
+    }
+  }
+
+  let expiresAt: Date | null | undefined
+  if (overrideExpiresAt !== undefined) {
+    if (overrideExpiresAt === null) {
+      expiresAt = null
+    } else {
+      const parsed = new Date(overrideExpiresAt)
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: 'validation', message: 'overrideExpiresAt must be an ISO 8601 date or null' })
+        return
+      }
+      expiresAt = parsed
+    }
+  }
+
+  const patch: Record<string, unknown> = { updated_at: db.fn.now() }
+  if (rotationEnabled !== undefined) patch['rotation_enabled'] = rotationEnabled
+  if (disabledPersonas !== undefined) patch['disabled_personas'] = disabledPersonas
+  if (personaOverride !== undefined) patch['persona_override'] = personaOverride
+  if (expiresAt !== undefined) patch['override_expires_at'] = expiresAt
+
+  // Upsert: insert if missing, update otherwise
+  await db('group_persona_settings')
+    .insert({ group_id: groupId, ...patch })
+    .onConflict('group_id')
+    .merge(patch)
+
+  invalidateGroupPersonaCache(groupId)
+
+  // Notify connected members so their badge refreshes instantly
+  const persona = await selectPersonaForGroup(groupId)
+  if (persona) {
+    getIO().to(`group:${groupId}`).emit('persona:changed', {
+      groupId,
+      persona,
+      date: parisDate(),
+      reason: 'settings',
+    })
+  }
+
+  logger.info({ userId, groupId, patch }, 'group persona settings updated')
+  res.json({
+    groupId,
+    rotationEnabled: rotationEnabled ?? null,
+    disabledPersonas: disabledPersonas ?? [],
+    personaOverride: personaOverride ?? null,
+    overrideExpiresAt: expiresAt ? expiresAt.toISOString() : null,
+    todayPersona: persona,
   })
 })
 

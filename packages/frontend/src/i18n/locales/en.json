@@ -419,6 +419,10 @@
     "unlocked": "Unlocked ✓",
     "unlockedToast": "{{icon}} Challenge unlocked: {{title}}"
   },
+  "persona": {
+    "today": "Today's persona",
+    "todayGroup": "Tonight's group persona"
+  },
   "socket": {
     "lostConnection": "Connection lost",
     "tryingToReconnect": "Trying to reconnect...",

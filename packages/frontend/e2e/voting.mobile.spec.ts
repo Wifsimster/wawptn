@@ -292,7 +292,10 @@ test.describe('Voting system on mobile', () => {
       // Result screen
       await expect(page.getByText('Ce soir vous jouez à')).toBeVisible({ timeout: 5000 })
       await expect(page.getByText('Counter-Strike 2')).toBeVisible()
-      await expect(page.getByText(/2 sur 3 ont voté pour/)).toBeVisible()
+      // Consensus block: ratio label is rendered immediately (the percent
+      // number animates via a count-up so we avoid asserting on it).
+      await expect(page.getByText('2/3', { exact: true })).toBeVisible()
+      await expect(page.locator('[role="progressbar"]')).toHaveAttribute('aria-valuenow', '67')
 
       // Steam launch button
       await expect(page.getByText('Lancer sur Steam')).toBeVisible()

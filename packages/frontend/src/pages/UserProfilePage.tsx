@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProfileStore } from '@/stores/profile.store'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 function formatPlaytime(minutes: number | null | undefined): string {
   if (!minutes || minutes <= 0) return '—'
@@ -37,6 +38,7 @@ export function UserProfilePage() {
   const { profiles, loading, errors, fetchProfile, refreshProfile } = useProfileStore()
 
   const profile = userId ? profiles[userId] : undefined
+  useDocumentTitle(profile?.displayName ?? 'Profil')
   const isLoading = userId ? loading[userId] : false
   const error = userId ? errors[userId] : null
 

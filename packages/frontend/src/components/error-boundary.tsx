@@ -28,13 +28,13 @@ class ErrorBoundaryInner extends Component<Props, State> {
 
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center px-4">
+        <main id="main-content" role="alert" className="min-h-screen flex flex-col items-center justify-center px-4">
           <h1 className="text-2xl font-bold mb-2">{t('error.title', "Oups, quelque chose s'est mal passe")}</h1>
           <p className="text-muted-foreground mb-6">{t('error.description', 'Une erreur inattendue est survenue.')}</p>
-          <Button onClick={() => { this.setState({ hasError: false }); window.location.href = '/' }}>
+          <Button type="button" onClick={() => { this.setState({ hasError: false }); window.location.href = '/' }}>
             {t('error.backHome', "Retour a l'accueil")}
           </Button>
-        </div>
+        </main>
       )
     }
 

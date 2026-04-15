@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 16 },
@@ -26,6 +27,7 @@ const stagger: Variants = {
 
 export function JoinPage() {
   const { t } = useTranslation()
+  useDocumentTitle(t('join.title', 'Rejoindre un groupe'))
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
   const { user } = useAuthStore()

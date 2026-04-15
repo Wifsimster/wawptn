@@ -613,3 +613,19 @@
   overscroll-behavior: contain;
   touch-action: pan-y;
 }
+
+/* ── Global reduced-motion override ──
+   WCAG 2.3.3: honour users who prefer reduced motion by neutralising
+   non-essential animations and transitions across the entire app
+   (Framer Motion, Tailwind transitions, custom keyframes). Keep
+   opacity transitions short so async UI still fades in gracefully. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

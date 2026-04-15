@@ -31,6 +31,7 @@ import {
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 /* ─── Types ─────────────────────────────────────────── */
 
@@ -206,6 +207,7 @@ const tabContent: Variants = {
 /* ─── Main component ────────────────────────────────── */
 
 export function AdminPage() {
+  useDocumentTitle('Administration')
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const [activeTab, setActiveTab] = useState<AdminTab>('overview')

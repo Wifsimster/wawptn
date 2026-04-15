@@ -170,14 +170,16 @@ export function GroupStats({ groupId, compact = false }: GroupStatsProps) {
           type="button"
           className="w-full flex items-center justify-between"
           onClick={() => setExpanded(!expanded)}
+          aria-expanded={expanded}
+          aria-controls="group-stats-panel-compact"
         >
           <h2 className="font-semibold flex items-center gap-2 text-sm">
-            <BarChart3 className="w-4 h-4" />
+            <BarChart3 className="w-4 h-4" aria-hidden="true" />
             {t('stats.title')}
           </h2>
-          {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" aria-hidden="true" />}
         </button>
-        {expanded && content}
+        {expanded && <div id="group-stats-panel-compact">{content}</div>}
       </div>
     )
   }
@@ -189,16 +191,18 @@ export function GroupStats({ groupId, compact = false }: GroupStatsProps) {
           type="button"
           className="w-full flex items-center justify-between"
           onClick={() => setExpanded(!expanded)}
+          aria-expanded={expanded}
+          aria-controls="group-stats-panel"
         >
           <h2 className="font-semibold flex items-center gap-2 text-sm">
-            <BarChart3 className="w-4 h-4" />
+            <BarChart3 className="w-4 h-4" aria-hidden="true" />
             {t('stats.title')}
           </h2>
-          {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" aria-hidden="true" />}
         </button>
       </CardHeader>
       {expanded && (
-        <CardContent>
+        <CardContent id="group-stats-panel">
           {content}
         </CardContent>
       )}

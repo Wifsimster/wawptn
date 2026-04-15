@@ -105,7 +105,20 @@ export const api = {
       `/discord/guilds/${guildId}/channels`,
     ),
   clearDiscordOAuthSession: () => request<{ ok: boolean }>('/discord/oauth/session', { method: 'DELETE' }),
-  renameGroup: (groupId: string, name: string) => request<{ id: string; name: string }>(`/groups/${groupId}`, {
+  // Unified owner-only group update. Accepts any subset of `name` and
+  // the Discord binding pair. Used both for rename and for the
+  // "link a Discord channel" banner on the group detail page.
+  updateGroup: (
+    groupId: string,
+    patch: { name?: string; discordGuildId?: string | null; discordChannelId?: string | null },
+  ) => request<{ id: string; name: string; discordGuildId: string | null; discordChannelId: string | null }>(
+    `/groups/${groupId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    },
+  ),
+  renameGroup: (groupId: string, name: string) => request<{ id: string; name: string; discordGuildId: string | null; discordChannelId: string | null }>(`/groups/${groupId}`, {
     method: 'PATCH',
     body: JSON.stringify({ name }),
   }),

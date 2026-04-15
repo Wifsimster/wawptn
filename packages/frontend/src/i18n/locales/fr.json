@@ -221,7 +221,14 @@
     "autoVotePresetSaturday20": "Tous les samedis à 20h00",
     "autoVotePresetSunday20": "Tous les dimanches à 20h00",
     "autoVotePresetFridaySaturday20": "Vendredi et samedi à 20h00",
-    "autoVotePresetWeekend20": "Le week-end à 20h00 (sam-dim)"
+    "autoVotePresetWeekend20": "Le week-end à 20h00 (sam-dim)",
+    "discordBannerTitle": "Lie un salon Discord à ce groupe",
+    "discordBannerHint": "Les annonces et votes seront postés automatiquement dans le salon de ton choix.",
+    "discordBannerCta": "Lier un salon",
+    "discordBannerDialogTitle": "Lier un salon Discord",
+    "discordBannerSave": "Lier le salon",
+    "discordBannerSaveSuccess": "Salon Discord lié au groupe !",
+    "discordBannerSaveError": "Impossible de lier le salon Discord"
   },
   "filterPresets": {
     "label": "Ambiance",

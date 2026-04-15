@@ -385,9 +385,18 @@ router.post('/vote/start', async (req: Request, res: Response) => {
   } catch (error) {
     const err = error as Error & { statusCode?: number; errorCode?: string }
     const status = err.statusCode || 500
+    // The Discord bot surfaces `message` verbatim to end users; the app
+    // UI is in French so translate the well-known domain errors here.
+    // Anything unrecognised falls through to the original message.
+    const message =
+      err.errorCode === 'conflict'
+        ? 'Un vote est déjà en cours dans ce groupe. Terminez-le avant d\'en démarrer un autre.'
+        : err.errorCode === 'no_common_games'
+          ? 'Aucun jeu en commun trouvé pour ce groupe. Assurez-vous que les bibliothèques Steam sont synchronisées et publiques.'
+          : err.message
     res.status(status).json({
       error: err.errorCode || 'internal',
-      message: err.message,
+      message,
     })
   }
 })

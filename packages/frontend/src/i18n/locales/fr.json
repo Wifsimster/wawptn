@@ -114,6 +114,7 @@
     "syncSuccess": "Synchronisation lancée !",
     "syncError": "Erreur de synchronisation",
     "startVoteError": "Impossible de lancer le vote",
+    "voteAlreadyOpen": "Un vote est déjà en cours dans ce groupe. Vous rejoignez le vote existant.",
     "generateInviteError": "Impossible de générer l'invitation",
     "history": "Historique des soirées",
     "voteStarted": "Un vote vient d'être lancé !",

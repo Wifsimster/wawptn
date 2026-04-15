@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import type { CommonGame } from '@wawptn/types'
 import { useGroupStore } from '@/stores/group.store'
 import { useAuthStore } from '@/stores/auth.store'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import { track } from '@/lib/analytics'
 import { getSocket } from '@/lib/socket'
 import { Button } from '@/components/ui/button'
@@ -198,7 +198,12 @@ export function GroupPage() {
       })
       navigate(`/groups/${id}/vote`)
     } catch (err) {
-      if (err instanceof Error && err.message.includes('already open')) {
+      // 409 conflict = another vote is already open for this group. The
+      // backend enforces "one open session per group" via a partial
+      // unique index; redirect the user to the existing vote so they
+      // can join it instead of landing on an error toast.
+      if (err instanceof ApiError && err.status === 409) {
+        toast.info(t('group.voteAlreadyOpen'))
         navigate(`/groups/${id}/vote`)
       } else {
         toast.error(err instanceof Error ? err.message : t('group.startVoteError'))

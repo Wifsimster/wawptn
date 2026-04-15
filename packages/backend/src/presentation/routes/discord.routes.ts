@@ -480,12 +480,11 @@ router.post('/daily-challenge/create', async (req: Request, res: Response) => {
       return
     }
 
-    // Check premium (Discord bot integration requires group owner premium)
-    const ownerPremium = await isGroupOwnerPremium(group.id)
-    if (!ownerPremium) {
-      res.status(403).json({ error: 'premium_required', message: 'Discord bot integration requires a premium subscription' })
-      return
-    }
+    // Daily challenges are part of the free "groupe vivant" baseline —
+    // the goal is to keep linked channels active without asking users
+    // to upgrade first. Premium still covers features with real cost
+    // or broadcast scope (LLM chat, announcement multi-webhooks,
+    // auto-vote cron, scheduled votes).
 
     // Compute today's date in Europe/Paris timezone
     const todayRow = await db.raw(`SELECT (now() AT TIME ZONE 'Europe/Paris')::date AS today`)

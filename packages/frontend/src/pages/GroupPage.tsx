@@ -27,12 +27,14 @@ import { RandomPickModal } from '@/components/random-pick-modal'
 import { VoteSetupDialog } from '@/components/vote-setup-dialog'
 import { TonightPickHero } from '@/components/tonight-pick-hero'
 import { PersonaBadge } from '@/components/persona-badge'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 export function GroupPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { currentGroup, fetchGroup, leaveGroup, deleteGroup, renameGroup } = useGroupStore()
+  useDocumentTitle(currentGroup?.name ?? t('groups.title'))
   const { user } = useAuthStore()
   const [commonGames, setCommonGames] = useState<CommonGame[]>([])
   const [syncing, setSyncing] = useState(false)
@@ -316,7 +318,14 @@ export function GroupPage() {
         <AppHeader maxWidth="wide">
           <Skeleton className="h-5 w-5 rounded" />
         </AppHeader>
-        <main id="main-content" className="max-w-6xl mx-auto p-4">
+        <main
+          id="main-content"
+          className="max-w-6xl mx-auto p-4"
+          role="status"
+          aria-busy="true"
+          aria-live="polite"
+          aria-label={t('common.loading', 'Chargement…')}
+        >
           <div className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-6">
             <Skeleton className="hidden lg:block h-[300px] rounded-lg" />
             <Skeleton className="h-[400px] w-full rounded-lg" />

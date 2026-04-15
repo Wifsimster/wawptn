@@ -12,6 +12,7 @@ import { motion, type Variants } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { WawptnLogo } from '@/components/icons/wawptn-logo'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 32 },
@@ -51,9 +52,11 @@ const ACCENT_STYLES = {
 
 export function LandingPage() {
   const { t } = useTranslation()
+  useDocumentTitle(t('landing.headlineLine2'))
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
+      <main id="main-content">
       {/* ═══ HERO ═══ */}
       <section className="relative min-h-[100dvh] flex flex-col items-center justify-center px-4 py-24">
         {/* Top accent line with neon glow */}
@@ -382,6 +385,8 @@ export function LandingPage() {
           </motion.div>
         </div>
       </section>
+
+      </main>
 
       {/* ═══ FOOTER ═══ */}
       <footer className="border-t border-white/[0.04] px-4 py-10 mt-auto">

@@ -23,6 +23,7 @@ import { AppHeader } from '@/components/app-header'
 import { AppFooter } from '@/components/app-footer'
 import { InviteLink } from '@/components/invite-link'
 import { PersonaBadge } from '@/components/persona-badge'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 16 },
@@ -40,6 +41,7 @@ const stagger: Variants = {
 
 export function GroupsPage() {
   const { t } = useTranslation()
+  useDocumentTitle(t('groups.title'))
   const { groups, loading, fetchGroups, createGroup, joinGroup } = useGroupStore()
   const navigate = useNavigate()
   const [refreshing, setRefreshing] = useState(false)
@@ -236,7 +238,7 @@ export function GroupsPage() {
           </div>
         )}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
-          <h2 className="text-2xl font-heading font-bold tracking-[-0.03em]">{t('groups.title')}</h2>
+          <h1 className="text-2xl font-heading font-bold tracking-[-0.03em]">{t('groups.title')}</h1>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowJoin(true)}>
               <LogIn className="w-4 h-4" />
@@ -383,7 +385,13 @@ export function GroupsPage() {
 
         {/* Groups List */}
         {loading ? (
-          <div className="space-y-3">
+          <div
+            className="space-y-3"
+            role="status"
+            aria-busy="true"
+            aria-live="polite"
+            aria-label={t('common.loading', 'Chargement…')}
+          >
             {[0, 1, 2].map((i) => (
               <Skeleton
                 key={i}

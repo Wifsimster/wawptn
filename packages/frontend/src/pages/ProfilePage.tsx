@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
 import { useChallengeStore } from '@/stores/challenge.store'
 import { ChallengeCard } from '@/components/challenge-card'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 interface Platform {
   id: string
@@ -176,6 +177,7 @@ const statItem: Variants = {
 
 export function ProfilePage() {
   const { t } = useTranslation()
+  useDocumentTitle(t('profile.title'))
   const navigate = useNavigate()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -335,7 +337,14 @@ export function ProfilePage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </AppHeader>
-        <main id="main-content" className="max-w-2xl mx-auto p-4 space-y-6">
+        <main
+          id="main-content"
+          className="max-w-2xl mx-auto p-4 space-y-6"
+          role="status"
+          aria-busy="true"
+          aria-live="polite"
+          aria-label={t('common.loading', 'Chargement…')}
+        >
           <Skeleton className="h-80 rounded-2xl" />
           <div className="space-y-3 pt-2">
             <Skeleton className="h-4 w-48" />
@@ -390,12 +399,12 @@ export function ProfilePage() {
             </motion.div>
 
             {/* Display name — holographic gradient */}
-            <motion.h2
+            <motion.h1
               variants={nameReveal}
               className="profile-holo-name text-2xl sm:text-3xl font-heading font-bold tracking-tight mb-1.5"
             >
               {profile.displayName}
-            </motion.h2>
+            </motion.h1>
 
             {/* Member since */}
             <motion.p

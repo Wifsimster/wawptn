@@ -10,6 +10,7 @@ import { StatDiffChip } from '@/components/stat-diff-chip'
 import { PlaytimeBar } from '@/components/playtime-bar'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProfileStore } from '@/stores/profile.store'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 function toHours(minutes: number | null): number {
   if (!minutes || minutes <= 0) return 0
@@ -28,6 +29,7 @@ function compareKey(a: string, b: string): string {
  * "compare with me" button only needs to pass `b`.
  */
 export function ComparePage() {
+  useDocumentTitle('Comparaison')
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const { user: me } = useAuthStore()
@@ -70,7 +72,7 @@ export function ComparePage() {
         </AppHeader>
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 flex-1 flex items-center justify-center text-center">
           <div>
-            <h2 className="text-lg font-semibold">Comparaison impossible</h2>
+            <h1 className="text-lg font-semibold">Comparaison impossible</h1>
             <p className="text-sm text-muted-foreground mt-2">
               Il faut deux utilisateurs différents pour lancer une comparaison.
             </p>
@@ -89,7 +91,14 @@ export function ComparePage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </AppHeader>
-        <main id="main-content" className="max-w-3xl mx-auto w-full p-4 space-y-4">
+        <main
+          id="main-content"
+          className="max-w-3xl mx-auto w-full p-4 space-y-4"
+          role="status"
+          aria-busy="true"
+          aria-live="polite"
+          aria-label="Chargement de la comparaison"
+        >
           <Skeleton className="h-32 rounded-2xl" />
           <Skeleton className="h-6 w-32" />
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
@@ -109,7 +118,7 @@ export function ComparePage() {
         </AppHeader>
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 flex-1 flex items-center justify-center text-center">
           <div>
-            <h2 className="text-lg font-semibold">Comparaison indisponible</h2>
+            <h1 className="text-lg font-semibold">Comparaison indisponible</h1>
             <p className="text-sm text-muted-foreground mt-2">
               Vous devez partager un groupe avec ces deux utilisateurs pour les comparer.
             </p>
@@ -137,6 +146,7 @@ export function ComparePage() {
       </AppHeader>
 
       <main id="main-content" className="max-w-3xl mx-auto w-full p-4 space-y-6 pb-12">
+        <h1 className="sr-only">Comparaison de {nameA} et {nameB}</h1>
         {/* ── VS header ── */}
         <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-6">
           <div className="flex items-center justify-center gap-4 sm:gap-8">

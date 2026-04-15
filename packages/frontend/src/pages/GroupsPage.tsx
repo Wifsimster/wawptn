@@ -249,8 +249,8 @@ export function GroupsPage() {
           </div>
         </div>
 
-        {/* Today's bot persona — greeting card */}
-        <PersonaBadge />
+        {/* Per-group persona du jour lives on each GroupCard below —
+            no longer a single global badge at the top of the page. */}
 
         {/* Search Groups */}
         {groups.length > 3 && (
@@ -493,6 +493,13 @@ export function GroupsPage() {
                           {group.name}
                           {group.role === 'owner' && (
                             <Crown className="w-4 h-4 text-reward shrink-0" />
+                          )}
+                          {group.todayPersona && (
+                            <PersonaBadge
+                              variant="compact"
+                              persona={group.todayPersona}
+                              className="ml-1"
+                            />
                           )}
                         </h3>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">

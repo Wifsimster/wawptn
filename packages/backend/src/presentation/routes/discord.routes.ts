@@ -815,17 +815,50 @@ router.get('/bot-settings', async (_req: Request, res: Response) => {
   res.json(settings)
 })
 
-// Get all Discord channels linked to a group (for scheduled messages)
+// Get all Discord channels linked to a group (for scheduled messages).
+// Each entry now carries `groupId` + per-group persona settings so the bot
+// can compute the correct "persona du jour" per channel: one persona pick
+// per group, not one globally shared persona for every linked server.
 router.get('/linked-channels', async (_req: Request, res: Response) => {
   const channels = await db('groups')
-    .whereNotNull('discord_channel_id')
+    .leftJoin('group_persona_settings', 'group_persona_settings.group_id', 'groups.id')
+    .whereNotNull('groups.discord_channel_id')
     .select(
-      'discord_channel_id as channelId',
-      'discord_guild_id as guildId',
-      'name as groupName',
+      'groups.id as groupId',
+      'groups.discord_channel_id as channelId',
+      'groups.discord_guild_id as guildId',
+      'groups.name as groupName',
+      'group_persona_settings.rotation_enabled as rotationEnabled',
+      'group_persona_settings.disabled_personas as disabledPersonas',
+      'group_persona_settings.persona_override as personaOverride',
+      'group_persona_settings.override_expires_at as overrideExpiresAt',
     )
 
-  res.json(channels)
+  res.json(
+    channels.map((c: {
+      groupId: string
+      channelId: string
+      guildId: string | null
+      groupName: string
+      rotationEnabled: boolean | null
+      disabledPersonas: string[] | null
+      personaOverride: string | null
+      overrideExpiresAt: Date | string | null
+    }) => ({
+      groupId: c.groupId,
+      channelId: c.channelId,
+      guildId: c.guildId,
+      groupName: c.groupName,
+      personaSettings: {
+        rotationEnabled: c.rotationEnabled,
+        disabledPersonas: c.disabledPersonas ?? [],
+        personaOverride: c.personaOverride,
+        overrideExpiresAt: c.overrideExpiresAt
+          ? new Date(c.overrideExpiresAt).toISOString()
+          : null,
+      },
+    })),
+  )
 })
 
 // ─── Per-guild bot config overrides (Tom #2) ──────────────────────────────

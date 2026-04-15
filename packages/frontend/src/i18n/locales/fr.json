@@ -454,7 +454,8 @@
     "unlockedToast": "{{icon}} Défi débloqué : {{title}}"
   },
   "persona": {
-    "today": "Persona du jour"
+    "today": "Persona du jour",
+    "todayGroup": "Le persona du groupe ce soir"
   },
   "socket": {
     "lostConnection": "Connexion perdue",

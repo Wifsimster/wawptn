@@ -32,13 +32,29 @@ export async function backendApi<T>(path: string, options: ApiOptions = {}): Pro
   return res.json() as Promise<T>
 }
 
+/**
+ * Per-group persona overrides shipped alongside each linked channel. When
+ * a field is null/empty, the group inherits the global bot.* defaults.
+ */
+export interface GroupPersonaOverrides {
+  rotationEnabled: boolean | null
+  disabledPersonas: string[]
+  personaOverride: string | null
+  overrideExpiresAt: string | null
+}
+
 export interface LinkedChannel {
+  /** Backend group UUID — the selection key for the per-group persona
+   * hash. Always present on fresh rows; older rows that predate the
+   * per-group persona refactor may be missing if the group was deleted. */
+  groupId: string
   channelId: string
   /** Discord guild (server) ID — used by the per-guild scheduler to
    * route each channel through its own cron. Nullable for legacy rows
    * inserted before the backend started storing the guild id. */
   guildId: string | null
   groupName: string
+  personaSettings: GroupPersonaOverrides
 }
 
 export async function getLinkedChannels(): Promise<LinkedChannel[]> {

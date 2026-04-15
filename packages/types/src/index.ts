@@ -44,6 +44,47 @@ export interface GroupWithMembers extends Group {
 }
 
 // ============================================
+// Persona (daily bot persona — per group)
+// ============================================
+
+/**
+ * Lean per-group "persona du jour" projection. The full persona pool lives
+ * in the global `personas` table and is shared across all groups — each
+ * group gets its own deterministic daily pick from that shared pool via
+ * `djb2("${YYYY-MM-DD}:${groupId}")`.
+ */
+export interface GroupDailyPersona {
+  id: string
+  name: string
+  embedColor: number
+  introMessage: string
+}
+
+/**
+ * Per-group persona settings. All fields are optional overrides — when a
+ * value is null/empty, the group falls back to the global `bot.*` defaults
+ * stored in `app_settings`. Stored 1:1 with groups in `group_persona_settings`.
+ */
+export interface GroupPersonaSettings {
+  groupId: string
+  rotationEnabled: boolean
+  disabledPersonas: string[]
+  personaOverride: string | null
+  overrideExpiresAt: string | null
+}
+
+/**
+ * Payload accepted by `PATCH /api/groups/:id/persona-settings`. Undefined
+ * fields are left untouched; null clears an override.
+ */
+export interface GroupPersonaSettingsUpdate {
+  rotationEnabled?: boolean
+  disabledPersonas?: string[]
+  personaOverride?: string | null
+  overrideExpiresAt?: string | null
+}
+
+// ============================================
 // Games
 // ============================================
 
@@ -363,6 +404,7 @@ export interface ServerToClientEvents {
   'member:offline': (data: { groupId: string; userId: string }) => void
   'notification:new': (data: Notification) => void
   'challenge:unlocked': (data: { userId: string; challengeId: string; title: string; icon: string; tier: number }) => void
+  'persona:changed': (data: { groupId: string; persona: GroupDailyPersona; date: string; reason: 'rotation' | 'override' | 'settings' }) => void
 }
 
 export interface ClientToServerEvents {

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url'
 import cookieParser from 'cookie-parser'
 import rateLimit from 'express-rate-limit'
 import { env, validateEnv } from './config/env.js'
+import { SESSION_COOKIE_NAME } from './config/session.js'
 import { testConnection, runMigrations } from './infrastructure/database/connection.js'
 import { createSocketServer } from './infrastructure/socket/socket.js'
 import { startVoteScheduler } from './infrastructure/scheduler/vote-scheduler.js'
@@ -73,12 +74,19 @@ async function main() {
   app.use(express.json({ limit: '10kb' }))
   app.use(cookieParser(env.APP_SECRET))
 
-  // Rate limiting
+  // Rate limiting. Key on the signed session cookie when present so that
+  // two users sharing a NAT/IP don't deplete each other's budget; fall
+  // back to the client IP for unauthenticated traffic.
   const apiLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    max: 60,
+    max: 300,
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req) => {
+      const token = req.signedCookies?.[SESSION_COOKIE_NAME]
+      if (typeof token === 'string' && token.length > 0) return `s:${token}`
+      return `ip:${req.ip ?? 'unknown'}`
+    },
   })
   app.use('/api/', apiLimiter)
 

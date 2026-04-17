@@ -55,6 +55,11 @@ export const env = {
   STRIPE_SECRET_KEY: process.env['STRIPE_SECRET_KEY'] || '',
   STRIPE_WEBHOOK_SECRET: process.env['STRIPE_WEBHOOK_SECRET'] || '',
   STRIPE_PRICE_ID: process.env['STRIPE_PRICE_ID'] || '',
+
+  // Koe support widget (optional — feature-flagged). When empty, the
+  // identity endpoint returns 404 and the frontend skips rendering the
+  // widget.
+  KOE_IDENTITY_SECRET: process.env['KOE_IDENTITY_SECRET'] || '',
 }
 
 export function validateEnv(): void {

@@ -28,6 +28,7 @@ import { adminRoutes } from './presentation/routes/admin.routes.js'
 import { subscriptionRoutes, subscriptionWebhookRouter } from './presentation/routes/subscription.routes.js'
 import { isStripeEnabled } from './infrastructure/stripe/stripe-client.js'
 import { personaRoutes } from './presentation/routes/persona.routes.js'
+import { koeRoutes } from './presentation/routes/koe.routes.js'
 import { notificationRoutes, adminNotificationRoutes } from './presentation/routes/notification.routes.js'
 import { challengeRoutes } from './presentation/routes/challenge.routes.js'
 import { eventRoutes } from './presentation/routes/events.routes.js'
@@ -52,7 +53,7 @@ async function main() {
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         styleSrcElem: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         imgSrc: ["'self'", 'data:', 'https://cdn.akamai.steamstatic.com', 'https://avatars.steamstatic.com'],
-        connectSrc: ["'self'", 'wss:', 'ws:', 'https://avatars.steamstatic.com', 'https://cdn.akamai.steamstatic.com'],
+        connectSrc: ["'self'", 'wss:', 'ws:', 'https://avatars.steamstatic.com', 'https://cdn.akamai.steamstatic.com', 'https://koe.battistella.ovh'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         objectSrc: ["'none'"],
         frameAncestors: ["'none'"],
@@ -133,6 +134,10 @@ async function main() {
 
   // Persona route (public, read-only — shows today's bot personality)
   app.use('/api/persona', personaRoutes)
+
+  // Koe support widget — HMAC identity signing. Auth required so
+  // userHash is only issued for the caller's own session id.
+  app.use('/api/koe', requireAuth, koeRoutes)
 
   // Notification routes (requires authenticated user)
   app.use('/api/notifications', requireAuth, notificationRoutes)

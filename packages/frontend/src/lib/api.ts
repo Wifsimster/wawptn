@@ -39,6 +39,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   getMe: () => request<{ id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; isAdmin: boolean }>('/auth/me'),
   logout: () => request('/auth/logout', { method: 'POST' }),
+  getKoeIdentity: () => request<{ userHash: string }>('/koe/identity'),
   getProfile: () => request<{
     id: string; steamId: string; displayName: string; avatarUrl: string; profileUrl: string | null;
     libraryVisible: boolean; createdAt: string;

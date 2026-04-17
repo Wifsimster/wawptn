@@ -22,6 +22,7 @@ import { usePwaInstallPrompt } from '@/hooks/usePwaInstallPrompt'
 import { useSocketConnectionStatus } from '@/hooks/useSocketConnectionStatus'
 import { useNotificationStore } from '@/stores/notification.store'
 import { useWishlistStore } from '@/stores/wishlist.store'
+import { KoeSupport } from '@/components/KoeSupport'
 
 function App() {
   const { user, loading, fetchUser } = useAuthStore()
@@ -96,19 +97,22 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<GroupsPage />} />
-      <Route path="/profile" element={<ProfilePage />} />
-      <Route path="/u/:userId" element={<UserProfilePage />} />
-      <Route path="/compare" element={<ComparePage />} />
-      <Route path="/admin" element={<AdminPage />} />
-      <Route path="/subscription" element={<SubscriptionPage />} />
-      <Route path="/groups/:id" element={<GroupPage />} />
-      <Route path="/groups/:id/vote" element={<VotePage />} />
-      <Route path="/join/:token" element={<JoinPage />} />
-      <Route path="/discord/link" element={<DiscordLinkPage />} />
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<GroupsPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/u/:userId" element={<UserProfilePage />} />
+        <Route path="/compare" element={<ComparePage />} />
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/subscription" element={<SubscriptionPage />} />
+        <Route path="/groups/:id" element={<GroupPage />} />
+        <Route path="/groups/:id/vote" element={<VotePage />} />
+        <Route path="/join/:token" element={<JoinPage />} />
+        <Route path="/discord/link" element={<DiscordLinkPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+      <KoeSupport />
+    </>
   )
 }
 

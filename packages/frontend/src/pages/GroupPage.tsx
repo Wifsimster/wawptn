@@ -521,6 +521,29 @@ export function GroupPage() {
               </motion.div>
             )}
 
+            {/* Persistent "linked to X" chip — visible to all members once
+                a Discord channel is bound, so everyone knows where vote
+                announcements will land. Falls back to a generic label for
+                groups bound before the name-snapshot migration. */}
+            {currentGroup.discordChannelId && (
+              <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border border-border/60 bg-muted/20 rounded-full px-2.5 py-1">
+                <Link2 className="w-3 h-3 text-primary shrink-0" />
+                {currentGroup.discordChannelName || currentGroup.discordGuildName ? (
+                  <span className="truncate">
+                    {currentGroup.discordChannelName && (
+                      <span className="font-medium">#{currentGroup.discordChannelName}</span>
+                    )}
+                    {currentGroup.discordChannelName && currentGroup.discordGuildName && (
+                      <span className="text-muted-foreground/60"> · </span>
+                    )}
+                    {currentGroup.discordGuildName && <span>{currentGroup.discordGuildName}</span>}
+                  </span>
+                ) : (
+                  <span>{t('group.discordLinkedFallback')}</span>
+                )}
+              </div>
+            )}
+
             {/* Per-group "persona du jour" — hero variant. Pre-fetched via
                 the enriched group detail response, refreshed live via the
                 `persona:changed` socket event (midnight flip or owner

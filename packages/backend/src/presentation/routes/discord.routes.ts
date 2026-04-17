@@ -30,10 +30,12 @@ const router = Router()
 // decision C4 — 2026-04-14). The previous premium gate has been removed;
 // every user can bind a channel to their group.
 router.post('/setup', async (req: Request, res: Response) => {
-  const { groupId, discordChannelId, discordGuildId } = req.body as {
+  const { groupId, discordChannelId, discordGuildId, discordGuildName, discordChannelName } = req.body as {
     groupId: string
     discordChannelId: string
     discordGuildId: string
+    discordGuildName?: string | null
+    discordChannelName?: string | null
   }
 
   if (!groupId || !discordChannelId || !discordGuildId) {
@@ -47,12 +49,21 @@ router.post('/setup', async (req: Request, res: Response) => {
     return
   }
 
+  // Names are snapshotted at setup time so the UI can show a readable
+  // "linked to #channel on Server" chip without a live Discord API call.
+  // The bot sends them from the interaction context; tolerate missing
+  // values by falling back to null (frontend shows a generic label).
+  const guildName = typeof discordGuildName === 'string' && discordGuildName.trim() ? discordGuildName.trim().slice(0, 200) : null
+  const channelName = typeof discordChannelName === 'string' && discordChannelName.trim() ? discordChannelName.trim().slice(0, 200) : null
+
   await db('groups').where({ id: groupId }).update({
     discord_channel_id: discordChannelId,
     discord_guild_id: discordGuildId,
+    discord_guild_name: guildName,
+    discord_channel_name: channelName,
   })
 
-  logger.info({ groupId, discordChannelId, discordGuildId }, 'Discord channel linked to group')
+  logger.info({ groupId, discordChannelId, discordGuildId, discordGuildName: guildName, discordChannelName: channelName }, 'Discord channel linked to group')
 
   res.json({ ok: true, groupName: group.name })
 })

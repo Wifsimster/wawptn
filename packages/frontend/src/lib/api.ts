@@ -81,20 +81,21 @@ export const api = {
   },
 
   // Groups
-  getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null; todayPersona: { id: string; name: string; embedColor: number; introMessage: string } | null; discordGuildId: string | null; discordChannelId: string | null }[]>('/groups'),
+  getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null; todayPersona: { id: string; name: string; embedColor: number; introMessage: string } | null; discordGuildId: string | null; discordChannelId: string | null; discordGuildName: string | null; discordChannelName: string | null }[]>('/groups'),
   getGroup: (id: string) => request<{
     id: string; name: string; createdBy: string; commonGameThreshold: number | null; createdAt: string;
     autoVoteSchedule: string | null; autoVoteDurationMinutes: number;
     discordGuildId: string | null; discordChannelId: string | null;
+    discordGuildName: string | null; discordChannelName: string | null;
     members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string; notificationsEnabled: boolean }[];
     todayPersona: { id: string; name: string; embedColor: number; introMessage: string } | null;
   }>(`/groups/${id}`),
   createGroup: (input: { name: string }) =>
-    request<{ id: string; name: string; inviteToken: string; inviteExpiresAt: string; discordGuildId: string | null; discordChannelId: string | null }>('/groups', {
+    request<{ id: string; name: string; inviteToken: string; inviteExpiresAt: string; discordGuildId: string | null; discordChannelId: string | null; discordGuildName: string | null; discordChannelName: string | null }>('/groups', {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  renameGroup: (groupId: string, name: string) => request<{ id: string; name: string; discordGuildId: string | null; discordChannelId: string | null }>(`/groups/${groupId}`, {
+  renameGroup: (groupId: string, name: string) => request<{ id: string; name: string; discordGuildId: string | null; discordChannelId: string | null; discordGuildName: string | null; discordChannelName: string | null }>(`/groups/${groupId}`, {
     method: 'PATCH',
     body: JSON.stringify({ name }),
   }),

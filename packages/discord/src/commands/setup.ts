@@ -27,6 +27,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         groupId: group.groupId,
         discordChannelId: interaction.channelId,
         discordGuildId: guildId,
+        // Snapshot the human-readable names so the web UI can render
+        // "linked to #channel on Server" without a live Discord API call.
+        discordGuildName: interaction.guild?.name ?? null,
+        discordChannelName: interaction.channel && 'name' in interaction.channel ? interaction.channel.name ?? null : null,
       },
     })
 

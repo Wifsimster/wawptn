@@ -218,7 +218,8 @@
     "discordBannerTitle": "Lie un salon Discord à ce groupe",
     "discordBannerHint": "Les annonces et votes seront postés automatiquement dans le salon de ton choix.",
     "discordBannerCta": "Lier un salon",
-    "discordBannerDialogTitle": "Lier un salon Discord"
+    "discordBannerDialogTitle": "Lier un salon Discord",
+    "discordLinkedFallback": "Discord lié"
   },
   "filterPresets": {
     "label": "Ambiance",

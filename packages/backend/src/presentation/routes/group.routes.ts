@@ -99,6 +99,8 @@ router.get('/', async (req: Request, res: Response) => {
     todayPersona: personaMap.get(g.id) || null,
     discordGuildId: g.discord_guild_id ?? null,
     discordChannelId: g.discord_channel_id ?? null,
+    discordGuildName: g.discord_guild_name ?? null,
+    discordChannelName: g.discord_channel_name ?? null,
   })))
 })
 
@@ -137,6 +139,8 @@ router.get('/:id', requireGroupMembership(), async (req: Request, res: Response)
     autoVoteDurationMinutes: group.auto_vote_duration_minutes || 120,
     discordGuildId: group.discord_guild_id ?? null,
     discordChannelId: group.discord_channel_id ?? null,
+    discordGuildName: group.discord_guild_name ?? null,
+    discordChannelName: group.discord_channel_name ?? null,
     createdAt: group.created_at,
     members,
     todayPersona,
@@ -322,6 +326,8 @@ router.post('/', async (req: Request, res: Response) => {
     inviteExpiresAt: expiresAt.toISOString(),
     discordGuildId: group.discord_guild_id ?? null,
     discordChannelId: group.discord_channel_id ?? null,
+    discordGuildName: group.discord_guild_name ?? null,
+    discordChannelName: group.discord_channel_name ?? null,
   })
 })
 
@@ -357,6 +363,8 @@ router.patch('/:id', requireGroupMembership({ role: 'owner' }), async (req: Requ
     name: fresh?.name ?? trimmedName,
     discordGuildId: fresh?.discord_guild_id ?? null,
     discordChannelId: fresh?.discord_channel_id ?? null,
+    discordGuildName: fresh?.discord_guild_name ?? null,
+    discordChannelName: fresh?.discord_channel_name ?? null,
   })
 })
 

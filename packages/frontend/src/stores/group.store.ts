@@ -4,11 +4,12 @@ import { api } from '@/lib/api'
 interface DailyPersona { id: string; name: string; embedColor: number; introMessage: string }
 
 interface GroupState {
-  groups: { id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null; todayPersona: DailyPersona | null; discordGuildId: string | null; discordChannelId: string | null }[]
+  groups: { id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null; todayPersona: DailyPersona | null; discordGuildId: string | null; discordChannelId: string | null; discordGuildName: string | null; discordChannelName: string | null }[]
   currentGroup: {
     id: string; name: string; createdBy: string; commonGameThreshold: number | null; createdAt: string;
     autoVoteSchedule: string | null; autoVoteDurationMinutes: number;
     discordGuildId: string | null; discordChannelId: string | null;
+    discordGuildName: string | null; discordChannelName: string | null;
     members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string; notificationsEnabled: boolean }[];
     todayPersona: DailyPersona | null
   } | null

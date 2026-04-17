@@ -209,7 +209,8 @@
     "discordBannerTitle": "Link a Discord channel to this group",
     "discordBannerHint": "Announcements and votes will be posted automatically in the channel you pick.",
     "discordBannerCta": "Link a channel",
-    "discordBannerDialogTitle": "Link a Discord channel"
+    "discordBannerDialogTitle": "Link a Discord channel",
+    "discordLinkedFallback": "Discord linked"
   },
   "filterPresets": {
     "label": "Vibe",

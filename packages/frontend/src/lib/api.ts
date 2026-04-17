@@ -3,8 +3,6 @@ const API_BASE = '/api'
 export class ApiError extends Error {
   code: string
   status: number
-  /** Any extra fields the server included in the JSON error body (e.g.
-   *  the `inviteUrl` returned with a `bot_not_in_guild` response). */
   details: Record<string, unknown>
   constructor(message: string, code: string, status: number, details: Record<string, unknown> = {}) {
     super(message)
@@ -69,6 +67,11 @@ export const api = {
   unlinkDiscord: () => request<{ ok: boolean; wasLinked: boolean }>('/discord/link', {
     method: 'DELETE',
   }),
+  // Returns the bot invite URL so the UI can link the owner to Discord's
+  // "add bot" flow. When `enabled` is false the backend has no bot config
+  // and the button should be hidden.
+  getDiscordBotInviteUrl: () =>
+    request<{ enabled: boolean; url: string | null }>('/discord/bot-invite-url'),
 
   // Invite preview (public, no auth — mounted at /invite, not /api)
   getInvitePreview: async (token: string): Promise<import('@wawptn/types').InvitePreview> => {
@@ -86,38 +89,11 @@ export const api = {
     members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string; notificationsEnabled: boolean }[];
     todayPersona: { id: string; name: string; embedColor: number; introMessage: string } | null;
   }>(`/groups/${id}`),
-  createGroup: (input: { name: string; discordGuildId?: string | null; discordChannelId?: string | null }) =>
+  createGroup: (input: { name: string }) =>
     request<{ id: string; name: string; inviteToken: string; inviteExpiresAt: string; discordGuildId: string | null; discordChannelId: string | null }>('/groups', {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-
-  // Discord OAuth2 picker — powers the "bind a Discord channel at group
-  // creation" flow. The authorize URL is opened in a popup; guilds and
-  // channels are fetched after the callback page has closed itself.
-  getDiscordOAuthAuthorizeUrl: () => request<{ url: string }>('/discord/oauth/authorize'),
-  listDiscordGuilds: () =>
-    request<{ guilds: { id: string; name: string; iconUrl: string | null; canManage: boolean }[] }>(
-      '/discord/guilds',
-    ),
-  listDiscordChannels: (guildId: string) =>
-    request<{ channels: { id: string; name: string; type: number }[] }>(
-      `/discord/guilds/${guildId}/channels`,
-    ),
-  clearDiscordOAuthSession: () => request<{ ok: boolean }>('/discord/oauth/session', { method: 'DELETE' }),
-  // Unified owner-only group update. Accepts any subset of `name` and
-  // the Discord binding pair. Used both for rename and for the
-  // "link a Discord channel" banner on the group detail page.
-  updateGroup: (
-    groupId: string,
-    patch: { name?: string; discordGuildId?: string | null; discordChannelId?: string | null },
-  ) => request<{ id: string; name: string; discordGuildId: string | null; discordChannelId: string | null }>(
-    `/groups/${groupId}`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify(patch),
-    },
-  ),
   renameGroup: (groupId: string, name: string) => request<{ id: string; name: string; discordGuildId: string | null; discordChannelId: string | null }>(`/groups/${groupId}`, {
     method: 'PATCH',
     body: JSON.stringify({ name }),

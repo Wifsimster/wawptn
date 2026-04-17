@@ -15,9 +15,8 @@ interface GroupState {
   loading: boolean
   fetchGroups: () => Promise<void>
   fetchGroup: (id: string) => Promise<void>
-  createGroup: (input: { name: string; discordGuildId?: string | null; discordChannelId?: string | null }) => Promise<{ id: string; inviteToken: string }>
+  createGroup: (input: { name: string }) => Promise<{ id: string; inviteToken: string }>
   renameGroup: (groupId: string, name: string) => Promise<void>
-  bindDiscordChannel: (groupId: string, guildId: string, channelId: string) => Promise<void>
   joinGroup: (token: string) => Promise<{ id: string; name: string }>
   leaveGroup: (groupId: string, userId: string) => Promise<void>
   deleteGroup: (groupId: string) => Promise<void>
@@ -46,29 +45,6 @@ export const useGroupStore = create<GroupState>((set) => ({
     set((state) => ({
       groups: state.groups.map((g) => g.id === groupId ? { ...g, name: result.name } : g),
       currentGroup: state.currentGroup?.id === groupId ? { ...state.currentGroup, name: result.name } : state.currentGroup,
-    }))
-  },
-  bindDiscordChannel: async (groupId: string, guildId: string, channelId: string) => {
-    // Owner-only PATCH — mirrors the rename action's merge pattern so
-    // the "link a Discord channel" banner on the detail page disappears
-    // immediately without a full refetch.
-    const result = await api.updateGroup(groupId, {
-      discordGuildId: guildId,
-      discordChannelId: channelId,
-    })
-    set((state) => ({
-      groups: state.groups.map((g) =>
-        g.id === groupId
-          ? { ...g, discordGuildId: result.discordGuildId, discordChannelId: result.discordChannelId }
-          : g,
-      ),
-      currentGroup: state.currentGroup?.id === groupId
-        ? {
-            ...state.currentGroup,
-            discordGuildId: result.discordGuildId,
-            discordChannelId: result.discordChannelId,
-          }
-        : state.currentGroup,
     }))
   },
   joinGroup: async (token: string) => {

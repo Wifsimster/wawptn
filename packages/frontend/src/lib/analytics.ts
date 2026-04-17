@@ -23,7 +23,6 @@ export type AnalyticsEvent =
   | 'group.joined'
   | 'group.join_failed'
   | 'group.create_failed'
-  | 'group.discord_bound'
   | 'invite.generated'
   | 'invite.link_copied'
   | 'invite.shared'

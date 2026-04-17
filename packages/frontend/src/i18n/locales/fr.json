@@ -5,7 +5,9 @@
     "skipToContent": "Aller au contenu principal"
   },
   "common": {
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "cancel": "Annuler",
+    "close": "Fermer"
   },
   "login": {
     "subtitle": "Connecte ton compte Steam, crée un groupe avec tes amis, et votez pour le jeu de ce soir.",
@@ -51,23 +53,14 @@
     "required": "Veuillez entrer un nom de groupe",
     "inviteReadyTitle": "Invite tes amis dès maintenant",
     "inviteReadyHint": "Partage ce lien — ils pourront rejoindre en un clic avec Steam.",
-    "goToGroup": "Aller au groupe",
-    "discordSectionTitle": "Lier un salon Discord (facultatif)",
-    "discordSectionHint": "Connecte ton groupe à un salon Discord pour y recevoir les annonces et les votes. Tu pourras le modifier plus tard.",
-    "discordConnect": "Connecter Discord",
-    "discordConnecting": "Autorisation en cours…",
-    "discordGuildLabel": "Serveur Discord",
-    "discordGuildPlaceholder": "Choisis un serveur…",
-    "discordChannelLabel": "Salon",
-    "discordChannelPlaceholder": "Choisis un salon…",
-    "discordNoGuilds": "Aucun serveur Discord administrable trouvé.",
-    "discordNoChannels": "Aucun salon texte dans ce serveur.",
-    "discordBotNotInGuild": "Le bot WAWPTN n'est pas encore sur ce serveur.",
-    "discordInviteBot": "Inviter le bot sur ce serveur",
-    "discordPopupBlocked": "Fenêtre bloquée — autorise les pop-ups et réessaie.",
-    "discordConnectError": "Impossible de se connecter à Discord",
-    "discordOAuthDisabled": "La connexion Discord n'est pas activée sur ce serveur.",
-    "discordChannelTaken": "Ce salon Discord est déjà lié à un autre groupe."
+    "goToGroup": "Aller au groupe"
+  },
+  "discordSetup": {
+    "step1": "Invite le bot WAWPTN sur ton serveur Discord.",
+    "inviteBot": "Inviter le bot",
+    "disabled": "Le bot Discord n'est pas configuré sur ce serveur WAWPTN.",
+    "step2Before": "Dans le salon de ton choix, tape",
+    "step2After": "et sélectionne ce groupe."
   },
   "joinGroup": {
     "title": "Rejoindre un groupe",
@@ -225,10 +218,7 @@
     "discordBannerTitle": "Lie un salon Discord à ce groupe",
     "discordBannerHint": "Les annonces et votes seront postés automatiquement dans le salon de ton choix.",
     "discordBannerCta": "Lier un salon",
-    "discordBannerDialogTitle": "Lier un salon Discord",
-    "discordBannerSave": "Lier le salon",
-    "discordBannerSaveSuccess": "Salon Discord lié au groupe !",
-    "discordBannerSaveError": "Impossible de lier le salon Discord"
+    "discordBannerDialogTitle": "Lier un salon Discord"
   },
   "filterPresets": {
     "label": "Ambiance",

@@ -5,7 +5,9 @@
     "skipToContent": "Skip to content"
   },
   "common": {
-    "retry": "Retry"
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "close": "Close"
   },
   "login": {
     "subtitle": "Connect your Steam account, create a group with friends, and vote on tonight's game.",
@@ -48,23 +50,14 @@
     "required": "Please enter a group name",
     "inviteReadyTitle": "Invite your friends now",
     "inviteReadyHint": "Share this link — they can join in one click with Steam.",
-    "goToGroup": "Go to group",
-    "discordSectionTitle": "Link a Discord channel (optional)",
-    "discordSectionHint": "Connect your group to a Discord channel to receive announcements and votes there. You can change this later.",
-    "discordConnect": "Connect Discord",
-    "discordConnecting": "Authorising…",
-    "discordGuildLabel": "Discord server",
-    "discordGuildPlaceholder": "Pick a server…",
-    "discordChannelLabel": "Channel",
-    "discordChannelPlaceholder": "Pick a channel…",
-    "discordNoGuilds": "No manageable Discord servers found.",
-    "discordNoChannels": "No text channels in this server.",
-    "discordBotNotInGuild": "The WAWPTN bot isn't in this server yet.",
-    "discordInviteBot": "Invite the bot to this server",
-    "discordPopupBlocked": "Popup blocked — allow popups and try again.",
-    "discordConnectError": "Couldn't connect to Discord",
-    "discordOAuthDisabled": "Discord connection isn't enabled on this server.",
-    "discordChannelTaken": "This Discord channel is already linked to another group."
+    "goToGroup": "Go to group"
+  },
+  "discordSetup": {
+    "step1": "Invite the WAWPTN bot to your Discord server.",
+    "inviteBot": "Invite the bot",
+    "disabled": "The Discord bot isn't configured on this WAWPTN server.",
+    "step2Before": "In the channel of your choice, type",
+    "step2After": "and select this group."
   },
   "joinGroup": {
     "title": "Join a group",
@@ -216,10 +209,7 @@
     "discordBannerTitle": "Link a Discord channel to this group",
     "discordBannerHint": "Announcements and votes will be posted automatically in the channel you pick.",
     "discordBannerCta": "Link a channel",
-    "discordBannerDialogTitle": "Link a Discord channel",
-    "discordBannerSave": "Link channel",
-    "discordBannerSaveSuccess": "Discord channel linked to the group!",
-    "discordBannerSaveError": "Unable to link the Discord channel"
+    "discordBannerDialogTitle": "Link a Discord channel"
   },
   "filterPresets": {
     "label": "Vibe",

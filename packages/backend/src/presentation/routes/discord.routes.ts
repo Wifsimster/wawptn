@@ -1102,6 +1102,20 @@ router.get('/stats', async (req: Request, res: Response) => {
 
 const userRouter = Router()
 
+// Bot invite URL: surfaced in the "link a Discord channel" UI so the group
+// owner can add the WAWPTN bot to their server, then finish binding with
+// `/wawptn-setup` in the target channel. Public (no auth) — the URL carries
+// no secret, and the frontend needs to know whether to show the button
+// before the owner has clicked on anything.
+userRouter.get('/bot-invite-url', async (_req: Request, res: Response) => {
+  const { isBotConfigured, buildBotInviteUrl } = await import('../../infrastructure/discord/bot-invite.js')
+  if (!isBotConfigured()) {
+    res.json({ enabled: false, url: null })
+    return
+  }
+  res.json({ enabled: true, url: buildBotInviteUrl() })
+})
+
 // Confirm Discord link: User enters code on web frontend to confirm the link
 userRouter.post('/link/confirm', requireAuth, async (req: Request, res: Response) => {
   const userId = req.userId!

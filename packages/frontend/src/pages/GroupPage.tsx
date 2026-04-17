@@ -29,14 +29,14 @@ import { RandomPickModal } from '@/components/random-pick-modal'
 import { VoteSetupDialog } from '@/components/vote-setup-dialog'
 import { TonightPickHero } from '@/components/tonight-pick-hero'
 import { PersonaBadge } from '@/components/persona-badge'
-import { DiscordChannelPicker, type DiscordChannelSelection } from '@/components/discord-channel-picker'
+import { DiscordSetupInstructions } from '@/components/discord-setup-instructions'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 export function GroupPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { currentGroup, fetchGroup, leaveGroup, deleteGroup, renameGroup, bindDiscordChannel } = useGroupStore()
+  const { currentGroup, fetchGroup, leaveGroup, deleteGroup, renameGroup } = useGroupStore()
   useDocumentTitle(currentGroup?.name ?? t('groups.title'))
   const { user } = useAuthStore()
   const [commonGames, setCommonGames] = useState<CommonGame[]>([])
@@ -60,11 +60,6 @@ export function GroupPage() {
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([])
   const [todayPersona, setTodayPersona] = useState<{ id: string; name: string; embedColor: number; introMessage: string } | null>(null)
   const [discordDialogOpen, setDiscordDialogOpen] = useState(false)
-  const [discordSelection, setDiscordSelection] = useState<DiscordChannelSelection>({
-    guildId: null,
-    channelId: null,
-  })
-  const [bindingDiscord, setBindingDiscord] = useState(false)
   // Mirrors the backend's "one open session per group" guard so the group
   // detail page can surface a "join existing vote" CTA instead of walking
   // users through the setup dialog only to bounce off a 409 on the vote
@@ -343,30 +338,6 @@ export function GroupPage() {
     }
   }
 
-  const handleBindDiscord = async () => {
-    if (!id) return
-    if (!discordSelection.guildId || !discordSelection.channelId) return
-    setBindingDiscord(true)
-    try {
-      await bindDiscordChannel(id, discordSelection.guildId, discordSelection.channelId)
-      toast.success(t('group.discordBannerSaveSuccess'))
-      track('group.discord_bound', { from: 'banner' })
-      setDiscordDialogOpen(false)
-      setDiscordSelection({ guildId: null, channelId: null })
-      // Drop the OAuth session server-side now that it has served its
-      // purpose — mirrors the create-dialog cleanup in GroupsPage.
-      void api.clearDiscordOAuthSession().catch(() => {})
-    } catch (err) {
-      if (err instanceof ApiError && err.code === 'discord_channel_taken') {
-        toast.error(t('createGroup.discordChannelTaken'))
-        return
-      }
-      toast.error(err instanceof Error ? err.message : t('group.discordBannerSaveError'))
-    } finally {
-      setBindingDiscord(false)
-    }
-  }
-
   const handleDeleteHistory = async (sessionId: string) => {
     if (!id) return
     try {
@@ -617,39 +588,22 @@ export function GroupPage() {
             />
 
             {/* Link-a-Discord-channel dialog — opened from the banner
-                above. Reuses the same <DiscordChannelPicker/> as the
-                create-group dialog so the UX is identical. */}
-            <ResponsiveDialog
-              open={discordDialogOpen}
-              onOpenChange={(open) => {
-                setDiscordDialogOpen(open)
-                if (!open) {
-                  setDiscordSelection({ guildId: null, channelId: null })
-                  void api.clearDiscordOAuthSession().catch(() => {})
-                }
-              }}
-            >
+                above. Channel binding is driven by the bot's
+                `/wawptn-setup` slash command, so this dialog only shows
+                the two-step instructions and an invite-bot button. */}
+            <ResponsiveDialog open={discordDialogOpen} onOpenChange={setDiscordDialogOpen}>
               <ResponsiveDialogContent>
                 <ResponsiveDialogHeader>
                   <ResponsiveDialogTitle>{t('group.discordBannerDialogTitle')}</ResponsiveDialogTitle>
                   <ResponsiveDialogDescription>
-                    {t('createGroup.discordSectionHint')}
+                    {t('group.discordBannerHint')}
                   </ResponsiveDialogDescription>
                 </ResponsiveDialogHeader>
                 <div className="mt-4 space-y-4">
-                  <DiscordChannelPicker
-                    value={discordSelection}
-                    onChange={setDiscordSelection}
-                  />
-                  <div className="flex items-center justify-end gap-2">
-                    <Button variant="ghost" onClick={() => setDiscordDialogOpen(false)}>
-                      {t('common.cancel', 'Annuler')}
-                    </Button>
-                    <Button
-                      onClick={handleBindDiscord}
-                      disabled={!discordSelection.guildId || !discordSelection.channelId || bindingDiscord}
-                    >
-                      {t('group.discordBannerSave')}
+                  <DiscordSetupInstructions />
+                  <div className="flex items-center justify-end">
+                    <Button variant="secondary" onClick={() => setDiscordDialogOpen(false)}>
+                      {t('common.close', 'Fermer')}
                     </Button>
                   </div>
                 </div>

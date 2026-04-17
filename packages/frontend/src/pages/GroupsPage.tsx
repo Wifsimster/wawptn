@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { motion, type Variants } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useGroupStore } from '@/stores/group.store'
-import { api, ApiError } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import { track } from '@/lib/analytics'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,7 +23,6 @@ import { AppHeader } from '@/components/app-header'
 import { AppFooter } from '@/components/app-footer'
 import { InviteLink } from '@/components/invite-link'
 import { PersonaBadge } from '@/components/persona-badge'
-import { DiscordChannelPicker, type DiscordChannelSelection } from '@/components/discord-channel-picker'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 const fadeUp: Variants = {
@@ -58,16 +57,6 @@ export function GroupsPage() {
   const [createError, setCreateError] = useState<string | null>(null)
   const [joinError, setJoinError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-
-  // Discord binding selection used by the <DiscordChannelPicker/> inside
-  // the create dialog. The picker is fully optional; skipping it leaves
-  // both IDs null on the POST /groups payload and the group is created
-  // without a binding (the detail page will then show a banner to the
-  // owner until they link one).
-  const [discordSelection, setDiscordSelection] = useState<DiscordChannelSelection>({
-    guildId: null,
-    channelId: null,
-  })
 
   // Extract raw token from an invite URL (e.g. https://wawptn.app/invite/abc123 → abc123)
   // Falls back to the raw input if it doesn't look like a URL.
@@ -139,11 +128,7 @@ export function GroupsPage() {
     }
     setCreateError(null)
     try {
-      const result = await createGroup({
-        name: groupName.trim(),
-        discordGuildId: discordSelection.guildId,
-        discordChannelId: discordSelection.channelId,
-      })
+      const result = await createGroup({ name: groupName.trim() })
       setGroupName('')
       // Keep the dialog open and surface the fresh invite link so the user can
       // invite friends immediately — this is the core adoption loop.
@@ -151,24 +136,12 @@ export function GroupsPage() {
       setCreatedGroupId(result.id)
       fetchGroups()
       toast.success(t('createGroup.success'))
-      track('group.created', {
-        fromEmptyState: groups.length === 0,
-        withDiscordBinding: Boolean(discordSelection.guildId && discordSelection.channelId),
-      })
-      // The Discord OAuth session has served its purpose — drop the
-      // access token on the server so we do not hold it any longer.
-      void api.clearDiscordOAuthSession().catch(() => {})
+      track('group.created', { fromEmptyState: groups.length === 0 })
     } catch (err) {
       if (err instanceof ApiError && err.code === 'premium_required') {
         track('group.create_failed', { reason: 'premium_required' })
         toast.error(t('premium.groupLimitReached', { max: 2 }))
         navigate('/subscription')
-        return
-      }
-      if (err instanceof ApiError && err.code === 'discord_channel_taken') {
-        track('group.create_failed', { reason: 'discord_channel_taken' })
-        setCreateError(t('createGroup.discordChannelTaken'))
-        toast.error(t('createGroup.discordChannelTaken'))
         return
       }
       const msg = err instanceof Error ? err.message : t('createGroup.error')
@@ -315,10 +288,6 @@ export function GroupsPage() {
               setCreatedGroupId(null)
               setGroupName('')
               setCreateError(null)
-              // Discord picker reset — best-effort server-side cleanup;
-              // we fire-and-forget since losing the session is fine.
-              setDiscordSelection({ guildId: null, channelId: null })
-              void api.clearDiscordOAuthSession().catch(() => {})
             }
           }}
         >
@@ -354,14 +323,6 @@ export function GroupsPage() {
                     </p>
                   )}
                 </div>
-
-                {/* Discord binding picker — optional but proposed up-front
-                    because Discord binding is now core to the product
-                    (decision C4, design meeting 2026-04-14). */}
-                <DiscordChannelPicker
-                  value={discordSelection}
-                  onChange={setDiscordSelection}
-                />
 
                 <div className="flex items-center justify-end gap-2">
                   <Button variant="ghost" onClick={() => setShowCreate(false)}>

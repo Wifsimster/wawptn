@@ -1,6 +1,6 @@
 {
   "name": "wawptn",
-  "version": "0.65.1",
+  "version": "0.66.0",
   "private": true,
   "description": "What Are We Playing Tonight? — Help your friend group decide what game to play together.",
   "workspaces": [

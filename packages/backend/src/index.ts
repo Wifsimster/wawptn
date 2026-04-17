@@ -221,7 +221,15 @@ async function main() {
     process.exit(1)
   }
 
-  await runMigrations()
+  // Migrations must succeed before the server starts accepting traffic —
+  // a partial or stale schema means request handlers will hit missing
+  // columns and fail at runtime. Exit loudly so the container restarts
+  // (and an operator gets paged) instead of silently serving a broken API.
+  const migrated = await runMigrations()
+  if (!migrated) {
+    logger.fatal('Database migrations failed')
+    process.exit(1)
+  }
 
   // Socket.io
   createSocketServer(httpServer)

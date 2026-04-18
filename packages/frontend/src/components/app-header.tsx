@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, User, Shield, Crown } from 'lucide-react'
+import { LogOut, User, Shield, Crown, LifeBuoy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth.store'
@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { WawptnLogo } from '@/components/icons/wawptn-logo'
 import { NotificationBell } from '@/components/notification-bell'
+import { openKoeSupport } from '@/components/KoeSupport'
 
 interface AppHeaderProps {
   children?: React.ReactNode
@@ -110,6 +111,12 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
               <DropdownMenuItem onSelect={() => navigate('/admin')}>
                 <Shield />
                 Administration
+              </DropdownMenuItem>
+            )}
+            {user && (
+              <DropdownMenuItem onSelect={() => openKoeSupport()}>
+                <LifeBuoy />
+                {t('groups.support')}
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />

@@ -31,15 +31,15 @@ const FR_LOCALE = {
   bugForm: {
     title: 'Titre',
     description: 'Description',
-    steps: 'Étapes pour reproduire',
-    expected: 'Comportement attendu',
-    actual: 'Comportement observé',
+    reproduce: 'Comment reproduire le bug ? (facultatif)',
+    email: 'Email (facultatif)',
     submit: 'Envoyer',
     success: 'Merci, votre signalement a bien été reçu.',
   },
   featureForm: {
     title: 'Titre',
     description: 'Description',
+    email: 'Email (facultatif)',
     submit: 'Envoyer',
     success: 'Merci, votre proposition a bien été reçue.',
   },

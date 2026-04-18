@@ -7,6 +7,14 @@ import { useAuthStore } from '@/stores/auth.store'
 const PROJECT_KEY = (import.meta.env.VITE_KOE_PROJECT_KEY as string | undefined) ?? 'wawptn'
 const API_URL = (import.meta.env.VITE_KOE_API_URL as string | undefined) ?? 'https://koe.battistella.ovh'
 
+// The Koe library ships a floating launcher button we don't want to show —
+// we trigger the widget from the user menu instead. Keep the launcher
+// reachable via DOM so `openKoeSupport` can click it, but hide it visually.
+export function openKoeSupport() {
+  const launcher = document.querySelector<HTMLButtonElement>('.koe-root > button[aria-expanded]')
+  launcher?.click()
+}
+
 const FR_LOCALE = {
   launcherLabel: 'Support',
   title: 'Aide & retours',
@@ -56,18 +64,21 @@ export function KoeSupport() {
   if (!PROJECT_KEY || !API_URL || !user || identity?.userId !== user.id) return null
 
   return (
-    <KoeWidget
-      projectKey={PROJECT_KEY}
-      apiUrl={API_URL}
-      user={{
-        id: user.id,
-        name: user.displayName,
-        avatarUrl: user.avatarUrl,
-        metadata: { steamId: user.steamId },
-      }}
-      userHash={identity.userHash}
-      position="bottom-right"
-      locale={FR_LOCALE}
-    />
+    <>
+      <style>{`.koe-root > button[aria-expanded]{display:none!important}`}</style>
+      <KoeWidget
+        projectKey={PROJECT_KEY}
+        apiUrl={API_URL}
+        user={{
+          id: user.id,
+          name: user.displayName,
+          avatarUrl: user.avatarUrl,
+          metadata: { steamId: user.steamId },
+        }}
+        userHash={identity.userHash}
+        position="bottom-right"
+        locale={FR_LOCALE}
+      />
+    </>
   )
 }

@@ -19,7 +19,7 @@
     "@radix-ui/react-tooltip": "^1.1.8",
     "@tanstack/react-virtual": "^3.13.21",
     "@wawptn/types": "*",
-    "@wifsimster/koe": "^1.27.3",
+    "@wifsimster/koe": "^1.27.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.25.0",

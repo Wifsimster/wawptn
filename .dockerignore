@@ -2,40 +2,51 @@
 .git
 .github
 .gitignore
+.gitattributes
 
 # Dependencies (rebuilt in Docker)
-node_modules
+**/node_modules
 
 # Documentation
-*.md
+**/*.md
 
 # Environment files
 .env*
+**/.env*
 
-# Docker compose files
+# Docker compose / Dockerfiles
 compose*.yml
+docker-compose*.yml
 .dockerignore
+Dockerfile*
 
-# IDE
+# IDE / editor
 .vscode
 .idea
+*.swp
 
-# Test files
-coverage
-*.test.ts
-*.spec.ts
-__tests__
+# Tests & coverage
+**/coverage
+**/__tests__
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+**/vitest.config.*
 
 # Build artifacts & caches
-dist
+**/dist
+**/.turbo
+**/.cache
+**/.vite
+**/*.tsbuildinfo
 *.log
 .DS_Store
-tsconfig.tsbuildinfo
-packages/frontend/tsconfig.app.tsbuildinfo
-packages/frontend/tsconfig.node.tsbuildinfo
 
-# Misc
+# Husky & hooks
 .husky
+
+# Misc runtime dirs
 backups/
 uploads/
 .eslintrc*

@@ -19,6 +19,7 @@ import type { CommonGame } from '@wawptn/types'
 import { EmptyState } from '@/components/empty-state'
 import { useWishlistStore } from '@/stores/wishlist.store'
 import { decodeHtmlEntities } from '@/lib/utils'
+import { resolveSteamHeaderImage } from '@/lib/steam-cdn'
 
 // Reuse the shared wire type so we don't drift from the API shape. The
 // grid previously redeclared a subset inline, which silently allowed the
@@ -26,10 +27,7 @@ import { decodeHtmlEntities } from '@/lib/utils'
 type Game = CommonGame
 
 function resolveHeaderImage(game: Game): string {
-  return (
-    game.headerImageUrl ||
-    `https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/header.jpg`
-  )
+  return resolveSteamHeaderImage(game.steamAppId, game.headerImageUrl)
 }
 
 export interface GameFilters {

@@ -1,4 +1,4 @@
-import type { Client, TextBasedChannel } from 'discord.js'
+import type { Client } from 'discord.js'
 import type {
   DiscordSessionClosedRequest,
   DiscordSessionCreatedRequest,
@@ -6,6 +6,8 @@ import type {
   DiscordSessionUpdateRequest,
 } from '@wawptn/types'
 import { buildSessionClosedEmbed, buildSessionEmbed } from '../lib/embeds.js'
+import { sendMessage, editMessage } from '../lib/channel-adapter.js'
+import { BotHandlerError } from './handlers-error.js'
 
 /**
  * Handlers live here (separated from the transport layer in server.ts) so
@@ -13,22 +15,7 @@ import { buildSessionClosedEmbed, buildSessionEmbed } from '../lib/embeds.js'
  * Each handler receives an already-parsed, already-authenticated payload.
  */
 
-export class BotHandlerError extends Error {
-  constructor(public statusCode: number, message: string) {
-    super(message)
-  }
-}
-
-async function resolveSendableChannel(client: Client, channelId: string): Promise<TextBasedChannel> {
-  const channel = await client.channels.fetch(channelId).catch(() => null)
-  if (!channel) {
-    throw new BotHandlerError(404, `Channel ${channelId} not found`)
-  }
-  if (!channel.isTextBased() || !('send' in channel)) {
-    throw new BotHandlerError(400, `Channel ${channelId} is not a sendable text channel`)
-  }
-  return channel as TextBasedChannel
-}
+export { BotHandlerError }
 
 export async function handleSessionCreated(
   client: Client,
@@ -40,7 +27,6 @@ export async function handleSessionCreated(
     throw new BotHandlerError(400, 'Missing required fields')
   }
 
-  const channel = await resolveSendableChannel(client, channelId)
   const { embeds, components } = buildSessionEmbed({
     groupName,
     creatorName,
@@ -49,11 +35,7 @@ export async function handleSessionCreated(
     summary,
   })
 
-  // `send` exists on guild text/announcement/thread/DM channels — the
-  // resolveSendableChannel guard above narrows down to those.
-  const sent = await (channel as unknown as { send: (payload: unknown) => Promise<{ id: string }> })
-    .send({ embeds, components })
-
+  const sent = await sendMessage(client, channelId, { embeds, components })
   return { messageId: sent.id }
 }
 
@@ -67,16 +49,6 @@ export async function handleSessionUpdate(
     throw new BotHandlerError(400, 'Missing required fields')
   }
 
-  const channel = await resolveSendableChannel(client, channelId)
-  // `messages` exists on every TextBasedChannel we care about (Guild text,
-  // Announcement, Thread, DM). The narrowing from resolveSendableChannel
-  // guarantees it here.
-  const messages = (channel as unknown as { messages: { fetch: (id: string) => Promise<unknown> } }).messages
-  const message = await messages.fetch(messageId).catch(() => null)
-  if (!message) {
-    throw new BotHandlerError(404, `Message ${messageId} not found`)
-  }
-
   const { embeds, components } = buildSessionEmbed({
     groupName,
     creatorName,
@@ -85,7 +57,7 @@ export async function handleSessionUpdate(
     summary,
   })
 
-  await (message as { edit: (payload: unknown) => Promise<unknown> }).edit({ embeds, components })
+  await editMessage(client, channelId, messageId, { embeds, components })
   return { ok: true }
 }
 
@@ -97,13 +69,6 @@ export async function handleSessionClosed(
 
   if (!channelId || !messageId || !sessionId || !result) {
     throw new BotHandlerError(400, 'Missing required fields')
-  }
-
-  const channel = await resolveSendableChannel(client, channelId)
-  const messages = (channel as unknown as { messages: { fetch: (id: string) => Promise<unknown> } }).messages
-  const message = await messages.fetch(messageId).catch(() => null)
-  if (!message) {
-    throw new BotHandlerError(404, `Message ${messageId} not found`)
   }
 
   // Re-materialize the game list from the tallies so the closed embed can
@@ -123,6 +88,6 @@ export async function handleSessionClosed(
     summary,
   })
 
-  await (message as { edit: (payload: unknown) => Promise<unknown> }).edit({ embeds, components })
+  await editMessage(client, channelId, messageId, { embeds, components })
   return { ok: true }
 }

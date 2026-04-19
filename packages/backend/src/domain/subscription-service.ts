@@ -16,6 +16,24 @@ export const PREMIUM_TIER_LIMITS = {
   maxVoteHistorySessions: 100,
 } as const
 
+/** Stable error payloads for tier gates. Centralized so that route handlers
+ *  and Discord/bot handlers all surface the same shape — the frontend keys
+ *  off `error` to render upgrade CTAs. */
+export const TIER_ERRORS = {
+  freeMaxGroupsReached: () => ({
+    error: 'premium_required' as const,
+    message: `Free users can create max ${FREE_TIER_LIMITS.maxGroups} groups. Upgrade to premium for unlimited groups.`,
+  }),
+  freeMemberLimitReached: () => ({
+    error: 'premium_required' as const,
+    message: `This group has reached the free member limit (${FREE_TIER_LIMITS.maxMembersPerGroup}). Group owner must upgrade to premium.`,
+  }),
+  premiumMemberLimitReached: () => ({
+    error: 'member_limit' as const,
+    message: `This group has reached the maximum member limit (${PREMIUM_TIER_LIMITS.maxMembersPerGroup}).`,
+  }),
+} as const
+
 /** In-memory cache for premium status with TTL */
 interface CacheEntry {
   value: boolean

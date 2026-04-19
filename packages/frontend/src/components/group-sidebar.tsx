@@ -20,6 +20,7 @@ import { InviteLink } from '@/components/invite-link'
 import { GroupStats } from '@/components/group-stats'
 import { GameRecommendations } from '@/components/game-recommendations'
 import { CronAutocomplete } from '@/components/cron-autocomplete'
+import { getSteamHeaderImageUrl } from '@/lib/steam-cdn'
 import { useSubscriptionStore } from '@/stores/subscription.store'
 
 interface Member {
@@ -115,7 +116,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
           : 'flex items-center gap-3 group/history'
         }>
           <img
-            src={`https://cdn.akamai.steamstatic.com/steam/apps/${session.winningGameAppId}/header.jpg`}
+            src={getSteamHeaderImageUrl(session.winningGameAppId)}
             alt={session.winningGameName}
             className="w-16 h-[34px] rounded object-cover shrink-0"
             loading="lazy"

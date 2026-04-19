@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { api } from '@/lib/api'
+import { getSteamHeaderImageUrl } from '@/lib/steam-cdn'
 
 interface GroupStatsData {
   totalSessions: number
@@ -75,7 +76,7 @@ export function GroupStats({ groupId, compact = false }: GroupStatsProps) {
                   {index + 1}.
                 </span>
                 <img
-                  src={`https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/header.jpg`}
+                  src={getSteamHeaderImageUrl(game.steamAppId)}
                   alt={game.gameName}
                   className="w-12 h-[22px] rounded object-cover shrink-0"
                   loading="lazy"
@@ -139,7 +140,7 @@ export function GroupStats({ groupId, compact = false }: GroupStatsProps) {
             {stats.recentWinners.map((winner, index) => (
               <div key={`${winner.steamAppId}-${index}`} className="flex items-center gap-2.5">
                 <img
-                  src={`https://cdn.akamai.steamstatic.com/steam/apps/${winner.steamAppId}/header.jpg`}
+                  src={getSteamHeaderImageUrl(winner.steamAppId)}
                   alt={winner.gameName}
                   className="w-12 h-[22px] rounded object-cover shrink-0"
                   loading="lazy"

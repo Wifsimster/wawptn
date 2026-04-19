@@ -1,5 +1,6 @@
 import { db } from '../infrastructure/database/connection.js'
 import { logger } from '../infrastructure/logger/logger.js'
+import { getHeaderImageUrl } from '../infrastructure/steam/steam-client.js'
 import { evaluateChallenges } from './challenges/challenge-service.js'
 import { updateStreak } from './streaks.js'
 import { domainEvents } from './events/event-bus.js'
@@ -73,7 +74,7 @@ export async function closeSession(sessionId: string, groupId: string): Promise<
     steamAppId: winnerAppId ?? 0,
     gameId: winnerGameId ?? undefined,
     gameName: winnerName ?? 'Unknown',
-    headerImageUrl: winnerAppId ? `https://cdn.akamai.steamstatic.com/steam/apps/${winnerAppId}/header.jpg` : null,
+    headerImageUrl: winnerAppId ? getHeaderImageUrl(winnerAppId) : null,
     yesCount: results.length > 0 ? Number(results[0]!.yes_count) : 0,
     totalVoters: Number(voterCount?.count || 0),
   }

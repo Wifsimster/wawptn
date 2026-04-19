@@ -8,17 +8,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { decodeHtmlEntities } from '@/lib/utils'
+import { resolveSteamHeaderImage } from '@/lib/steam-cdn'
+import { scoreGames, type PickReason, type VoteHistoryEntry } from '@/lib/game-scoring'
 
 interface Member {
   id: string
   displayName: string
   avatarUrl: string
-}
-
-interface VoteHistoryEntry {
-  winningGameAppId: number
-  winningGameName: string
-  closedAt: string
 }
 
 interface TonightPickHeroProps {
@@ -39,82 +35,11 @@ interface TonightPickHeroProps {
   onJoinActiveVote?: () => void
 }
 
-type PickReason = 'neverPlayed' | 'topRated' | 'mostOwned' | 'comeback'
-
-interface ScoredPick {
-  game: CommonGame
-  score: number
-  reason: PickReason
-}
-
-/**
- * Client-side scorer for "Tonight's Pick". Deliberately simple and
- * deterministic so it works on the free tier without any backend call —
- * the premium recommendations endpoint remains the richer alternative
- * surfaced in the sidebar. Signals used:
- *   - ownership ratio (how many members own it)
- *   - metacritic (quality bump, generous default when missing)
- *   - log-scaled recommendations (popularity)
- *   - novelty penalty if the game won recently (so we don't suggest
- *     the same thing two nights in a row)
- *   - small bonus for MP/coop since this is a group product
- */
-function scoreGames(games: CommonGame[], history: VoteHistoryEntry[]): ScoredPick | null {
-  if (games.length === 0) return null
-
-  // Build a quick lookup of games won in the last ~14 days so we can
-  // penalize the "same game every night" pattern.
-  const now = Date.now()
-  const recentWinPenalty = new Map<number, number>()
-  const everPlayedIds = new Set<number>()
-  for (const h of history) {
-    everPlayedIds.add(h.winningGameAppId)
-    const ageDays = (now - new Date(h.closedAt).getTime()) / 86_400_000
-    if (ageDays <= 14) {
-      // Linear decay from 0.8 (just won) to 0 (14 days ago).
-      recentWinPenalty.set(h.winningGameAppId, Math.max(0, 0.8 * (1 - ageDays / 14)))
-    }
-  }
-
-  let best: ScoredPick | null = null
-  for (const game of games) {
-    const ownership = game.totalMembers > 0 ? game.ownerCount / game.totalMembers : 0
-    const mc = game.metacriticScore ?? 65 // generous default for unknowns
-    const reco = game.recommendationsTotal ?? 0
-    const mpBonus = (game.isMultiplayer || game.isCoop) ? 0.25 : 0
-
-    const score =
-      1.5 * ownership +
-      0.8 * (mc / 100) +
-      0.7 * (Math.log1p(reco) / Math.log(100_000)) +
-      mpBonus -
-      (recentWinPenalty.get(game.steamAppId) ?? 0)
-
-    if (!best || score > best.score) {
-      let reason: PickReason = 'mostOwned'
-      if (!everPlayedIds.has(game.steamAppId)) reason = 'neverPlayed'
-      else if (mc >= 85) reason = 'topRated'
-      else if ((recentWinPenalty.get(game.steamAppId) ?? 0) === 0 && everPlayedIds.has(game.steamAppId)) reason = 'comeback'
-
-      best = { game, score, reason }
-    }
-  }
-
-  return best
-}
-
 const REASON_META: Record<PickReason, { key: string; icon: typeof Sparkles }> = {
   neverPlayed: { key: 'tonightPick.reasonNever', icon: Sparkles },
   topRated: { key: 'tonightPick.reasonTopRated', icon: Star },
   mostOwned: { key: 'tonightPick.reasonMostOwned', icon: Users },
   comeback: { key: 'tonightPick.reasonComeback', icon: Trophy },
-}
-
-function resolveHeaderImage(game: CommonGame): string {
-  return (
-    game.headerImageUrl ||
-    `https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/header.jpg`
-  )
 }
 
 export function TonightPickHero({
@@ -245,7 +170,7 @@ export function TonightPickHero({
           absolute so the content below stays readable on any screen size. */}
       <div className="absolute inset-0">
         <img
-          src={resolveHeaderImage(game)}
+          src={resolveSteamHeaderImage(game.steamAppId, game.headerImageUrl)}
           alt=""
           aria-hidden="true"
           className="w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-opacity duration-500 group-hover:scale-[1.02] motion-safe:transition-transform"
@@ -260,7 +185,7 @@ export function TonightPickHero({
             actual Steam art sharply (background is too faded to count). */}
         <div className="shrink-0 hidden sm:block">
           <img
-            src={resolveHeaderImage(game)}
+            src={resolveSteamHeaderImage(game.steamAppId, game.headerImageUrl)}
             alt={game.gameName}
             className="w-[200px] aspect-[460/215] rounded-lg object-cover ring-1 ring-white/10 shadow-lg"
             loading="eager"

@@ -4,6 +4,8 @@ import { getIO } from '../../infrastructure/socket/socket.js'
 import { closeSession } from '../../domain/close-session.js'
 import { createVotingSession } from '../../domain/create-session.js'
 import { isUserPremium, FREE_TIER_LIMITS, PREMIUM_TIER_LIMITS } from '../middleware/tier.middleware.js'
+import { requireGroupMembership } from '../middleware/group-membership.middleware.js'
+import { applyTierLimits } from '../../lib/pagination.js'
 import { evaluateChallenges } from '../../domain/challenges/challenge-service.js'
 import { domainEvents } from '../../domain/events/event-bus.js'
 import { logger } from '../../infrastructure/logger/logger.js'
@@ -11,18 +13,9 @@ import { logger } from '../../infrastructure/logger/logger.js'
 const router = Router()
 
 // Get active voting session for a group
-router.get('/:groupId/vote', async (req: Request, res: Response) => {
+router.get('/:groupId/vote', requireGroupMembership({ paramName: 'groupId' }), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['groupId'])
-
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId })
-    .first()
-
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Not a member' })
-    return
-  }
 
   const session = await db('voting_sessions')
     .where({ group_id: groupId, status: 'open' })
@@ -48,7 +41,14 @@ router.get('/:groupId/vote', async (req: Request, res: Response) => {
     .distinct('user_id')
     .pluck('user_id')
 
-  // Get total participants from junction table, fallback to group_members for legacy sessions
+  // TRANSITIONAL FALLBACK (LSP):
+  // Sessions created after migration 2024_voting_session_participants populate
+  // the junction table; sessions created before it don't. The fallback to
+  // group_members below treats those legacy sessions as "everyone in the
+  // group is a participant" so the UI can still render progress.
+  // Remove once: (a) all open legacy sessions have been closed, (b) a
+  // backfill migration has populated the junction for every closed session,
+  // OR (c) the project is comfortable orphaning pre-migration sessions.
   const participantCount = await db('voting_session_participants')
     .where({ session_id: session.id })
     .count('* as count')
@@ -121,18 +121,9 @@ router.get('/:groupId/vote', async (req: Request, res: Response) => {
 })
 
 // Create a new voting session (on-demand)
-router.post('/:groupId/vote', async (req: Request, res: Response) => {
+router.post('/:groupId/vote', requireGroupMembership({ paramName: 'groupId' }), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['groupId'])
-
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId })
-    .first()
-
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Not a member' })
-    return
-  }
 
   const { filter, filters, participantIds, scheduledAt } = req.body as { filter?: string; filters?: { multiplayer?: boolean; coop?: boolean; free?: boolean }; participantIds: string[]; scheduledAt?: string }
 
@@ -150,10 +141,16 @@ router.post('/:groupId/vote', async (req: Request, res: Response) => {
   // Validate scheduledAt if provided
   let parsedScheduledAt: Date | null = null
   if (scheduledAt) {
-    // Vote scheduling is a premium feature
+    // Vote scheduling is a premium feature. We can't mount the gate as
+    // middleware because scheduling is conditional on `scheduledAt` being
+    // present in the body — the rest of the endpoint is free-tier.
     const premium = await isUserPremium(userId)
     if (!premium) {
-      res.status(403).json({ error: 'premium_required', message: 'Vote scheduling requires a premium subscription' })
+      res.status(403).json({
+        error: 'premium_required',
+        message: 'Vote scheduling requires a premium subscription',
+        feature: 'vote-scheduling',
+      })
       return
     }
 
@@ -236,7 +233,8 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
     return
   }
 
-  // Check if user is a participant (junction table), fallback to group_members for legacy sessions
+  // Check if user is a participant (junction table), with the same legacy
+  // fallback documented at the top of GET /:groupId/vote — see note there.
   const participantCount = await db('voting_session_participants')
     .where({ session_id: sessionId })
     .count('* as count')
@@ -344,7 +342,7 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
 })
 
 // Close voting session and compute winner
-router.post('/:groupId/vote/:sessionId/close', async (req: Request, res: Response) => {
+router.post('/:groupId/vote/:sessionId/close', requireGroupMembership({ paramName: 'groupId' }), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['groupId'])
   const sessionId = String(req.params['sessionId'])
@@ -359,11 +357,7 @@ router.post('/:groupId/vote/:sessionId/close', async (req: Request, res: Respons
     return
   }
 
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId })
-    .first()
-
-  if (!membership || (session.created_by !== userId && membership.role !== 'owner')) {
+  if (session.created_by !== userId && req.membership!.role !== 'owner') {
     res.status(403).json({ error: 'forbidden', message: 'Only session creator or group owner can close the vote' })
     return
   }
@@ -379,7 +373,7 @@ router.post('/:groupId/vote/:sessionId/close', async (req: Request, res: Respons
 })
 
 // Rematch: create a new session with the same participants, excluding the winning game
-router.post('/:groupId/vote/:sessionId/rematch', async (req: Request, res: Response) => {
+router.post('/:groupId/vote/:sessionId/rematch', requireGroupMembership({ paramName: 'groupId' }), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['groupId'])
   const sessionId = String(req.params['sessionId'])
@@ -391,16 +385,6 @@ router.post('/:groupId/vote/:sessionId/rematch', async (req: Request, res: Respo
 
   if (!session) {
     res.status(404).json({ error: 'not_found', message: 'No closed session found' })
-    return
-  }
-
-  // Check membership
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId })
-    .first()
-
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Not a member' })
     return
   }
 
@@ -448,7 +432,7 @@ router.post('/:groupId/vote/:sessionId/rematch', async (req: Request, res: Respo
 })
 
 // Delete a closed voting session (creator or group owner only)
-router.delete('/:groupId/vote/:sessionId', async (req: Request, res: Response) => {
+router.delete('/:groupId/vote/:sessionId', requireGroupMembership({ paramName: 'groupId' }), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['groupId'])
   const sessionId = String(req.params['sessionId'])
@@ -462,11 +446,7 @@ router.delete('/:groupId/vote/:sessionId', async (req: Request, res: Response) =
     return
   }
 
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId })
-    .first()
-
-  if (!membership || (session.created_by !== userId && membership.role !== 'owner')) {
+  if (session.created_by !== userId && req.membership!.role !== 'owner') {
     res.status(403).json({ error: 'forbidden', message: 'Only session creator or group owner can delete' })
     return
   }
@@ -477,18 +457,9 @@ router.delete('/:groupId/vote/:sessionId', async (req: Request, res: Response) =
 })
 
 // Get past voting sessions for a group
-router.get('/:groupId/vote/history', async (req: Request, res: Response) => {
+router.get('/:groupId/vote/history', requireGroupMembership({ paramName: 'groupId' }), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['groupId'])
-
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId })
-    .first()
-
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Not a member' })
-    return
-  }
 
   // Free users see only the most recent N sessions (no offset paging into
   // older history). Premium users can page through everything up to the
@@ -496,18 +467,12 @@ router.get('/:groupId/vote/history', async (req: Request, res: Response) => {
   // an upgrade CTA when a free user's query would have returned more.
   const premium = await isUserPremium(userId)
   const freeMax = FREE_TIER_LIMITS.maxVoteHistorySessions
-  const premiumMax = PREMIUM_TIER_LIMITS.maxVoteHistorySessions
-
-  const requestedLimit = Math.max(Number(req.query['limit']) || 10, 1)
-  const requestedOffset = Math.max(Number(req.query['offset']) || 0, 0)
-
-  // Premium: respect the caller's limit up to the premium cap, allow offset.
-  // Free: hard-cap limit at freeMax AND force offset to 0 — free users can
-  // only see the head of the list, not page into the back catalog.
-  const limit = premium
-    ? Math.min(requestedLimit, premiumMax)
-    : Math.min(requestedLimit, freeMax)
-  const offset = premium ? requestedOffset : 0
+  const { limit, offset } = applyTierLimits(
+    Number(req.query['limit']) || 10,
+    Number(req.query['offset']) || 0,
+    premium,
+    { freeMaxLimit: freeMax, premiumMaxLimit: PREMIUM_TIER_LIMITS.maxVoteHistorySessions }
+  )
 
   const totalResult = await db('voting_sessions')
     .where({ group_id: groupId, status: 'closed' })

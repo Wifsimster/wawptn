@@ -1,18 +1,19 @@
 import { Router, type Request, type Response } from 'express'
 import cron from 'node-cron'
 import { db } from '../../infrastructure/database/connection.js'
-import { computeCommonGames, countCommonGamesForGroups } from '../../infrastructure/database/common-games.js'
-import { generateInviteToken, hashInviteToken } from '../../infrastructure/steam/steam-client.js'
+import { computeCommonGames } from '../../infrastructure/database/common-games.js'
+import { generateInviteToken, hashInviteToken, getHeaderImageUrl } from '../../infrastructure/steam/steam-client.js'
 import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-store-client.js'
 import { getIO, forceLeaveRoom } from '../../infrastructure/socket/socket.js'
 import { updateGroupSchedule } from '../../infrastructure/scheduler/auto-vote-scheduler.js'
 import { logger } from '../../infrastructure/logger/logger.js'
-import { isUserPremium, FREE_TIER_LIMITS, PREMIUM_TIER_LIMITS } from '../middleware/tier.middleware.js'
+import { isUserPremium, FREE_TIER_LIMITS, PREMIUM_TIER_LIMITS, requirePremiumFeature } from '../middleware/tier.middleware.js'
+import { TIER_ERRORS } from '../../domain/subscription-service.js'
 import { requireGroupMembership } from '../middleware/group-membership.middleware.js'
+import { listGroupsForUser } from '../../domain/group-listing-service.js'
 import { isBannedFromGroup } from '../../domain/discord-auth-intent.js'
 import {
   selectPersonaForGroup,
-  selectPersonasForGroups,
   invalidateGroupPersonaCache,
   parisDate,
 } from '../../domain/persona-selection.js'
@@ -21,87 +22,7 @@ const router = Router()
 
 // List my groups
 router.get('/', async (req: Request, res: Response) => {
-  const userId = req.userId!
-  const groups = await db('group_members')
-    .join('groups', 'groups.id', 'group_members.group_id')
-    .where('group_members.user_id', userId)
-    .select('groups.*', 'group_members.role')
-
-  const groupIds = groups.map(g => g.id)
-
-  // Get member counts per group
-  const memberCounts = groupIds.length > 0
-    ? await db('group_members')
-        .whereIn('group_id', groupIds)
-        .groupBy('group_id')
-        .select('group_id', db.raw('COUNT(*) as count'))
-    : []
-  const memberCountMap = new Map(memberCounts.map((r: { group_id: string; count: string }) => [r.group_id, Number(r.count)]))
-
-  // Get last closed session per group
-  const lastSessions = groupIds.length > 0
-    ? await db('voting_sessions')
-        .whereIn('group_id', groupIds)
-        .where('status', 'closed')
-        .whereNotNull('winning_game_name')
-        .distinctOn('group_id')
-        .orderBy([
-          { column: 'group_id' },
-          { column: 'closed_at', order: 'desc' },
-        ])
-        .select('group_id', 'winning_game_app_id', 'winning_game_name', 'closed_at')
-    : []
-  const lastSessionMap = new Map(lastSessions.map((s: { group_id: string; winning_game_app_id: number; winning_game_name: string; closed_at: string }) => [s.group_id, s]))
-
-  // Get member IDs per group for common game counting
-  const allMemberships = groupIds.length > 0
-    ? await db('group_members')
-        .whereIn('group_id', groupIds)
-        .select('group_id', 'user_id')
-    : []
-  const memberIdsMap = new Map<string, string[]>()
-  for (const m of allMemberships) {
-    const list = memberIdsMap.get(m.group_id) || []
-    list.push(m.user_id)
-    memberIdsMap.set(m.group_id, list)
-  }
-
-  // Count common games per group in a single batched query
-  const commonGameCountMap = await countCommonGamesForGroups(
-    groups.map((g) => {
-      const memberIds = memberIdsMap.get(g.id) || []
-      return {
-        groupId: g.id as string,
-        memberIds,
-        threshold: (g.common_game_threshold as number | null) || memberIds.length,
-      }
-    })
-  )
-
-  // Enrich with each group's "persona du jour" — computed in a single
-  // batch so the list page doesn't need an N+1 cascade of follow-up calls.
-  const personaMap = await selectPersonasForGroups(groupIds)
-
-  res.json(groups.map(g => ({
-    id: g.id,
-    name: g.name,
-    role: g.role,
-    createdAt: g.created_at,
-    memberCount: memberCountMap.get(g.id) || 0,
-    commonGameCount: commonGameCountMap.get(g.id) || 0,
-    lastSession: lastSessionMap.has(g.id)
-      ? {
-          gameName: lastSessionMap.get(g.id)!.winning_game_name,
-          gameAppId: lastSessionMap.get(g.id)!.winning_game_app_id,
-          closedAt: lastSessionMap.get(g.id)!.closed_at,
-        }
-      : null,
-    todayPersona: personaMap.get(g.id) || null,
-    discordGuildId: g.discord_guild_id ?? null,
-    discordChannelId: g.discord_channel_id ?? null,
-    discordGuildName: g.discord_guild_name ?? null,
-    discordChannelName: g.discord_channel_name ?? null,
-  })))
+  res.json(await listGroupsForUser(req.userId!))
 })
 
 // Get group detail with members
@@ -295,7 +216,7 @@ router.post('/', async (req: Request, res: Response) => {
   if (!premium) {
     const ownedCount = await db('group_members').where({ user_id: userId, role: 'owner' }).count('* as count').first()
     if (Number(ownedCount?.count || 0) >= FREE_TIER_LIMITS.maxGroups) {
-      res.status(403).json({ error: 'premium_required', message: `Free users can create max ${FREE_TIER_LIMITS.maxGroups} groups. Upgrade to premium for unlimited groups.` })
+      res.status(403).json(TIER_ERRORS.freeMaxGroupsReached())
       return
     }
   }
@@ -388,26 +309,14 @@ router.patch('/:id/notifications', requireGroupMembership(), async (req: Request
 })
 
 // Configure auto-vote schedule (owner only)
-router.patch('/:id/auto-vote', async (req: Request, res: Response) => {
+router.patch(
+  '/:id/auto-vote',
+  requireGroupMembership({ role: 'owner' }),
+  requirePremiumFeature('auto-vote'),
+  async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['id'])
   const { schedule, durationMinutes } = req.body as { schedule: string | null; durationMinutes?: number }
-
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId, role: 'owner' })
-    .first()
-
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Only the group owner can configure auto-vote' })
-    return
-  }
-
-  // Auto-vote scheduling is a premium feature
-  const premium = await isUserPremium(userId)
-  if (!premium) {
-    res.status(403).json({ error: 'premium_required', message: 'Auto-vote scheduling requires a premium subscription' })
-    return
-  }
 
   // Validate cron expression if provided
   if (schedule !== null && schedule !== undefined) {
@@ -442,18 +351,8 @@ router.patch('/:id/auto-vote', async (req: Request, res: Response) => {
 })
 
 // Generate new invite link (owner only)
-router.post('/:id/invite', async (req: Request, res: Response) => {
-  const userId = req.userId!
+router.post('/:id/invite', requireGroupMembership({ role: 'owner' }), async (req: Request, res: Response) => {
   const groupId = String(req.params['id'])
-
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId, role: 'owner' })
-    .first()
-
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Only the group owner can generate invites' })
-    return
-  }
 
   const { token, hash } = generateInviteToken()
   const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000)
@@ -524,11 +423,11 @@ router.post('/join', async (req: Request, res: Response) => {
     const memberCount = await db('group_members').where({ group_id: group.id }).count('* as count').first()
     const currentCount = Number(memberCount?.count || 0)
     if (!ownerIsPremium && currentCount >= FREE_TIER_LIMITS.maxMembersPerGroup) {
-      res.status(403).json({ error: 'premium_required', message: `This group has reached the free member limit (${FREE_TIER_LIMITS.maxMembersPerGroup}). Group owner must upgrade to premium.` })
+      res.status(403).json(TIER_ERRORS.freeMemberLimitReached())
       return
     }
     if (ownerIsPremium && currentCount >= PREMIUM_TIER_LIMITS.maxMembersPerGroup) {
-      res.status(403).json({ error: 'member_limit', message: `This group has reached the maximum member limit (${PREMIUM_TIER_LIMITS.maxMembersPerGroup}).` })
+      res.status(403).json(TIER_ERRORS.premiumMemberLimitReached())
       return
     }
   }
@@ -647,18 +546,9 @@ router.delete('/:id/members/:userId', async (req: Request, res: Response) => {
 })
 
 // Delete group (owner only)
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requireGroupMembership({ role: 'owner' }), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['id'])
-
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId, role: 'owner' })
-    .first()
-
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Only the group owner can delete the group' })
-    return
-  }
 
   // Check for open voting sessions
   const openSession = await db('voting_sessions')
@@ -694,20 +584,10 @@ router.delete('/:id', async (req: Request, res: Response) => {
 })
 
 // Get common games for a group
-router.get('/:id/common-games', async (req: Request, res: Response) => {
+router.get('/:id/common-games', requireGroupMembership(), async (req: Request, res: Response) => {
   try {
-    const userId = req.userId!
     const groupId = String(req.params['id'])
     const filter = String(req.query['filter'] || '')
-
-    const membership = await db('group_members')
-      .where({ group_id: groupId, user_id: userId })
-      .first()
-
-    if (!membership) {
-      res.status(403).json({ error: 'forbidden', message: 'Not a member' })
-      return
-    }
 
     const group = await db('groups').where({ id: groupId }).first()
     const memberIds = await db('group_members').where({ group_id: groupId }).pluck('user_id')
@@ -741,9 +621,8 @@ router.get('/:id/common-games', async (req: Request, res: Response) => {
 })
 
 // Preview common games for a subset of members (read-only, no enrichment)
-router.post('/:id/common-games/preview', async (req: Request, res: Response) => {
+router.post('/:id/common-games/preview', requireGroupMembership(), async (req: Request, res: Response) => {
   try {
-    const userId = req.userId!
     const groupId = String(req.params['id'])
     const { memberIds, filter, filters } = req.body as { memberIds: string[]; filter?: string; filters?: { multiplayer?: boolean; coop?: boolean; free?: boolean } }
 
@@ -754,15 +633,6 @@ router.post('/:id/common-games/preview', async (req: Request, res: Response) => 
 
     if (memberIds.length > 100) {
       res.status(400).json({ error: 'validation', message: 'Cannot have more than 100 member IDs' })
-      return
-    }
-
-    const membership = await db('group_members')
-      .where({ group_id: groupId, user_id: userId })
-      .first()
-
-    if (!membership) {
-      res.status(403).json({ error: 'forbidden', message: 'Not a member' })
       return
     }
 
@@ -788,19 +658,9 @@ router.post('/:id/common-games/preview', async (req: Request, res: Response) => 
 })
 
 // Get group voting stats dashboard
-router.get('/:id/stats', async (req: Request, res: Response) => {
+router.get('/:id/stats', requireGroupMembership(), async (req: Request, res: Response) => {
   try {
-    const userId = req.userId!
     const groupId = String(req.params['id'])
-
-    const membership = await db('group_members')
-      .where({ group_id: groupId, user_id: userId })
-      .first()
-
-    if (!membership) {
-      res.status(403).json({ error: 'forbidden', message: 'Not a member' })
-      return
-    }
 
     // Total closed sessions
     const totalSessionsResult = await db('voting_sessions')
@@ -841,7 +701,9 @@ router.get('/:id/stats', async (req: Request, res: Response) => {
         .select('voting_session_games.steam_app_id')
         .count('* as totalNominations')
         .groupBy('voting_session_games.steam_app_id') as unknown as { steam_app_id: number; totalNominations: string }[]
-      nominationMap = new Map(nominations.map(n => [n.steam_app_id, Number(n.totalNominations)]))
+      nominationMap = new Map(
+        nominations.map((n) => [n.steam_app_id, Number(n.totalNominations)])
+      )
     }
 
     // Member participation: per member vote count and sessions participated
@@ -904,98 +766,45 @@ router.get('/:id/stats', async (req: Request, res: Response) => {
 })
 
 // Trigger library sync for all group members (owner only)
-router.post('/:id/sync', async (req: Request, res: Response) => {
-  const userId = req.userId!
+router.post('/:id/sync', requireGroupMembership({ role: 'owner' }), async (req: Request, res: Response) => {
   const groupId = String(req.params['id'])
-
-  const membership = await db('group_members')
-    .where({ group_id: groupId, user_id: userId, role: 'owner' })
-    .first()
-
-  if (!membership) {
-    res.status(403).json({ error: 'forbidden', message: 'Only the group owner can trigger sync' })
-    return
-  }
 
   // Import sync functions dynamically to avoid circular deps
   const { syncUserLibrary, syncEpicLibrary, syncGogLibrary } = await import('./auth.routes.js')
+  const { LibrarySyncCoordinator } = await import('../../domain/library-sync-coordinator.js')
 
-  const members = await db('group_members')
-    .join('users', 'users.id', 'group_members.user_id')
-    .where('group_members.group_id', groupId)
-    .select('users.id', 'users.steam_id')
-
-  // Get linked accounts for all members to sync all platforms
-  const memberIds = members.map((m: { id: string }) => m.id)
-  const linkedAccounts = await db('accounts')
-    .whereIn('user_id', memberIds)
-    .whereIn('provider_id', ['epic', 'gog'])
-    .where('status', 'active')
-    .select('user_id', 'provider_id')
-
-  const emitSynced = (memberId: string, gameCount: number) => {
-    const io = getIO()
-    io.to(`group:${groupId}`).emit('library:synced', {
-      groupId,
-      userId: memberId,
-      gameCount,
+  const coordinator = new LibrarySyncCoordinator()
+    .register({
+      id: 'steam',
+      linked: () => true,
+      sync: (userId, ctx) => syncUserLibrary(userId, ctx.member.steamId),
     })
-  }
-
-  // Sync in background, one at a time (rate limited)
-  for (const member of members) {
-    // Steam sync
-    syncUserLibrary(member.id, member.steam_id).then((count) => {
-      emitSynced(member.id, count)
-    }).catch(err => {
-      logger.error({ error: String(err), userId: member.id }, 'Steam sync failed for member')
+    .register({
+      id: 'epic',
+      linked: (_userId, ctx) => ctx.linkedProviderIds.has('epic'),
+      sync: (userId) => syncEpicLibrary(userId),
+    })
+    .register({
+      id: 'gog',
+      linked: (_userId, ctx) => ctx.linkedProviderIds.has('gog'),
+      sync: (userId) => syncGogLibrary(userId),
     })
 
-    // Epic sync (if linked)
-    const hasEpic = linkedAccounts.some((a: { user_id: string; provider_id: string }) => a.user_id === member.id && a.provider_id === 'epic')
-    if (hasEpic) {
-      syncEpicLibrary(member.id).then((count) => {
-        emitSynced(member.id, count)
-      }).catch(err => {
-        logger.error({ error: String(err), userId: member.id }, 'Epic sync failed for member')
-      })
-    }
-
-    // GOG sync (if linked)
-    const hasGog = linkedAccounts.some((a: { user_id: string; provider_id: string }) => a.user_id === member.id && a.provider_id === 'gog')
-    if (hasGog) {
-      syncGogLibrary(member.id).then((count) => {
-        emitSynced(member.id, count)
-      }).catch(err => {
-        logger.error({ error: String(err), userId: member.id }, 'GOG sync failed for member')
-      })
-    }
-  }
+  await coordinator.syncGroup(groupId, (memberId, gameCount) => {
+    getIO().to(`group:${groupId}`).emit('library:synced', { groupId, userId: memberId, gameCount })
+  })
 
   res.json({ ok: true, message: 'Library sync started for all members across all platforms' })
 })
 
 // Get smart game recommendations based on vote history
-router.get('/:id/recommendations', async (req: Request, res: Response) => {
+router.get(
+  '/:id/recommendations',
+  requireGroupMembership(),
+  requirePremiumFeature('recommendations'),
+  async (req: Request, res: Response) => {
   try {
-    const userId = req.userId!
     const groupId = String(req.params['id'])
-
-    const membership = await db('group_members')
-      .where({ group_id: groupId, user_id: userId })
-      .first()
-
-    if (!membership) {
-      res.status(403).json({ error: 'forbidden', message: 'Not a member' })
-      return
-    }
-
-    // Recommendations are a premium feature
-    const premium = await isUserPremium(userId)
-    if (!premium) {
-      res.status(403).json({ error: 'premium_required', message: 'Game recommendations require a premium subscription' })
-      return
-    }
 
     const group = await db('groups').where({ id: groupId }).first()
     const memberIds = await db('group_members').where({ group_id: groupId }).pluck('user_id')
@@ -1082,7 +891,7 @@ router.get('/:id/recommendations', async (req: Request, res: Response) => {
         return {
           gameName: game.gameName,
           steamAppId: game.steamAppId,
-          headerImageUrl: game.headerImageUrl || `https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/header.jpg`,
+          headerImageUrl: game.headerImageUrl || getHeaderImageUrl(game.steamAppId),
           reason,
           score,
         }

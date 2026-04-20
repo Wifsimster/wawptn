@@ -6,6 +6,23 @@ interface ApiOptions {
   discordUserId?: string
 }
 
+/**
+ * Error thrown by `backendApi` for non-2xx responses. Callers (notably the
+ * `@mention` chat handler) need to distinguish between "LLM unavailable",
+ * "premium required", "rate limit", etc. to pick the right user-facing
+ * response instead of collapsing every failure into a generic message.
+ */
+export class BackendApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string | undefined,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'BackendApiError'
+  }
+}
+
 export async function backendApi<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const { method = 'GET', body, discordUserId } = options
 
@@ -25,8 +42,12 @@ export async function backendApi<T>(path: string, options: ApiOptions = {}): Pro
   })
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }))
-    throw new Error((error as { message?: string }).message || `API error ${res.status}`)
+    const payload = (await res.json().catch(() => ({}))) as { error?: string; message?: string }
+    throw new BackendApiError(
+      res.status,
+      payload.error,
+      payload.message || res.statusText || `API error ${res.status}`,
+    )
   }
 
   return res.json() as Promise<T>

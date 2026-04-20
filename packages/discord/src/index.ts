@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, Events, REST, Routes, type Interaction, type Message } from 'discord.js'
 import { validateEnv, env } from './env.js'
-import { backendApi } from './lib/api.js'
+import { backendApi, BackendApiError } from './lib/api.js'
 import { startHttpApi } from './http/server.js'
 import { startScheduler, notifyBackOnline } from './scheduler.js'
 import { getTodayPersona, getDefaultPersona, getPersonaById, type Persona } from './personas.js'
@@ -249,20 +249,28 @@ client.on(Events.MessageCreate, async (message: Message) => {
 
     await message.reply(response.reply)
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
-
-    // Rate limited
-    if (errorMessage.includes('trop de questions') || errorMessage.includes('rate')) {
-      await message.reply('Doucement ! Laisse-moi respirer deux secondes. Réessaie dans quelques minutes.')
+    // Rate limit is the only error worth surfacing to the user — everything
+    // else (LLM disabled, premium gate, LLM provider 5xx, transient bugs)
+    // is either a server-side problem or a configuration the user can't
+    // act on from the channel. For those, stay silent instead of spamming
+    // a cryptic "j'ai perdu le fil" reply on every @mention.
+    if (error instanceof BackendApiError) {
+      if (error.status === 429 || error.code === 'rate_limited') {
+        await message.reply('Doucement ! Laisse-moi respirer deux secondes. Réessaie dans quelques minutes.')
+        return
+      }
+      // Known silent cases: 501 not_configured, 403 premium_required,
+      // 503 llm_error, 4xx validation. Log at info so ops can still see
+      // what's happening without the user seeing an error.
+      console.warn('[chat] suppressed error', {
+        status: error.status,
+        code: error.code,
+        message: error.message,
+      })
       return
     }
 
-    // LLM not configured
-    if (errorMessage.includes('not_configured') || errorMessage.includes('not enabled')) {
-      return // Silently ignore if LLM is not set up
-    }
-
-    await message.reply('Oups, j\'ai perdu le fil. Réessaie dans un instant !')
+    // Unexpected (network / Discord-side) error — log loudly, stay silent.
     console.error('[chat] Error handling message:', error)
   }
 })

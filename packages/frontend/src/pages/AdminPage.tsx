@@ -4,7 +4,7 @@ import {
   ArrowLeft, Bot, Users, BarChart3, Save, RefreshCw, ShieldCheck,
   ShieldOff, Theater, Plus, Pencil, Trash2, Lock, Search, X,
   Activity, Zap, Clock, Globe, Terminal, Megaphone, Send,
-  ChevronLeft, ChevronRight, Crown,
+  ChevronLeft, ChevronRight, Crown, Mail, CheckCircle2, AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -118,11 +118,12 @@ const EMPTY_FORM: PersonaFormData = {
   embedColor: '#5865F2',
 }
 
-type AdminTab = 'overview' | 'bot' | 'personas' | 'users' | 'notifications'
+type AdminTab = 'overview' | 'bot' | 'personas' | 'users' | 'notifications' | 'email'
 
 const TABS: { id: AdminTab; label: string; icon: typeof BarChart3 }[] = [
   { id: 'overview', label: 'Vue d\'ensemble', icon: Activity },
   { id: 'notifications', label: 'Annonces', icon: Megaphone },
+  { id: 'email', label: 'Email', icon: Mail },
   { id: 'bot', label: 'Bot Discord', icon: Bot },
   { id: 'personas', label: 'Personas', icon: Theater },
   { id: 'users', label: 'Utilisateurs', icon: Users },
@@ -643,6 +644,18 @@ export function AdminPage() {
             </motion.div>
           )}
 
+          {activeTab === 'email' && (
+            <motion.div
+              key="email"
+              variants={tabContent}
+              initial="enter"
+              animate="center"
+              exit="exit"
+            >
+              <EmailTab />
+            </motion.div>
+          )}
+
           {activeTab === 'bot' && (
             <motion.div
               key="bot"
@@ -1003,6 +1016,221 @@ function NotificationsTab() {
           </Button>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════
+   TAB: Email integration testing
+   ═══════════════════════════════════════════════════════ */
+
+interface EmailStatus {
+  configured: boolean
+  from: string
+}
+
+interface EmailTestResult {
+  ok: boolean
+  to: string
+  subject: string
+  at: string
+}
+
+function EmailTab() {
+  const [status, setStatus] = useState<EmailStatus | null>(null)
+  const [statusLoading, setStatusLoading] = useState(true)
+  const [to, setTo] = useState('')
+  const [subject, setSubject] = useState('')
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [lastResult, setLastResult] = useState<EmailTestResult | null>(null)
+
+  const loadStatus = useCallback(async () => {
+    setStatusLoading(true)
+    try {
+      const s = await api.getAdminEmailStatus()
+      setStatus(s)
+    } catch {
+      toast.error('Impossible de récupérer la configuration email')
+    } finally {
+      setStatusLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadStatus()
+  }, [loadStatus])
+
+  const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim())
+
+  async function handleSend() {
+    if (!emailLooksValid) {
+      toast.error('Adresse email invalide')
+      return
+    }
+    setSending(true)
+    try {
+      const res = await api.sendAdminTestEmail({
+        to: to.trim(),
+        subject: subject.trim() || undefined,
+        message: message.trim() || undefined,
+      })
+      setLastResult({ ok: true, to: res.to, subject: res.subject, at: new Date().toISOString() })
+      toast.success(`Email de test envoyé à ${res.to}`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erreur lors de l\'envoi'
+      setLastResult({ ok: false, to: to.trim(), subject: subject.trim() || '(défaut)', at: new Date().toISOString() })
+      toast.error(msg)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Status card */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Mail className="w-4 h-4" />
+            État de l'intégration email
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {statusLoading ? (
+            <Skeleton className="h-12" />
+          ) : status ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                {status.configured ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-success" />
+                    <span className="text-foreground">Resend configuré</span>
+                    <Badge variant="outline" className="ml-1 text-[10px] font-mono">
+                      RESEND_API_KEY
+                    </Badge>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="w-4 h-4 text-ember" />
+                    <span className="text-foreground">Resend non configuré</span>
+                    <Badge variant="outline" className="ml-1 text-[10px] font-mono text-muted-foreground">
+                      RESEND_API_KEY manquante
+                    </Badge>
+                  </>
+                )}
+              </div>
+              <div className="text-xs font-mono text-muted-foreground">
+                Expéditeur : <span className="text-foreground">{status.from}</span>
+              </div>
+              {!status.configured && (
+                <p className="text-xs text-muted-foreground">
+                  Les appels à <code className="font-mono">sendEmail()</code> dégradent en no-op tant que la clé n'est pas définie.
+                  Les tests ci-dessous échoueront avec 503.
+                </p>
+              )}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      {/* Test form */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Send className="w-4 h-4" />
+            Envoyer un email de test
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <label htmlFor="email-test-to" className="text-sm font-medium">
+              Destinataire
+            </label>
+            <Input
+              id="email-test-to"
+              type="email"
+              autoComplete="email"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              placeholder="admin@example.com"
+              maxLength={254}
+            />
+            {to && !emailLooksValid && (
+              <p className="text-xs text-destructive">Format d'adresse invalide</p>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="email-test-subject" className="text-sm font-medium">
+              Sujet (optionnel)
+            </label>
+            <Input
+              id="email-test-subject"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="WAWPTN — Test d'intégration email"
+              maxLength={200}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="email-test-message" className="text-sm font-medium">
+              Message (optionnel)
+            </label>
+            <Textarea
+              id="email-test-message"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Contenu de l'email de test…"
+              rows={4}
+              maxLength={2000}
+            />
+          </div>
+          <Button
+            onClick={handleSend}
+            disabled={!emailLooksValid || sending || (status !== null && !status.configured)}
+            className="w-full"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            {sending ? 'Envoi…' : 'Envoyer'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Last result */}
+      {lastResult && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              {lastResult.ok ? (
+                <CheckCircle2 className="w-4 h-4 text-success" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-destructive" />
+              )}
+              Dernière tentative
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm font-mono">
+            <div>
+              <span className="text-muted-foreground">Destinataire :</span>{' '}
+              <span className="text-foreground">{lastResult.to}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Sujet :</span>{' '}
+              <span className="text-foreground">{lastResult.subject}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Horodatage :</span>{' '}
+              <span className="text-foreground">{new Date(lastResult.at).toLocaleString('fr-FR')}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Statut :</span>{' '}
+              <span className={lastResult.ok ? 'text-success' : 'text-destructive'}>
+                {lastResult.ok ? 'Livré à Resend' : 'Échec'}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

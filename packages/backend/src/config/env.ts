@@ -60,6 +60,18 @@ export const env = {
   // identity endpoint returns 404 and the frontend skips rendering the
   // widget.
   KOE_IDENTITY_SECRET: process.env['KOE_IDENTITY_SECRET'] || '',
+
+  // SMTP (optional — enables transactional email like premium access
+  // notifications). When SMTP_HOST is empty the email service no-ops.
+  SMTP_HOST: process.env['SMTP_HOST'] || '',
+  SMTP_PORT: parseInt(process.env['SMTP_PORT'] || '587', 10),
+  SMTP_SECURE: (process.env['SMTP_SECURE'] || 'false').toLowerCase() === 'true',
+  SMTP_USER: process.env['SMTP_USER'] || '',
+  SMTP_PASS: process.env['SMTP_PASS'] || '',
+  SMTP_FROM: process.env['SMTP_FROM'] || 'WAWPTN <no-reply@wawptn.app>',
+  /** Public URL used to build absolute links in emails (e.g. "go to your
+   *  account"). Falls back to CORS_ORIGIN which points at the frontend. */
+  APP_PUBLIC_URL: process.env['APP_PUBLIC_URL'] || process.env['CORS_ORIGIN'] || 'http://localhost:5173',
 }
 
 export function validateEnv(): void {

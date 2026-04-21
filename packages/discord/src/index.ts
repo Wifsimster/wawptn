@@ -36,6 +36,11 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
+    // Privileged intent — required so the bot can resolve pseudos to user
+    // IDs when the LLM is asked to ping someone (issue #182). Must also be
+    // toggled ON in Discord Developer Portal → Bot → "Server Members Intent",
+    // otherwise the gateway will refuse the connection.
+    GatewayIntentBits.GuildMembers,
   ],
 })
 
@@ -85,6 +90,15 @@ client.once(Events.ClientReady, async (c) => {
   notifyBackOnline(c).catch(err => {
     console.error('[startup] Failed to send back-online notification:', err)
   })
+
+  // Prime the guild member cache in the background so the conversational
+  // handler can resolve pseudos to IDs even when the target hasn't chatted
+  // recently. Requires the GuildMembers privileged intent.
+  for (const [, guild] of c.guilds.cache) {
+    guild.members.fetch().catch(err => {
+      console.warn(`[startup] Could not prefetch members for guild ${guild.id}:`, err?.message ?? err)
+    })
+  }
 })
 
 client.on(Events.InteractionCreate, async (interaction: Interaction) => {
@@ -282,6 +296,20 @@ client.on(Events.MessageCreate, async (message: Message) => {
     }
 
     const persona = await getActivePersona()
+
+    // Best-effort: ensure the guild member cache is populated so the LLM can
+    // resolve pseudos mentioned in plain text (e.g. "ping Sparx" without a
+    // real @mention). Safe to call repeatedly — discord.js de-duplicates the
+    // underlying gateway request. Times out quickly so a slow Discord API
+    // never blocks the chat reply.
+    if (message.guild && message.guild.members.cache.size <= 1) {
+      await Promise.race([
+        message.guild.members.fetch().then(() => undefined),
+        new Promise<void>(resolve => setTimeout(resolve, 2_000)),
+      ]).catch(err => {
+        console.warn('[chat] guild member fetch failed:', err?.message ?? err)
+      })
+    }
 
     // Build a list of mentionable guild members so the LLM can ping them by
     // emitting <@id> syntax. Prioritise the author + explicitly mentioned

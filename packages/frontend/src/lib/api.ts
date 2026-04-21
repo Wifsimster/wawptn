@@ -310,12 +310,16 @@ export const api = {
   getAdminPersonas: () => request<{
     id: string; name: string; systemPromptOverlay: string;
     fridayMessages: string[]; weekdayMessages: string[]; backOnlineMessages: string[];
+    idleBanter: string[]; morningGreetings: string[]; weekendVibes: string[];
+    offTopicInjectionRate: number;
     emptyMentionReply: string; introMessage: string; embedColor: number;
     isActive: boolean; isDefault: boolean; createdAt: string; updatedAt: string;
   }[]>('/admin/personas'),
   createAdminPersona: (persona: {
     id: string; name: string; systemPromptOverlay: string;
     fridayMessages: string[]; weekdayMessages: string[]; backOnlineMessages: string[];
+    idleBanter?: string[]; morningGreetings?: string[]; weekendVibes?: string[];
+    offTopicInjectionRate?: number;
     emptyMentionReply: string; introMessage: string; embedColor: number;
   }) => request<{ ok: boolean; id: string }>('/admin/personas', {
     method: 'POST',

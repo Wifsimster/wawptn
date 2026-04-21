@@ -797,9 +797,13 @@ router.get('/personas', async (_req: Request, res: Response) => {
     fridayMessages: p.friday_messages,
     weekdayMessages: p.weekday_messages,
     backOnlineMessages: p.back_online_messages,
+    idleBanter: p.idle_banter ?? [],
+    morningGreetings: p.morning_greetings ?? [],
+    weekendVibes: p.weekend_vibes ?? [],
     emptyMentionReply: p.empty_mention_reply,
     introMessage: p.intro_message,
     embedColor: p.embed_color,
+    offTopicInjectionRate: Number(p.off_topic_injection_rate ?? 0.3),
   })))
 })
 

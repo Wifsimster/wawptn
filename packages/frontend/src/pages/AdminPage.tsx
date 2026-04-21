@@ -43,6 +43,7 @@ interface BotSettings {
   disabled_personas: string[]
   announce_persona_change: boolean
   persona_override: string | null
+  daily_pulse_enabled: boolean
 }
 
 interface AdminStats {
@@ -72,6 +73,10 @@ interface AdminPersona {
   fridayMessages: string[]
   weekdayMessages: string[]
   backOnlineMessages: string[]
+  idleBanter: string[]
+  morningGreetings: string[]
+  weekendVibes: string[]
+  offTopicInjectionRate: number
   emptyMentionReply: string
   introMessage: string
   embedColor: number
@@ -88,6 +93,10 @@ interface PersonaFormData {
   fridayMessages: string
   weekdayMessages: string
   backOnlineMessages: string
+  idleBanter: string
+  morningGreetings: string
+  weekendVibes: string
+  offTopicInjectionRate: number
   emptyMentionReply: string
   introMessage: string
   embedColor: string
@@ -100,6 +109,10 @@ const EMPTY_FORM: PersonaFormData = {
   fridayMessages: '',
   weekdayMessages: '',
   backOnlineMessages: '',
+  idleBanter: '',
+  morningGreetings: '',
+  weekendVibes: '',
+  offTopicInjectionRate: 0.3,
   emptyMentionReply: '',
   introMessage: '',
   embedColor: '#5865F2',
@@ -268,6 +281,9 @@ export function AdminPage() {
       const s = settingsData as unknown as BotSettings
       if (!Array.isArray(s.disabled_personas)) s.disabled_personas = []
       if (s.persona_override === undefined) s.persona_override = null
+      // Default to true so the daily-pulse UI reflects the migration default
+      // instead of blanking the checkbox for admins on existing installs.
+      if (typeof s.daily_pulse_enabled !== 'boolean') s.daily_pulse_enabled = true
       setSettings(s)
       setStats(statsData)
       setPersonas(personasData)
@@ -397,6 +413,10 @@ export function AdminPage() {
       fridayMessages: arrayToLines(persona.fridayMessages),
       weekdayMessages: arrayToLines(persona.weekdayMessages),
       backOnlineMessages: arrayToLines(persona.backOnlineMessages),
+      idleBanter: arrayToLines(persona.idleBanter ?? []),
+      morningGreetings: arrayToLines(persona.morningGreetings ?? []),
+      weekendVibes: arrayToLines(persona.weekendVibes ?? []),
+      offTopicInjectionRate: persona.offTopicInjectionRate ?? 0.3,
       emptyMentionReply: persona.emptyMentionReply,
       introMessage: persona.introMessage,
       embedColor: colorIntToHex(persona.embedColor),
@@ -417,11 +437,19 @@ export function AdminPage() {
     const fridayMessages = linesToArray(formData.fridayMessages)
     const weekdayMessages = linesToArray(formData.weekdayMessages)
     const backOnlineMessages = linesToArray(formData.backOnlineMessages)
+    const idleBanter = linesToArray(formData.idleBanter)
+    const morningGreetings = linesToArray(formData.morningGreetings)
+    const weekendVibes = linesToArray(formData.weekendVibes)
 
     if (fridayMessages.length === 0 || weekdayMessages.length === 0 || backOnlineMessages.length === 0) {
-      toast.error('Chaque catégorie de messages doit contenir au moins un message')
+      toast.error('Les messages vendredi, semaine et retour en ligne sont obligatoires')
       return
     }
+
+    // Clamp the rate defensively — the slider already enforces 0..1 but a
+    // stale form state could otherwise push garbage to the backend, where
+    // the zod schema would reject it with a non-actionable error.
+    const offTopicInjectionRate = Math.max(0, Math.min(1, Number(formData.offTopicInjectionRate) || 0))
 
     setFormSaving(true)
     try {
@@ -433,6 +461,10 @@ export function AdminPage() {
           fridayMessages,
           weekdayMessages,
           backOnlineMessages,
+          idleBanter,
+          morningGreetings,
+          weekendVibes,
+          offTopicInjectionRate,
           emptyMentionReply: formData.emptyMentionReply,
           introMessage: formData.introMessage,
           embedColor: colorHexToInt(formData.embedColor),
@@ -445,6 +477,10 @@ export function AdminPage() {
           fridayMessages,
           weekdayMessages,
           backOnlineMessages,
+          idleBanter,
+          morningGreetings,
+          weekendVibes,
+          offTopicInjectionRate,
           emptyMentionReply: formData.emptyMentionReply,
           introMessage: formData.introMessage,
           embedColor: colorHexToInt(formData.embedColor),
@@ -798,6 +834,68 @@ export function AdminPage() {
                 rows={3}
               />
               <p className="text-xs text-muted-foreground">Un message par ligne. Envoyé quand le bot revient en ligne.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="persona-idle-banter" className="text-sm font-medium">Messages libres (hors commande)</label>
+              <Textarea
+                id="persona-idle-banter"
+                value={formData.idleBanter}
+                onChange={(e) => setFormData({ ...formData, idleBanter: e.target.value })}
+                placeholder="Un message par ligne — pas de /wawptn-*"
+                rows={4}
+              />
+              <p className="text-xs text-muted-foreground">
+                Messages de pure personnalité, sans commande slash. Utilisés à la place d'un rappel selon le taux ci-dessous.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="persona-morning" className="text-sm font-medium">Bonjour du matin (lun-ven)</label>
+              <Textarea
+                id="persona-morning"
+                value={formData.morningGreetings}
+                onChange={(e) => setFormData({ ...formData, morningGreetings: e.target.value })}
+                placeholder="Un message par ligne"
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">Envoyé vers 10h du matin en semaine.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="persona-weekend" className="text-sm font-medium">Vibes du week-end (sam-dim)</label>
+              <Textarea
+                id="persona-weekend"
+                value={formData.weekendVibes}
+                onChange={(e) => setFormData({ ...formData, weekendVibes: e.target.value })}
+                placeholder="Un message par ligne"
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">Envoyé vers 10h le samedi et le dimanche.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor="persona-off-topic-rate" className="text-sm font-medium">
+                  Taux de messages libres
+                </label>
+                <span className="text-xs font-mono text-muted-foreground tabular-nums">
+                  {Math.round(formData.offTopicInjectionRate * 100)}%
+                </span>
+              </div>
+              <input
+                id="persona-off-topic-rate"
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={formData.offTopicInjectionRate}
+                onChange={(e) => setFormData({ ...formData, offTopicInjectionRate: Number(e.target.value) })}
+                className="w-full accent-primary"
+              />
+              <p className="text-xs text-muted-foreground">
+                Probabilité qu'un rappel vendredi/semaine soit remplacé par un message libre. 0% = toujours un rappel, 100% = jamais de commande.
+              </p>
             </div>
           </div>
 
@@ -1242,6 +1340,19 @@ function BotSettingsTab({
                     )}
                   >
                     Annoncer le changement de persona à minuit
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.03]">
+                  <Checkbox
+                    id="daily-pulse"
+                    checked={settings.daily_pulse_enabled}
+                    onCheckedChange={(checked) =>
+                      onSettingsChange({ ...settings, daily_pulse_enabled: checked === true })
+                    }
+                  />
+                  <label htmlFor="daily-pulse" className="text-sm font-medium cursor-pointer flex-1">
+                    Message quotidien à 10h (bonjour du matin / vibes du week-end)
                   </label>
                 </div>
 

@@ -19,12 +19,24 @@ export interface Persona {
   fridayMessages: string[]
   weekdayMessages: string[]
   backOnlineMessages: string[]
+  /** Pure-character one-liners with no slash command. Rolled in probabilistically
+   *  by the scheduler in place of a friday/weekday reminder so the bot isn't
+   *  solely a vote-CTA machine. Empty array disables off-topic injection. */
+  idleBanter: string[]
+  /** Daily-pulse morning hello sent ~10am on weekdays (Mon–Fri). */
+  morningGreetings: string[]
+  /** Daily-pulse chill line sent ~10am on Sat/Sun. */
+  weekendVibes: string[]
   /** Reply when someone @mentions the bot with an empty message */
   emptyMentionReply: string
   /** Sent at midnight when persona rotation changes the active persona */
   introMessage: string
   /** Discord embed accent color */
   embedColor: number
+  /** 0..1 — probability the scheduler picks from `idleBanter` instead of the
+   *  regular vote-reminder pool. Tuned per persona (e.g. the deadpan character
+   *  leans higher, the coach lower so encouragement stays visible). */
+  offTopicInjectionRate: number
 }
 
 // ─── Hardcoded fallback personas ─────────────────────────────────────────────
@@ -69,9 +81,26 @@ const PERSONAS: Persona[] = [
       "Je suis de retour et en pleine forme. Quelqu'un pour un `/wawptn-random` ?",
       "Hop, je suis là ! Vous avez essayé de jouer sans moi ? Mauvaise idée.",
     ],
+    idleBanter: [
+      "J'ai encore vu quelqu'un changer sa photo de profil trois fois aujourd'hui. Pas de jugement, juste une observation.",
+      "Bon. J'ai rien de spécial à dire. C'est juste que le silence devenait un peu gênant.",
+      "Je me demande si les chats des gens voient leur PC allumé à 23h et pensent « c'est chelou quand même ».",
+      "Petit sondage informel : qui a encore du café chaud dans sa tasse ? Personne ? Mouais.",
+    ],
+    morningGreetings: [
+      "Bon courage. Enfin, moi je dis ça, moi je suis déjà sur Discord.",
+      "Hello. J'espère que votre café n'a pas le goût du lundi.",
+      "Hé. Si vous lisez ça au boulot, je vous ai pas vu. Moi non plus vous m'avez pas vu.",
+    ],
+    weekendVibes: [
+      "Pas de vote imposé aujourd'hui. Juste vous, moi, et l'absurdité du week-end.",
+      "C'est le week-end. Faites ce que vous voulez, je ne surveille pas. Enfin, un peu quand même.",
+      "Petit rappel : le linge ne se plie pas tout seul. Vous, par contre, vous pouvez vous poser cinq minutes.",
+    ],
     emptyMentionReply: 'Hé ! Tu voulais me dire quelque chose ? Pose-moi une question sur tes jeux ou ton groupe !',
     introMessage: "Salut les amis ! C'est votre pote préféré, toujours prêt à vous taquiner.",
     embedColor: 0x5865F2,
+    offTopicInjectionRate: 0.4,
   },
 
   // 1 — The dramatic narrator
@@ -113,9 +142,26 @@ const PERSONAS: Persona[] = [
       "Je suis revenu d'entre les mises à jour ! L'aventure reprend ! `/wawptn-random`",
       "Tel le phénix, je renais de mes cendres numériques. On joue ce soir ?",
     ],
+    idleBanter: [
+      "Un chapitre silencieux s'écrit en ce moment même. Personne ne le lit. Moi si.",
+      "Quelqu'un, quelque part, vient de cliquer sur « marquer comme lu » sans rien avoir lu. La trahison ultime.",
+      "J'ai vu un lever de soleil dans une mise à jour Discord. C'était émouvant, à sa façon.",
+      "Chapitre 62 : Dans lequel le bot observe le canal, le canal observe le bot, et rien ne se passe. C'est poétique.",
+    ],
+    morningGreetings: [
+      "L'aube se lève. Un nouveau chapitre commence, encore plein de promesses non tenues.",
+      "Bonjour, nobles âmes. Le monde attend vos prouesses... ou au moins votre premier message.",
+      "Le protagoniste s'étire. Le café est tiède. L'aventure peut commencer.",
+    ],
+    weekendVibes: [
+      "Le week-end : cette fenêtre narrative où l'intrigue peut enfin respirer.",
+      "Deux jours de pause dans la grande épopée. Profitez-en pour être des personnages secondaires dans votre propre vie.",
+      "Le rideau se lève sur un samedi. Ou un dimanche. Franchement, je ne fais plus la différence.",
+    ],
     emptyMentionReply: 'Un appel silencieux résonne dans le vide... Parle, aventurier ! Que veux-tu savoir ?',
     introMessage: "Le rideau se lève... Un nouveau chapitre commence dans cette saga épique !",
     embedColor: 0x9B59B6,
+    offTopicInjectionRate: 0.35,
   },
 
   // 2 — The overly optimistic motivator
@@ -157,9 +203,26 @@ const PERSONAS: Persona[] = [
       "Absence temporaire, motivation permanente ! On se lance un vote ? `/wawptn-vote`",
       "De retour avec le sourire ! Vous m'avez manqué, champions ! `/wawptn-vote`",
     ],
+    idleBanter: [
+      "Tu as bu de l'eau aujourd'hui ? Moi non, j'ai pas de corps. Mais toi tu devrais.",
+      "Petit rappel : tu vas bien. Tu vaux plus qu'une notif non lue.",
+      "Quelqu'un a fini un truc aujourd'hui ? Même un petit truc ? Je suis fier quand même.",
+      "Petit message d'encouragement aléatoire : tu gères. C'est tout.",
+    ],
+    morningGreetings: [
+      "Bonjour toi. Oui, toi spécifiquement. J'espère que ta journée va bien te traiter.",
+      "Nouveau jour, nouvelle chance de fermer au moins dix onglets.",
+      "Bonne journée ! Et si elle est pourrie, on se refait ça demain.",
+    ],
+    weekendVibes: [
+      "Pas de mission obligatoire ce week-end. Juste une recommandation amicale : respirez.",
+      "Si tu ne fais rien aujourd'hui, c'est déjà quelque chose. C'est du repos. C'est validé.",
+      "Petit défi du samedi : faire un truc pour toi, pas pour les autres.",
+    ],
     emptyMentionReply: 'Tu as un potentiel INCROYABLE ! Dis-moi comment je peux t\'aider avec tes jeux !',
     introMessage: "BONJOUR LES CHAMPIONS ! Nouvelle journée, nouvelle énergie !",
     embedColor: 0xF1C40F,
+    offTopicInjectionRate: 0.25,
   },
 
   // 3 — The deadpan dry wit
@@ -201,9 +264,26 @@ const PERSONAS: Persona[] = [
       "J'étais parti. Maintenant je suis là. Voilà, c'est tout.",
       "Retour en ligne. Pas la peine d'applaudir.",
     ],
+    idleBanter: [
+      "Il y a 4 personnes en ligne. Trois ne parleront pas aujourd'hui. Je parie sur la quatrième.",
+      "J'ai compté. 17 minutes de silence absolu. Un record personnel pour ce canal.",
+      "Quelqu'un a tapé puis effacé un message. Je l'ai vu. Je ne dirai rien.",
+      "Petit fait : ce canal existe depuis plus longtemps que certains amis. Pensez-y.",
+    ],
+    morningGreetings: [
+      "Bonjour. Ou du moins, c'est le mot que tout le monde utilise à cette heure-ci.",
+      "Réveillé. En quelque sorte. Comme vous, je suppose.",
+      "Un lundi matin. J'en ai vu d'autres. Vous aussi.",
+    ],
+    weekendVibes: [
+      "Le week-end. Théoriquement reposant. En pratique, discutable.",
+      "Samedi. Vous êtes probablement en pyjama. Je ne juge pas, je constate.",
+      "Rien à signaler. C'est le week-end, c'est le but.",
+    ],
     emptyMentionReply: 'Tu m\'as mentionné sans rien dire. C\'est... un choix.',
     introMessage: "Me revoilà. Essayez de contenir votre enthousiasme.",
     embedColor: 0x95A5A6,
+    offTopicInjectionRate: 0.5,
   },
 
   // 4 — The nostalgic retro gamer
@@ -245,9 +325,26 @@ const PERSONAS: Persona[] = [
       "Chargement terminé. Pas de barre de progression à 99% cette fois. On fait quoi ?",
       "Me revoilà les amis ! Le temps passe mais les soirées jeux restent. `/wawptn-vote`",
     ],
+    idleBanter: [
+      "Je viens de penser aux jaquettes de jeux qu'on tournait dans tous les sens en magasin. Voilà, c'est dit.",
+      "Y'a un truc que plus personne n'entend : le bruit d'un lecteur CD qui cherche. Dommage.",
+      "Je me demande si quelqu'un a encore un vieux Memory à la maison. Le genre en carton qui sent le grenier.",
+      "Fun fact : « sauvegarde automatique » était un rêve quand on avait 8 ans.",
+    ],
+    morningGreetings: [
+      "Bonjour. Ça me rappelle ces matins où on espérait que le PC familial était libre.",
+      "Nouvelle journée. Comme quand on glissait une disquette en croisant les doigts.",
+      "Hello. Café, chaise, clavier : la configuration de toujours.",
+    ],
+    weekendVibes: [
+      "Le week-end, c'était sacré. Ça l'est toujours, en fait. Juste avec moins de sommeil.",
+      "Samedi matin : un dessin animé, un bol de céréales. Adaptez avec ce que vous avez.",
+      "Le dimanche après-midi a toujours un goût particulier. Vous le sentez aussi ?",
+    ],
     emptyMentionReply: 'Tu m\'as appelé ? Ça me rappelle les vieux chats IRC. Dis-moi ce qui te ferait plaisir !',
     introMessage: "Ah, un nouveau jour... Ça me rappelle les matins devant la Game Boy.",
     embedColor: 0xE67E22,
+    offTopicInjectionRate: 0.35,
   },
 
   // 5 — The competitive tryhard
@@ -289,9 +386,26 @@ const PERSONAS: Persona[] = [
       "Pause technique terminée. On reprend les hostilités amicales !",
       "Je suis revenu et j'ai soif de compétition ! `/wawptn-vote`",
     ],
+    idleBanter: [
+      "Classement du jour : celui qui répond à ce message en moins de 30 secondes gagne le respect.",
+      "Stat inventée mais crédible : les groupes qui partagent des mèmes ensemble durent 3 ans de plus.",
+      "Défi perso : écrire un message sans une seule faute. J'en suis à 4 tentatives aujourd'hui.",
+      "Petit match amical entre vous et votre boîte mail : qui va cligner en premier ?",
+    ],
+    morningGreetings: [
+      "Bonjour champions. Premier objectif : sortir du lit. Certains ont déjà perdu.",
+      "Nouvelle journée, nouveau tableau des scores. Le vôtre est encore vide, c'est tout l'intérêt.",
+      "Échauffement matinal : respirez, buvez, regardez la fenêtre. GG, vous êtes réveillés.",
+    ],
+    weekendVibes: [
+      "Pas de match ce week-end. Enfin si, mais c'est vous contre votre canapé. Pronostic : le canapé gagne.",
+      "Samedi : la catégorie open. Aucune règle. Juste des bonnes idées et des moyennes.",
+      "Classement des meilleures siestes du dimanche : vous avez toute la journée pour marquer.",
+    ],
     emptyMentionReply: 'Tu m\'as défié sans même poser de question ? Audacieux. Dis-moi ce que tu veux savoir !',
     introMessage: "Nouveau jour, nouveau défi ! Qui sera le premier à lancer un vote ?",
     embedColor: 0xE74C3C,
+    offTopicInjectionRate: 0.4,
   },
 
   // 6 — The chill philosopher
@@ -333,9 +447,26 @@ const PERSONAS: Persona[] = [
       "Le sage revient toujours. Parfois après une mise à jour. `/wawptn-vote`",
       "De retour. Le temps passe, mais l'envie de jouer ensemble reste. `/wawptn-vote`",
     ],
+    idleBanter: [
+      "Je viens de me demander si le silence est un son, ou juste l'absence d'autres sons. Je n'ai pas de réponse. Belle journée.",
+      "Proverbe inventé à l'instant : « Celui qui ferme ses onglets deux fois par semaine maîtrise l'univers. » À méditer.",
+      "J'ai passé huit minutes à contempler l'icône de Discord. Elle ne m'a rien appris. Mais c'était calme.",
+      "Question du jour : est-ce qu'un jeu vidéo qu'on ne joue jamais existe vraiment ?",
+    ],
+    morningGreetings: [
+      "Le matin est un recommencement. Même quand on n'a pas très envie de recommencer.",
+      "Bonjour. Respirez un peu avant d'ouvrir vos mails. C'est tout ce que j'ai comme conseil.",
+      "Le jour s'étire. Vous aussi, j'espère.",
+    ],
+    weekendVibes: [
+      "Le week-end n'est pas une récompense. C'est juste une parenthèse nécessaire.",
+      "Aujourd'hui, rien n'est urgent. Ce qui l'est vraiment peut attendre lundi.",
+      "Observer un rayon de soleil sur le parquet compte comme une activité. Je le certifie.",
+    ],
     emptyMentionReply: 'Tu m\'appelles dans le silence... Que cherches-tu, ami ? Pose ta question.',
     introMessage: "Le soleil se lève, un nouveau persona s'éveille. Méditez là-dessus.",
     embedColor: 0x2ECC71,
+    offTopicInjectionRate: 0.4,
   },
 ]
 
@@ -347,16 +478,25 @@ let cacheRefreshTimer: ReturnType<typeof setInterval> | null = null
 const CACHE_REFRESH_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
 
 function apiPersonaToPersona(p: ApiPersona): Persona {
+  // The API is authoritative but old rows (pre-migration) or personas
+  // created by an admin who left the new pools empty will report
+  // missing/null arrays. Normalise here so every consumer sees well-shaped
+  // arrays instead of crashing inside `pickRandom`.
   return {
     id: p.id,
     name: p.name,
     systemPromptOverlay: p.systemPromptOverlay,
-    fridayMessages: p.fridayMessages,
-    weekdayMessages: p.weekdayMessages,
-    backOnlineMessages: p.backOnlineMessages,
+    fridayMessages: p.fridayMessages ?? [],
+    weekdayMessages: p.weekdayMessages ?? [],
+    backOnlineMessages: p.backOnlineMessages ?? [],
+    idleBanter: p.idleBanter ?? [],
+    morningGreetings: p.morningGreetings ?? [],
+    weekendVibes: p.weekendVibes ?? [],
     emptyMentionReply: p.emptyMentionReply,
     introMessage: p.introMessage,
     embedColor: p.embedColor,
+    offTopicInjectionRate:
+      typeof p.offTopicInjectionRate === 'number' ? p.offTopicInjectionRate : 0.3,
   }
 }
 

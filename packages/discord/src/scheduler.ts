@@ -20,6 +20,7 @@ import {
 
 let currentSettings: BotSettings | null = null
 let personaAnnounceTask: ScheduledTask | null = null
+let dailyPulseTask: ScheduledTask | null = null
 
 /**
  * Per-guild reminder tasks. Before Tom #2 the scheduler registered one
@@ -147,16 +148,33 @@ async function sendPersonaAnnouncement(client: Client): Promise<void> {
   }
 }
 
-type ReminderPool = 'friday' | 'weekday' | 'backOnline'
+type ReminderPool = 'friday' | 'weekday' | 'backOnline' | 'morning' | 'weekend'
+
+function resolvePool(persona: ReturnType<typeof getPersonaForChannel>, kind: ReminderPool): string[] {
+  switch (kind) {
+    case 'friday': return persona.fridayMessages
+    case 'weekday': return persona.weekdayMessages
+    case 'backOnline': return persona.backOnlineMessages
+    case 'morning': return persona.morningGreetings
+    case 'weekend': return persona.weekendVibes
+  }
+}
 
 function selectReminderMessage(channel: LinkedChannel, kind: ReminderPool): string | null {
   const persona = getPersonaForChannel(channel)
-  const pool =
-    kind === 'friday'
-      ? persona.fridayMessages
-      : kind === 'weekday'
-        ? persona.weekdayMessages
-        : persona.backOnlineMessages
+
+  // For friday/weekday reminders, roll against `offTopicInjectionRate` so a
+  // share of scheduled messages comes from the idle-banter pool — zero slash
+  // commands, pure character. Keeps the bot feeling alive instead of having
+  // every cron fire read like the same marketing reminder.
+  if ((kind === 'friday' || kind === 'weekday') && persona.idleBanter.length > 0) {
+    const rate = Math.max(0, Math.min(1, persona.offTopicInjectionRate))
+    if (Math.random() < rate) {
+      return pickRandom(persona.idleBanter)
+    }
+  }
+
+  const pool = resolvePool(persona, kind)
   if (!Array.isArray(pool) || pool.length === 0) return null
   return pickRandom(pool)
 }
@@ -415,6 +433,36 @@ function scheduleCrons(client: Client, settings: BotSettings): void {
     personaAnnounceTask = null
     console.log('[scheduler] Persona announcement: disabled')
   }
+
+  // Daily pulse at 10:00 local time: morning greetings on weekdays,
+  // weekend vibes on Sat/Sun. Runs once a day with a per-channel jitter
+  // so 50 servers don't all emit at 10:00:00.000 sharp.
+  dailyPulseTask?.stop()
+  if (settings.daily_pulse_enabled) {
+    dailyPulseTask = cron.schedule(
+      '0 10 * * *',
+      () => {
+        const kind = resolveDailyPulseKind(timezone)
+        console.log(`[scheduler] Daily pulse (${kind}) triggered`)
+        const jitterMs = Math.floor(Math.random() * 10 * 60 * 1000)
+        setTimeout(() => void sendToLinkedChannels(client, kind), jitterMs)
+      },
+      { timezone },
+    )
+    console.log(`[scheduler] Daily pulse: 0 10 * * * (${timezone})`)
+  } else {
+    dailyPulseTask = null
+    console.log('[scheduler] Daily pulse: disabled')
+  }
+}
+
+function resolveDailyPulseKind(timezone: string): 'morning' | 'weekend' {
+  // Use Intl to get the weekday in the configured TZ so we don't pick
+  // "weekend" for a server still on Friday night vs. a server in UTC+14.
+  const weekday = new Intl.DateTimeFormat('en-US', { timeZone: timezone, weekday: 'short' })
+    .format(new Date())
+    .toLowerCase()
+  return weekday === 'sat' || weekday === 'sun' ? 'weekend' : 'morning'
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -440,7 +488,8 @@ export async function startScheduler(client: Client): Promise<void> {
         newSettings.wednesday_schedule !== currentSettings!.wednesday_schedule ||
         newSettings.schedule_timezone !== currentSettings!.schedule_timezone ||
         newSettings.announce_persona_change !== currentSettings!.announce_persona_change ||
-        newSettings.persona_rotation_enabled !== currentSettings!.persona_rotation_enabled
+        newSettings.persona_rotation_enabled !== currentSettings!.persona_rotation_enabled ||
+        newSettings.daily_pulse_enabled !== currentSettings!.daily_pulse_enabled
 
       currentSettings = newSettings
 

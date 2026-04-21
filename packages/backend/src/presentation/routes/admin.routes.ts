@@ -33,6 +33,12 @@ const CreatePersonaSchema = z.object({
   fridayMessages: z.array(z.string().min(1)).min(1),
   weekdayMessages: z.array(z.string().min(1)).min(1),
   backOnlineMessages: z.array(z.string().min(1)).min(1),
+  // New pools are optional on create — an admin can leave them empty and
+  // the persona will simply skip the off-topic injection / daily pulse.
+  idleBanter: z.array(z.string().min(1)).optional(),
+  morningGreetings: z.array(z.string().min(1)).optional(),
+  weekendVibes: z.array(z.string().min(1)).optional(),
+  offTopicInjectionRate: z.number().min(0).max(1).optional(),
   emptyMentionReply: z.string().min(1),
   introMessage: z.string().min(1),
   embedColor: z.number().int().min(0).max(0xffffff),
@@ -46,6 +52,10 @@ const UpdatePersonaSchema = z
     fridayMessages: z.array(z.string().min(1)).min(1),
     weekdayMessages: z.array(z.string().min(1)).min(1),
     backOnlineMessages: z.array(z.string().min(1)).min(1),
+    idleBanter: z.array(z.string().min(1)),
+    morningGreetings: z.array(z.string().min(1)),
+    weekendVibes: z.array(z.string().min(1)),
+    offTopicInjectionRate: z.number().min(0).max(1),
     emptyMentionReply: z.string().min(1),
     introMessage: z.string().min(1),
     embedColor: z.number().int().min(0).max(0xffffff),
@@ -96,6 +106,7 @@ router.patch('/bot-settings', async (req: Request, res: Response) => {
     'disabled_personas',
     'announce_persona_change',
     'persona_override',
+    'daily_pulse_enabled',
   ])
 
   const invalidKeys = Object.keys(updates).filter(k => !allowedKeys.has(k))
@@ -296,6 +307,10 @@ router.get('/personas', async (_req: Request, res: Response) => {
       fridayMessages: p.friday_messages,
       weekdayMessages: p.weekday_messages,
       backOnlineMessages: p.back_online_messages,
+      idleBanter: p.idle_banter ?? [],
+      morningGreetings: p.morning_greetings ?? [],
+      weekendVibes: p.weekend_vibes ?? [],
+      offTopicInjectionRate: Number(p.off_topic_injection_rate ?? 0.3),
       emptyMentionReply: p.empty_mention_reply,
       introMessage: p.intro_message,
       embedColor: p.embed_color,
@@ -318,6 +333,10 @@ router.post('/personas', validateBody(CreatePersonaSchema), async (req: Request,
     fridayMessages,
     weekdayMessages,
     backOnlineMessages,
+    idleBanter,
+    morningGreetings,
+    weekendVibes,
+    offTopicInjectionRate,
     emptyMentionReply,
     introMessage,
     embedColor,
@@ -338,6 +357,10 @@ router.post('/personas', validateBody(CreatePersonaSchema), async (req: Request,
     friday_messages: JSON.stringify(fridayMessages),
     weekday_messages: JSON.stringify(weekdayMessages),
     back_online_messages: JSON.stringify(backOnlineMessages),
+    idle_banter: JSON.stringify(idleBanter ?? []),
+    morning_greetings: JSON.stringify(morningGreetings ?? []),
+    weekend_vibes: JSON.stringify(weekendVibes ?? []),
+    off_topic_injection_rate: offTopicInjectionRate ?? 0.3,
     empty_mention_reply: emptyMentionReply,
     intro_message: introMessage,
     embed_color: embedColor,
@@ -374,6 +397,10 @@ router.patch('/personas/:id', validateBody(UpdatePersonaSchema), async (req: Req
   if (body.fridayMessages !== undefined) updates.friday_messages = JSON.stringify(body.fridayMessages)
   if (body.weekdayMessages !== undefined) updates.weekday_messages = JSON.stringify(body.weekdayMessages)
   if (body.backOnlineMessages !== undefined) updates.back_online_messages = JSON.stringify(body.backOnlineMessages)
+  if (body.idleBanter !== undefined) updates.idle_banter = JSON.stringify(body.idleBanter)
+  if (body.morningGreetings !== undefined) updates.morning_greetings = JSON.stringify(body.morningGreetings)
+  if (body.weekendVibes !== undefined) updates.weekend_vibes = JSON.stringify(body.weekendVibes)
+  if (body.offTopicInjectionRate !== undefined) updates.off_topic_injection_rate = body.offTopicInjectionRate
   if (body.emptyMentionReply !== undefined) updates.empty_mention_reply = body.emptyMentionReply
   if (body.introMessage !== undefined) updates.intro_message = body.introMessage
   if (body.embedColor !== undefined) updates.embed_color = body.embedColor

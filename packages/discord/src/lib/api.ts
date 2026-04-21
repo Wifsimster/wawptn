@@ -122,6 +122,8 @@ export interface BotSettings {
   disabled_personas: string[]
   announce_persona_change: boolean
   persona_override: string | null
+  /** Toggles the 10am daily-pulse cron (morning greetings + weekend vibes). */
+  daily_pulse_enabled: boolean
 }
 
 const DEFAULT_SETTINGS: BotSettings = {
@@ -132,6 +134,7 @@ const DEFAULT_SETTINGS: BotSettings = {
   disabled_personas: [],
   announce_persona_change: false,
   persona_override: null,
+  daily_pulse_enabled: true,
 }
 
 export async function getBotSettings(): Promise<BotSettings> {
@@ -151,9 +154,15 @@ export interface ApiPersona {
   fridayMessages: string[]
   weekdayMessages: string[]
   backOnlineMessages: string[]
+  /** Pure-character lines with no slash command. May be missing on
+   *  personas saved before the pool migration — normalise to [] in callers. */
+  idleBanter?: string[]
+  morningGreetings?: string[]
+  weekendVibes?: string[]
   emptyMentionReply: string
   introMessage: string
   embedColor: number
+  offTopicInjectionRate?: number
 }
 
 export async function getPersonas(): Promise<ApiPersona[]> {

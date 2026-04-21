@@ -301,6 +301,15 @@ export const api = {
       body: JSON.stringify({ isPremium }),
     }),
 
+  // Email integration testing — admins only
+  getAdminEmailStatus: () =>
+    request<{ configured: boolean; from: string }>('/admin/email/status'),
+  sendAdminTestEmail: (input: { to: string; subject?: string; message?: string }) =>
+    request<{ ok: true; to: string; subject: string }>('/admin/email/test', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
   // Subscription
   getSubscription: () => request<{ tier: 'free' | 'premium'; status: 'active' | 'past_due' | 'canceled' | 'inactive'; currentPeriodEnd: string | null }>('/subscription/me'),
   createCheckout: () => request<{ url: string }>('/subscription/checkout', { method: 'POST' }),

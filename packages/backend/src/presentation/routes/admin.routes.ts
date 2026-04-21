@@ -2,10 +2,12 @@ import { Router, type Request, type Response } from 'express'
 import { z } from 'zod'
 import { db } from '../../infrastructure/database/connection.js'
 import { authLogger } from '../../infrastructure/logger/logger.js'
+import { env } from '../../config/env.js'
 import { invalidatePremiumCache } from '../../domain/subscription-service.js'
 import { recordAdminAction } from '../../domain/admin-audit-log.js'
 import { invalidateAllUserSessions } from '../../domain/auth-service.js'
 import { notifyPremiumChange } from '../../infrastructure/notifications/premium-notifications.js'
+import { sendEmail } from '../../infrastructure/email/email-service.js'
 import { getHealth as getSteamHealth } from '../../infrastructure/steam/steam-client.js'
 import { getHealth as getEpicHealth } from '../../infrastructure/epic/epic-client.js'
 import { getHealth as getGogHealth } from '../../infrastructure/gog/gog-client.js'
@@ -20,6 +22,12 @@ const ToggleAdminSchema = z.object({
 
 const TogglePremiumSchema = z.object({
   isPremium: z.boolean(),
+})
+
+const TestEmailSchema = z.object({
+  to: z.string().trim().email("Adresse email invalide").max(254),
+  subject: z.string().trim().min(1, 'Sujet requis').max(200).optional(),
+  message: z.string().trim().min(1, 'Message requis').max(2000).optional(),
 })
 
 const CreatePersonaSchema = z.object({
@@ -574,5 +582,75 @@ router.post('/games/dedupe', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'internal', message: 'Failed to run game dedupe pass' })
   }
 })
+
+// ─── Email integration test ──────────────────────────────────────────────────
+// Lets an admin verify the Resend integration end-to-end (config + delivery)
+// without having to trigger a real transactional flow. Useful after rotating
+// RESEND_API_KEY or switching EMAIL_FROM domain.
+
+const PLACEHOLDER_EMAIL_SUFFIX = '@steam.wawptn.app'
+
+router.get('/email/status', (_req: Request, res: Response) => {
+  res.json({
+    configured: Boolean(env.RESEND_API_KEY),
+    from: env.EMAIL_FROM,
+  })
+})
+
+router.post('/email/test', validateBody(TestEmailSchema), async (req: Request, res: Response) => {
+  const { to, subject, message } = req.body as z.infer<typeof TestEmailSchema>
+
+  if (!env.RESEND_API_KEY) {
+    res.status(503).json({
+      error: 'email_not_configured',
+      message: "RESEND_API_KEY n'est pas configuré — aucun email ne peut être envoyé",
+    })
+    return
+  }
+
+  if (to.toLowerCase().endsWith(PLACEHOLDER_EMAIL_SUFFIX)) {
+    res.status(400).json({
+      error: 'placeholder_recipient',
+      message: 'Les adresses Steam placeholder ne reçoivent pas d\'email',
+    })
+    return
+  }
+
+  const finalSubject = subject ?? 'WAWPTN — Test d\'intégration email'
+  const finalMessage = message ?? 'Ceci est un email de test envoyé depuis le panneau d\'administration WAWPTN.'
+
+  const delivered = await sendEmail({
+    to,
+    subject: finalSubject,
+    text: finalMessage,
+    html: `<p>${escapeHtml(finalMessage)}</p><hr /><p style="color:#888;font-size:12px">WAWPTN — email de test administrateur</p>`,
+  })
+
+  await recordAdminAction({
+    req,
+    action: 'email.test',
+    metadata: { to, subject: finalSubject, delivered },
+  })
+
+  if (!delivered) {
+    res.status(502).json({
+      error: 'email_delivery_failed',
+      message: 'Resend a rejeté l\'email — vérifiez la clé API et le domaine expéditeur',
+    })
+    return
+  }
+
+  authLogger.info({ userId: req.userId, to }, 'admin sent test email')
+  res.json({ ok: true, to, subject: finalSubject })
+})
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
 
 export { router as adminRoutes }

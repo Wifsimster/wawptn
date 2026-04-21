@@ -71,6 +71,8 @@ export function NotificationBell() {
       case 'vote_opened': return '🗳️'
       case 'vote_closed': return '🏆'
       case 'admin_broadcast': return '📢'
+      case 'premium_granted': return '👑'
+      case 'premium_revoked': return '🔒'
       default: return '🔔'
     }
   }

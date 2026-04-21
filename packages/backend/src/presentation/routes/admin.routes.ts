@@ -5,6 +5,7 @@ import { authLogger } from '../../infrastructure/logger/logger.js'
 import { invalidatePremiumCache } from '../../domain/subscription-service.js'
 import { recordAdminAction } from '../../domain/admin-audit-log.js'
 import { invalidateAllUserSessions } from '../../domain/auth-service.js'
+import { notifyPremiumChange } from '../../infrastructure/notifications/premium-notifications.js'
 import { getHealth as getSteamHealth } from '../../infrastructure/steam/steam-client.js'
 import { getHealth as getEpicHealth } from '../../infrastructure/epic/epic-client.js'
 import { getHealth as getGogHealth } from '../../infrastructure/gog/gog-client.js'
@@ -265,6 +266,7 @@ router.patch('/users/:id/premium', validateBody(TogglePremiumSchema), async (req
     return
   }
 
+  const wasPremium = !!target.admin_granted_premium
   await db('users').where({ id: targetId }).update({ admin_granted_premium: isPremium })
   invalidatePremiumCache(targetId)
 
@@ -282,11 +284,26 @@ router.patch('/users/:id/premium', validateBody(TogglePremiumSchema), async (req
     action: isPremium ? 'user.premium.grant' : 'user.premium.revoke',
     targetUserId: targetId,
     metadata: {
-      previousAdminGrantedPremium: !!target.admin_granted_premium,
+      previousAdminGrantedPremium: wasPremium,
       newAdminGrantedPremium: isPremium,
       invalidatedSessions,
     },
   })
+
+  // Notify the target (in-app + email) only when the flag actually flipped,
+  // so repeated clicks on the same state don't spam the user.
+  if (wasPremium !== isPremium) {
+    notifyPremiumChange({
+      targetUserId: targetId,
+      granted: isPremium,
+      actorUserId: req.userId,
+    }).catch((error) => {
+      authLogger.warn(
+        { error: String(error), targetId, isPremium },
+        'premium change notification failed',
+      )
+    })
+  }
 
   res.json({ ok: true })
 })

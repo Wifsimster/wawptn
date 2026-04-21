@@ -1,4 +1,4 @@
-import nodemailer, { type Transporter } from 'nodemailer'
+import { Resend } from 'resend'
 import { env } from '../../config/env.js'
 import { logger } from '../logger/logger.js'
 
@@ -8,21 +8,13 @@ const emailLogger = logger.child({ module: 'email' })
  *  never actually registered their address, so we must not attempt delivery. */
 const PLACEHOLDER_EMAIL_SUFFIX = '@steam.wawptn.app'
 
-let transporter: Transporter | null = null
+let client: Resend | null = null
 
-function getTransporter(): Transporter | null {
-  if (!env.SMTP_HOST) return null
-  if (transporter) return transporter
-
-  transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT,
-    secure: env.SMTP_SECURE,
-    auth: env.SMTP_USER
-      ? { user: env.SMTP_USER, pass: env.SMTP_PASS }
-      : undefined,
-  })
-  return transporter
+function getClient(): Resend | null {
+  if (!env.RESEND_API_KEY) return null
+  if (client) return client
+  client = new Resend(env.RESEND_API_KEY)
+  return client
 }
 
 export interface SendEmailParams {
@@ -33,9 +25,10 @@ export interface SendEmailParams {
 }
 
 /**
- * Send a transactional email. No-ops (logs a warning) when SMTP is not
- * configured or the recipient is a placeholder Steam-derived address —
- * so development and Steam-only users degrade gracefully instead of erroring.
+ * Send a transactional email through Resend. No-ops (logs a warning) when
+ * RESEND_API_KEY is not configured or the recipient is a placeholder
+ * Steam-derived address — so development and Steam-only users degrade
+ * gracefully instead of erroring.
  */
 export async function sendEmail(params: SendEmailParams): Promise<boolean> {
   const { to, subject, text, html } = params
@@ -45,24 +38,25 @@ export async function sendEmail(params: SendEmailParams): Promise<boolean> {
     return false
   }
 
-  const t = getTransporter()
-  if (!t) {
-    emailLogger.warn({ to, subject }, 'SMTP not configured — email not sent')
+  const resend = getClient()
+  if (!resend) {
+    emailLogger.warn({ to, subject }, 'Resend not configured — email not sent')
     return false
   }
 
-  try {
-    await t.sendMail({
-      from: env.SMTP_FROM,
-      to,
-      subject,
-      text,
-      ...(html ? { html } : {}),
-    })
-    emailLogger.info({ to, subject }, 'email sent')
-    return true
-  } catch (error) {
-    emailLogger.error({ error: String(error), to, subject }, 'failed to send email')
+  const { data, error } = await resend.emails.send({
+    from: env.EMAIL_FROM,
+    to,
+    subject,
+    text,
+    ...(html ? { html } : {}),
+  })
+
+  if (error) {
+    emailLogger.error({ error: String(error), to, subject }, 'Resend rejected email')
     return false
   }
+
+  emailLogger.info({ to, subject, messageId: data?.id }, 'email sent')
+  return true
 }

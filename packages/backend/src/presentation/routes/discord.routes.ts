@@ -666,15 +666,33 @@ router.post('/chat', async (req: Request, res: Response) => {
   }
 
   const discordUserId = req.headers['x-discord-user-id'] as string | undefined
-  const { channelId, message, personaVoice } = req.body as {
+  const { channelId, message, personaVoice, guildMembers } = req.body as {
     channelId?: string
     message?: string
     personaVoice?: string
+    guildMembers?: Array<{ id?: unknown; displayName?: unknown }>
   }
 
   if (!message || message.trim().length === 0) {
     res.status(400).json({ error: 'validation', message: 'message is required' })
     return
+  }
+
+  // Normalise + validate the mentionable member list sent by the bot. Only
+  // numeric Discord snowflakes are accepted to prevent the LLM from being
+  // primed with fabricated IDs (and to make the sanitizer below safe).
+  const mentionableMembers: Array<{ id: string; displayName: string }> = []
+  const allowedMentionIds = new Set<string>()
+  if (Array.isArray(guildMembers)) {
+    for (const m of guildMembers) {
+      const id = typeof m?.id === 'string' ? m.id : null
+      const displayName = typeof m?.displayName === 'string' ? m.displayName.trim() : ''
+      if (!id || !/^\d{5,25}$/.test(id) || !displayName) continue
+      if (allowedMentionIds.has(id)) continue
+      allowedMentionIds.add(id)
+      mentionableMembers.push({ id, displayName })
+      if (mentionableMembers.length >= 25) break
+    }
   }
 
   // Rate limiting
@@ -694,7 +712,7 @@ router.post('/chat', async (req: Request, res: Response) => {
   }
 
   // Build context from the channel-linked group
-  const context: ChatContext = { personaVoice }
+  const context: ChatContext = { personaVoice, mentionableMembers }
 
   // Resolve user name
   if (req.userId) {
@@ -765,10 +783,17 @@ router.post('/chat', async (req: Request, res: Response) => {
   try {
     const reply = await generateChatResponse(message.slice(0, 1000), context)
 
-    // Sanitize: strip @everyone, @here, and role mentions
+    // Sanitize in three passes:
+    //  1. Neutralise @everyone and @here.
+    //  2. Strip role mentions <@&id> — the bot must never ping roles.
+    //  3. For user mentions <@id> / <@!id>, keep only IDs the bot explicitly
+    //     shipped as mentionable. Protects against the LLM hallucinating a
+    //     snowflake or being prompt-injected into pinging an arbitrary user.
     const sanitized = reply
       .replace(/@everyone/g, '@\u200Beveryone')
       .replace(/@here/g, '@\u200Bhere')
+      .replace(/<@&\d+>/g, '')
+      .replace(/<@!?(\d+)>/g, (match, id: string) => (allowedMentionIds.has(id) ? match : ''))
 
     res.json({ reply: sanitized })
   } catch (error) {

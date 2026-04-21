@@ -205,6 +205,51 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
 const channelCooldowns = new Map<string, number>()
 const COOLDOWN_MS = 5_000
 
+// Upper bound on the number of mentionable members shipped to the LLM per
+// message. 25 is plenty for a typical friend group and keeps the prompt
+// from ballooning on large Discord servers.
+const MAX_MENTIONABLE_MEMBERS = 25
+
+interface MentionableMember {
+  id: string
+  displayName: string
+}
+
+function collectMentionableMembers(message: Message): MentionableMember[] {
+  const out = new Map<string, MentionableMember>()
+
+  const add = (id: string, displayName: string | null | undefined) => {
+    if (!id || out.has(id)) return
+    if (out.size >= MAX_MENTIONABLE_MEMBERS) return
+    const name = (displayName ?? '').trim()
+    if (!name) return
+    out.set(id, { id, displayName: name })
+  }
+
+  // 1. The author — the LLM often needs to reply to them by name.
+  const authorMember = message.member
+  add(message.author.id, authorMember?.displayName ?? message.author.username)
+
+  // 2. Users explicitly mentioned in the message (Jarhx in "ping Jarhx").
+  for (const [userId, user] of message.mentions.users) {
+    if (user.bot) continue
+    const guildMember = message.guild?.members.cache.get(userId)
+    add(userId, guildMember?.displayName ?? user.username)
+  }
+
+  // 3. Fill remaining slots from the guild member cache so the LLM can
+  // resolve names that weren't explicitly @mentioned ("propose à Jarhx").
+  if (message.guild) {
+    for (const [, member] of message.guild.members.cache) {
+      if (out.size >= MAX_MENTIONABLE_MEMBERS) break
+      if (member.user.bot) continue
+      add(member.id, member.displayName)
+    }
+  }
+
+  return Array.from(out.values())
+}
+
 client.on(Events.MessageCreate, async (message: Message) => {
   // Ignore bot messages
   if (message.author.bot) return
@@ -237,6 +282,13 @@ client.on(Events.MessageCreate, async (message: Message) => {
     }
 
     const persona = await getActivePersona()
+
+    // Build a list of mentionable guild members so the LLM can ping them by
+    // emitting <@id> syntax. Prioritise the author + explicitly mentioned
+    // users; fill the rest from the cached member list. Capped to keep the
+    // request payload small and to stay within the LLM context window.
+    const guildMembers = collectMentionableMembers(message)
+
     const response = await backendApi<{ reply: string }>('/api/discord/chat', {
       method: 'POST',
       discordUserId: message.author.id,
@@ -244,10 +296,21 @@ client.on(Events.MessageCreate, async (message: Message) => {
         channelId: message.channelId,
         message: cleanContent,
         personaVoice: persona.systemPromptOverlay,
+        guildMembers,
       },
     })
 
-    await message.reply(response.reply)
+    await message.reply({
+      content: response.reply,
+      // Restrict parsing to user mentions the bot is explicitly authorised
+      // to ping — the backend already ensures only known member IDs are
+      // emitted, but this is a defence-in-depth against @everyone/@here
+      // and role mentions that might slip through.
+      allowedMentions: {
+        parse: ['users'],
+        repliedUser: true,
+      },
+    })
   } catch (error) {
     // Rate limit is the only error worth surfacing to the user — everything
     // else (LLM disabled, premium gate, LLM provider 5xx, transient bugs)

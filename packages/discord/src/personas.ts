@@ -29,7 +29,7 @@ export interface Persona {
   weekendVibes: string[]
   /** Reply when someone @mentions the bot with an empty message */
   emptyMentionReply: string
-  /** Sent at midnight when persona rotation changes the active persona */
+  /** Sent at 07:00 local time to announce the day's active persona */
   introMessage: string
   /** Discord embed accent color */
   embedColor: number

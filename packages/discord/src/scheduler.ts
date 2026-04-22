@@ -120,7 +120,7 @@ async function sendPersonaAnnouncement(client: Client): Promise<void> {
     }
 
     // Each linked channel announces *its own group's* persona. With 50
-    // groups this means 50 distinct intro messages at midnight — the bot
+    // groups this means 50 distinct intro messages each morning — the bot
     // no longer broadcasts a single global persona to every server.
     for (const channel of channels) {
       try {
@@ -416,19 +416,22 @@ function scheduleCrons(client: Client, settings: BotSettings): void {
     console.error('[scheduler] rebuildGuildCrons failed:', err)
   })
 
-  // Persona change announcement at midnight (global, not per-guild).
+  // Persona change announcement at 07:00 local time (global, not per-guild).
+  // The persona itself still rotates at midnight (date-based hash), but we
+  // wait until morning to announce it so the message lands when people are
+  // awake instead of waking them up or getting buried overnight.
   personaAnnounceTask?.stop()
   const timezone = settings.schedule_timezone || 'Europe/Paris'
   if (settings.announce_persona_change && settings.persona_rotation_enabled) {
     personaAnnounceTask = cron.schedule(
-      '0 0 * * *',
+      '0 7 * * *',
       () => {
-        console.log('[scheduler] Midnight persona announcement triggered')
+        console.log('[scheduler] 07:00 persona announcement triggered')
         void sendPersonaAnnouncement(client)
       },
       { timezone },
     )
-    console.log(`[scheduler] Persona announcement: 0 0 * * * (${timezone})`)
+    console.log(`[scheduler] Persona announcement: 0 7 * * * (${timezone})`)
   } else {
     personaAnnounceTask = null
     console.log('[scheduler] Persona announcement: disabled')

@@ -184,6 +184,16 @@ jobs:
           echo "minor=$MINOR" >> $GITHUB_OUTPUT
           echo "full=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Capture build metadata
+        id: meta
+        # `github.event.repository.updated_at` used to feed BUILD_DATE but
+        # that's when the repo metadata last changed, not when this image
+        # was built. Emit the real build timestamp + short SHA here so the
+        # image honestly reflects its provenance.
+        run: |
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+          echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -194,9 +204,10 @@ jobs:
             ghcr.io/wifsimster/wawptn:v${{ steps.version_parts.outputs.full }}
             ghcr.io/wifsimster/wawptn:${{ steps.version_parts.outputs.minor }}
             ghcr.io/wifsimster/wawptn:${{ steps.version_parts.outputs.major }}
+            ghcr.io/wifsimster/wawptn:sha-${{ steps.meta.outputs.short_sha }}
           build-args: |
             VERSION=${{ steps.version.outputs.new_version }}
-            BUILD_DATE=${{ github.event.repository.updated_at }}
+            BUILD_DATE=${{ steps.meta.outputs.build_date }}
             VCS_REF=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max,ignore-error=true
@@ -206,9 +217,14 @@ jobs:
       - name: Push changes
         env:
           HUSKY: "0"
+        # No `--force` on the tag — a pre-existing `v<ver>` tag (manual cut,
+        # aborted earlier run) should fail loudly so a human can decide
+        # whether to keep the registry image or retag. The image itself is
+        # already on GHCR with the `sha-<sha>` tag either way, so the
+        # registry is still auditable against git even if this push fails.
         run: |
           git push origin main
-          git push origin "v${{ steps.version.outputs.new_version }}" --force
+          git push origin "v${{ steps.version.outputs.new_version }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

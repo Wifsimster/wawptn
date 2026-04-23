@@ -10,7 +10,7 @@ export function NotFoundPage() {
   const navigate = useNavigate()
 
   return (
-    <main id="main-content" className="min-h-screen flex flex-col items-center justify-center px-4">
+    <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-4">
       <SearchX className="w-12 h-12 text-muted-foreground mb-4" aria-hidden="true" />
       <h1 className="text-2xl font-bold mb-2">{t('notFound.title')}</h1>
       <p className="text-muted-foreground mb-6">{t('notFound.description')}</p>

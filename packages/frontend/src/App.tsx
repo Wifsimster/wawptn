@@ -73,7 +73,7 @@ function App() {
   if (loading) {
     return (
       <div
-        className="min-h-screen flex flex-col items-center justify-center gap-4"
+        className="min-h-dvh flex flex-col items-center justify-center gap-4"
         role="status"
         aria-busy="true"
         aria-live="polite"

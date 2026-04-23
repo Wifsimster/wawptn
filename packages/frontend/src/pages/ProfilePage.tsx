@@ -331,7 +331,7 @@ export function ProfilePage() {
   /* ── Loading skeleton ── */
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-dvh flex flex-col">
         <AppHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
             <ArrowLeft className="h-5 w-5" />
@@ -362,7 +362,7 @@ export function ProfilePage() {
   const otherGames = profile.topGames?.slice(1)
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       <AppHeader>
         <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
           <ArrowLeft className="h-5 w-5" />

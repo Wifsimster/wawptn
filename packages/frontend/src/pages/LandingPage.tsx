@@ -55,7 +55,7 @@ export function LandingPage() {
   useDocumentTitle(t('landing.headlineLine2'))
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden">
+    <div className="min-h-dvh flex flex-col overflow-x-hidden">
       <main id="main-content">
       {/* ═══ HERO ═══ */}
       <section className="relative min-h-[100dvh] flex flex-col items-center justify-center px-4 py-24">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Gamepad2, Loader2, Users, Trophy } from 'lucide-react'
+import { AlertTriangle, Copy, Gamepad2, Loader2, Trophy, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { motion, type Variants } from 'framer-motion'
@@ -10,6 +10,7 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+import { detectMobileOS, isInAppBrowser } from '@/lib/in-app-browser'
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 16 },
@@ -34,6 +35,12 @@ export function JoinPage() {
   const [error, setError] = useState<string | null>(null)
   const [preview, setPreview] = useState<InvitePreview | null>(null)
   const [previewLoading, setPreviewLoading] = useState(true)
+  // Users who tap "Try anyway" after the warning fall through to the normal
+  // Steam button. Most of the time the login still fails in the webview,
+  // but we owe them the escape hatch rather than hard-locking the flow.
+  const [overrideInAppBrowser, setOverrideInAppBrowser] = useState(false)
+  const inAppBrowser = typeof navigator !== 'undefined' && isInAppBrowser()
+  const mobileOS = typeof navigator !== 'undefined' ? detectMobileOS() : 'other'
   const joining = !!user && !!token && !error
 
   // Fetch invite preview (public, no auth needed)
@@ -76,7 +83,7 @@ export function JoinPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4">
+      <div className="min-h-dvh flex flex-col items-center justify-center px-4">
         <motion.div
           className="flex flex-col items-center w-full max-w-md"
           variants={stagger}
@@ -186,11 +193,58 @@ export function JoinPage() {
             </motion.p>
           )}
 
-          <motion.div variants={fadeUp}>
-            <Button variant="steam" size="lg" asChild>
-              <a href={`/api/auth/steam/login?returnTo=/join/${token}`}>{t('login.signIn')}</a>
-            </Button>
-          </motion.div>
+          {inAppBrowser && !overrideInAppBrowser ? (
+            <motion.div variants={fadeUp} className="w-full">
+              <Card className="p-4 mb-4 border-amber-500/40 bg-amber-500/5">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className="font-semibold mb-1">{t('join.inAppBrowserTitle')}</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t('join.inAppBrowserBody')}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {mobileOS === 'ios'
+                        ? t('join.inAppBrowserIos')
+                        : mobileOS === 'android'
+                          ? t('join.inAppBrowserAndroid')
+                          : null}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+              <div className="flex flex-col gap-2 w-full">
+                <Button
+                  size="lg"
+                  className="w-full"
+                  onClick={() => {
+                    const url = window.location.href
+                    // Clipboard API isn't available on every in-app webview.
+                    // When it isn't, fall back to a visible toast with the
+                    // URL so the user can long-press and copy manually.
+                    navigator.clipboard
+                      ?.writeText(url)
+                      .then(() => toast.success(t('join.copyLinkSuccess')))
+                      .catch(() => toast.info(url))
+                  }}
+                >
+                  <Copy className="w-4 h-4 mr-2" aria-hidden="true" />
+                  {t('join.copyLink')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setOverrideInAppBrowser(true)}
+                >
+                  {t('join.openAnyway')}
+                </Button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div variants={fadeUp}>
+              <Button variant="steam" size="lg" asChild>
+                <a href={`/api/auth/steam/login?returnTo=/join/${token}`}>{t('login.signIn')}</a>
+              </Button>
+            </motion.div>
+          )}
         </motion.div>
       </div>
     )
@@ -198,7 +252,7 @@ export function JoinPage() {
 
   if (joining) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
+      <div className="min-h-dvh flex flex-col items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground">{t('join.connecting')}</p>
       </div>
@@ -207,7 +261,7 @@ export function JoinPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4">
+      <div className="min-h-dvh flex flex-col items-center justify-center px-4">
         <h1 className="text-2xl font-bold mb-2 text-destructive">{t('join.failed')}</h1>
         <p className="text-muted-foreground mb-6">{error}</p>
         <Button onClick={() => navigate('/')}>{t('join.goToGroups')}</Button>

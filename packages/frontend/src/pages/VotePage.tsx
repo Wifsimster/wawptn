@@ -265,7 +265,7 @@ export function VotePage() {
   // No active session
   if (noSession) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-dvh flex flex-col">
         <AppHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(`/groups/${id}`)} aria-label={t('group.back')}>
             <ArrowLeft className="w-5 h-5" />
@@ -314,7 +314,7 @@ export function VotePage() {
     const isScheduledSession = scheduledDate && scheduledDate.getTime() > Date.now()
 
     return (
-      <main id="main-content" className="min-h-screen flex flex-col items-center justify-center px-3 sm:px-4 py-4">
+      <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-3 sm:px-4 py-4">
         <Check className="w-16 h-16 text-success mb-4" aria-hidden="true" />
         <h1 className="text-2xl font-heading font-bold mb-2">{t('vote.submitted')}</h1>
 
@@ -393,7 +393,7 @@ export function VotePage() {
   // Non-participant view
   if (!isParticipant) {
     return (
-      <main id="main-content" className="min-h-screen flex flex-col items-center justify-center p-4">
+      <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center p-4">
         <Vote className="w-16 h-16 text-muted-foreground mb-4" aria-hidden="true" />
         <h1 className="text-2xl font-heading font-bold mb-2">{t('vote.sessionInProgress')}</h1>
         <p className="text-muted-foreground mb-6">
@@ -411,7 +411,7 @@ export function VotePage() {
 
   // Game selection interface
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       <AppHeader>
         <Button variant="ghost" size="icon" onClick={() => navigate(`/groups/${id}`)} aria-label={t('group.back')}>
           <ArrowLeft className="w-5 h-5" />
@@ -640,7 +640,7 @@ function ResultScreen({
   // the only meaningful forward motion.
   if (!hasWinner) {
     return (
-      <main id="main-content" className="min-h-screen flex flex-col items-center justify-center p-4">
+      <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center p-4">
         <motion.div
           initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -733,7 +733,7 @@ function ResultScreen({
     : t('vote.consensusPercent', { percent: displayPercent })
 
   return (
-    <main id="main-content" className="min-h-screen flex flex-col items-center justify-center p-4">
+    <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center p-4">
       <AnimatePresence>
         <motion.div
           initial="hidden"

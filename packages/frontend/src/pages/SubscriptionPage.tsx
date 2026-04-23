@@ -56,7 +56,7 @@ export function SubscriptionPage() {
   const isPremium = tier === 'premium' && (status === 'active' || status === 'canceled')
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-dvh flex flex-col bg-background">
       <AppHeader />
       <main id="main-content" className="max-w-2xl mx-auto px-4 py-8">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-4">

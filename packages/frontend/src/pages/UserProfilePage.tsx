@@ -57,7 +57,7 @@ export function UserProfilePage() {
 
   if (isLoading && !profile) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-dvh flex flex-col">
         <AppHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
@@ -76,7 +76,7 @@ export function UserProfilePage() {
 
   if (error || !profile) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-dvh flex flex-col">
         <AppHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
@@ -103,7 +103,7 @@ export function UserProfilePage() {
   const topCommon = profile.commonGamesWithViewer.slice(0, 3)
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       <AppHeader>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-5 w-5" />

@@ -239,7 +239,10 @@ export function GroupsPage() {
         )}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
           <h1 className="text-2xl font-heading font-bold tracking-[-0.03em]">{t('groups.title')}</h1>
-          <div className="flex gap-2">
+          {/* Desktop-only top-right actions. On mobile these are duplicated
+              into a thumb-zone bottom bar (below) so the primary CTAs
+              aren't stranded in the top-right unreachable zone. */}
+          <div className="hidden sm:flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowJoin(true)}>
               <LogIn className="w-4 h-4" />
               {t('groups.join')}
@@ -545,6 +548,31 @@ export function GroupsPage() {
             ))}
           </motion.div>
         )}
+
+        {/* Mobile: fixed thumb-zone action bar. Mirrors the pattern used on
+            GroupPage (line ~579) so the two list/detail entry points behave
+            the same on phones. Desktop keeps the top-right buttons above. */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="flex gap-2 max-w-2xl mx-auto">
+            <Button
+              variant="secondary"
+              onClick={() => setShowJoin(true)}
+              className="flex-1 h-12 gap-2"
+            >
+              <LogIn className="w-4 h-4" />
+              {t('groups.join')}
+            </Button>
+            <Button
+              onClick={() => setShowCreate(true)}
+              className="flex-1 h-12 gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              {t('groups.create')}
+            </Button>
+          </div>
+        </div>
+        {/* Spacer so the last group card isn't covered by the bottom bar. */}
+        <div className="h-20 sm:hidden" />
       </main>
       <AppFooter />
     </div>

@@ -243,6 +243,24 @@
   }
 }
 
+/* ── Mobile GPU relief ──
+   Phones and small tablets can't cheaply composite 160-220px blur filters;
+   the LandingPage hero stacks four of them plus an animated 90px fog layer,
+   which jank-locks mid-tier Androids. We keep the full visual on desktop
+   and on devices that opted into reduced motion we already neutered above;
+   this block handles everyone else on a touch screen up to tablet-portrait
+   width — the cohort most likely to be running on weak GPUs. */
+@media (pointer: coarse) and (max-width: 768px) {
+  .landing-blur-orb {
+    display: none;
+  }
+  body::after {
+    animation: none;
+    filter: none;
+    opacity: 0.06;
+  }
+}
+
 /* ── Landing page utilities ── */
 
 .landing-gradient-text {

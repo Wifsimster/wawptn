@@ -83,11 +83,14 @@ export function LandingPage() {
           </motion.span>
         </div>
 
-        {/* Gradient orbs — richer, multi-hue */}
-        <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] sm:w-[750px] h-[450px] sm:h-[550px] rounded-full bg-primary/25 blur-[160px] sm:blur-[220px] pointer-events-none" />
-        <div className="absolute bottom-[30%] right-[20%] w-[300px] sm:w-[450px] h-[250px] sm:h-[350px] rounded-full bg-neon/[0.07] blur-[110px] sm:blur-[150px] pointer-events-none" />
-        <div className="absolute top-[45%] left-[8%] w-[220px] h-[220px] rounded-full bg-ember/[0.05] blur-[90px] pointer-events-none hidden lg:block" />
-        <div className="absolute bottom-[15%] left-[30%] w-[180px] h-[180px] rounded-full bg-reward/[0.04] blur-[80px] pointer-events-none" />
+        {/* Gradient orbs — richer, multi-hue. The `landing-blur-orb` class
+            lets index.css strip them on mobile / coarse-pointer devices
+            where stacking three 160-220px blurs tanked scroll perf on
+            mid-tier Android. Desktop keeps the full effect. */}
+        <div className="landing-blur-orb absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] sm:w-[750px] h-[450px] sm:h-[550px] rounded-full bg-primary/25 blur-[160px] sm:blur-[220px] pointer-events-none" />
+        <div className="landing-blur-orb absolute bottom-[30%] right-[20%] w-[300px] sm:w-[450px] h-[250px] sm:h-[350px] rounded-full bg-neon/[0.07] blur-[110px] sm:blur-[150px] pointer-events-none" />
+        <div className="landing-blur-orb absolute top-[45%] left-[8%] w-[220px] h-[220px] rounded-full bg-ember/[0.05] blur-[90px] pointer-events-none hidden lg:block" />
+        <div className="landing-blur-orb absolute bottom-[15%] left-[30%] w-[180px] h-[180px] rounded-full bg-reward/[0.04] blur-[80px] pointer-events-none" />
 
         {/* Content */}
         <motion.div

@@ -71,6 +71,15 @@ export async function handleSessionClosed(
     throw new BotHandlerError(400, 'Missing required fields')
   }
 
+  // `summary.tallies` is dereferenced below to rebuild the game list, so a
+  // malformed payload (e.g. summary missing, or tallies not an array) would
+  // crash the handler with a 500. The request type marks summary as required,
+  // but the HTTP boundary is the right place to defend against drift between
+  // the backend and the bot.
+  if (!summary || !Array.isArray(summary.tallies)) {
+    throw new BotHandlerError(400, 'Missing or invalid summary.tallies')
+  }
+
   // Re-materialize the game list from the tallies so the closed embed can
   // show every game row that was in the original message even if we don't
   // re-fetch the source game list.

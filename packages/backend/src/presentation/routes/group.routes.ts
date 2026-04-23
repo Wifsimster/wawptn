@@ -389,13 +389,30 @@ router.post('/join', async (req: Request, res: Response) => {
     return
   }
 
+  // Look up an in-flight vote session so the frontend can route the user
+  // straight to the vote page instead of forcing a group-detail detour.
+  // A `scheduled_at` in the future still reports as open but shouldn't
+  // trigger the auto-route — the user would land on a vote page that
+  // isn't accepting ballots yet. Mirrors the `activeVoteSession` shape
+  // the frontend already uses on `GroupPage`.
+  const getActiveVoteSession = async () => {
+    const row = await db('voting_sessions')
+      .where({ group_id: group.id, status: 'open' })
+      .andWhere((b) => b.whereNull('scheduled_at').orWhere('scheduled_at', '<=', new Date()))
+      .select('id', 'scheduled_at')
+      .first()
+    if (!row) return null
+    return { id: row.id as string, scheduledAt: (row.scheduled_at as Date | null)?.toISOString() ?? null }
+  }
+
   // Check if already a member (before claiming an invite use)
   const existing = await db('group_members')
     .where({ group_id: group.id, user_id: userId })
     .first()
 
   if (existing) {
-    res.json({ id: group.id, name: group.name, alreadyMember: true })
+    const activeVoteSession = await getActiveVoteSession()
+    res.json({ id: group.id, name: group.name, alreadyMember: true, activeVoteSession })
     return
   }
 
@@ -481,7 +498,8 @@ router.post('/join', async (req: Request, res: Response) => {
   }
 
   logger.info({ userId, groupId: group.id }, 'user joined group')
-  res.json({ id: group.id, name: group.name, alreadyMember: false })
+  const activeVoteSession = await getActiveVoteSession()
+  res.json({ id: group.id, name: group.name, alreadyMember: false, activeVoteSession })
 })
 
 // Leave group (self) or kick member (owner only)

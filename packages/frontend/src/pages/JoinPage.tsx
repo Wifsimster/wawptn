@@ -70,7 +70,16 @@ export function JoinPage() {
       (result) => {
         if (cancelled) return
         toast.success(t('joinGroup.success'))
-        navigate(`/groups/${result.id}`)
+        // If a vote is already in flight, skip the group-detail detour and
+        // drop the user straight on the ballot. The backend only returns
+        // `activeVoteSession` when `status='open'` AND the session is
+        // actually accepting votes now (scheduled_at null or in the past),
+        // so this won't land anyone on a not-yet-started vote.
+        if (result.activeVoteSession) {
+          navigate(`/groups/${result.id}/vote`)
+        } else {
+          navigate(`/groups/${result.id}`)
+        }
       },
       (err) => {
         if (cancelled) return

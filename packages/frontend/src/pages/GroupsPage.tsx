@@ -176,7 +176,10 @@ export function GroupsPage() {
       setInviteToken('')
       setShowJoin(false)
       fetchGroups()
-      navigate(`/groups/${result.id}`)
+      // Mirror JoinPage: if a vote is already running in the target group,
+      // drop the user straight on the ballot instead of walking them
+      // through the group detail page first.
+      navigate(result.activeVoteSession ? `/groups/${result.id}/vote` : `/groups/${result.id}`)
       toast.success(t('joinGroup.success'))
       track('group.joined')
     } catch (err) {

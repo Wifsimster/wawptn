@@ -66,7 +66,12 @@ export function LandingPage() {
         {/* Giant "?" watermark — more subtle, more depth */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
           <motion.span
-            className="landing-question-mark font-heading font-extrabold text-[50vw] sm:text-[38vw] lg:text-[30vw] leading-none"
+            // On narrow phones `text-[50vw]` rendered as a ~195px glyph that
+            // visually outweighed the headline + CTA behind it. `35vw` keeps
+            // the dramatic scale (~135px on a 390px viewport) without
+            // competing for primary focus; sm:/lg: breakpoints restore the
+            // original desktop sizing.
+            className="landing-question-mark font-heading font-extrabold text-[35vw] sm:text-[38vw] lg:text-[30vw] leading-none"
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{
               opacity: 1,

@@ -100,7 +100,16 @@ export const api = {
     method: 'PATCH',
     body: JSON.stringify({ name }),
   }),
-  joinGroup: (token: string) => request<{ id: string; name: string; alreadyMember: boolean }>('/groups/join', {
+  joinGroup: (token: string) => request<{
+    id: string
+    name: string
+    alreadyMember: boolean
+    // When a vote is in flight for this group the backend includes it so the
+    // caller can route the user straight to the ballot. `scheduledAt` is set
+    // for pre-scheduled sessions; we only auto-route when the session is
+    // actually accepting votes now.
+    activeVoteSession: { id: string; scheduledAt: string | null } | null
+  }>('/groups/join', {
     method: 'POST',
     body: JSON.stringify({ token }),
   }),

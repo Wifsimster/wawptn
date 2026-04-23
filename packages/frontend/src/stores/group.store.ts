@@ -18,7 +18,11 @@ interface GroupState {
   fetchGroup: (id: string) => Promise<void>
   createGroup: (input: { name: string }) => Promise<{ id: string; inviteToken: string }>
   renameGroup: (groupId: string, name: string) => Promise<void>
-  joinGroup: (token: string) => Promise<{ id: string; name: string }>
+  joinGroup: (token: string) => Promise<{
+    id: string
+    name: string
+    activeVoteSession: { id: string; scheduledAt: string | null } | null
+  }>
   leaveGroup: (groupId: string, userId: string) => Promise<void>
   deleteGroup: (groupId: string) => Promise<void>
 }
@@ -50,7 +54,7 @@ export const useGroupStore = create<GroupState>((set) => ({
   },
   joinGroup: async (token: string) => {
     const result = await api.joinGroup(token)
-    return { id: result.id, name: result.name }
+    return { id: result.id, name: result.name, activeVoteSession: result.activeVoteSession }
   },
   leaveGroup: async (groupId: string, userId: string) => {
     await api.leaveGroup(groupId, userId)

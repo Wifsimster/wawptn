@@ -125,7 +125,11 @@
     @apply text-foreground antialiased;
     font-family: var(--font-sans);
     background-color: var(--background);
+    /* `vh` first as a fallback for browsers that predate dynamic viewport
+       units; `dvh` wins on iOS Safari / Chrome Android where the URL bar
+       chrome otherwise chops the bottom of the page off. */
     min-height: 100vh;
+    min-height: 100dvh;
     padding-bottom: env(safe-area-inset-bottom);
     -webkit-tap-highlight-color: transparent;
   }
@@ -577,8 +581,11 @@
 
 /* ── Mobile touch improvements ── */
 
-/* Prevent iOS input zoom (inputs < 16px trigger zoom) */
-@media screen and (max-width: 640px) {
+/* Prevent iOS input zoom (inputs < 16px trigger zoom). Keyed on pointer
+   capability rather than viewport width so iPads, phablets in landscape
+   and Android tablets — all of which exhibit the zoom — are covered, not
+   just narrow phones. */
+@media (any-pointer: coarse) {
   input, select, textarea {
     font-size: 16px;
   }

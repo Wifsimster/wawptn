@@ -516,7 +516,7 @@ export function AdminPage() {
   if (!user?.isAdmin) return null
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-dvh flex flex-col bg-background">
       <AppHeader maxWidth="wide">
         <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
           <ArrowLeft className="h-5 w-5" />

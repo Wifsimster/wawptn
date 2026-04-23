@@ -386,7 +386,7 @@ export function GroupPage() {
 
   if (!currentGroup) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-dvh flex flex-col">
         <AppHeader maxWidth="wide">
           <Skeleton className="h-5 w-5 rounded" />
         </AppHeader>
@@ -409,7 +409,7 @@ export function GroupPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       <AppHeader maxWidth="wide">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')} className="shrink-0">

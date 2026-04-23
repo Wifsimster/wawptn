@@ -19,7 +19,7 @@ export function DialogTestPage() {
   const [activeDialog, setActiveDialog] = useState<string | null>(null)
 
   return (
-    <div className="min-h-screen p-6 space-y-4">
+    <div className="min-h-dvh p-6 space-y-4">
       <h1 className="text-2xl font-bold">Dialog Test Page</h1>
       <p className="text-sm text-muted-foreground">
         Resize browser or use DevTools device toolbar (375px, 390px, 430px) to test mobile.

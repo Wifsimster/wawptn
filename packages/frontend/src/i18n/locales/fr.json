@@ -336,7 +336,14 @@
     "memberCount_one": "{{count}} membre",
     "memberCount_other": "{{count}} membres",
     "lastPlayed": "Dernier jeu joué :",
-    "popularGames": "Jeux populaires du groupe"
+    "popularGames": "Jeux populaires du groupe",
+    "inAppBrowserTitle": "Ouvre ce lien dans ton navigateur",
+    "inAppBrowserBody": "La connexion Steam ne fonctionne pas dans les navigateurs intégrés (Instagram, Messenger, Discord…). Copie le lien et ouvre-le dans Safari ou Chrome.",
+    "inAppBrowserIos": "Touche le menu « ⋯ » en haut à droite puis « Ouvrir dans Safari ».",
+    "inAppBrowserAndroid": "Touche le menu « ⋮ » en haut à droite puis « Ouvrir dans Chrome ».",
+    "copyLink": "Copier le lien",
+    "copyLinkSuccess": "Lien copié ! Colle-le dans ton navigateur.",
+    "openAnyway": "Essayer quand même"
   },
   "invite": {
     "shareLink": "Partage ce lien avec tes amis :",

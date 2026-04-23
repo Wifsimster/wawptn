@@ -211,7 +211,7 @@ export function GroupsPage() {
 
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       <AppHeader />
 
       <main

@@ -327,7 +327,14 @@
     "memberCount_one": "{{count}} member",
     "memberCount_other": "{{count}} members",
     "lastPlayed": "Last game played:",
-    "popularGames": "Popular games in the group"
+    "popularGames": "Popular games in the group",
+    "inAppBrowserTitle": "Open this link in your browser",
+    "inAppBrowserBody": "Steam sign-in doesn't work inside in-app browsers (Instagram, Messenger, Discord…). Copy the link and open it in Safari or Chrome.",
+    "inAppBrowserIos": "Tap the “⋯” menu in the top-right, then “Open in Safari”.",
+    "inAppBrowserAndroid": "Tap the “⋮” menu in the top-right, then “Open in Chrome”.",
+    "copyLink": "Copy link",
+    "copyLinkSuccess": "Link copied! Paste it in your browser.",
+    "openAnyway": "Try anyway"
   },
   "invite": {
     "shareLink": "Share this link with your friends:",

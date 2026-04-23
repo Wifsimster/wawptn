@@ -128,7 +128,7 @@ export function NotificationBell() {
               transition={{ duration: 0.15 }}
               role="dialog"
               aria-label={t('notifications.title')}
-              className="absolute right-0 top-full mt-1 z-50 w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-5rem)] rounded-md border border-border bg-popover shadow-md overflow-hidden flex flex-col"
+              className="absolute right-0 top-full mt-1 z-50 w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100dvh-5rem)] rounded-md border border-border bg-popover shadow-md overflow-hidden flex flex-col"
             >
               {/* Header */}
               <div className="flex items-center justify-between px-3 py-2 border-b border-border">

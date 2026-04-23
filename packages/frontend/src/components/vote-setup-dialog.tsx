@@ -223,7 +223,14 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
 
               <div className="border-t border-border" />
 
-              <div className="max-h-[50dvh] sm:max-h-[40dvh] overflow-y-auto overflow-x-hidden overscroll-contain">
+              {/* Desktop keeps a bounded inner scroll so the dialog footer
+                  stays visible while a long member list is scrolled. On
+                  mobile the component renders as a Drawer which already
+                  provides an outer scroll (`ResponsiveDialogContent` line
+                  88), so a nested scroll here turned into a swipe trap
+                  when users tried to reach the footer. Let the drawer
+                  handle overflow on small screens. */}
+              <div className="sm:max-h-[40dvh] sm:overflow-y-auto sm:overflow-x-hidden sm:overscroll-contain">
                 {sortedMembers.map((member) => {
                   const isOnline = onlineMembers.has(member.id)
                   return (

@@ -268,8 +268,21 @@ client.on(Events.MessageCreate, async (message: Message) => {
   // Ignore bot messages
   if (message.author.bot) return
 
-  // Only respond when the bot is @mentioned
-  if (!client.user || !message.mentions.has(client.user)) return
+  // Only respond on an explicit @mention of the bot. The discord.js default
+  // for `mentions.has()` also matches @everyone/@here, any role the bot
+  // happens to carry, and the replied-user on every reply to one of our
+  // own messages — which made the bot spam-reply to every @everyone
+  // announcement and every thread reply. Narrow the match to direct
+  // user-mentions only.
+  if (
+    !client.user ||
+    !message.mentions.has(client.user, {
+      ignoreEveryone: true,
+      ignoreRoles: true,
+      ignoreRepliedUser: true,
+    })
+  )
+    return
 
   // Channel cooldown
   const now = Date.now()

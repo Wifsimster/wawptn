@@ -486,7 +486,7 @@ export async function startScheduler(client: Client): Promise<void> {
   setInterval(async () => {
     try {
       const newSettings = await getBotSettings()
-      const changed =
+      const globalChanged =
         newSettings.friday_schedule !== currentSettings!.friday_schedule ||
         newSettings.wednesday_schedule !== currentSettings!.wednesday_schedule ||
         newSettings.schedule_timezone !== currentSettings!.schedule_timezone ||
@@ -496,9 +496,18 @@ export async function startScheduler(client: Client): Promise<void> {
 
       currentSettings = newSettings
 
-      if (changed) {
-        console.log('[scheduler] Settings changed, rescheduling crons')
+      if (globalChanged) {
+        console.log('[scheduler] Global settings changed, rescheduling crons')
         scheduleCrons(client, newSettings)
+      } else {
+        // Per-guild schedule overrides set via `/wawptn-config set` don't
+        // change any global field, so `globalChanged` stays false and the
+        // old path never rebuilt guild crons. Rebuild them every tick so
+        // per-guild edits take effect within the refresh interval instead
+        // of requiring a full bot restart.
+        rebuildGuildCrons(client, newSettings).catch((err) => {
+          console.error('[scheduler] Periodic rebuildGuildCrons failed:', err)
+        })
       }
     } catch (err) {
       console.error('[scheduler] Failed to refresh settings:', err)

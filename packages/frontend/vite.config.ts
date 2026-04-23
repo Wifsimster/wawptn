@@ -31,7 +31,9 @@ export default defineConfig({
         theme_color: '#0a0a0a',
         background_color: '#0a0a0a',
         display: 'standalone',
-        orientation: 'portrait',
+        // Intentionally no `orientation` — a hard portrait lock annoys
+        // tablet users who install the PWA in landscape. The UI already
+        // reflows at `sm:` and `lg:` breakpoints.
         start_url: '/',
         icons: [
           {
@@ -57,6 +59,7 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//, /^\/health$/, /^\/invite\//],
         runtimeCaching: [
           {
+            // Steam profile avatars: immutable — keep for a week.
             urlPattern: /^https:\/\/avatars\.steamstatic\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
@@ -65,6 +68,44 @@ export default defineConfig({
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 * 7,
               },
+            },
+          },
+          {
+            // Steam game header/capsule images live on two Akamai CDNs
+            // depending on the asset. Both are effectively immutable by
+            // app-id, so cache aggressively — the vote UI on flaky 4G
+            // was otherwise re-downloading ~50 capsule JPEGs per render.
+            urlPattern: /^https:\/\/(cdn\.akamai\.steamstatic\.com|steamcdn-a\.akamaihd\.net|shared\.(?:akamai|fastly)\.steamstatic\.com)\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'steam-game-media',
+              expiration: {
+                maxEntries: 400,
+                maxAgeSeconds: 60 * 60 * 24 * 14,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Authenticated API GETs. NetworkFirst so the user always
+            // sees fresh data when online; falls back to the last
+            // successful response when the network flakes or the phone
+            // is offline, which is exactly the "tab frozen after Discord
+            // switch" case mobile users hit. Short network timeout
+            // (3s) so we don't stall the UI waiting for a dead radio.
+            urlPattern: ({ url, request }) =>
+              request.method === 'GET' &&
+              url.origin === self.location.origin &&
+              url.pathname.startsWith('/api/'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-get',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 60 * 5,
+              },
+              cacheableResponse: { statuses: [200] },
             },
           },
         ],

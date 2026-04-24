@@ -758,12 +758,13 @@ router.post('/chat', async (req: Request, res: Response) => {
           const topVote = await db('votes')
             .where({ session_id: session.id, vote: true })
             .groupBy('steam_app_id')
+            .select('steam_app_id')
             .count('* as vote_count')
             .orderBy('vote_count', 'desc')
             .first()
 
           let winner: string | undefined
-          if (topVote) {
+          if (topVote?.steam_app_id != null) {
             const game = await db('user_games')
               .where({ steam_app_id: topVote.steam_app_id })
               .first()

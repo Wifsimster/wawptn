@@ -1,5 +1,5 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js'
-import type { DiscordVoteSummary, DiscordVoteTally, VoteResult } from '@wawptn/types'
+import type { DiscordVoteSummary, DiscordVoteTally, VoteBreakdownEntry, VoteResult } from '@wawptn/types'
 
 export interface SessionGame {
   steamAppId: number
@@ -310,6 +310,58 @@ export function buildStatsEmbed(stats: StatsResponse): EmbedBuilder {
   }
 
   return embed
+}
+
+/**
+ * Per-game breakdown of voters (names only) for the ephemeral "vote
+ * recorded" reply. We render only the games the viewer has voted on —
+ * that mirrors the web waiting-screen rule and avoids tilting voters
+ * who haven't picked a game yet. If the viewer hasn't voted on any
+ * game yet (shouldn't happen after a successful button press, but we
+ * guard anyway), we return an empty string and the caller falls back
+ * to the plain confirmation line.
+ *
+ * Discord description limit is 4096 chars; we cap each game's voter
+ * list at a short count to keep the reply comfortably inside that.
+ */
+export function buildVoteBreakdownText(
+  breakdown: VoteBreakdownEntry[],
+  games: { steamAppId: number; gameName: string }[],
+  myVotedAppIds: number[],
+): string {
+  const votedSet = new Set(myVotedAppIds)
+  const byId = new Map(breakdown.map((b) => [b.steamAppId, b]))
+  const gameName = new Map(games.map((g) => [g.steamAppId, g.gameName]))
+
+  const MAX_NAMES = 10
+  const lines: string[] = []
+
+  for (const appId of myVotedAppIds) {
+    const name = gameName.get(appId)
+    if (!name) continue
+    if (!votedSet.has(appId)) continue
+    const entry = byId.get(appId)
+    const yes = entry?.yesVoters ?? []
+    const no = entry?.noVoters ?? []
+
+    lines.push(`**${name}**`)
+
+    if (yes.length + no.length === 0) {
+      lines.push('_Personne n\'a encore voté._')
+      continue
+    }
+
+    const renderNames = (voters: { displayName: string }[]): string => {
+      const shown = voters.slice(0, MAX_NAMES).map((v) => v.displayName).join(', ')
+      const overflow = voters.length > MAX_NAMES ? ` +${voters.length - MAX_NAMES}` : ''
+      return `${shown}${overflow}`
+    }
+
+    if (yes.length > 0) lines.push(`👍 ${yes.length} — ${renderNames(yes)}`)
+    if (no.length > 0) lines.push(`👎 ${no.length} — ${renderNames(no)}`)
+  }
+
+  return lines.join('\n')
 }
 
 export function buildLinkEmbed(linkCode: string, frontendUrl: string): EmbedBuilder[] {

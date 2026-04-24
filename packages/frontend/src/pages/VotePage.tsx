@@ -53,6 +53,18 @@ interface VoteResult {
   totalVoters: number
 }
 
+interface BreakdownVoter {
+  userId: string
+  displayName: string
+  avatarUrl: string | null
+}
+
+interface BreakdownEntry {
+  steamAppId: number
+  yesVoters: BreakdownVoter[]
+  noVoters: BreakdownVoter[]
+}
+
 export function VotePage() {
   const { t } = useTranslation()
   useDocumentTitle(t('vote.title'))
@@ -82,6 +94,14 @@ export function VotePage() {
   // bare count.
   const [participantIds, setParticipantIds] = useState<string[]>([])
   const [votedUserIds, setVotedUserIds] = useState<Set<string>>(() => new Set())
+  // Per-game breakdown of which participants voted 👍 vs 👎. The waiting
+  // screen reveals this only for games the current user has voted on, so
+  // seeing someone else's pick can't bias your own.
+  const [breakdown, setBreakdown] = useState<BreakdownEntry[]>([])
+  // Which games the current user has actually recorded a vote on. When
+  // voting via the web we submit all games in one batch (so this covers
+  // every game), but Discord voters arrive with a partial set.
+  const [myVotedAppIds, setMyVotedAppIds] = useState<Set<number>>(() => new Set())
 
   // Fire vote.completed exactly once, when the result first arrives (either
   // via the close API response or the vote:closed socket event). Guarding on
@@ -116,14 +136,18 @@ export function VotePage() {
         setIsParticipant(data.isParticipant !== false)
         setParticipantIds(data.participantIds ?? [])
         setVotedUserIds(new Set(data.votedUserIds ?? []))
+        setBreakdown(data.breakdown ?? [])
 
         if (data.myVotes.length > 0) {
           setHasVoted(true)
           const selected = new Set<number>()
+          const voted = new Set<number>()
           for (const v of data.myVotes) {
+            voted.add(v.steamAppId)
             if (v.vote) selected.add(v.steamAppId)
           }
           setSelectedGames(selected)
+          setMyVotedAppIds(voted)
         }
       },
       () => {
@@ -148,6 +172,7 @@ export function VotePage() {
           return next
         })
       }
+      if (data.breakdown) setBreakdown(data.breakdown)
     })
 
     socket.on('vote:closed', (data) => {
@@ -183,6 +208,8 @@ export function VotePage() {
       }))
       await api.castVotes(id, session.id, votes)
       setHasVoted(true)
+      // Mark every game as voted-on for the breakdown reveal rule.
+      setMyVotedAppIds(new Set(games.map(g => g.steamAppId)))
     } catch (err) {
       toast.error(t('vote.voteError'))
       console.error('Failed to submit votes:', err)
@@ -221,6 +248,8 @@ export function VotePage() {
       setIsParticipant(true)
       setParticipantIds([])
       setVotedUserIds(new Set())
+      setBreakdown([])
+      setMyVotedAppIds(new Set())
     } catch (err) {
       toast.error(t('vote.rematchError'))
       console.error('Failed to start rematch:', err)
@@ -371,6 +400,12 @@ export function VotePage() {
             })}
           </div>
         )}
+
+        <VoteBreakdownList
+          games={games}
+          breakdown={breakdown}
+          myVotedAppIds={myVotedAppIds}
+        />
 
         {canClose && (
           <Button onClick={handleClose} disabled={closing}>
@@ -557,6 +592,119 @@ export function VotePage() {
         </div>
       </main>
       <AppFooter />
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Vote Breakdown (waiting screen)
+// ---------------------------------------------------------------------------
+
+interface VoteBreakdownListProps {
+  games: Game[]
+  breakdown: BreakdownEntry[]
+  myVotedAppIds: Set<number>
+}
+
+/**
+ * Waiting-screen reveal of who voted 👍/👎 on each game. Entries for games
+ * the current viewer hasn't voted on yet are hidden — that way peeking at
+ * other people's votes can't bias a vote the viewer still has to cast
+ * (relevant for Discord users who cast per-game and then open the web UI).
+ */
+function VoteBreakdownList({ games, breakdown, myVotedAppIds }: VoteBreakdownListProps) {
+  const { t } = useTranslation()
+
+  const byId = useMemo(() => {
+    const map = new Map<number, BreakdownEntry>()
+    for (const entry of breakdown) map.set(entry.steamAppId, entry)
+    return map
+  }, [breakdown])
+
+  const visibleGames = useMemo(
+    () => games.filter(g => myVotedAppIds.has(g.steamAppId)),
+    [games, myVotedAppIds],
+  )
+
+  if (visibleGames.length === 0) return null
+
+  return (
+    <section
+      aria-label={t('vote.breakdownTitle')}
+      className="mt-2 mb-8 w-full max-w-md"
+    >
+      <h2 className="mb-3 text-center text-sm font-medium text-muted-foreground">
+        {t('vote.breakdownTitle')}
+      </h2>
+      <ul className="flex flex-col gap-2">
+        {visibleGames.map(game => {
+          const entry = byId.get(game.steamAppId)
+          const yesVoters = entry?.yesVoters ?? []
+          const noVoters = entry?.noVoters ?? []
+          const hasVotes = yesVoters.length > 0 || noVoters.length > 0
+          return (
+            <li
+              key={game.steamAppId}
+              className="rounded-lg border border-border/60 bg-card/60 px-3 py-2"
+            >
+              <div className="mb-1.5 text-sm font-medium truncate">{game.gameName}</div>
+              {!hasVotes ? (
+                <p className="text-xs text-muted-foreground">
+                  {t('vote.breakdownEmpty')}
+                </p>
+              ) : (
+                <div className="flex flex-col gap-1.5 text-xs">
+                  <VoterRow
+                    label={t('vote.breakdownYes', { count: yesVoters.length })}
+                    voters={yesVoters}
+                    emphasisClass="text-success"
+                  />
+                  <VoterRow
+                    label={t('vote.breakdownNo', { count: noVoters.length })}
+                    voters={noVoters}
+                    emphasisClass="text-destructive"
+                  />
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
+function VoterRow({
+  label,
+  voters,
+  emphasisClass,
+}: {
+  label: string
+  voters: BreakdownVoter[]
+  emphasisClass: string
+}) {
+  if (voters.length === 0) return null
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className={`shrink-0 font-medium ${emphasisClass}`}>{label}</span>
+      <div className="flex flex-wrap items-center gap-1">
+        {voters.map(v => (
+          <span
+            key={v.userId}
+            className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-1.5 py-0.5"
+          >
+            {v.avatarUrl && (
+              <img
+                src={v.avatarUrl}
+                alt=""
+                aria-hidden="true"
+                className="h-4 w-4 rounded-full"
+              />
+            )}
+            <span className="max-w-[8rem] truncate">{v.displayName}</span>
+          </span>
+        ))}
+      </div>
     </div>
   )
 }

@@ -127,7 +127,7 @@ describe('notifySessionCreated', () => {
     dbCallCounts.clear()
     fetchMock.mockReset()
     fetchMock.mockResolvedValue({ ok: true, status: 204 })
-    buildVoteSummaryMock.mockResolvedValue({ tallies: [], totalVoters: 0 })
+    buildVoteSummaryMock.mockResolvedValue({ tallies: [], totalVoters: 0, breakdown: [] })
   })
 
   it('posts via bot when channel is linked and bot is enabled', async () => {

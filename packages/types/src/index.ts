@@ -190,6 +190,21 @@ export interface VoteResult {
   totalVoters: number
 }
 
+/** One participant's vote on one game, with enough identity to render a
+ *  name or avatar chip next to a 👍/👎 split. */
+export interface VoteBreakdownVoter {
+  userId: string
+  displayName: string
+  avatarUrl: string | null
+}
+
+/** Per-game split of who voted 👍 vs 👎 in an active/closed session. */
+export interface VoteBreakdownEntry {
+  steamAppId: number
+  yesVoters: VoteBreakdownVoter[]
+  noVoters: VoteBreakdownVoter[]
+}
+
 // ============================================
 // API Responses
 // ============================================
@@ -310,6 +325,12 @@ export interface DiscordVoteSummary {
   voterCount: number
   totalParticipants: number
   tallies: DiscordVoteTally[]
+  /** Per-game breakdown of which participants voted 👍/👎. Always populated
+   *  server-side so downstream consumers (Discord ephemeral replies, web
+   *  waiting screen) can render names without a second query. The public
+   *  Discord embed intentionally ignores it — it only renders aggregate
+   *  counts to avoid bandwagoning. */
+  breakdown: VoteBreakdownEntry[]
 }
 
 export interface DiscordSessionCreatedRequest {
@@ -399,7 +420,7 @@ export interface Notification {
 // ============================================
 
 export interface ServerToClientEvents {
-  'vote:cast': (data: { sessionId: string; userId: string; voterCount: number; totalParticipants?: number }) => void
+  'vote:cast': (data: { sessionId: string; userId: string; voterCount: number; totalParticipants?: number; breakdown?: VoteBreakdownEntry[] }) => void
   'vote:closed': (data: { sessionId: string; result: VoteResult }) => void
   'member:joined': (data: { groupId: string; user: Pick<User, 'id' | 'displayName' | 'avatarUrl'> }) => void
   'member:left': (data: { groupId: string; userId: string }) => void

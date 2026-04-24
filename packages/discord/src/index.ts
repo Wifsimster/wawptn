@@ -1,6 +1,8 @@
 import { Client, GatewayIntentBits, Events, REST, Routes, type Interaction, type Message } from 'discord.js'
+import type { VoteBreakdownEntry } from '@wawptn/types'
 import { validateEnv, env } from './env.js'
 import { backendApi, BackendApiError } from './lib/api.js'
+import { buildVoteBreakdownText } from './lib/embeds.js'
 import { startHttpApi } from './http/server.js'
 import { startScheduler, notifyBackOnline } from './scheduler.js'
 import { getTodayPersona, getDefaultPersona, getPersonaById, type Persona } from './personas.js'
@@ -148,7 +150,12 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
 
         // Cast the vote via backend API
         const steamAppId = parseInt(steamAppIdStr, 10)
-        await backendApi(`/api/discord/vote`, {
+        const result = await backendApi<{
+          ok: true
+          breakdown: VoteBreakdownEntry[]
+          myVotedAppIds: number[]
+          games: { steamAppId: number; gameName: string }[]
+        }>(`/api/discord/vote`, {
           method: 'POST',
           discordUserId: interaction.user.id,
           body: {
@@ -158,9 +165,19 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
           },
         })
 
-        await interaction.editReply({
-          content: `✅ Vote enregistré : ${vote === 'yes' ? '👍' : '👎'}`,
-        })
+        const confirmation = `✅ Vote enregistré : ${vote === 'yes' ? '👍' : '👎'}`
+        const breakdownText = buildVoteBreakdownText(
+          result.breakdown ?? [],
+          result.games ?? [],
+          result.myVotedAppIds ?? [],
+        )
+        // Discord messages max out at 2000 chars; the breakdown is already
+        // capped per game but we also clip the combined block defensively.
+        const body = breakdownText
+          ? `${confirmation}\n\n__Qui a voté quoi (sur tes choix) :__\n${breakdownText}`.slice(0, 1900)
+          : confirmation
+
+        await interaction.editReply({ content: body })
       } catch (error) {
         await interaction.editReply({
           content: `❌ ${error instanceof Error ? error.message : 'Erreur lors du vote'}`,

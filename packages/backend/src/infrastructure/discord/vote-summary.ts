@@ -1,5 +1,55 @@
-import type { DiscordVoteSummary, DiscordVoteTally } from '@wawptn/types'
+import type { DiscordVoteSummary, DiscordVoteTally, VoteBreakdownEntry, VoteBreakdownVoter } from '@wawptn/types'
 import { db } from '../database/connection.js'
+
+/**
+ * Build the per-game breakdown of who voted 👍 vs 👎 in a session.
+ *
+ * Returns one entry per game that has at least one vote. Games with no
+ * votes yet are omitted so consumers can render an empty state rather
+ * than "👍 (nobody) · 👎 (nobody)" repeated for every game in the list.
+ *
+ * We group rows from a single `votes ⋈ users` join so this stays one
+ * round-trip regardless of session size.
+ */
+export async function buildVoteBreakdown(sessionId: string): Promise<VoteBreakdownEntry[]> {
+  const rows: Array<{
+    steam_app_id: number
+    vote: boolean
+    user_id: string
+    display_name: string
+    avatar_url: string | null
+  }> = await db('votes')
+    .join('users', 'users.id', 'votes.user_id')
+    .where({ 'votes.session_id': sessionId })
+    .orderBy('votes.steam_app_id', 'asc')
+    .orderBy('users.display_name', 'asc')
+    .select(
+      'votes.steam_app_id',
+      'votes.vote',
+      'users.id as user_id',
+      'users.display_name',
+      'users.avatar_url',
+    )
+
+  const byGame = new Map<number, { yes: VoteBreakdownVoter[]; no: VoteBreakdownVoter[] }>()
+  for (const row of rows) {
+    const entry = byGame.get(row.steam_app_id) ?? { yes: [], no: [] }
+    const voter: VoteBreakdownVoter = {
+      userId: row.user_id,
+      displayName: row.display_name,
+      avatarUrl: row.avatar_url,
+    }
+    if (row.vote) entry.yes.push(voter)
+    else entry.no.push(voter)
+    byGame.set(row.steam_app_id, entry)
+  }
+
+  return Array.from(byGame.entries()).map(([steamAppId, { yes, no }]) => ({
+    steamAppId,
+    yesVoters: yes,
+    noVoters: no,
+  }))
+}
 
 /**
  * Build the `DiscordVoteSummary` the bot needs to render a live-count or
@@ -69,5 +119,7 @@ export async function buildVoteSummary(sessionId: string): Promise<DiscordVoteSu
     }
   }
 
-  return { voterCount, totalParticipants, tallies }
+  const breakdown = await buildVoteBreakdown(sessionId)
+
+  return { voterCount, totalParticipants, tallies, breakdown }
 }

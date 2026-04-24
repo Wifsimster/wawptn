@@ -325,7 +325,11 @@
     "deselect": "Désélectionner",
     "platforms": "Plateformes",
     "free": "Gratuit",
-    "controllerSupport": "Manette : {{level}}"
+    "controllerSupport": "Manette : {{level}}",
+    "breakdownTitle": "Qui a voté quoi",
+    "breakdownEmpty": "Personne n'a encore voté sur ce jeu.",
+    "breakdownYes": "👍 {{count}}",
+    "breakdownNo": "👎 {{count}}"
   },
   "join": {
     "invited": "Tu as été invité !",

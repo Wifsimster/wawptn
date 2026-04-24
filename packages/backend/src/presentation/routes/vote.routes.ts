@@ -9,6 +9,7 @@ import { applyTierLimits } from '../../lib/pagination.js'
 import { evaluateChallenges } from '../../domain/challenges/challenge-service.js'
 import { domainEvents } from '../../domain/events/event-bus.js'
 import { logger } from '../../infrastructure/logger/logger.js'
+import { buildVoteBreakdown } from '../../infrastructure/discord/vote-summary.js'
 
 const router = Router()
 
@@ -101,6 +102,11 @@ router.get('/:groupId/vote', requireGroupMembership({ paramName: 'groupId' }), a
     ? await db('voting_session_participants').where({ session_id: session.id }).pluck('user_id')
     : []
 
+  // Per-game voter breakdown. The frontend only reveals it for games the
+  // current user has already voted on — returning the full set here keeps
+  // the payload shape stable and avoids a per-user server-side filter.
+  const breakdown = await buildVoteBreakdown(session.id)
+
   res.json({
     session: {
       id: session.id,
@@ -117,6 +123,7 @@ router.get('/:groupId/vote', requireGroupMembership({ paramName: 'groupId' }), a
     isParticipant: !!isParticipant,
     participantIds,
     votedUserIds: votedUserRows,
+    breakdown,
   })
 })
 
@@ -322,11 +329,13 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
   }
 
   // Notify group (include totalParticipants so waiting screen doesn't need to cache)
+  const breakdown = await buildVoteBreakdown(sessionId)
   getIO().to(`group:${groupId}`).emit('vote:cast', {
     sessionId,
     userId,
     voterCount: Number(voterCount?.count || 0),
     totalParticipants,
+    breakdown,
   })
 
   // Emit a domain event so downstream side effects (Discord live-count

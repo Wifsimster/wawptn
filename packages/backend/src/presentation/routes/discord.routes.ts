@@ -12,6 +12,7 @@ import { createVotingSession } from '../../domain/create-session.js'
 import { domainEvents } from '../../domain/events/event-bus.js'
 import { isLLMEnabled, generateChatResponse, type ChatContext } from '../../infrastructure/llm/client.js'
 import { createDiscordAuthIntent } from '../../domain/discord-auth-intent.js'
+import { buildVoteBreakdown } from '../../infrastructure/discord/vote-summary.js'
 
 /** Check if a group's owner has premium. Returns false if no owner found. */
 async function isGroupOwnerPremium(groupId: string): Promise<boolean> {
@@ -254,12 +255,19 @@ router.post('/vote', async (req: Request, res: Response) => {
     totalParticipants = Number(mCount?.count || 0)
   }
 
+  // Build the breakdown once and reuse it for both the socket broadcast
+  // (so web clients update live) and the HTTP response (so the bot can
+  // render an ephemeral summary of which participants voted for what on
+  // games the Discord voter has already cast a vote on).
+  const breakdown = await buildVoteBreakdown(sessionId)
+
   // Notify via Socket.io (web UI stays in sync)
   getIO().to(`group:${session.group_id}`).emit('vote:cast', {
     sessionId,
     userId,
     voterCount: Number(voterCount?.count || 0),
     totalParticipants,
+    breakdown,
   })
 
   // Emit a domain event so the Discord live-count updater re-renders the
@@ -272,7 +280,25 @@ router.post('/vote', async (req: Request, res: Response) => {
     source: 'discord',
   })
 
-  res.json({ ok: true })
+  // Games this Discord voter has cast a vote on so far — lets the bot
+  // reveal the detailed breakdown only for those, per the "after you vote"
+  // rule we use on the web. Other games stay masked in the ephemeral reply.
+  const myVotedAppIds: number[] = await db('votes')
+    .where({ session_id: sessionId, user_id: userId })
+    .pluck('steam_app_id')
+
+  // Game names (for ephemeral reply display — the bot doesn't keep the
+  // session list in memory after the button click).
+  const sessionGames = await db('voting_session_games')
+    .where({ session_id: sessionId })
+    .select('steam_app_id as steamAppId', 'game_name as gameName')
+
+  res.json({
+    ok: true,
+    breakdown,
+    myVotedAppIds,
+    games: sessionGames,
+  })
 })
 
 // Get common games — resolved either by a channel link or an explicit groupId

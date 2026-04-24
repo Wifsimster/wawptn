@@ -316,7 +316,11 @@
     "deselect": "Deselect",
     "platforms": "Platforms",
     "free": "Free",
-    "controllerSupport": "Controller: {{level}}"
+    "controllerSupport": "Controller: {{level}}",
+    "breakdownTitle": "Who voted what",
+    "breakdownEmpty": "Nobody has voted on this game yet.",
+    "breakdownYes": "👍 {{count}}",
+    "breakdownNo": "👎 {{count}}"
   },
   "join": {
     "invited": "You've been invited!",

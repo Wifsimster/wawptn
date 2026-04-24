@@ -8,11 +8,11 @@ export interface SessionGame {
   headerImageUrl: string | null
 }
 
-/** Discord hard limit: 5 action rows × 5 buttons per row. Two buttons per
- *  game (👍/👎) means 12 games per message max. We cap early and display a
- *  "vote on the web" hint when truncation happens so Discord voters know
- *  the overflow exists. */
-const MAX_GAMES_WITH_BUTTONS = 12
+/** Discord hard limit: 5 action rows × 5 buttons per row. We pack 2 games
+ *  (4 buttons) per row, so 5 rows × 2 games = 10 games max per message.
+ *  We cap early and display a "vote on the web" hint when truncation
+ *  happens so Discord voters know the overflow exists. */
+const MAX_GAMES_WITH_BUTTONS = 10
 
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text

@@ -17,8 +17,17 @@ on:
         default: "patch"
 
 concurrency:
+  # `cancel-in-progress` USED to be `true`. That interacted badly with the
+  # self-push of the `chore: bump version` commit: every release pushed the
+  # bump back to main, which fired a second workflow run on the same
+  # `release-refs/heads/main` group, which then cancelled the in-flight
+  # release mid-way through (between the tag push and the GitHub release
+  # creation, typically). Symptom: v0.69.0 cut cleanly, but every
+  # subsequent feat/fix merge silently produced no release. Queue runs
+  # instead — the bump-commit run is cheap (detect-release short-circuits
+  # it in a few seconds), so queuing barely adds latency on real releases.
   group: release-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -130,6 +139,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Rebase onto the latest origin/main BEFORE bumping so a previous
+      # release's `chore: bump version` commit (queued ahead of us by
+      # `concurrency.cancel-in-progress: false`) is picked up. Without
+      # this, the bump runs against a stale base and `git push origin
+      # main` later rejects as non-fast-forward.
+      - name: Sync with latest origin/main
+        run: |
+          git fetch origin main
+          git rebase origin/main
+
       - name: Bump version
         env:
           HUSKY: "0"
@@ -154,15 +173,57 @@ jobs:
           fi
           echo "changelog_file=CHANGELOG_TEMP.md" >> $GITHUB_OUTPUT
 
+      # Diff-guard: if `npm run version:*` somehow left the worktree clean
+      # (e.g. a re-run after a partially-committed previous attempt), skip
+      # the commit so `git commit` doesn't exit 1 and kill the job.
       - name: Commit version bump
         env:
           HUSKY: "0"
         run: |
           git add package.json packages/*/package.json package-lock.json
-          git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
+          if git diff --staged --quiet; then
+            echo "No version changes staged — skipping commit (likely a re-run)."
+          else
+            git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
+          fi
 
       - name: Create tag
         run: git tag -fa "v${{ steps.version.outputs.new_version }}" -m "Release v${{ steps.version.outputs.new_version }}"
+
+      # Push git BEFORE Docker. Previously Docker was pushed first, so a
+      # failing `git push origin main` left the registry with a v<new>
+      # image that had no corresponding git tag or commit. Reordering keeps
+      # git as the source of truth: if step (1) fails we abort before
+      # burning Docker build time or polluting GHCR.
+      #
+      # Retry loop handles the expected race: another release's bump
+      # commit can land between our rebase and our push. Pull --rebase
+      # picks it up and we retry — up to 4 attempts with exponential
+      # backoff matching the agent-side guidance elsewhere in the repo.
+      - name: Push git changes (retry on non-fast-forward)
+        env:
+          HUSKY: "0"
+        run: |
+          set -e
+          attempt=0
+          max_attempts=4
+          delay=2
+          until [ $attempt -ge $max_attempts ]; do
+            if git push origin main && git push origin "v${{ steps.version.outputs.new_version }}"; then
+              echo "Push succeeded on attempt $((attempt+1))."
+              break
+            fi
+            attempt=$((attempt+1))
+            if [ $attempt -ge $max_attempts ]; then
+              echo "::error::Failed to push git changes after $max_attempts attempts."
+              exit 1
+            fi
+            echo "Push failed. Pulling --rebase and retrying in ${delay}s (attempt $((attempt+1))/$max_attempts)."
+            sleep $delay
+            delay=$((delay*2))
+            git fetch origin main
+            git rebase origin/main
+          done
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -213,18 +274,6 @@ jobs:
           cache-to: type=gha,mode=max,ignore-error=true
           # amd64-only: production target is x86_64. Re-add arm64 with native runners if needed.
           platforms: linux/amd64
-
-      - name: Push changes
-        env:
-          HUSKY: "0"
-        # No `--force` on the tag — a pre-existing `v<ver>` tag (manual cut,
-        # aborted earlier run) should fail loudly so a human can decide
-        # whether to keep the registry image or retag. The image itself is
-        # already on GHCR with the `sha-<sha>` tag either way, so the
-        # registry is still auditable against git even if this push fails.
-        run: |
-          git push origin main
-          git push origin "v${{ steps.version.outputs.new_version }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

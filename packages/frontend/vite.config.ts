@@ -93,9 +93,9 @@ export default defineConfig({
             // is offline, which is exactly the "tab frozen after Discord
             // switch" case mobile users hit. Short network timeout
             // (3s) so we don't stall the UI waiting for a dead radio.
-            urlPattern: ({ url, request }) =>
+            urlPattern: ({ sameOrigin, url, request }) =>
+              sameOrigin &&
               request.method === 'GET' &&
-              url.origin === self.location.origin &&
               url.pathname.startsWith('/api/'),
             handler: 'NetworkFirst',
             options: {

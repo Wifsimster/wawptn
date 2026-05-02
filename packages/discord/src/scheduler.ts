@@ -223,14 +223,6 @@ async function sendToLinkedChannels(client: Client, kind: ReminderPool): Promise
   }
 }
 
-// ─── Back online notification ─────────────────────────────────────────────────
-
-export async function notifyBackOnline(client: Client): Promise<void> {
-  const persona = getPersona()
-  console.log(`[persona] Today's global persona: ${persona.name} (${persona.id})`)
-  await sendToLinkedChannels(client, 'backOnline')
-}
-
 // ─── Manual test trigger ──────────────────────────────────────────────────────
 
 /**

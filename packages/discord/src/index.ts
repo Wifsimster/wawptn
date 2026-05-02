@@ -2,7 +2,7 @@ import { Client, GatewayIntentBits, Events, REST, Routes, type Interaction, type
 import { validateEnv, env } from './env.js'
 import { backendApi, BackendApiError } from './lib/api.js'
 import { startHttpApi } from './http/server.js'
-import { startScheduler, notifyBackOnline } from './scheduler.js'
+import { startScheduler } from './scheduler.js'
 import { getTodayPersona, getDefaultPersona, getPersonaById, type Persona } from './personas.js'
 import { getBotSettings } from './lib/api.js'
 
@@ -84,11 +84,6 @@ client.once(Events.ClientReady, async (c) => {
   // Start scheduled reminder messages (fetches settings from backend)
   startScheduler(c).catch(err => {
     console.error('[startup] Failed to start scheduler:', err)
-  })
-
-  // Notify linked channels that the bot is back online
-  notifyBackOnline(c).catch(err => {
-    console.error('[startup] Failed to send back-online notification:', err)
   })
 
   // Prime the guild member cache in the background so the conversational

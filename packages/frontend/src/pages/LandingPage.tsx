@@ -108,7 +108,7 @@ export function LandingPage() {
           {/* Brand pill */}
           <motion.div variants={fadeUp} className="mb-10 sm:mb-14">
             <div className="inline-flex items-center gap-3 px-6 py-2.5 rounded-full border border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl shadow-[0_0_30px_oklch(0.55_0.27_270_/_0.04)]">
-              <WawptnLogo size={18} variant="color" />
+              <WawptnLogo size={16} variant="color" />
               <span className="text-[11px] font-semibold tracking-[0.35em] uppercase text-white/30">
                 WAWPTN
               </span>
@@ -403,7 +403,7 @@ export function LandingPage() {
       <footer className="border-t border-white/[0.08] px-4 py-10 mt-auto">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2.5">
-            <WawptnLogo size={20} className="text-muted-foreground" />
+            <WawptnLogo size={16} className="text-muted-foreground" />
             <span className="tracking-wide">
               WAWPTN — {t('app.tagline')} — v{__APP_VERSION__} — {new Date(__BUILD_TIME__).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </span>

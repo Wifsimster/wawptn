@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Clock, GitCompare, Lock, RefreshCw, Trophy } from 'lucide-react'
+import { useTranslation, Trans } from 'react-i18next'
 import { AppHeader } from '@/components/app-header'
 import { AppFooter } from '@/components/app-footer'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -19,10 +20,13 @@ function formatPlaytime(minutes: number | null | undefined): string {
   return `${(hours / 1000).toFixed(1)}kh`
 }
 
-function formatSyncedAt(iso: string | null): string {
-  if (!iso) return 'jamais synchronisé'
-  const d = new Date(iso)
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+function useFormatSyncedAt() {
+  const { t } = useTranslation()
+  return (iso: string | null): string => {
+    if (!iso) return t('userProfile.lastSyncedNever')
+    const d = new Date(iso)
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  }
 }
 
 /**
@@ -32,13 +36,15 @@ function formatSyncedAt(iso: string | null): string {
  * just the stats the other person has chosen to surface.
  */
 export function UserProfilePage() {
+  const { t } = useTranslation()
+  const formatSyncedAt = useFormatSyncedAt()
   const { userId } = useParams<{ userId: string }>()
   const navigate = useNavigate()
   const { user: me } = useAuthStore()
   const { profiles, loading, errors, fetchProfile, refreshProfile } = useProfileStore()
 
   const profile = userId ? profiles[userId] : undefined
-  useDocumentTitle(profile?.displayName ?? 'Profil')
+  useDocumentTitle(profile?.displayName ?? t('userProfile.title'))
   const isLoading = userId ? loading[userId] : false
   const error = userId ? errors[userId] : null
 
@@ -85,12 +91,12 @@ export function UserProfilePage() {
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 flex-1 flex items-center justify-center">
           <div className="text-center space-y-3">
             <Lock className="w-8 h-8 mx-auto text-muted-foreground" />
-            <h1 className="text-lg font-semibold">Profil indisponible</h1>
+            <h1 className="text-lg font-semibold">{t('userProfile.unavailableTitle')}</h1>
             <p className="text-sm text-muted-foreground max-w-sm">
-              Ce profil n'existe pas, ou vous n'avez pas de groupe en commun avec cet utilisateur.
+              {t('userProfile.unavailableBody')}
             </p>
             <Button variant="outline" onClick={() => navigate(-1)}>
-              Retour
+              {t('userProfile.back')}
             </Button>
           </div>
         </main>
@@ -122,21 +128,21 @@ export function UserProfilePage() {
           <h1 className="text-2xl font-heading font-bold">{profile.displayName}</h1>
           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            Dernière synchro : {formatSyncedAt(profile.lastSyncedAt)}
+            {t('userProfile.lastSyncedAt', { date: formatSyncedAt(profile.lastSyncedAt) })}
           </p>
 
-          {/* Stats row: the 3 numbers Marine picked at the meeting */}
+          {/* Stats row */}
           <div className="grid grid-cols-3 gap-6 w-full mt-6 pt-6 border-t border-border/40">
             <div className="flex flex-col items-center">
               <span className="text-2xl font-heading font-bold tabular-nums">{commonCount}</span>
               <span className="text-[11px] text-muted-foreground mt-0.5">
-                Jeux en commun
+                {t('userProfile.statCommonGames')}
               </span>
             </div>
             <div className="flex flex-col items-center">
               <span className="text-2xl font-heading font-bold tabular-nums">{profile.gameCount}</span>
               <span className="text-[11px] text-muted-foreground mt-0.5">
-                Bibliothèque
+                {t('userProfile.statLibrary')}
               </span>
             </div>
             <div className="flex flex-col items-center">
@@ -146,7 +152,7 @@ export function UserProfilePage() {
                   : '🔒'}
               </span>
               <span className="text-[11px] text-muted-foreground mt-0.5">
-                Temps total
+                {t('userProfile.statTotalPlaytime')}
               </span>
             </div>
           </div>
@@ -158,14 +164,14 @@ export function UserProfilePage() {
               disabled={!me}
             >
               <GitCompare className="w-4 h-4 mr-2" />
-              Comparer nos jeux
+              {t('userProfile.compareCta')}
             </Button>
             <Button
               variant="outline"
               size="icon"
               onClick={() => userId && refreshProfile(userId)}
               disabled={isLoading}
-              aria-label="Rafraîchir"
+              aria-label={t('userProfile.refreshLabel')}
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
@@ -176,11 +182,11 @@ export function UserProfilePage() {
         <section>
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
             <Trophy className="w-4 h-4" />
-            Jeux en commun avec vous
+            {t('userProfile.commonHeading')}
           </h2>
           {commonCount === 0 ? (
             <p className="text-sm text-muted-foreground italic px-4 py-6 text-center border border-dashed border-border/50 rounded-xl">
-              Aucun jeu en commun pour l'instant.
+              {t('userProfile.noCommonGames')}
             </p>
           ) : (
             <ul className="space-y-2">
@@ -203,11 +209,14 @@ export function UserProfilePage() {
                     <p className="text-sm font-medium truncate">{game.gameName}</p>
                     {profile.visibilityLastPlayed ? (
                       <p className="text-[11px] text-muted-foreground">
-                        {formatPlaytime(game.playtimeForever)} côté {profile.displayName}
+                        {t('userProfile.playtimeForUser', {
+                          playtime: formatPlaytime(game.playtimeForever),
+                          name: profile.displayName,
+                        })}
                       </p>
                     ) : (
                       <p className="text-[11px] text-muted-foreground italic">
-                        Temps de jeu masqué
+                        {t('userProfile.playtimeHidden')}
                       </p>
                     )}
                   </div>
@@ -217,7 +226,7 @@ export function UserProfilePage() {
           )}
           {commonCount > topCommon.length && (
             <p className="text-[11px] text-muted-foreground mt-2 text-center">
-              … et {commonCount - topCommon.length} autres
+              {t('userProfile.moreCount', { count: commonCount - topCommon.length })}
             </p>
           )}
         </section>
@@ -227,7 +236,7 @@ export function UserProfilePage() {
           <section>
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
               <Trophy className="w-4 h-4" />
-              Top jeux
+              {t('userProfile.topGamesHeading')}
             </h2>
             <ul className="space-y-2">
               {profile.topGames.slice(0, 10).map((game, i) => (
@@ -253,9 +262,11 @@ export function UserProfilePage() {
           <div className="flex items-start gap-3 p-4 rounded-xl border border-dashed border-border/50 bg-muted/10">
             <Lock className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
             <div className="text-xs text-muted-foreground leading-relaxed">
-              <strong className="text-foreground">{profile.displayName}</strong> n'a
-              pas activé le partage de sa bibliothèque complète. Seuls les jeux en
-              commun avec vous sont visibles.
+              <Trans
+                i18nKey="userProfile.fullLibraryHidden"
+                values={{ name: profile.displayName }}
+                components={[<strong key="0" className="text-foreground" />]}
+              />
             </div>
           </div>
         )}

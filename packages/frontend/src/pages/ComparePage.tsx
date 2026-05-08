@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Gamepad2, Trophy } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { AppHeader } from '@/components/app-header'
 import { AppFooter } from '@/components/app-footer'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -29,7 +30,8 @@ function compareKey(a: string, b: string): string {
  * "compare with me" button only needs to pass `b`.
  */
 export function ComparePage() {
-  useDocumentTitle('Comparaison')
+  const { t } = useTranslation()
+  useDocumentTitle(t('compare.title'))
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const { user: me } = useAuthStore()
@@ -72,9 +74,9 @@ export function ComparePage() {
         </AppHeader>
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 flex-1 flex items-center justify-center text-center">
           <div>
-            <h1 className="text-lg font-semibold">Comparaison impossible</h1>
+            <h1 className="text-lg font-semibold">{t('compare.impossibleTitle')}</h1>
             <p className="text-sm text-muted-foreground mt-2">
-              Il faut deux utilisateurs différents pour lancer une comparaison.
+              {t('compare.impossibleBody')}
             </p>
           </div>
         </main>
@@ -97,7 +99,7 @@ export function ComparePage() {
           role="status"
           aria-busy="true"
           aria-live="polite"
-          aria-label="Chargement de la comparaison"
+          aria-label={t('compare.loadingLabel')}
         >
           <Skeleton className="h-32 rounded-2xl" />
           <Skeleton className="h-6 w-32" />
@@ -118,12 +120,12 @@ export function ComparePage() {
         </AppHeader>
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 flex-1 flex items-center justify-center text-center">
           <div>
-            <h1 className="text-lg font-semibold">Comparaison indisponible</h1>
+            <h1 className="text-lg font-semibold">{t('compare.unavailableTitle')}</h1>
             <p className="text-sm text-muted-foreground mt-2">
-              Vous devez partager un groupe avec ces deux utilisateurs pour les comparer.
+              {t('compare.unavailableBody')}
             </p>
             <Button variant="outline" onClick={() => navigate(-1)} className="mt-4">
-              Retour
+              {t('compare.back')}
             </Button>
           </div>
         </main>
@@ -134,8 +136,8 @@ export function ComparePage() {
 
   const commonCount = result.commonGames.length
   const overlapPct = Math.round(result.overlapRatio * 100)
-  const nameA = meIsA ? 'Vous' : result.a.displayName
-  const nameB = meIsB ? 'Vous' : result.b.displayName
+  const nameA = meIsA ? t('compare.you') : result.a.displayName
+  const nameB = meIsB ? t('compare.you') : result.b.displayName
 
   return (
     <div className="min-h-dvh flex flex-col">
@@ -146,7 +148,7 @@ export function ComparePage() {
       </AppHeader>
 
       <main id="main-content" className="max-w-3xl mx-auto w-full p-4 space-y-6 pb-12">
-        <h1 className="sr-only">Comparaison de {nameA} et {nameB}</h1>
+        <h1 className="sr-only">{t('compare.srHeading', { a: nameA, b: nameB })}</h1>
         {/* ── VS header ── */}
         <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-6">
           <div className="flex items-center justify-center gap-4 sm:gap-8">
@@ -158,7 +160,7 @@ export function ComparePage() {
             />
             <div className="flex flex-col items-center shrink-0">
               <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                Comparaison
+                {t('compare.eyebrow')}
               </span>
               <span className="text-2xl font-heading font-black text-primary">VS</span>
             </div>
@@ -176,7 +178,7 @@ export function ComparePage() {
               {commonCount}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              jeux en commun · {overlapPct}% de recouvrement
+              {t('compare.overlapSummary', { pct: overlapPct })}
             </div>
           </div>
         </div>
@@ -185,11 +187,11 @@ export function ComparePage() {
         <section>
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
             <Trophy className="w-4 h-4" />
-            Les plus joués en commun
+            {t('compare.topPlayedHeading')}
           </h2>
           {commonCount === 0 ? (
             <p className="text-sm text-muted-foreground italic px-4 py-8 text-center border border-dashed border-border/50 rounded-xl">
-              Aucun jeu en commun. Pas cool.
+              {t('compare.noCommonGames')}
             </p>
           ) : (
             <ul className="space-y-2">
@@ -214,7 +216,7 @@ export function ComparePage() {
                         <div className="w-16 h-8 rounded-md bg-muted/40 shrink-0" />
                       )}
                       <span className="flex-1 text-sm font-medium truncate">{game.gameName}</span>
-                      <StatDiffChip value={diff} unit="h" neutralLabel="égaux" />
+                      <StatDiffChip value={diff} unit="h" neutralLabel={t('compare.tied')} />
                     </div>
                     <PlaytimeBar playtimeA={game.playtimeA} playtimeB={game.playtimeB} />
                     <div className="flex justify-between text-[11px] text-muted-foreground font-mono tabular-nums">
@@ -228,7 +230,7 @@ export function ComparePage() {
           )}
           {commonCount > 20 && (
             <p className="text-[11px] text-muted-foreground mt-2 text-center">
-              … et {commonCount - 20} autres
+              {t('compare.moreCount', { count: commonCount - 20 })}
             </p>
           )}
         </section>
@@ -238,11 +240,11 @@ export function ComparePage() {
           <section>
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
               <Gamepad2 className="w-4 h-4" />
-              Bibliothèques personnelles
+              {t('compare.personalLibrariesHeading')}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <OnlyList label={`Uniquement chez ${nameA}`} games={result.onlyAGames.slice(0, 8)} />
-              <OnlyList label={`Uniquement chez ${nameB}`} games={result.onlyBGames.slice(0, 8)} />
+              <OnlyList label={t('compare.onlyAt', { name: nameA })} games={result.onlyAGames.slice(0, 8)} />
+              <OnlyList label={t('compare.onlyAt', { name: nameB })} games={result.onlyBGames.slice(0, 8)} />
             </div>
           </section>
         )}
@@ -260,6 +262,7 @@ interface UserBadgeProps {
 }
 
 function UserBadge({ name, avatarUrl, gameCount, align }: UserBadgeProps) {
+  const { t } = useTranslation()
   return (
     <div className={`flex-1 flex flex-col items-center min-w-0 ${align === 'left' ? 'order-1' : ''}`}>
       <Avatar className="w-20 h-20 ring-2 ring-background mb-2">
@@ -270,7 +273,7 @@ function UserBadge({ name, avatarUrl, gameCount, align }: UserBadgeProps) {
       </Avatar>
       <span className="font-heading font-semibold text-sm truncate max-w-full">{name}</span>
       <span className="text-[11px] text-muted-foreground font-mono tabular-nums">
-        {gameCount} jeux
+        {t('compare.gamesCount', { count: gameCount })}
       </span>
     </div>
   )
@@ -282,13 +285,14 @@ interface OnlyListProps {
 }
 
 function OnlyList({ label, games }: OnlyListProps) {
+  const { t } = useTranslation()
   return (
     <div className="rounded-xl border border-border/50 bg-card/30 p-3">
       <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
         {label}
       </h3>
       {games.length === 0 ? (
-        <p className="text-[11px] text-muted-foreground italic">Rien à afficher.</p>
+        <p className="text-[11px] text-muted-foreground italic">{t('compare.nothingToShow')}</p>
       ) : (
         <ul className="space-y-1">
           {games.map((g) => (

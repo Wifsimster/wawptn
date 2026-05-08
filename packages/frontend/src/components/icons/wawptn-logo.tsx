@@ -1,5 +1,13 @@
 import { cn } from '@/lib/utils'
 
+/**
+ * Two canonical sizes are used across the app:
+ *   - 16px for inline contexts (footer, alongside body copy, sidebar headers)
+ *   - 28px for the app-header brand mark
+ * Other sizes are technically allowed (the prop is freeform), but adding a
+ * third size should be a deliberate design decision rather than a drift —
+ * see docs/design-review-2026-05-08.md §D9.
+ */
 interface WawptnLogoProps {
   size?: number
   className?: string

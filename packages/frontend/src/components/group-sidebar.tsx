@@ -168,7 +168,10 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
   const historyUpgradeCta = voteHistoryTruncated && voteHistory.length > 0 && !isPremium && (
     <button
       type="button"
-      onClick={() => navigate('/subscription')}
+      onClick={() => {
+        track('premium.upgrade_clicked', { from: 'history' })
+        navigate('/subscription?from=history')
+      }}
       className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors w-full text-left px-1"
     >
       <Lock className="w-3 h-3 shrink-0" />

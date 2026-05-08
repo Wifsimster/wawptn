@@ -351,9 +351,13 @@
     "copied": "Lien copié !",
     "share": "Partager",
     "shareText": "Rejoins notre groupe sur WAWPTN !",
+    "shareOnDiscord": "Partager sur Discord",
     "discord": "Partager sur Discord",
     "discordMessage": "Rejoins notre groupe sur WAWPTN ! Connecte-toi avec Steam et vote pour le jeu de ce soir !",
-    "discordCopied": "Message Discord copié !"
+    "discordCopied": "Message Discord copié !",
+    "promoteTitle": "Invite tes amis maintenant",
+    "promoteHint": "Le plus rapide : copier le message Discord et le coller dans votre serveur.",
+    "continueToGroup": "Continuer vers le groupe"
   },
   "discordLink": {
     "title": "Lier ton compte Discord",
@@ -474,6 +478,14 @@
     "renewsAt": "Prochain renouvellement le {{date}}",
     "canceledNotice": "Ton abonnement est annulé et restera actif jusqu'à la fin de la période en cours.",
     "upgradeButton": "Passer en Premium — 3 €/mois",
+    "fromContext": {
+      "auto_vote": "Tu as cliqué sur Vote automatique — c'est une fonctionnalité Premium.",
+      "recommendations": "Les suggestions personnalisées sont une fonctionnalité Premium.",
+      "group_limit": "Tu as atteint la limite de 2 groupes gratuits. Passe en Premium pour des groupes illimités.",
+      "member_limit": "Ton groupe est plein. Passe en Premium pour accueillir jusqu'à 30 membres.",
+      "history": "L'historique étendu est une fonctionnalité Premium.",
+      "feature": "Cette fonctionnalité fait partie de Premium."
+    },
     "manageButton": "Gérer mon abonnement",
     "activated": "Abonnement Premium activé !",
     "checkoutError": "Impossible de lancer le paiement",
@@ -485,7 +497,31 @@
     "recommendations": "Suggestions de jeux",
     "autoVote": "Vote automatique",
     "groupLimitReached": "Limite de groupes atteinte ({{max}}). Passe en Premium pour des groupes illimités.",
-    "memberLimitReached": "Ce groupe a atteint la limite de membres gratuite ({{max}})."
+    "memberLimitReached": "Ce groupe a atteint la limite de membres gratuite ({{max}}).",
+    "gateTitle": {
+      "auto_vote": "Vote automatique — Premium",
+      "recommendations": "Suggestions de jeux — Premium",
+      "group_limit": "Crée des groupes illimités",
+      "member_limit": "Plus de 12 membres par groupe",
+      "history": "Historique étendu",
+      "feature": "Fonctionnalité Premium"
+    },
+    "gateDescription": {
+      "auto_vote": "Programme un vote récurrent (chaque vendredi 20h, par exemple) et laisse WAWPTN faire le reste.",
+      "recommendations": "Reçois des suggestions personnalisées basées sur les bibliothèques Steam de ton groupe.",
+      "group_limit": "Tu as atteint la limite de 2 groupes gratuits — passe en Premium pour des groupes illimités.",
+      "member_limit": "Le groupe est plein. Le propriétaire doit passer en Premium pour accueillir jusqu'à 30 membres.",
+      "history": "Accède à toutes les sessions de vote passées au lieu des 10 dernières.",
+      "feature": ""
+    },
+    "gateBenefits": {
+      "auto_vote": ["Programmation cron flexible", "Notifications Discord automatiques", "Aucune limite de groupes"],
+      "recommendations": ["Suggestions basées sur les bibliothèques", "Mises à jour quotidiennes", "Aucune limite de groupes"],
+      "group_limit": ["Groupes illimités", "Jusqu'à 30 membres par groupe", "Historique complet des votes"],
+      "member_limit": ["Jusqu'à 30 membres par groupe", "Groupes illimités", "Historique complet des votes"],
+      "history": ["Historique illimité", "Groupes illimités", "Vote automatique programmé"],
+      "feature": []
+    }
   },
   "challenges": {
     "title": "Défis",
@@ -542,7 +578,10 @@
     "webShare": "Plus d'options…",
     "linkCopied": "Lien copié !",
     "linkCopiedDiscord": "Lien copié — prêt à coller dans Discord !",
-    "twitterText": "Ce soir on joue à {{title}} ! #WAWPTN",
-    "shareTitle": "WAWPTN — Résultat du vote"
+    "twitterText": "{{count}} amis viennent de voter {{title}} ce soir 🎮 #WAWPTN",
+    "twitterTextNoCount": "Ce soir on joue à {{title}} ! 🎮 #WAWPTN",
+    "shareTitle": "WAWPTN — Résultat du vote",
+    "discordIntro": "🎮 Le verdict est tombé ! Ce soir on joue à {{title}}.",
+    "promoteCta": "Annoncer le verdict sur Discord"
   }
 }

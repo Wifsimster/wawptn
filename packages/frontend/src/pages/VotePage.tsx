@@ -480,6 +480,10 @@ export function VotePage() {
                   <img
                     src={game.headerImageUrl}
                     alt={game.gameName}
+                    width={460}
+                    height={215}
+                    loading="lazy"
+                    decoding="async"
                     className={`w-full aspect-[460/215] object-cover transition-opacity ${
                       isSelected ? 'opacity-100' : 'opacity-60 hover:opacity-90'
                     }`}
@@ -887,12 +891,14 @@ function ResultScreen({
                 <ShareButton
                   sessionId={sessionId}
                   title={result.gameName}
+                  voteCount={result.yesCount}
                   description={t('vote.shareDescription', {
                     count: result.yesCount,
                     title: result.gameName,
                   })}
-                  variant="outline"
-                  size="sm"
+                  variant="default"
+                  size="default"
+                  prominent
                 />
               )}
               <Button variant="ghost" size="sm" onClick={onBack}>
@@ -947,10 +953,14 @@ function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }: GameD
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
 
-        {/* Header image */}
+        {/* Header image — eager since it's in-viewport when the dialog opens. */}
         <img
           src={game.headerImageUrl}
           alt={game.gameName}
+          width={460}
+          height={215}
+          loading="eager"
+          decoding="async"
           className="w-full rounded-lg aspect-[460/215] object-cover"
         />
 

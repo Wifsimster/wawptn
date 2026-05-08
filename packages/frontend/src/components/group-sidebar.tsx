@@ -8,6 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { track } from '@/lib/analytics'
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -359,7 +360,14 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
             )}
           </Button>
         ) : (
-          <Button variant="outline" className="w-full opacity-60" onClick={() => window.location.href = '/subscription'}>
+          <Button
+            variant="outline"
+            className="w-full opacity-60"
+            onClick={() => {
+              track('premium.upgrade_clicked', { from: 'auto_vote' })
+              window.location.href = '/subscription?from=auto_vote'
+            }}
+          >
             <Lock className="w-4 h-4 mr-2 text-muted-foreground" />
             {t('group.autoVote')}
             <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('premium.featureLocked')}</Badge>

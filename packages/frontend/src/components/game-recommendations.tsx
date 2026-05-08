@@ -78,7 +78,7 @@ export function GameRecommendations({ groupId, onStartVote, compact = false }: G
   }
 
   return wrapper(
-    <PremiumGate feature={t('premium.recommendations')}>
+    <PremiumGate from="recommendations">
       {recommendations.length === 0 ? null : (
         <div className="space-y-2">
           {recommendations.map((game) => (

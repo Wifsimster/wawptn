@@ -30,6 +30,14 @@ export type AnalyticsEvent =
   | 'vote.started'
   | 'vote.completed'
   | 'game.launched_in_steam'
+  // Premium funnel — see docs/design-review-2026-05-08.md §B4. The four
+  // events let us measure "gate seen → upgrade clicked → checkout started
+  // → checkout completed" with per-feature attribution via the `from`
+  // property (e.g. `from: 'group_limit'`).
+  | 'premium.gate_shown'
+  | 'premium.upgrade_clicked'
+  | 'premium.checkout_started'
+  | 'premium.checkout_completed'
 
 type EventProps = Record<string, string | number | boolean | null | undefined>
 

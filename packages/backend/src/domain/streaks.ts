@@ -119,3 +119,40 @@ export async function getGroupStreaks(groupId: string): Promise<Array<{
     updatedAt: r.updatedAt instanceof Date ? r.updatedAt.toISOString() : String(r.updatedAt),
   }))
 }
+
+/**
+ * Per-user roll-up across every group the user is in. Powers the
+ * GroupsPage streak badge: a single "🔥 N" indicator that shows the
+ * user's best *current* (still-alive) streak, plus the all-time best
+ * for context. Returns zeros when the user hasn't earned any streak yet
+ * — call sites can then suppress rendering.
+ */
+export async function getUserStreakSummary(userId: string): Promise<{
+  bestCurrent: number
+  bestEver: number
+  /** Number of distinct groups where the user has a current_streak >= 2
+   *  (i.e. an active streak — a single session doesn't count). Surfaced
+   *  to give context for the badge tooltip. */
+  activeStreakGroups: number
+}> {
+  const rows = await db('streaks')
+    .where({ user_id: userId })
+    .select<{ current_streak: number; best_streak: number }[]>('current_streak', 'best_streak')
+
+  if (rows.length === 0) {
+    return { bestCurrent: 0, bestEver: 0, activeStreakGroups: 0 }
+  }
+
+  let bestCurrent = 0
+  let bestEver = 0
+  let activeStreakGroups = 0
+  for (const row of rows) {
+    const cur = Number(row.current_streak)
+    const ever = Number(row.best_streak)
+    if (cur > bestCurrent) bestCurrent = cur
+    if (ever > bestEver) bestEver = ever
+    if (cur >= 2) activeStreakGroups++
+  }
+
+  return { bestCurrent, bestEver, activeStreakGroups }
+}

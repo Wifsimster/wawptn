@@ -12,6 +12,7 @@ import { motion, type Variants } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { WawptnLogo } from '@/components/icons/wawptn-logo'
+import { SocialProofStrip } from '@/components/social-proof-strip'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 const fadeUp: Variants = {
@@ -167,6 +168,7 @@ export function LandingPage() {
             <p className="text-xs text-muted-foreground">
               {t('landing.ctaSubtext')}
             </p>
+            <SocialProofStrip />
           </motion.div>
         </motion.div>
 

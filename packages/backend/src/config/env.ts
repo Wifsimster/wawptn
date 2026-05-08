@@ -53,10 +53,17 @@ export const env = {
   LLM_BASE_URL: process.env['LLM_BASE_URL'] || 'https://models.inference.ai.azure.com',
   LLM_MODEL: process.env['LLM_MODEL'] || 'gpt-4o',
 
-  // Stripe (optional — enables premium subscriptions)
+  // Stripe (optional — enables premium subscriptions). When STRIPE_SECRET_KEY
+  // is set, validateEnv() requires the other two to also be set so a partial
+  // configuration cannot silently 400 every webhook.
   STRIPE_SECRET_KEY: process.env['STRIPE_SECRET_KEY'] || '',
   STRIPE_WEBHOOK_SECRET: process.env['STRIPE_WEBHOOK_SECRET'] || '',
   STRIPE_PRICE_ID: process.env['STRIPE_PRICE_ID'] || '',
+  // Enables Stripe Tax (automatic_tax + tax_id_collection) on Checkout.
+  // Requires Stripe Tax to be onboarded in the dashboard and tax_behavior
+  // set on the price object — keep disabled until that's done or Checkout
+  // will reject the session.
+  STRIPE_AUTOMATIC_TAX_ENABLED: process.env['STRIPE_AUTOMATIC_TAX_ENABLED'] === 'true',
 
   // Koe support widget (optional — feature-flagged). When empty, the
   // identity endpoint returns 404 and the frontend skips rendering the
@@ -94,6 +101,30 @@ export function validateEnv(): void {
 
     if (env.API_URL.includes('localhost')) {
       throw new Error('API_URL must not contain localhost in production')
+    }
+  }
+
+  // Whenever STRIPE_SECRET_KEY is configured, the webhook secret and price
+  // id must come with it. Otherwise the webhook route mounts and silently
+  // 400s every Stripe POST (signature check fails on empty secret), and
+  // Checkout fails at request time on empty price id.
+  if (env.STRIPE_SECRET_KEY) {
+    if (!env.STRIPE_WEBHOOK_SECRET) {
+      throw new Error('STRIPE_WEBHOOK_SECRET is required when STRIPE_SECRET_KEY is set')
+    }
+    if (!env.STRIPE_PRICE_ID) {
+      throw new Error('STRIPE_PRICE_ID is required when STRIPE_SECRET_KEY is set')
+    }
+    // Mode parity: live secret with test webhook (or vice versa) silently
+    // fails signature verification with no startup error.
+    const liveKey = env.STRIPE_SECRET_KEY.startsWith('sk_live_')
+    const liveWebhook = !env.STRIPE_WEBHOOK_SECRET.startsWith('whsec_test_')
+      && !env.STRIPE_WEBHOOK_SECRET.includes('test')
+    // The webhook secret naming convention isn't strictly enforced by Stripe
+    // (it's just `whsec_…`), so we can only sanity-check when the test
+    // marker is present. Reject the obvious mismatch.
+    if (liveKey === false && liveWebhook && env.NODE_ENV === 'production') {
+      throw new Error('Stripe key/webhook mode mismatch: live webhook with test secret key')
     }
   }
 }

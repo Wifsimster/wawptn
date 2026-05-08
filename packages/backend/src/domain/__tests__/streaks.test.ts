@@ -58,7 +58,7 @@ vi.mock('@/infrastructure/logger/logger.js', () => {
 // Import module under test
 // ---------------------------------------------------------------------------
 
-import { updateStreak } from '../streaks.js'
+import { updateStreak, getUserStreakSummary } from '../streaks.js'
 
 // Replace the raw stub with a real vi.fn so we can assert against it
 const rawFn = vi.fn().mockResolvedValue(undefined)
@@ -186,5 +186,64 @@ describe('updateStreak', () => {
     const params = rawFn.mock.calls[0]![1] as unknown[]
     expect(params[2]).toBe(1)  // reset
     expect(params[3]).toBe(10) // best preserved
+  })
+})
+
+describe('getUserStreakSummary', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    rawFn.mockResolvedValue(undefined)
+    dbResultQueue.clear()
+    dbCallCounts.clear()
+  })
+
+  it('returns zeros when the user has no streak rows', async () => {
+    // Empty array — user has never closed a session
+    setResult('streaks', [])
+
+    const summary = await getUserStreakSummary('user-1')
+
+    expect(summary).toEqual({ bestCurrent: 0, bestEver: 0, activeStreakGroups: 0 })
+  })
+
+  it('rolls up the best current and ever across multiple groups', async () => {
+    setResult('streaks', [
+      { current_streak: 3, best_streak: 5 },
+      { current_streak: 7, best_streak: 7 },  // best current
+      { current_streak: 1, best_streak: 12 }, // best ever
+    ])
+
+    const summary = await getUserStreakSummary('user-1')
+
+    expect(summary.bestCurrent).toBe(7)
+    expect(summary.bestEver).toBe(12)
+  })
+
+  it('counts only groups with a current streak >= 2 as active', async () => {
+    // The badge tooltip says "active in N groups"; a single-session
+    // streak is not considered active per the helper's contract.
+    setResult('streaks', [
+      { current_streak: 1, best_streak: 4 },  // not active
+      { current_streak: 2, best_streak: 2 },  // active
+      { current_streak: 5, best_streak: 5 },  // active
+      { current_streak: 1, best_streak: 8 },  // not active
+    ])
+
+    const summary = await getUserStreakSummary('user-1')
+
+    expect(summary.activeStreakGroups).toBe(2)
+  })
+
+  it('coerces string-like number columns from pg', async () => {
+    // node-postgres can return numeric() / bigint columns as strings;
+    // the function should still produce numeric output.
+    setResult('streaks', [
+      { current_streak: '4', best_streak: '9' },
+    ])
+
+    const summary = await getUserStreakSummary('user-1')
+
+    expect(summary.bestCurrent).toBe(4)
+    expect(summary.bestEver).toBe(9)
   })
 })

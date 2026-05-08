@@ -3,16 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
 import { api } from '@/lib/api'
+import { clampPersonaColor } from '@/lib/persona-color'
 
 interface PersonaData {
   id?: string
   name: string
   embedColor: number
   introMessage: string
-}
-
-function colorIntToHex(color: number): string {
-  return `#${color.toString(16).padStart(6, '0')}`
 }
 
 interface PersonaBadgeProps {
@@ -76,7 +73,10 @@ export function PersonaBadge({ groupId, persona: initialPersona, variant = 'hero
   const persona = initialPersona ?? fetched
   if (!persona) return null
 
-  const color = colorIntToHex(persona.embedColor)
+  // Clamp the persona's embed color into a contrast-safe range so an
+  // arbitrary admin-picked hex doesn't crash the visual hierarchy.
+  // See lib/persona-color.ts and design-review §D8.
+  const color = clampPersonaColor(persona.embedColor)
 
   if (variant === 'compact') {
     return (

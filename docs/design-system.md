@@ -324,9 +324,10 @@ product input first:
   `color` variant's gradient now uses OKLCH values that mirror
   `--primary` and `--reward`. Update the stops in
   `components/icons/wawptn-logo.tsx` if the brand tokens evolve.
-- **Persona color clamp (D8)** — Discord-style hex per persona is
-  rendered raw in `persona-badge.tsx`. Should be wrapped through a
-  saturation/contrast clamp helper or constrained to a palette.
+- **Persona color clamp (D8)** — DONE in sprint 8. Embed colors now
+  flow through `lib/persona-color.ts:clampPersonaColor()` which snaps
+  HSL lightness to [0.55, 0.78] and saturation to [0.45, 0.85] before
+  rendering. Hue is preserved so each persona keeps its identity.
 - **Type scale shrink** — drop `text-xl` (only 8 hits).
 - **Annual subscription plan + first-month-free coupon** — backend
   Stripe SKU work needed.

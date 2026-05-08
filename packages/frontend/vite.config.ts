@@ -93,9 +93,16 @@ export default defineConfig({
             // is offline, which is exactly the "tab frozen after Discord
             // switch" case mobile users hit. Short network timeout
             // (3s) so we don't stall the UI waiting for a dead radio.
+            //
+            // Excludes navigation requests (request.mode === 'navigate')
+            // because endpoints like /api/auth/steam/login respond with a
+            // 3xx redirect to a cross-origin OpenID URL, and a SW cannot
+            // return a redirected Response for a navigation — the browser
+            // then falls back to the SPA shell and renders the 404 page.
             urlPattern: ({ sameOrigin, url, request }) =>
               sameOrigin &&
               request.method === 'GET' &&
+              request.mode !== 'navigate' &&
               url.pathname.startsWith('/api/'),
             handler: 'NetworkFirst',
             options: {

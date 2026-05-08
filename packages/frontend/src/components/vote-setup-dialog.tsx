@@ -261,21 +261,21 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
             <div className="mt-3 flex items-center gap-2 text-sm">
               {selectedIds.size < 2 ? (
                 <span className="text-muted-foreground">
-                  Sélectionnez au moins 2 membres
+                  {t('voteSetup.selectAtLeastTwoMembers')}
                 </span>
               ) : loadingLivePreview ? (
                 <span className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Calcul des jeux en commun…
+                  {t('voteSetup.calculatingCommonGames')}
                 </span>
               ) : livePreviewCount !== null && livePreviewCount === 0 ? (
-                <span className="flex items-center gap-2 text-amber-500">
+                <span className="flex items-center gap-2 text-warning">
                   <AlertTriangle className="w-4 h-4" />
-                  Aucun jeu en commun trouvé
+                  {t('voteSetup.noCommonGames')}
                 </span>
               ) : livePreviewCount !== null ? (
                 <span className="text-muted-foreground">
-                  🎮 {livePreviewCount} {livePreviewCount === 1 ? 'jeu' : 'jeux'} en commun
+                  🎮 {t('voteSetup.commonGamesCount', { count: livePreviewCount })}
                 </span>
               ) : null}
             </div>

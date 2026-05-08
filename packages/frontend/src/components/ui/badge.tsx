@@ -11,6 +11,17 @@ const badgeVariants = cva(
         secondary: 'border-transparent bg-secondary text-secondary-foreground',
         destructive: 'border-transparent bg-destructive text-destructive-foreground',
         outline: 'text-foreground',
+        // Semantic surfaces. Tinted background + matching text + a subtle
+        // border, so call sites stop reaching for `bg-primary/10
+        // text-primary border-primary/20` triplets and the design system
+        // owns the contrast.
+        success: 'border-success/30 bg-success/15 text-success',
+        warning: 'border-warning/30 bg-warning/15 text-warning',
+        info: 'border-info/30 bg-info/15 text-info',
+        reward: 'border-reward/30 bg-reward/15 text-reward',
+        scoreGood: 'border-score-good/30 bg-score-good/15 text-score-good',
+        scoreMixed: 'border-score-mixed/30 bg-score-mixed/15 text-score-mixed',
+        scoreBad: 'border-score-bad/30 bg-score-bad/15 text-score-bad',
       },
     },
     defaultVariants: {

@@ -40,8 +40,8 @@ function IntegrationRow({ label, health }: IntegrationRowProps) {
   const tone = disabled
     ? { dotClass: 'bg-muted-foreground/40', textClass: 'text-muted-foreground/70', label: 'désactivé' }
     : open
-      ? { dotClass: 'bg-destructive shadow-[0_0_10px_rgba(239,68,68,0.45)]', textClass: 'text-destructive', label: 'dégradé' }
-      : { dotClass: 'bg-success shadow-[0_0_10px_rgba(74,222,128,0.45)]', textClass: 'text-success', label: 'opérationnel' }
+      ? { dotClass: 'bg-destructive shadow-[0_0_10px_oklch(0.65_0.22_25_/_0.45)]', textClass: 'text-destructive', label: 'dégradé' }
+      : { dotClass: 'bg-success shadow-[0_0_10px_oklch(0.723_0.191_142.5_/_0.45)]', textClass: 'text-success', label: 'opérationnel' }
 
   return (
     <div className="flex items-center justify-between gap-3 rounded-md border border-border/50 bg-card/40 px-3 py-2">

@@ -137,18 +137,12 @@ export function SubscriptionPage() {
                   {t('subscription.freeDescription')}
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li className="flex items-center gap-2">
-                    <Crown className="w-4 h-4 text-reward" />
-                    {t('landing.premiumFeature1')}
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Crown className="w-4 h-4 text-reward" />
-                    {t('landing.premiumFeature2')}
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Crown className="w-4 h-4 text-reward" />
-                    {t('landing.premiumFeature3')}
-                  </li>
+                  {[1, 2, 3, 4, 5, 6].map((n) => (
+                    <li key={n} className="flex items-center gap-2">
+                      <Crown className="w-4 h-4 text-reward shrink-0" />
+                      {t(`landing.premiumFeature${n}`)}
+                    </li>
+                  ))}
                 </ul>
                 <Button onClick={handleCheckout} disabled={actionLoading} className="mt-2">
                   <Crown className="w-4 h-4 mr-2" />

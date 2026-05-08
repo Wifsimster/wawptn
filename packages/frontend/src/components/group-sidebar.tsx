@@ -71,14 +71,17 @@ interface GroupSidebarProps {
   compact?: boolean
 }
 
-function getLastSeenLabel(lastSeenTs: number | undefined): string {
-  if (!lastSeenTs) return 'Hors ligne'
+function getLastSeenLabel(
+  lastSeenTs: number | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  if (!lastSeenTs) return t('groups.lastSeen.offline')
   const diffMs = Date.now() - lastSeenTs
   const diffMinutes = Math.floor(diffMs / 60000)
-  if (diffMinutes < 1) return 'Vu à l\u2019instant'
-  if (diffMinutes < 5) return 'Vu il y a quelques minutes'
-  if (diffMinutes < 60) return `Vu il y a ${diffMinutes} min`
-  return 'Hors ligne'
+  if (diffMinutes < 1) return t('groups.lastSeen.justNow')
+  if (diffMinutes < 5) return t('groups.lastSeen.fewMinutes')
+  if (diffMinutes < 60) return t('groups.lastSeen.minutesAgo', { count: diffMinutes })
+  return t('groups.lastSeen.offline')
 }
 
 export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, voteHistoryTruncated, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onStartVote, compact = false }: GroupSidebarProps) {
@@ -185,7 +188,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
         {onlineCount > 0 && (
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
             <span className="w-1.5 h-1.5 rounded-full bg-online animate-pulse" />
-            {onlineCount} en ligne
+            {t('groups.onlineCount', { count: onlineCount })}
           </Badge>
         )}
       </div>
@@ -208,8 +211,8 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
         const isOnline = onlineMembers.has(member.id)
         const isSelf = member.id === currentUserId
         const presenceLabel = isOnline
-          ? 'En ligne'
-          : getLastSeenLabel(lastSeenMap.get(member.id))
+          ? t('groups.lastSeen.online')
+          : getLastSeenLabel(lastSeenMap.get(member.id), t)
         return (
           <div key={member.id} className={`flex items-center gap-3 min-h-[48px] py-1.5 px-1 -mx-1 rounded-md group transition-opacity ${!isOnline ? 'opacity-60' : ''}`}>
             <button

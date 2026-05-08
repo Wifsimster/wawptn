@@ -39,6 +39,14 @@
     "searchGroups": "Rechercher un groupe...",
     "noSearchResults": "Aucun groupe ne correspond à ta recherche.",
     "clearSearch": "Effacer la recherche",
+    "lastSeen": {
+      "online": "En ligne",
+      "offline": "Hors ligne",
+      "justNow": "Vu à l’instant",
+      "fewMinutes": "Vu il y a quelques minutes",
+      "minutesAgo_one": "Vu il y a {{count}} min",
+      "minutesAgo_other": "Vu il y a {{count}} min"
+    },
     "pullToRefresh": "Tirer pour actualiser",
     "releaseToRefresh": "Relâcher pour actualiser",
     "refreshing": "Actualisation..."
@@ -264,7 +272,12 @@
     "scheduleLater": "Planifier pour plus tard",
     "scheduleDateLabel": "Date et heure de la soirée",
     "scheduleHint": "Le vote se fermera automatiquement à cette date.",
-    "scheduleVote": "Planifier la soirée"
+    "scheduleVote": "Planifier la soirée",
+    "selectAtLeastTwoMembers": "Sélectionnez au moins 2 membres",
+    "calculatingCommonGames": "Calcul des jeux en commun…",
+    "noCommonGames": "Aucun jeu en commun trouvé",
+    "commonGamesCount_one": "{{count}} jeu en commun",
+    "commonGamesCount_other": "{{count}} jeux en commun"
   },
   "randomPick": {
     "title": "Choix aléatoire",

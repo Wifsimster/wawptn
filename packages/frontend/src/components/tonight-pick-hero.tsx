@@ -186,7 +186,10 @@ export function TonightPickHero({
         <div className="shrink-0 hidden sm:block">
           <img
             src={resolveSteamHeaderImage(game.steamAppId, game.headerImageUrl)}
-            alt={game.gameName}
+            // Decorative — the adjacent <h2> already announces the game
+            // name, so an alt here causes screen readers to hear it twice.
+            alt=""
+            aria-hidden="true"
             className="w-[200px] aspect-[460/215] rounded-lg object-cover ring-1 ring-white/10 shadow-lg"
             loading="eager"
           />

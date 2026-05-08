@@ -72,6 +72,7 @@ export function LandingPage() {
             // competing for primary focus; sm:/lg: breakpoints restore the
             // original desktop sizing.
             className="landing-question-mark font-heading font-extrabold text-[35vw] sm:text-[38vw] lg:text-[30vw] leading-none"
+            aria-hidden="true"
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{
               opacity: 1,

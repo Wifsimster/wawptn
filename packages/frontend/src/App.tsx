@@ -1,5 +1,5 @@
 import { useEffect, lazy, Suspense } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 import { connectSocket, disconnectSocket } from '@/lib/socket'
 import { LandingPage } from '@/pages/LandingPage'
@@ -36,6 +36,17 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user)
   if (!user?.isAdmin) return <Navigate to="/" replace />
   return <>{children}</>
+}
+
+/** Bridges the OG-rich `/invite/:token` URL (used in Discord/Slack/Twitter
+ *  unfurls) onto the SPA's `/join/:token` route. The server handles the
+ *  unauthenticated meta-tag preview directly; this client-side component
+ *  just guarantees that an authenticated user clicking the link from a
+ *  rich embed lands on the join screen instead of the 404 fallback. */
+function InviteRedirect() {
+  const { token } = useParams<{ token: string }>()
+  if (!token) return <Navigate to="/" replace />
+  return <Navigate to={`/join/${token}`} replace />
 }
 
 function App() {
@@ -106,6 +117,10 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/join/:token" element={<JoinPage />} />
+        {/* /invite/:token is the OG-rich URL surfaced by InviteLink — point
+            it at the SPA join page so a deep-linked invitee from Discord
+            doesn't hit the 404 fallback. */}
+        <Route path="/invite/:token" element={<InviteRedirect />} />
         <Route path="/discord/link" element={<DiscordLinkPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -124,6 +139,7 @@ function App() {
         <Route path="/groups/:id" element={<GroupPage />} />
         <Route path="/groups/:id/vote" element={<VotePage />} />
         <Route path="/join/:token" element={<JoinPage />} />
+        <Route path="/invite/:token" element={<InviteRedirect />} />
         <Route path="/discord/link" element={<DiscordLinkPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

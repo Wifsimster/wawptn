@@ -213,7 +213,10 @@ export function NotificationBell() {
                         key={notification.id}
                         initial={{ opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.03, duration: 0.15 }}
+                        // Cap the stagger cascade at 8 rows. Beyond that
+                        // it's barely perceptible and starts dropping
+                        // frames on low-end Android (mobile review §C6).
+                        transition={{ delay: Math.min(i, 8) * 0.03, duration: 0.15 }}
                         onClick={() => handleNotificationClick(notification)}
                         className={`w-full text-left px-3 py-2.5 hover:bg-accent/50 transition-colors flex gap-2.5 ${
                           !notification.read ? 'bg-accent/20' : ''

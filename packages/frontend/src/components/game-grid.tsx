@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Search, X, Users, Handshake, Star, ChevronDown, Gamepad2, Monitor, TrendingUp, SearchX, RefreshCw, ShieldAlert, EyeOff, SlidersHorizontal, Sparkles, Sofa, Trophy, Zap } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -460,7 +460,12 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
             <ResponsiveDialogTitle>{t('group.moreFilters')}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>{t('group.moreFiltersDescription')}</ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
-          <div className="px-4 pb-4 space-y-5 max-h-[70dvh] overflow-y-auto">
+          {/* No nested scroll container — `ResponsiveDialogContent`
+              already caps at 96dvh and scrolls. Adding our own
+              overflow-y here created a swipe-trap on iOS where the
+              outer drawer-handle pull-down gesture got captured by
+              the inner scroller (mobile review §C4 follow-up). */}
+          <div className="px-4 pb-4 space-y-5">
             {/* Metacritic */}
             <section>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-2">
@@ -720,7 +725,13 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
   )
 }
 
-function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<string, unknown>) => string }) {
+// React.memo so virtualizer slice changes (e.g. on viewport resize)
+// don't force every visible card to re-render. `game` is stable per
+// appId from the parent's useMemo'd filtered list; `t` is stable for
+// the locale. The wishlist Zustand subscription inside the body uses
+// a steamAppId selector so an unrelated star toggle doesn't kick a
+// sibling card either. See mobile review §C2.
+const GameCard = memo(function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<string, unknown>) => string }) {
   // Subscribe only to our own steamAppId's wishlist state so siblings
   // don't re-render when unrelated cards are starred. Zustand bails out
   // when the selected boolean hasn't actually changed, which keeps the
@@ -829,4 +840,4 @@ function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<s
       </div>
     </div>
   )
-}
+})

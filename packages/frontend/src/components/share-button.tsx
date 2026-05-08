@@ -168,7 +168,7 @@ export function ShareButton({
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
             className={cn(
               'absolute left-1/2 top-full z-50 mt-2 w-56 -translate-x-1/2 origin-top',
-              'overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg'
+              'overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-2'
             )}
           >
             <ShareMenuItem

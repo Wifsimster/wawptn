@@ -383,7 +383,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                     value={scheduledDate}
                     min={minDateTime}
                     onChange={(e) => setScheduledDate(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-3 text-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:border-primary/30"
+                    className="w-full min-h-[44px] rounded-lg border border-border bg-background px-3 py-3 text-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:border-primary/30"
                   />
                   <p className="text-xs text-muted-foreground">
                     {t('voteSetup.scheduleHint')}

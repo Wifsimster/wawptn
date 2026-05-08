@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { Bell, BellRing, CheckCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -17,6 +17,12 @@ export function NotificationBell() {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [now, setNow] = useState(() => Date.now())
+  // The trigger button — keep a ref so we can return focus to it when the
+  // panel closes (Escape, click-outside, item-click). Without this,
+  // keyboard users land at the top of the document on close.
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  // Panel ref for Escape handling and to anchor focus on open.
+  const panelRef = useRef<HTMLDivElement>(null)
   // Initialise the permission state lazily from the Notification API so
   // we don't need an effect to seed it (ESLint enforces that pattern).
   const [permission, setPermission] = useState<NotificationPermissionState>(
@@ -39,6 +45,36 @@ export function NotificationBell() {
   // Use unreadCount as animation key so the bell re-animates on each new notification
   const bellAnimationKey = useMemo(() => unreadCount, [unreadCount])
 
+  // Centralised close — also restores keyboard focus to the trigger so
+  // the user lands where they started instead of at <body>.
+  const closePanel = useCallback(() => {
+    setOpen(false)
+    // requestAnimationFrame so React commits the close before we focus.
+    requestAnimationFrame(() => triggerRef.current?.focus())
+  }, [])
+
+  // Escape closes the panel — registered only while it's open.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        closePanel()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, closePanel])
+
+  // On open, move focus into the panel so SR users hear the dialog label
+  // and keyboard users can Tab through items immediately. tabIndex=-1
+  // on the panel makes it programmatically focusable but skipped during
+  // normal Tab traversal.
+  useEffect(() => {
+    if (!open) return
+    requestAnimationFrame(() => panelRef.current?.focus())
+  }, [open])
+
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.read) {
       await markAsRead(notification.id)
@@ -47,7 +83,7 @@ export function NotificationBell() {
     if (actionUrl) {
       navigate(actionUrl)
     }
-    setOpen(false)
+    closePanel()
   }
 
   const handleOpen = () => {
@@ -88,9 +124,10 @@ export function NotificationBell() {
   return (
     <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={handleOpen}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={open}
         className="relative flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors p-2 -m-1 min-h-[44px] min-w-[44px]"
         aria-label={bellLabel}
@@ -119,16 +156,19 @@ export function NotificationBell() {
         {open && (
           <>
             {/* Backdrop */}
-            <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setOpen(false)} />
+            <div className="fixed inset-0 z-40" aria-hidden="true" onClick={closePanel} />
 
             <motion.div
+              ref={panelRef}
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.15 }}
               role="dialog"
+              aria-modal="true"
               aria-label={t('notifications.title')}
-              className="absolute right-0 top-full mt-1 z-50 w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100dvh-5rem)] rounded-md border border-border bg-popover shadow-md overflow-hidden flex flex-col"
+              tabIndex={-1}
+              className="absolute right-0 top-full mt-1 z-50 w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100dvh-5rem)] rounded-md border border-border bg-popover shadow-2 overflow-hidden flex flex-col"
             >
               {/* Header */}
               <div className="flex items-center justify-between px-3 py-2 border-b border-border">

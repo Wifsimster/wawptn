@@ -527,6 +527,8 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                 placeholder={t('group.renamePlaceholder')}
                 maxLength={100}
                 autoFocus
+                autoComplete="off"
+                enterKeyHint="done"
               />
             </div>
             <ResponsiveDialogFooter>

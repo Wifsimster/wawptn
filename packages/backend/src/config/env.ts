@@ -7,6 +7,8 @@ export const env = {
   PORT: parseInt(process.env['PORT'] || '3000', 10),
   LOG_LEVEL: process.env['LOG_LEVEL'] || 'info',
   DATABASE_URL: process.env['DATABASE_URL'] || 'postgresql://wawptn:wawptn_secret@localhost:5432/wawptn',
+  DB_POOL_MIN: parseInt(process.env['DB_POOL_MIN'] || '2', 10),
+  DB_POOL_MAX: parseInt(process.env['DB_POOL_MAX'] || '10', 10),
   CORS_ORIGIN: process.env['CORS_ORIGIN'] || 'http://localhost:5173',
 
   APP_SECRET: process.env['APP_SECRET'] || 'dev-secret-change-in-production-min-32-chars',

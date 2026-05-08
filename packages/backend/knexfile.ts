@@ -18,8 +18,8 @@ const config: { [key: string]: Knex.Config } = {
     client: 'pg',
     connection: process.env['DATABASE_URL'],
     pool: {
-      min: 2,
-      max: 10,
+      min: parseInt(process.env['DB_POOL_MIN'] || '2', 10),
+      max: parseInt(process.env['DB_POOL_MAX'] || '10', 10),
     },
     migrations: {
       directory: './migrations',

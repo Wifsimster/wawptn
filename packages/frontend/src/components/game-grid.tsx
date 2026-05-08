@@ -453,7 +453,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
             <ResponsiveDialogTitle>{t('group.moreFilters')}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>{t('group.moreFiltersDescription')}</ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
-          <div className="px-4 pb-4 space-y-5 max-h-[70vh] overflow-y-auto">
+          <div className="px-4 pb-4 space-y-5 max-h-[70dvh] overflow-y-auto">
             {/* Metacritic */}
             <section>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-2">
@@ -661,7 +661,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
               ref={scrollContainerRef}
               className="overflow-y-auto"
               role="list"
-              style={{ maxHeight: '70vh' }}
+              style={{ maxHeight: '70dvh' }}
             >
               <div
                 style={{

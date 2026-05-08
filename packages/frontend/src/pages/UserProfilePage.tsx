@@ -85,7 +85,7 @@ export function UserProfilePage() {
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 flex-1 flex items-center justify-center">
           <div className="text-center space-y-3">
             <Lock className="w-8 h-8 mx-auto text-muted-foreground" />
-            <h2 className="text-lg font-semibold">Profil indisponible</h2>
+            <h1 className="text-lg font-semibold">Profil indisponible</h1>
             <p className="text-sm text-muted-foreground max-w-sm">
               Ce profil n'existe pas, ou vous n'avez pas de groupe en commun avec cet utilisateur.
             </p>

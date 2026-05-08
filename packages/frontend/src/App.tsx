@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 import { connectSocket, disconnectSocket } from '@/lib/socket'
@@ -15,7 +15,6 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { SubscriptionPage } from '@/pages/SubscriptionPage'
 import { Skeleton } from '@/components/ui/skeleton'
-import { DialogTestPage } from '@/pages/DialogTestPage'
 import { useNotificationListener } from '@/hooks/useNotificationListener'
 import { useChallengeListener } from '@/hooks/useChallengeListener'
 import { usePwaInstallPrompt } from '@/hooks/usePwaInstallPrompt'
@@ -23,6 +22,21 @@ import { useSocketConnectionStatus } from '@/hooks/useSocketConnectionStatus'
 import { useNotificationStore } from '@/stores/notification.store'
 import { useWishlistStore } from '@/stores/wishlist.store'
 import { KoeSupport } from '@/components/KoeSupport'
+
+// Dev-only sandbox; lazy + DEV-gated so it never ships in the prod bundle.
+const DialogTestPage = import.meta.env.DEV
+  ? lazy(() => import('@/pages/DialogTestPage').then((m) => ({ default: m.DialogTestPage })))
+  : null
+
+/** Synchronous admin guard. Wraps protected admin routes so a non-admin
+ *  user is redirected before the page mounts and runs its data-loading
+ *  effects (which would otherwise hit /api/admin endpoints and rely on
+ *  the server's 403 to bounce them). */
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((s) => s.user)
+  if (!user?.isAdmin) return <Navigate to="/" replace />
+  return <>{children}</>
+}
 
 function App() {
   const { user, loading, fetchUser } = useAuthStore()
@@ -62,11 +76,13 @@ function App() {
   useSocketConnectionStatus()
 
   // Dev-only dialog test page (no auth required)
-  if (import.meta.env.DEV && window.location.pathname === '/test-dialogs') {
+  if (import.meta.env.DEV && DialogTestPage && window.location.pathname === '/test-dialogs') {
     return (
-      <Routes>
-        <Route path="/test-dialogs" element={<DialogTestPage />} />
-      </Routes>
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/test-dialogs" element={<DialogTestPage />} />
+        </Routes>
+      </Suspense>
     )
   }
 
@@ -103,7 +119,7 @@ function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/u/:userId" element={<UserProfilePage />} />
         <Route path="/compare" element={<ComparePage />} />
-        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
         <Route path="/subscription" element={<SubscriptionPage />} />
         <Route path="/groups/:id" element={<GroupPage />} />
         <Route path="/groups/:id/vote" element={<VotePage />} />

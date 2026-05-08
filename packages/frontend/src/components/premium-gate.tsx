@@ -1,40 +1,88 @@
-import { Lock, Crown } from 'lucide-react'
+import { useEffect } from 'react'
+import { Lock, Crown, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useSubscriptionStore } from '@/stores/subscription.store'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { track } from '@/lib/analytics'
+
+/** Identifier for which feature/limit triggered the gate. Used both for
+ *  copy selection and for `?from=` analytics attribution on the upsell
+ *  funnel. Add a new key here when you add a new gate. */
+export type PremiumFromKey =
+  | 'auto_vote'
+  | 'recommendations'
+  | 'group_limit'
+  | 'member_limit'
+  | 'history'
+  | 'feature'
 
 interface PremiumGateProps {
   children: React.ReactNode
+  /** Identifies the gated surface — drives copy + analytics attribution. */
+  from?: PremiumFromKey
+  /** Optional custom feature label (overrides the per-`from` default). */
   feature?: string
+  /** Replace the default fallback UI with custom content. */
   fallback?: React.ReactNode
 }
 
-export function PremiumGate({ children, feature, fallback }: PremiumGateProps) {
+export function PremiumGate({ children, from = 'feature', feature, fallback }: PremiumGateProps) {
   const { tier, status } = useSubscriptionStore()
   const isPremium = tier === 'premium' && status === 'active'
 
   if (isPremium) return <>{children}</>
   if (fallback) return <>{fallback}</>
 
-  return <PremiumGateFallback feature={feature} />
+  return <PremiumGateFallback from={from} feature={feature} />
 }
 
-function PremiumGateFallback({ feature }: { feature?: string }) {
+function PremiumGateFallback({ from, feature }: { from: PremiumFromKey; feature?: string }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
 
+  // Fire `gate_shown` once per mount with the originating surface so we
+  // can compute (gates_shown → upgrade_clicked) conversion per gate type.
+  useEffect(() => {
+    track('premium.gate_shown', { from })
+  }, [from])
+
+  const handleUpgrade = () => {
+    track('premium.upgrade_clicked', { from })
+    navigate(`/subscription?from=${encodeURIComponent(from)}`)
+  }
+
+  const title = feature ?? t(`premium.gateTitle.${from}`, t('premium.featureLocked'))
+  const description = t(`premium.gateDescription.${from}`, '')
+  const benefits = t(`premium.gateBenefits.${from}`, { returnObjects: true, defaultValue: [] }) as string[]
+
   return (
-    <div className="flex flex-col items-center gap-3 py-6 px-4 rounded-lg border border-dashed border-border bg-muted/30">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Lock className="w-5 h-5" />
-        <span className="text-sm font-medium">
-          {feature || t('premium.featureLocked')}
-        </span>
+    <div className="flex flex-col items-center gap-3 py-6 px-4 rounded-lg border border-dashed border-primary/30 bg-gradient-to-b from-primary/5 to-transparent">
+      <div className="flex items-center gap-2 text-foreground">
+        <Lock className="w-5 h-5 text-reward" />
+        <span className="text-sm font-semibold">{title}</span>
       </div>
-      <Button size="sm" variant="outline" onClick={() => navigate('/subscription')}>
-        <Crown className="w-4 h-4 mr-2 text-reward" />
+
+      {description && (
+        <p className="text-xs text-muted-foreground text-center max-w-sm">
+          {description}
+        </p>
+      )}
+
+      {benefits.length > 0 && (
+        <ul className="text-xs text-muted-foreground space-y-1 max-w-xs w-full">
+          {benefits.map((b) => (
+            <li key={b} className="flex items-start gap-2">
+              <Check className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" />
+              <span>{b}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Button size="sm" onClick={handleUpgrade}>
+        <Crown className="w-4 h-4 mr-1.5 text-reward" />
         {t('premium.unlock')}
       </Button>
     </div>

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { useSubscriptionStore } from '@/stores/subscription.store'
 import { api } from '@/lib/api'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+import { track } from '@/lib/analytics'
 
 export function SubscriptionPage() {
   const { t } = useTranslation()
@@ -24,15 +25,27 @@ export function SubscriptionPage() {
     fetchSubscription()
   }, [fetchSubscription])
 
+  // The contextual gate banner: which feature/limit sent the user here.
+  // Drives the lead-in copy (e.g. "You've hit the free group limit") and
+  // the analytics attribution on the resulting checkout.
+  const fromKey = searchParams.get('from')
+
   useEffect(() => {
     if (searchParams.get('success') === 'true') {
       toast.success(t('subscription.activated'))
       fetchSubscription()
+      // Fire the funnel-completion event once on landing. We don't have
+      // the originating `from` here unless it was carried back through
+      // the success_url; Stripe doesn't echo arbitrary query params, so
+      // we record the event without attribution and rely on the checkout
+      // _started event to provide it.
+      track('premium.checkout_completed')
     }
   }, [searchParams, t, fetchSubscription])
 
   const handleCheckout = async () => {
     setActionLoading(true)
+    track('premium.checkout_started', { from: fromKey ?? 'subscription_page' })
     try {
       const { url } = await api.createCheckout()
       window.location.href = url
@@ -64,6 +77,16 @@ export function SubscriptionPage() {
           {t('group.back')}
         </Button>
         <h1 className="text-2xl font-heading font-bold mb-6">{t('subscription.title')}</h1>
+
+        {!isPremium && fromKey && (
+          <div
+            className="mb-4 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground"
+            role="status"
+            aria-live="polite"
+          >
+            {t(`subscription.fromContext.${fromKey}`, t('subscription.fromContext.feature'))}
+          </div>
+        )}
 
         <Card>
           <CardHeader>

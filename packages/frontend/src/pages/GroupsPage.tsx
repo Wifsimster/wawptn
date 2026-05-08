@@ -140,8 +140,9 @@ export function GroupsPage() {
     } catch (err) {
       if (err instanceof ApiError && err.code === 'premium_required') {
         track('group.create_failed', { reason: 'premium_required' })
+        track('premium.upgrade_clicked', { from: 'group_limit' })
         toast.error(t('premium.groupLimitReached', { max: 2 }))
-        navigate('/subscription')
+        navigate('/subscription?from=group_limit')
         return
       }
       const msg = err instanceof Error ? err.message : t('createGroup.error')
@@ -320,6 +321,8 @@ export function GroupsPage() {
                     onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
                     maxLength={100}
                     autoFocus
+                    autoComplete="off"
+                    enterKeyHint="done"
                     aria-invalid={!!createError}
                     aria-describedby={createError ? 'group-name-error' : undefined}
                   />
@@ -339,15 +342,12 @@ export function GroupsPage() {
               </div>
             )}
             {inviteResult && (
-              <>
-                <InviteLink token={inviteResult} />
-                <div className="mt-4 flex justify-end">
-                  <Button onClick={handleFinishCreate}>
-                    {t('createGroup.goToGroup')}
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </>
+              <InviteLink
+                token={inviteResult}
+                prominent
+                onContinue={handleFinishCreate}
+                continueLabel={t('createGroup.goToGroup')}
+              />
             )}
           </ResponsiveDialogContent>
         </ResponsiveDialog>
@@ -372,6 +372,12 @@ export function GroupsPage() {
                   onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
                   maxLength={512}
                   autoFocus
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  inputMode="text"
+                  enterKeyHint="go"
                   aria-invalid={!!joinError}
                   aria-describedby={joinError ? 'invite-token-error' : undefined}
                 />
@@ -426,9 +432,9 @@ export function GroupsPage() {
               ?
             </span>
             <div className="relative z-10 text-center max-w-xl mx-auto">
-              <h3 className="text-2xl font-heading font-bold tracking-[-0.02em] mb-2">
+              <h2 className="text-2xl font-heading font-bold tracking-[-0.02em] mb-2">
                 {t('groups.welcomeTitle')}
-              </h3>
+              </h2>
               <p className="text-muted-foreground mb-8">
                 {t('groups.welcomeSubtitle')}
               </p>

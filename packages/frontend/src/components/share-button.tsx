@@ -11,12 +11,18 @@ interface ShareButtonProps {
   sessionId: string
   /** Display title (used in the share text) */
   title: string
+  /** Number of votes cast in this session — drives the social-proof
+   *  flavour of the Twitter / Discord copy. */
+  voteCount?: number
   /** Optional description (passed to the Web Share API) */
   description?: string
   /** Button style variant */
   variant?: 'default' | 'outline' | 'ghost'
   /** Button size override */
   size?: 'sm' | 'default' | 'lg'
+  /** When true, render with the prominent "Annoncer le verdict" copy
+   *  instead of the generic "Partager". Use at the result-reveal moment. */
+  prominent?: boolean
 }
 
 function DiscordIcon({ className }: { className?: string }) {
@@ -46,9 +52,11 @@ async function copyToClipboard(text: string) {
 export function ShareButton({
   sessionId,
   title,
+  voteCount,
   description,
   variant = 'outline',
   size = 'sm',
+  prominent = false,
 }: ShareButtonProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -92,20 +100,29 @@ export function ShareButton({
     setOpen(false)
   }, [shareUrl, t])
 
+  // Social-proof Twitter copy when we know the vote count; fall back to
+  // the simpler "tonight we play X" wording when we don't.
+  const twitterText = voteCount && voteCount > 0
+    ? t('share.twitterText', { title, count: voteCount })
+    : t('share.twitterTextNoCount', { title })
+
   const handleTwitterShare = useCallback(() => {
-    const text = t('share.twitterText', { title })
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
-      text
+      twitterText
     )}&url=${encodeURIComponent(shareUrl)}`
     window.open(twitterUrl, '_blank', 'noopener,noreferrer')
     setOpen(false)
-  }, [shareUrl, title, t])
+  }, [shareUrl, twitterText])
 
   const handleDiscordShare = useCallback(async () => {
-    await copyToClipboard(shareUrl)
+    // Copy the full message body — title intro + URL — so when the user
+    // pastes into Discord they get a richer message than just the bare
+    // link. Discord auto-unfurls the URL via the OG preview server-side.
+    const intro = t('share.discordIntro', { title })
+    await copyToClipboard(`${intro}\n${shareUrl}`)
     toast.success(t('share.linkCopiedDiscord'))
     setOpen(false)
-  }, [shareUrl, t])
+  }, [shareUrl, title, t])
 
   const handleWebShare = useCallback(async () => {
     try {
@@ -136,7 +153,7 @@ export function ShareButton({
         className="gap-2"
       >
         <Share2 className="w-4 h-4" />
-        {t('share.button')}
+        {prominent ? t('share.promoteCta') : t('share.button')}
       </Button>
 
       <AnimatePresence>

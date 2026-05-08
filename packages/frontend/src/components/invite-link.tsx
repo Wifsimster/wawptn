@@ -1,11 +1,20 @@
 import { useTranslation } from 'react-i18next'
-import { Share2 } from 'lucide-react'
+import { Share2, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { track } from '@/lib/analytics'
 
 interface InviteLinkProps {
   token: string
+  /** When true, render the Discord-share action as the primary CTA and
+   *  surface a follow-up "Continue to group" affordance. Use after the
+   *  group-creation success dialog — that's the strongest viral moment. */
+  prominent?: boolean
+  /** Handler for the secondary "Continuer vers le groupe" button. Only
+   *  rendered when `prominent` is true. */
+  onContinue?: () => void
+  /** Override the secondary continue label. */
+  continueLabel?: string
 }
 
 function DiscordIcon({ className }: { className?: string }) {
@@ -16,7 +25,7 @@ function DiscordIcon({ className }: { className?: string }) {
   )
 }
 
-export function InviteLink({ token }: InviteLinkProps) {
+export function InviteLink({ token, prominent = false, onContinue, continueLabel }: InviteLinkProps) {
   const { t } = useTranslation()
   // Use /invite/ path for rich embeds (Discord, Slack, Twitter), redirects to SPA
   const url = `${window.location.origin}/invite/${token}`
@@ -65,6 +74,43 @@ export function InviteLink({ token }: InviteLinkProps) {
         handleCopy()
       }
     }
+  }
+
+  // Prominent variant: at the post-creation viral moment, lead with the
+  // Discord-share CTA (most invites flow through Discord per product
+  // research) and demote the bare "copy link" to a secondary action.
+  if (prominent) {
+    return (
+      <div className="mt-3 p-4 bg-background rounded-md border border-primary/30">
+        <p className="text-sm font-semibold mb-1">{t('invite.promoteTitle')}</p>
+        <p className="text-xs text-muted-foreground mb-3">{t('invite.promoteHint')}</p>
+        <code className="block text-xs bg-secondary px-2 py-1.5 rounded break-all mb-3">
+          {url}
+        </code>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button onClick={handleDiscordShare} className="gap-2 sm:flex-1">
+            <DiscordIcon className="w-4 h-4" />
+            {t('invite.shareOnDiscord')}
+          </Button>
+          {canShare && (
+            <Button variant="secondary" onClick={handleShare} aria-label={t('invite.share')}>
+              <Share2 className="w-4 h-4" />
+            </Button>
+          )}
+          <Button variant="ghost" onClick={handleCopy}>
+            {t('invite.copy')}
+          </Button>
+        </div>
+        {onContinue && (
+          <div className="mt-3 flex justify-end">
+            <Button variant="ghost" size="sm" onClick={onContinue}>
+              {continueLabel ?? t('invite.continueToGroup')}
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (

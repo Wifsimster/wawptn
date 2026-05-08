@@ -1,4 +1,4 @@
-import { test, expect, mockGames, mockUser } from './fixtures'
+import { test, expect, mockGames } from './fixtures'
 
 test.describe('Voting system on mobile', () => {
   // ── Vote page: game selection ─────────────────────────────────

@@ -16,6 +16,11 @@ interface WawptnLogoProps {
 
 export function WawptnLogo({ size = 24, className, variant = 'mono' }: WawptnLogoProps) {
   if (variant === 'color') {
+    // The gradient stops below are derived from the design tokens
+    // (`--primary` ≈ oklch(0.55 0.27 270), `--reward` ≈ oklch(0.82 0.17 70))
+    // so the brand mark stays harmonised with the rest of the app. If the
+    // tokens evolve, update the stops here too — the mark is a deliberate
+    // brand element, not a runtime CSS-var binding.
     return (
       <svg
         width={size}
@@ -28,9 +33,9 @@ export function WawptnLogo({ size = 24, className, variant = 'mono' }: WawptnLog
       >
         <defs>
           <linearGradient id="wawptn-bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#8B5CF6" />
-            <stop offset="0.5" stopColor="#6D28D9" />
-            <stop offset="1" stopColor="#4338CA" />
+            <stop stopColor="oklch(0.65 0.25 280)" />
+            <stop offset="0.5" stopColor="oklch(0.45 0.27 280)" />
+            <stop offset="1" stopColor="oklch(0.35 0.20 270)" />
           </linearGradient>
           <filter id="wawptn-glow">
             <feGaussianBlur stdDeviation="1" result="blur" />
@@ -41,15 +46,15 @@ export function WawptnLogo({ size = 24, className, variant = 'mono' }: WawptnLog
           </filter>
         </defs>
         <rect width="48" height="48" rx="12" fill="url(#wawptn-bg)" />
-        <rect x="0.5" y="0.5" width="47" height="47" rx="11.5" stroke="white" strokeOpacity="0.1" />
+        <rect x="0.5" y="0.5" width="47" height="47" rx="11.5" stroke="oklch(1 0 0)" strokeOpacity="0.1" />
         <path
           d="M18.5 18.5c0-4 3.3-7.5 7.5-7.5s7.5 3.5 7.5 7.5c0 3.2-2.2 5.2-4.5 6.5l-.7.5V27h-3.8v-4.7l1.1-.7c1.5-1 2.6-2 2.6-3.6 0-2-1.7-3.7-3.7-3.7s-3.7 1.7-3.7 3.7"
-          stroke="#fff"
+          stroke="oklch(1 0 0)"
           strokeWidth="2.5"
           strokeLinecap="round"
           filter="url(#wawptn-glow)"
         />
-        <path d="M24.8 33.5l2.2 2.2-2.2 2.2-2.2-2.2z" fill="#FBBF24" filter="url(#wawptn-glow)" />
+        <path d="M24.8 33.5l2.2 2.2-2.2 2.2-2.2-2.2z" fill="oklch(0.82 0.17 70)" filter="url(#wawptn-glow)" />
       </svg>
     )
   }

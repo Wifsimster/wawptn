@@ -324,6 +324,12 @@ export const api = {
   createCheckout: () => request<{ url: string }>('/subscription/checkout', { method: 'POST' }),
   createPortal: () => request<{ url: string }>('/subscription/portal', { method: 'POST' }),
 
+  // Per-user streak roll-up (powers the GroupsPage streak badge)
+  getMyStreaks: () => request<{ bestCurrent: number; bestEver: number; activeStreakGroups: number }>('/users/me/streaks'),
+
+  // Unauthenticated public stats — feeds the LandingPage social-proof strip.
+  getPublicStats: () => request<{ users: number; groups: number; votesClosed: number; votesClosed7d: number; generatedAt: string }>('/stats/public'),
+
   // Personas
   getAdminPersonas: () => request<{
     id: string; name: string; systemPromptOverlay: string;

@@ -23,6 +23,7 @@ import { AppHeader } from '@/components/app-header'
 import { AppFooter } from '@/components/app-footer'
 import { InviteLink } from '@/components/invite-link'
 import { PersonaBadge } from '@/components/persona-badge'
+import { StreakBadge } from '@/components/streak-badge'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 const fadeUp: Variants = {
@@ -242,7 +243,10 @@ export function GroupsPage() {
           </div>
         )}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
-          <h1 className="text-2xl font-heading font-bold tracking-[-0.03em]">{t('groups.title')}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-heading font-bold tracking-[-0.03em]">{t('groups.title')}</h1>
+            <StreakBadge />
+          </div>
           {/* Desktop-only top-right actions. On mobile these are duplicated
               into a thumb-zone bottom bar (below) so the primary CTAs
               aren't stranded in the top-right unreachable zone. */}

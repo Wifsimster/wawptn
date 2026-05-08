@@ -213,6 +213,15 @@ router.get('/me/visibility', async (req: Request, res: Response) => {
   })
 })
 
+// GET /api/users/me/streaks — per-user streak roll-up across every group.
+// Powers the GroupsPage retention badge ("🔥 N"). Returns zeros when the
+// user has never closed a session — call sites suppress rendering then.
+router.get('/me/streaks', async (req: Request, res: Response) => {
+  const { getUserStreakSummary } = await import('../../domain/streaks.js')
+  const summary = await getUserStreakSummary(req.userId!)
+  res.json(summary)
+})
+
 // PATCH /api/users/me/visibility — update own visibility toggles
 router.patch('/me/visibility', async (req: Request, res: Response) => {
   const { visibilityFullLibrary, visibilityLastPlayed } = req.body as {

@@ -20,6 +20,7 @@ import { voteRoutes } from './presentation/routes/vote.routes.js'
 import { inviteRoutes } from './presentation/routes/invite.routes.js'
 import { ogRoutes } from './presentation/routes/og.routes.js'
 import { shareRoutes } from './presentation/routes/share.routes.js'
+import { statsRoutes } from './presentation/routes/stats.routes.js'
 import { requireAuth } from './presentation/middleware/auth.middleware.js'
 import { requireBotAuth } from './presentation/middleware/bot-auth.middleware.js'
 import { requireAdmin } from './presentation/middleware/admin.middleware.js'
@@ -155,6 +156,11 @@ async function main() {
   // (e.g. landing-page → login clicks) and so a dead session never prevents
   // the final vote.completed event from being recorded.
   app.use('/api/events', eventRoutes)
+
+  // Public marketing stats (unauth). Aggregates only — no PII, no per-user
+  // data. Powers the LandingPage social-proof strip. Cached server-side
+  // for 5 minutes; the global apiLimiter still applies upstream.
+  app.use('/api/stats', statsRoutes)
 
   // Strict rate limiter for admin mutation endpoints (privilege grants,
   // persona CRUD, bot settings). Capped well below normal usage so a

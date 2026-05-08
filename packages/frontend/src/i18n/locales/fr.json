@@ -624,6 +624,21 @@
     "gamesCount": "{{count}} jeux",
     "nothingToShow": "Rien à afficher."
   },
+  "streak": {
+    "ariaLabel": "Streak actuel : {{count}} sessions consécutives",
+    "tooltipCurrent_one": "{{count}} session d'affilée",
+    "tooltipCurrent_other": "{{count}} sessions d'affilée",
+    "tooltipBest_one": "Record : {{count}} session",
+    "tooltipBest_other": "Record : {{count}} sessions",
+    "tooltipGroups_one": "Actif dans {{count}} groupe",
+    "tooltipGroups_other": "Actif dans {{count}} groupes"
+  },
+  "socialProof": {
+    "users": "joueurs",
+    "groups": "groupes",
+    "votes": "parties choisies",
+    "votes7d": "parties cette semaine"
+  },
   "share": {
     "button": "Partager",
     "copyLink": "Copier le lien",

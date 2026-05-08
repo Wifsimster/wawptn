@@ -10,8 +10,8 @@ export const db: Knex = knex({
   client: 'pg',
   connection: env.DATABASE_URL,
   pool: {
-    min: 2,
-    max: 10,
+    min: env.DB_POOL_MIN,
+    max: env.DB_POOL_MAX,
     afterCreate: (_conn: unknown, done: (err?: Error) => void) => {
       dbLogger.debug('new connection created in pool')
       done()

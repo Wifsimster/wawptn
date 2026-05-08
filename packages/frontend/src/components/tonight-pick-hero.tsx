@@ -174,7 +174,13 @@ export function TonightPickHero({
           alt=""
           aria-hidden="true"
           className="w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-opacity duration-500 group-hover:scale-[1.02] motion-safe:transition-transform"
-          loading="eager"
+          // The visible foreground thumb (below) is the sharp asset we
+          // care about; this is a decorative 40%-opacity backdrop. Tell
+          // the browser so it can deprioritise the network slot when
+          // both fetches race over flaky 4G. Same URL → cache dedupes.
+          // Mobile review §C7.
+          loading="lazy"
+          fetchPriority="low"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/85 to-background/30" />
         <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent" />

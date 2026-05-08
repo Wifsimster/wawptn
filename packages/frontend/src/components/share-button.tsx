@@ -166,8 +166,14 @@ export function ShareButton({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.96 }}
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+            // Anchor right-aligned so the popover stays inside the
+            // viewport on phones <360px wide, where the centred variant
+            // would overflow off-screen with no clipping ancestor to
+            // catch it (mobile review §C4). The `right-0` placement is
+            // safe even when the trigger is the rightmost element of a
+            // CTA row — popover width (w-56 = 14rem) ≤ all phones.
             className={cn(
-              'absolute left-1/2 top-full z-50 mt-2 w-56 -translate-x-1/2 origin-top',
+              'absolute right-0 sm:left-1/2 sm:right-auto top-full z-50 mt-2 w-56 sm:-translate-x-1/2 origin-top',
               'overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-2'
             )}
           >

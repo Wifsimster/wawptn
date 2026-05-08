@@ -447,7 +447,7 @@ export function VotePage() {
 
         {/* Scrollable grid area: holds the sticky selection badge so users
             don't lose track of their pick count while scrolling on mobile. */}
-        <div className="flex-1 overflow-y-auto pb-24">
+        <div className="flex-1 overflow-y-auto pb-24 touch-scroll overscroll-contain">
           {/* Sticky selection counter — appears at the top of the scroll
               container as soon as the user picks at least one game. The
               floating bottom bar still shows the same count and the submit

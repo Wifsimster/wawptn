@@ -7,13 +7,8 @@ import { useAuthStore } from '@/stores/auth.store'
 const PROJECT_KEY = (import.meta.env.VITE_KOE_PROJECT_KEY as string | undefined) ?? 'wawptn'
 const API_URL = (import.meta.env.VITE_KOE_API_URL as string | undefined) ?? 'https://koe.battistella.ovh'
 
-// The Koe library ships a floating launcher button we don't want to show —
-// we trigger the widget from the user menu instead. Keep the launcher
-// reachable via DOM so `openKoeSupport` can click it, but hide it visually.
-export function openKoeSupport() {
-  const launcher = document.querySelector<HTMLButtonElement>('.koe-root > button[aria-expanded]')
-  launcher?.click()
-}
+// `openKoeSupport` lives in `lib/koe-support.ts` so this module exports
+// only React components — keeps Vite's fast-refresh happy.
 
 const FR_LOCALE = {
   launcherLabel: 'Support',

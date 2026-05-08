@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { WawptnLogo } from '@/components/icons/wawptn-logo'
 import { NotificationBell } from '@/components/notification-bell'
-import { openKoeSupport } from '@/components/KoeSupport'
+import { openKoeSupport } from '@/lib/koe-support'
 
 interface AppHeaderProps {
   children?: React.ReactNode

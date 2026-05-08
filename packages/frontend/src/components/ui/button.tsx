@@ -49,4 +49,8 @@ function Button({
   )
 }
 
-export { Button, buttonVariants }
+// `buttonVariants` is intentionally not re-exported — no consumer needs it,
+// and re-exporting non-component values from a component module trips the
+// react-refresh/only-export-components lint rule. If a call site ever
+// genuinely needs the cva variants, hoist them into a sibling file.
+export { Button }

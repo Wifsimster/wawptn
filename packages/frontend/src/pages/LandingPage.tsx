@@ -132,7 +132,7 @@ export function LandingPage() {
           {/* Decorative horizontal rule */}
           <motion.div variants={fadeUp} className="flex items-center justify-center gap-4 mt-8 sm:mt-10 mb-6 sm:mb-8">
             <div className="h-px w-16 bg-gradient-to-r from-transparent to-primary/30" />
-            <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+            <div className="size-1.5 rounded-full bg-primary/40" />
             <div className="h-px w-16 bg-gradient-to-l from-transparent to-primary/30" />
           </motion.div>
 
@@ -155,14 +155,14 @@ export function LandingPage() {
                 className="gap-3 text-base sm:text-lg px-10 py-7 group"
               >
                 <svg
-                  className="w-6 h-6 transition-transform duration-300 group-hover:scale-110"
+                  className="size-6 transition-transform duration-300 group-hover:scale-110"
                   viewBox="0 0 256 259"
                   fill="currentColor"
                 >
                   <path d="M127.779 0C60.21 0 5.2 52.063.553 117.735l68.39 28.273c5.801-3.964 12.8-6.288 20.358-6.288.672 0 1.34.023 2.004.06l30.469-44.148v-.62c0-26.392 21.476-47.868 47.868-47.868 26.393 0 47.869 21.476 47.869 47.869 0 26.392-21.476 47.868-47.869 47.868h-1.108l-43.44 31.026c0 .524.032 1.049.032 1.578 0 19.803-16.096 35.898-35.898 35.898-17.463 0-32.058-12.535-35.263-29.116L3.27 155.962C20.038 213.357 69.68 258.557 127.779 258.557c71.472 0 129.377-57.905 129.377-129.278C257.156 57.905 199.251 0 127.779 0" />
                 </svg>
                 {t('landing.cta')}
-                <ChevronRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1.5" />
+                <ChevronRight className="size-5 transition-transform duration-300 group-hover:translate-x-1.5" />
               </a>
             </Button>
             <p className="text-xs text-muted-foreground">
@@ -185,7 +185,7 @@ export function LandingPage() {
             transition={{ duration: 3.5, repeat: Infinity }}
           >
             <motion.div
-              className="w-0.5 h-0.5 rounded-full bg-primary/60"
+              className="size-0.5 rounded-full bg-primary/60"
               animate={{ y: [0, 18, 0] }}
               transition={{
                 duration: 2.8,
@@ -236,7 +236,7 @@ export function LandingPage() {
                       <div className="flex justify-center mb-7">
                         <div className="relative">
                           <div
-                            className={`w-14 h-14 rounded-2xl border flex items-center justify-center bg-card/70 backdrop-blur-sm ${colors.badge}`}
+                            className={`size-14 rounded-2xl border flex items-center justify-center bg-card/70 backdrop-blur-sm ${colors.badge}`}
                           >
                             <span className="font-heading text-xl font-bold">
                               {String(i + 1).padStart(2, '0')}
@@ -250,8 +250,8 @@ export function LandingPage() {
 
                       {/* Card body */}
                       <div className="landing-glass-card p-7 sm:p-9 rounded-2xl text-center group">
-                        <div className="relative inline-flex items-center justify-center w-14 h-14 rounded-xl bg-white/[0.03] border border-white/[0.05] mb-6 transition-transform duration-500 group-hover:scale-110">
-                          <step.icon className={`w-7 h-7 ${colors.icon}`} />
+                        <div className="relative inline-flex items-center justify-center size-14 rounded-xl bg-white/[0.03] border border-white/[0.05] mb-6 transition-transform duration-500 group-hover:scale-110">
+                          <step.icon className={`size-7 ${colors.icon}`} />
                         </div>
                         <h3 className="font-heading text-lg sm:text-xl font-semibold mb-3 tracking-tight">
                           {t(step.titleKey)}
@@ -301,8 +301,8 @@ export function LandingPage() {
             <motion.div variants={scaleIn}>
               <div className="h-full landing-glass-card rounded-2xl p-7 sm:p-9">
                 <div className="flex items-center gap-3 mb-7">
-                  <div className="w-11 h-11 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
-                    <Zap className="w-5 h-5 text-muted-foreground" />
+                  <div className="size-11 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
+                    <Zap className="size-5 text-muted-foreground" />
                   </div>
                   <div>
                     <h3 className="font-heading text-lg font-semibold">
@@ -325,7 +325,7 @@ export function LandingPage() {
                     ] as const
                   ).map((key) => (
                     <li key={key} className="flex items-start gap-3">
-                      <Check className="w-4 h-4 text-muted-foreground/35 mt-0.5 shrink-0" />
+                      <Check className="size-4 text-muted-foreground/35 mt-0.5 shrink-0" />
                       <span className="text-sm text-muted-foreground/60">
                         {t(`landing.${key}`)}
                       </span>
@@ -354,8 +354,8 @@ export function LandingPage() {
                 </Badge>
 
                 <div className="flex items-center gap-3 mb-7">
-                  <div className="w-11 h-11 rounded-xl bg-reward/10 border border-reward/20 flex items-center justify-center">
-                    <Crown className="w-5 h-5 text-reward" />
+                  <div className="size-11 rounded-xl bg-reward/10 border border-reward/20 flex items-center justify-center">
+                    <Crown className="size-5 text-reward" />
                   </div>
                   <div>
                     <h3 className="font-heading text-lg font-semibold">
@@ -382,7 +382,7 @@ export function LandingPage() {
                     ] as const
                   ).map((key) => (
                     <li key={key} className="flex items-start gap-3">
-                      <Check className="w-4 h-4 text-reward mt-0.5 shrink-0" />
+                      <Check className="size-4 text-reward mt-0.5 shrink-0" />
                       <span className="text-sm">{t(`landing.${key}`)}</span>
                     </li>
                   ))}

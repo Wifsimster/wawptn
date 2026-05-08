@@ -153,7 +153,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
           }}
           className="absolute inset-y-0 right-0 flex items-center px-2 text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
+          <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} />
         </button>
       </div>
 
@@ -194,7 +194,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
                       isActive ? 'bg-primary/15 text-foreground' : 'text-foreground/90'
                     )}
                   >
-                    <Check className={cn('h-4 w-4 shrink-0', isSelected ? 'opacity-100 text-primary' : 'opacity-0')} />
+                    <Check className={cn('size-4 shrink-0', isSelected ? 'opacity-100 text-primary' : 'opacity-0')} />
                     <div className="flex-1 min-w-0">
                       <div className="truncate">{t(preset.labelKey)}</div>
                       <div className="text-xs text-muted-foreground font-mono truncate">{preset.expression}</div>

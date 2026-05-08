@@ -237,7 +237,7 @@ export function GroupsPage() {
               'flex items-center gap-2 text-xs text-muted-foreground',
               refreshing && 'animate-pulse',
             )}>
-              <RefreshCw className={cn('w-4 h-4', refreshing && 'animate-spin')} />
+              <RefreshCw className={cn('size-4', refreshing && 'animate-spin')} />
               {refreshing ? t('groups.refreshing', 'Actualisation...') : pullDistance > 60 ? t('groups.releaseToRefresh', 'Relâcher pour actualiser') : t('groups.pullToRefresh', 'Tirer pour actualiser')}
             </div>
           </div>
@@ -252,11 +252,11 @@ export function GroupsPage() {
               aren't stranded in the top-right unreachable zone. */}
           <div className="hidden sm:flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowJoin(true)}>
-              <LogIn className="w-4 h-4" />
+              <LogIn className="size-4" />
               {t('groups.join')}
             </Button>
             <Button size="sm" onClick={() => setShowCreate(true)}>
-              <Plus className="w-4 h-4" />
+              <Plus className="size-4" />
               {t('groups.create')}
             </Button>
           </div>
@@ -268,7 +268,7 @@ export function GroupsPage() {
         {/* Search Groups */}
         {groups.length > 3 && (
           <div className="relative mb-4" role="search">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
             <Input
               type="search"
               inputMode="search"
@@ -290,7 +290,7 @@ export function GroupsPage() {
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 aria-label={t('groups.clearSearch')}
               >
-                <X className="w-4 h-4" />
+                <X className="size-4" />
               </button>
             )}
           </div>
@@ -399,7 +399,7 @@ export function GroupsPage() {
                   aria-label={t('joinGroup.paste')}
                   title={t('joinGroup.paste')}
                 >
-                  <ClipboardPaste className="w-4 h-4" />
+                  <ClipboardPaste className="size-4" />
                 </Button>
                 <Button onClick={handleJoin}>{t('joinGroup.submit')}</Button>
               </div>
@@ -452,8 +452,8 @@ export function GroupsPage() {
 
               <ol className="text-left space-y-4 mb-8">
                 <li className="flex items-start gap-3">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 border border-primary/20 text-primary shrink-0">
-                    <Users className="w-4 h-4" />
+                  <div className="flex items-center justify-center size-8 rounded-full bg-primary/10 border border-primary/20 text-primary shrink-0">
+                    <Users className="size-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm">{t('groups.welcomeStep1')}</p>
@@ -461,8 +461,8 @@ export function GroupsPage() {
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-neon/10 border border-neon/20 text-neon shrink-0">
-                    <Vote className="w-4 h-4" />
+                  <div className="flex items-center justify-center size-8 rounded-full bg-neon/10 border border-neon/20 text-neon shrink-0">
+                    <Vote className="size-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm">{t('groups.welcomeStep2')}</p>
@@ -470,8 +470,8 @@ export function GroupsPage() {
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-reward/10 border border-reward/20 text-reward shrink-0">
-                    <Sparkles className="w-4 h-4" />
+                  <div className="flex items-center justify-center size-8 rounded-full bg-reward/10 border border-reward/20 text-reward shrink-0">
+                    <Sparkles className="size-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm">{t('groups.welcomeStep3')}</p>
@@ -482,11 +482,11 @@ export function GroupsPage() {
 
               <div className="flex flex-col sm:flex-row justify-center gap-3">
                 <Button size="lg" onClick={() => setShowCreate(true)}>
-                  <Plus className="w-4 h-4" />
+                  <Plus className="size-4" />
                   {t('groups.welcomeCta')}
                 </Button>
                 <Button size="lg" variant="secondary" onClick={() => setShowJoin(true)}>
-                  <LogIn className="w-4 h-4" />
+                  <LogIn className="size-4" />
                   {t('groups.join')}
                 </Button>
               </div>
@@ -529,7 +529,7 @@ export function GroupsPage() {
                         <h3 className="font-semibold flex items-center gap-1.5">
                           {group.name}
                           {group.role === 'owner' && (
-                            <Crown className="w-4 h-4 text-reward shrink-0" />
+                            <Crown className="size-4 text-reward shrink-0" />
                           )}
                           {group.todayPersona && (
                             <PersonaBadge
@@ -541,26 +541,26 @@ export function GroupsPage() {
                         </h3>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
                           <span className="flex items-center gap-1">
-                            <Users className="w-3 h-3" />
+                            <Users className="size-3" />
                             {group.memberCount}
                           </span>
                           <span className="text-muted-foreground/30">·</span>
                           <span className="flex items-center gap-1">
-                            <Gamepad2 className="w-3 h-3" />
+                            <Gamepad2 className="size-3" />
                             {t('groups.commonGames', { count: group.commonGameCount })}
                           </span>
                           {group.lastSession && (
                             <>
                               <span className="text-muted-foreground/30">·</span>
                               <span className="flex items-center gap-1 truncate">
-                                <Trophy className="w-3 h-3 shrink-0" />
+                                <Trophy className="size-3 shrink-0" />
                                 <span className="truncate">{group.lastSession.gameName}</span>
                               </span>
                             </>
                           )}
                         </div>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground/20 shrink-0 transition-all duration-300 group-hover/card:translate-x-0.5 group-hover/card:text-muted-foreground/50" />
+                      <ChevronRight className="size-4 text-muted-foreground/20 shrink-0 transition-all duration-300 group-hover/card:translate-x-0.5 group-hover/card:text-muted-foreground/50" />
                     </div>
                   </Card>
                 </Link>
@@ -579,14 +579,14 @@ export function GroupsPage() {
               onClick={() => setShowJoin(true)}
               className="flex-1 h-12 gap-2"
             >
-              <LogIn className="w-4 h-4" />
+              <LogIn className="size-4" />
               {t('groups.join')}
             </Button>
             <Button
               onClick={() => setShowCreate(true)}
               className="flex-1 h-12 gap-2"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="size-4" />
               {t('groups.create')}
             </Button>
           </div>

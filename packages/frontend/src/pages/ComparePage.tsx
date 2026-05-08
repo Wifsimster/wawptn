@@ -69,7 +69,7 @@ export function ComparePage() {
       <div className="min-h-dvh flex flex-col">
         <AppHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="size-5" />
           </Button>
         </AppHeader>
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 flex-1 flex items-center justify-center text-center">
@@ -90,7 +90,7 @@ export function ComparePage() {
       <div className="min-h-dvh flex flex-col">
         <AppHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="size-5" />
           </Button>
         </AppHeader>
         <main
@@ -115,7 +115,7 @@ export function ComparePage() {
       <div className="min-h-dvh flex flex-col">
         <AppHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="size-5" />
           </Button>
         </AppHeader>
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 flex-1 flex items-center justify-center text-center">
@@ -143,7 +143,7 @@ export function ComparePage() {
     <div className="min-h-dvh flex flex-col">
       <AppHeader>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="size-5" />
         </Button>
       </AppHeader>
 
@@ -186,7 +186,7 @@ export function ComparePage() {
         {/* ── Common games with playtime bars ── */}
         <section>
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-            <Trophy className="w-4 h-4" />
+            <Trophy className="size-4" />
             {t('compare.topPlayedHeading')}
           </h2>
           {commonCount === 0 ? (
@@ -239,7 +239,7 @@ export function ComparePage() {
         {(result.onlyAGames.length > 0 || result.onlyBGames.length > 0) && (
           <section>
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-              <Gamepad2 className="w-4 h-4" />
+              <Gamepad2 className="size-4" />
               {t('compare.personalLibrariesHeading')}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -265,7 +265,7 @@ function UserBadge({ name, avatarUrl, gameCount, align }: UserBadgeProps) {
   const { t } = useTranslation()
   return (
     <div className={`flex-1 flex flex-col items-center min-w-0 ${align === 'left' ? 'order-1' : ''}`}>
-      <Avatar className="w-20 h-20 ring-2 ring-background mb-2">
+      <Avatar className="size-20 ring-2 ring-background mb-2">
         <AvatarImage src={avatarUrl ?? undefined} alt={name} />
         <AvatarFallback className="text-2xl font-heading font-bold">
           {name.charAt(0).toUpperCase()}

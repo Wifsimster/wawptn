@@ -46,7 +46,7 @@ function IntegrationRow({ label, health }: IntegrationRowProps) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-md border border-border/50 bg-card/40 px-3 py-2">
       <div className="flex items-center gap-2 min-w-0">
-        <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${tone.dotClass}`} aria-hidden="true" />
+        <span className={`size-2.5 rounded-full shrink-0 ${tone.dotClass}`} aria-hidden="true" />
         <span className="text-sm font-medium truncate">{label}</span>
       </div>
       <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
@@ -121,7 +121,7 @@ export function AdminHealthCard() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Activity className="h-4 w-4" />
+              <Activity className="size-4" />
               Santé des intégrations
             </CardTitle>
             <Button
@@ -132,7 +132,7 @@ export function AdminHealthCard() {
               disabled={loading}
               aria-label="Rafraîchir"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </CardHeader>
@@ -143,7 +143,7 @@ export function AdminHealthCard() {
             </div>
           ) : error && !snapshot ? (
             <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <AlertTriangle className="size-4 shrink-0" />
               Impossible de récupérer l'état des intégrations.
             </div>
           ) : snapshot ? (
@@ -153,7 +153,7 @@ export function AdminHealthCard() {
                   breaker state. */}
               <div className="flex items-center justify-between gap-3 rounded-md border border-border/50 bg-card/40 px-3 py-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  <Database className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <Database className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <span className="text-sm font-medium">Base de données</span>
                 </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
@@ -166,9 +166,9 @@ export function AdminHealthCard() {
                     }`}
                   >
                     {snapshot.database.status === 'up' ? (
-                      <CheckCircle2 className="h-3 w-3" />
+                      <CheckCircle2 className="size-3" />
                     ) : (
-                      <AlertTriangle className="h-3 w-3" />
+                      <AlertTriangle className="size-3" />
                     )}
                     {snapshot.database.status === 'up' ? 'opérationnel' : 'indisponible'}
                   </span>

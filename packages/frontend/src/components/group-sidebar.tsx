@@ -144,17 +144,17 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={`h-8 w-8 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive active:bg-accent/10 ${compact ? 'opacity-100' : 'opacity-0 group-hover/history:opacity-100'} transition-opacity shrink-0`}
+                  className={`size-8 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive active:bg-accent/10 ${compact ? 'opacity-100' : 'opacity-0 group-hover/history:opacity-100'} transition-opacity shrink-0`}
                   onClick={() => setConfirmDeleteHistory(session)}
                   aria-label={t('group.deleteHistory')}
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="size-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t('group.deleteHistory')}</TooltipContent>
             </Tooltip>
           ) : index === 0 ? (
-            <Trophy className="w-4 h-4 text-primary shrink-0" />
+            <Trophy className="size-4 text-primary shrink-0" />
           ) : null}
         </div>
       ))}
@@ -174,7 +174,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
       }}
       className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors w-full text-left px-1"
     >
-      <Lock className="w-3 h-3 shrink-0" />
+      <Lock className="size-3 shrink-0" />
       <span>{t('group.historyUpgradeCta')}</span>
     </button>
   )
@@ -185,12 +185,12 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
         <h2 className="font-semibold flex items-center gap-2 text-sm">
-          <Users className="w-4 h-4" />
+          <Users className="size-4" />
           {t('group.members', { count: members.length })}
         </h2>
         {onlineCount > 0 && (
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
-            <span className="w-1.5 h-1.5 rounded-full bg-online animate-pulse" />
+            <span className="size-1.5 rounded-full bg-online animate-pulse" />
             {t('groups.onlineCount', { count: onlineCount })}
           </Badge>
         )}
@@ -198,8 +198,8 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
       {!compact && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={onSync} disabled={syncing} aria-label={t('group.syncLibraries')} className="h-11 w-11 min-h-[44px] min-w-[44px] active:bg-accent/10">
-              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin text-primary' : ''}`} />
+            <Button variant="ghost" size="icon" onClick={onSync} disabled={syncing} aria-label={t('group.syncLibraries')} className="size-11 min-h-[44px] min-w-[44px] active:bg-accent/10">
+              <RefreshCw className={`size-4 ${syncing ? 'animate-spin text-primary' : ''}`} />
             </Button>
           </TooltipTrigger>
           <TooltipContent>{t('group.syncLibraries')}</TooltipContent>
@@ -225,12 +225,12 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
               className={`relative shrink-0 rounded-full ${isSelf ? 'cursor-default' : 'hover:ring-2 hover:ring-primary/40 transition-shadow cursor-pointer'}`}
               aria-label={isSelf ? member.displayName : `Voir le profil de ${member.displayName}`}
             >
-              <Avatar className="w-8 h-8">
+              <Avatar className="size-8">
                 <AvatarImage src={member.avatarUrl} alt={member.displayName} />
                 <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
               <span
-                className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 ${compact ? 'border-background' : 'border-card'} ${isOnline ? 'bg-online animate-pulse' : 'bg-muted-foreground/40'}`}
+                className={`absolute bottom-0 right-0 size-2.5 rounded-full border-2 ${compact ? 'border-background' : 'border-card'} ${isOnline ? 'bg-online animate-pulse' : 'bg-muted-foreground/40'}`}
                 aria-label={presenceLabel}
               />
             </button>
@@ -255,7 +255,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                   </TooltipContent>
                 </Tooltip>
                 {member.role === 'owner' && (
-                  <Crown className="w-4 h-4 text-reward shrink-0" aria-label={t('group.roleOwner')} />
+                  <Crown className="size-4 text-reward shrink-0" aria-label={t('group.roleOwner')} />
                 )}
               </div>
               <p className={`text-[11px] leading-tight ${isOnline ? 'text-emerald-500' : 'text-muted-foreground'}`}>
@@ -271,11 +271,11 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                   <Button
                     variant="ghost"
                     size="icon"
-                    className={`h-11 w-11 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive active:bg-accent/10 ${compact ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}
+                    className={`size-11 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive active:bg-accent/10 ${compact ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}
                     onClick={() => setConfirmKick(member)}
                     aria-label={t('group.kickMember', { name: member.displayName })}
                   >
-                    <UserMinus className="w-4 h-4" />
+                    <UserMinus className="size-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left" className="text-xs">
@@ -298,7 +298,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
           onClick={onSync}
           disabled={syncing}
         >
-          <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin text-primary' : ''}`} />
+          <RefreshCw className={`size-4 mr-2 ${syncing ? 'animate-spin text-primary' : ''}`} />
           {t('group.syncLibraries')}
         </Button>
       )}
@@ -309,7 +309,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
           className="w-full"
           onClick={() => { setRenameName(groupName); setRenameOpen(true) }}
         >
-          <Pencil className="w-4 h-4 mr-2" />
+          <Pencil className="size-4 mr-2" />
           {t('group.renameGroup')}
         </Button>
       )}
@@ -320,7 +320,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
           className="w-full"
           onClick={onGenerateInvite}
         >
-          <UserPlus className="w-4 h-4 mr-2" />
+          <UserPlus className="size-4 mr-2" />
           {t('group.inviteFriend')}
         </Button>
       )}
@@ -338,9 +338,9 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
             onClick={() => onToggleNotifications(!enabled)}
           >
             {enabled ? (
-              <Bell className="w-4 h-4 mr-2" />
+              <Bell className="size-4 mr-2" />
             ) : (
-              <BellOff className="w-4 h-4 mr-2" />
+              <BellOff className="size-4 mr-2" />
             )}
             {enabled ? t('group.notificationsEnabled') : t('group.notificationsDisabled')}
           </Button>
@@ -359,7 +359,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
               setAutoVoteOpen(true)
             }}
           >
-            <CalendarClock className="w-4 h-4 mr-2" />
+            <CalendarClock className="size-4 mr-2" />
             {t('group.autoVote')}
             {autoVoteSchedule && (
               <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('group.autoVoteEnabled')}</Badge>
@@ -374,7 +374,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
               window.location.href = '/subscription?from=auto_vote'
             }}
           >
-            <Lock className="w-4 h-4 mr-2 text-muted-foreground" />
+            <Lock className="size-4 mr-2 text-muted-foreground" />
             {t('group.autoVote')}
             <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('premium.featureLocked')}</Badge>
           </Button>
@@ -388,7 +388,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
             className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             onClick={() => setConfirmLeave(true)}
           >
-            <LogOut className="w-4 h-4 mr-2" />
+            <LogOut className="size-4 mr-2" />
             {t('group.leaveGroup')}
           </Button>
         )}
@@ -398,7 +398,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
             className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             onClick={() => setConfirmDelete(true)}
           >
-            <Trash2 className="w-4 h-4 mr-2" />
+            <Trash2 className="size-4 mr-2" />
             {t('group.deleteGroup')}
           </Button>
         )}
@@ -414,7 +414,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
           {historySection && (
             <div className="space-y-2">
               <h2 className="font-semibold flex items-center gap-2 text-sm">
-                <History className="w-4 h-4" />
+                <History className="size-4" />
                 {t('group.history')}
               </h2>
               {historySection}
@@ -434,7 +434,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
             <Card>
               <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
                 <h2 className="font-semibold flex items-center gap-2 text-sm">
-                  <History className="w-4 h-4" />
+                  <History className="size-4" />
                   {t('group.history')}
                 </h2>
               </CardHeader>

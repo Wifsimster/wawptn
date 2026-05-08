@@ -100,7 +100,7 @@ export function JoinPage() {
           animate="visible"
         >
           <motion.div variants={fadeUp}>
-            <Gamepad2 className="w-12 h-12 text-primary mb-4" />
+            <Gamepad2 className="size-12 text-primary mb-4" />
           </motion.div>
 
           <motion.h1 variants={fadeUp} className="text-2xl font-bold mb-2">
@@ -121,13 +121,13 @@ export function JoinPage() {
                         key={i}
                         src={url}
                         alt=""
-                        className="w-8 h-8 rounded-full border-2 border-background"
+                        className="size-8 rounded-full border-2 border-background"
                       />
                     ))}
                   </div>
                 )}
                 <span className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Users className="w-4 h-4" />
+                  <Users className="size-4" />
                   {t('join.memberCount', { count: preview.memberCount })}
                 </span>
               </div>
@@ -136,7 +136,7 @@ export function JoinPage() {
               {preview.recentWinner && (
                 <Card className="w-full p-3 mb-4">
                   <div className="flex items-center gap-3">
-                    <Trophy className="w-5 h-5 text-reward shrink-0" />
+                    <Trophy className="size-5 text-reward shrink-0" />
                     <div className="flex items-center gap-3 min-w-0">
                       {preview.recentWinner.headerImageUrl && (
                         <img
@@ -169,7 +169,7 @@ export function JoinPage() {
                           />
                         ) : (
                           <div className="w-full aspect-[460/215] rounded bg-muted flex items-center justify-center">
-                            <Gamepad2 className="w-6 h-6 text-muted-foreground" />
+                            <Gamepad2 className="size-6 text-muted-foreground" />
                           </div>
                         )}
                         <p className="text-xs text-center font-medium leading-tight line-clamp-2">{game.gameName}</p>
@@ -206,7 +206,7 @@ export function JoinPage() {
             <motion.div variants={fadeUp} className="w-full">
               <Card className="p-4 mb-4 border-warning/40 bg-warning/5">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" aria-hidden="true" />
+                  <AlertTriangle className="size-5 text-warning shrink-0 mt-0.5" aria-hidden="true" />
                   <div className="min-w-0">
                     <p className="font-semibold mb-1">{t('join.inAppBrowserTitle')}</p>
                     <p className="text-sm text-muted-foreground mb-2">{t('join.inAppBrowserBody')}</p>
@@ -235,7 +235,7 @@ export function JoinPage() {
                       .catch(() => toast.info(url))
                   }}
                 >
-                  <Copy className="w-4 h-4 mr-2" aria-hidden="true" />
+                  <Copy className="size-4 mr-2" aria-hidden="true" />
                   {t('join.copyLink')}
                 </Button>
                 <Button
@@ -262,7 +262,7 @@ export function JoinPage() {
   if (joining) {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+        <Loader2 className="size-8 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground">{t('join.connecting')}</p>
       </div>
     )

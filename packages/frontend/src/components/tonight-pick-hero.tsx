@@ -81,14 +81,14 @@ export function TonightPickHero({
           className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/5 to-transparent pointer-events-none"
         />
         <div className="relative p-4 sm:p-6 flex flex-col sm:flex-row gap-4 sm:gap-5 items-start sm:items-center">
-          <div className="shrink-0 w-12 h-12 rounded-full bg-primary/15 flex items-center justify-center">
-            <Vote className="w-6 h-6 text-primary" />
+          <div className="shrink-0 size-12 rounded-full bg-primary/15 flex items-center justify-center">
+            <Vote className="size-6 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="relative flex h-2 w-2">
+              <span className="relative flex size-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/60" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                <span className="relative inline-flex rounded-full size-2 bg-primary" />
               </span>
               <span className="text-[11px] uppercase tracking-wider text-primary font-bold">
                 {t('tonightPick.voteInProgressEyebrow')}
@@ -110,13 +110,13 @@ export function TonightPickHero({
               onClick={onJoinActiveVote}
               className="h-11 px-5 gap-2 font-heading font-bold text-base shrink-0 card-hover-glow w-full sm:w-auto"
             >
-              <Vote className="w-4 h-4" />
+              <Vote className="size-4" />
               {t('group.joinActiveVote')}
             </Button>
             {members.length > 0 && (
               <div className="flex -space-x-2 self-center sm:self-end">
                 {avatars.map((member) => (
-                  <Avatar key={member.id} className="w-6 h-6 ring-2 ring-background">
+                  <Avatar key={member.id} className="size-6 ring-2 ring-background">
                     <AvatarImage src={member.avatarUrl} alt={member.displayName} />
                     <AvatarFallback className="text-[10px]">
                       {member.displayName.charAt(0).toUpperCase()}
@@ -124,7 +124,7 @@ export function TonightPickHero({
                   </Avatar>
                 ))}
                 {members.length > 5 && (
-                  <div className="w-6 h-6 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-[9px] text-muted-foreground font-medium">
+                  <div className="size-6 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-[9px] text-muted-foreground font-medium">
                     +{members.length - 5}
                   </div>
                 )}
@@ -141,7 +141,7 @@ export function TonightPickHero({
     return (
       <div className="rounded-xl border border-border/60 bg-card/40 p-5 sm:p-6">
         <div className="flex items-center gap-2 mb-2">
-          <Sparkles className="w-4 h-4 text-primary" />
+          <Sparkles className="size-4 text-primary" />
           <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
             {t('tonightPick.eyebrow')}
           </span>
@@ -151,7 +151,7 @@ export function TonightPickHero({
         </h2>
         <p className="text-sm text-muted-foreground mb-4">{t('tonightPick.emptyDescription')}</p>
         <Button onClick={onStartVote} className="w-full sm:w-auto h-11 px-6">
-          <Vote className="w-4 h-4 mr-2" />
+          <Vote className="size-4 mr-2" />
           {t('group.startVote')}
         </Button>
       </div>
@@ -199,7 +199,7 @@ export function TonightPickHero({
         <div className="flex-1 min-w-0 flex flex-col justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <Sparkles className="size-3.5 text-primary" />
               <span className="text-[11px] uppercase tracking-wider text-primary font-bold">
                 {t('tonightPick.eyebrow')}
               </span>
@@ -209,7 +209,7 @@ export function TonightPickHero({
             </h2>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <Badge variant="secondary" className="gap-1 text-[11px] px-2 py-0.5">
-                <ReasonIcon className="w-3 h-3" />
+                <ReasonIcon className="size-3" />
                 {t(REASON_META[reason].key)}
               </Badge>
               {game.metacriticScore !== null && (
@@ -234,7 +234,7 @@ export function TonightPickHero({
                 </Tooltip>
               )}
               <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Users className="w-3 h-3" />
+                <Users className="size-3" />
                 {ownershipComplete
                   ? t('tonightPick.everyoneOwns')
                   : t('group.ownerCountHint', { owned: game.ownerCount, total: game.totalMembers })}
@@ -253,7 +253,7 @@ export function TonightPickHero({
               onClick={onStartVote}
               className="h-11 px-5 gap-2 font-heading font-bold text-base shrink-0 card-hover-glow"
             >
-              <Vote className="w-4 h-4" />
+              <Vote className="size-4" />
               {t('group.startVote')}
             </Button>
             <Tooltip>
@@ -262,10 +262,10 @@ export function TonightPickHero({
                   variant="secondary"
                   size="icon"
                   onClick={onRandomPick}
-                  className="h-11 w-11 shrink-0"
+                  className="size-11 shrink-0"
                   aria-label={t('group.randomPick')}
                 >
-                  <Dices className="w-5 h-5" />
+                  <Dices className="size-5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t('group.randomPick')}</TooltipContent>
@@ -274,7 +274,7 @@ export function TonightPickHero({
             <div className="flex items-center gap-2 min-w-0 ml-auto">
               <div className="flex -space-x-2">
                 {avatars.map((member) => (
-                  <Avatar key={member.id} className="w-7 h-7 ring-2 ring-background">
+                  <Avatar key={member.id} className="size-7 ring-2 ring-background">
                     <AvatarImage src={member.avatarUrl} alt={member.displayName} />
                     <AvatarFallback className="text-[10px]">
                       {member.displayName.charAt(0).toUpperCase()}
@@ -282,13 +282,13 @@ export function TonightPickHero({
                   </Avatar>
                 ))}
                 {members.length > 5 && (
-                  <div className="w-7 h-7 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-[10px] text-muted-foreground font-medium">
+                  <div className="size-7 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-[10px] text-muted-foreground font-medium">
                     +{members.length - 5}
                   </div>
                 )}
               </div>
               <span className="text-xs text-muted-foreground hidden md:inline-flex items-center gap-1">
-                <Zap className="w-3 h-3 text-primary" />
+                <Zap className="size-3 text-primary" />
                 {t('tonightPick.ready')}
               </span>
             </div>

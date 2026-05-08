@@ -196,7 +196,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
           <>
             <ResponsiveDialogHeader>
               <ResponsiveDialogTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-primary" />
+                <Users className="size-5 text-primary" />
                 {t('voteSetup.title')}
               </ResponsiveDialogTitle>
               <ResponsiveDialogDescription>
@@ -242,12 +242,12 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                         className="size-6 sm:size-5 shrink-0"
                       />
                       <div className="relative shrink-0">
-                        <Avatar className="w-7 h-7">
+                        <Avatar className="size-7">
                           <AvatarImage src={member.avatarUrl} alt={member.displayName} />
                           <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <span
-                          className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-card ${isOnline ? 'bg-online' : 'bg-muted-foreground/40'}`}
+                          className={`absolute bottom-0 right-0 size-2 rounded-full border-2 border-card ${isOnline ? 'bg-online' : 'bg-muted-foreground/40'}`}
                         />
                       </div>
                       <span className={`text-sm font-medium truncate ${!isOnline ? 'text-muted-foreground' : ''}`}>{member.displayName}</span>
@@ -265,12 +265,12 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                 </span>
               ) : loadingLivePreview ? (
                 <span className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" />
                   {t('voteSetup.calculatingCommonGames')}
                 </span>
               ) : livePreviewCount !== null && livePreviewCount === 0 ? (
                 <span className="flex items-center gap-2 text-warning">
-                  <AlertTriangle className="w-4 h-4" />
+                  <AlertTriangle className="size-4" />
                   {t('voteSetup.noCommonGames')}
                 </span>
               ) : livePreviewCount !== null ? (
@@ -285,7 +285,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                 {t('voteSetup.selectedCount', { count: selectedIds.size })}
               </span>
               <Button onClick={handleNext} disabled={!canProceed || loadingPreview} className="w-full sm:w-auto">
-                {loadingPreview && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {loadingPreview && <Loader2 className="size-4 mr-2 animate-spin" />}
                 {t('voteSetup.next')}
               </Button>
             </div>
@@ -296,7 +296,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
           <>
             <ResponsiveDialogHeader>
               <ResponsiveDialogTitle className="flex items-center gap-2">
-                <Vote className="w-5 h-5 text-primary" />
+                <Vote className="size-5 text-primary" />
                 {t('voteSetup.confirmTitle')}
               </ResponsiveDialogTitle>
               <ResponsiveDialogDescription>
@@ -309,7 +309,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
 
             <div className="flex items-center gap-2 flex-wrap py-2 px-3 sm:px-4">
               {members.filter(m => selectedIds.has(m.id)).map((member) => (
-                <Avatar key={member.id} className="w-8 h-8">
+                <Avatar key={member.id} className="size-8">
                   <AvatarImage src={member.avatarUrl} alt={member.displayName} />
                   <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
@@ -332,7 +332,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                   onClick={() => setGameFilters(prev => ({ ...prev, multiplayer: !prev.multiplayer }))}
                   className="gap-1.5"
                 >
-                  <Users className="w-3.5 h-3.5" />
+                  <Users className="size-3.5" />
                   {t('voteSetup.filterMultiplayer')}
                 </Button>
                 <Button
@@ -342,7 +342,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                   onClick={() => setGameFilters(prev => ({ ...prev, coop: !prev.coop }))}
                   className="gap-1.5"
                 >
-                  <Handshake className="w-3.5 h-3.5" />
+                  <Handshake className="size-3.5" />
                   {t('voteSetup.filterCoop')}
                 </Button>
                 <Button
@@ -352,7 +352,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                   onClick={() => setGameFilters(prev => ({ ...prev, free: !prev.free }))}
                   className="gap-1.5"
                 >
-                  <CircleDollarSign className="w-3.5 h-3.5" />
+                  <CircleDollarSign className="size-3.5" />
                   {t('voteSetup.filterFree')}
                 </Button>
               </div>
@@ -367,9 +367,9 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
                   disabled={!isPremium}
                   className="size-5"
                 />
-                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <Calendar className="size-4 text-muted-foreground" />
                 <span className="text-sm font-medium">{t('voteSetup.scheduleLater')}</span>
-                {!isPremium && <Lock className="w-3.5 h-3.5 text-muted-foreground" />}
+                {!isPremium && <Lock className="size-3.5 text-muted-foreground" />}
               </label>
 
               {isScheduled && (
@@ -394,7 +394,7 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
 
             <ResponsiveDialogFooter className="mt-4 flex flex-col sm:flex-row gap-2 sm:justify-between">
               <Button variant="ghost" onClick={handleBack} className="w-full sm:w-auto">
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ArrowLeft className="size-4 mr-2" />
                 {t('voteSetup.back')}
               </Button>
               <Button onClick={handleConfirm} disabled={isScheduled && !scheduledDate} className="w-full sm:w-auto">

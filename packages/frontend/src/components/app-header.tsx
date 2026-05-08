@@ -79,13 +79,13 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
               aria-label={t('profile.title')}
             >
               {user ? (
-                <Avatar className="w-8 h-8">
+                <Avatar className="size-8">
                   <AvatarImage src={user.avatarUrl} alt={user.displayName} />
                   <AvatarFallback>{user.displayName.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
               ) : (
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  <User className="w-4 h-4" />
+                <div className="size-8 rounded-full bg-muted flex items-center justify-center">
+                  <User className="size-4" />
                 </div>
               )}
             </button>

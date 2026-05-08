@@ -519,7 +519,7 @@ export function AdminPage() {
     <div className="min-h-dvh flex flex-col bg-background">
       <AppHeader maxWidth="wide">
         <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="size-5" />
         </Button>
       </AppHeader>
 
@@ -548,7 +548,7 @@ export function AdminPage() {
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground font-mono">
-              <Terminal className="inline h-3.5 w-3.5 mr-1.5 -mt-0.5" />
+              <Terminal className="inline size-3.5 mr-1.5 -mt-0.5" />
               Tableau de bord administrateur
             </p>
           </div>
@@ -559,7 +559,7 @@ export function AdminPage() {
             disabled={loading}
             className="gap-2 shrink-0"
           >
-            <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+            <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} />
             Actualiser
           </Button>
         </motion.div>
@@ -594,7 +594,7 @@ export function AdminPage() {
                       transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
                     />
                   )}
-                  <Icon className="relative z-10 h-4 w-4" />
+                  <Icon className="relative z-10 size-4" />
                   <span className="relative z-10 hidden sm:inline">{tab.label}</span>
                   {tab.id === 'personas' && personas.length > 0 && (
                     <span className="relative z-10 hidden sm:inline text-[10px] font-mono text-muted-foreground">
@@ -770,7 +770,7 @@ export function AdminPage() {
                   id="persona-color"
                   value={formData.embedColor}
                   onChange={(e) => setFormData({ ...formData, embedColor: e.target.value })}
-                  className="w-10 h-10 rounded border border-input cursor-pointer"
+                  className="size-10 rounded border border-input cursor-pointer"
                 />
                 <Input
                   value={formData.embedColor}
@@ -977,7 +977,7 @@ function NotificationsTab() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Megaphone className="w-4 h-4" />
+            <Megaphone className="size-4" />
             {t('notifications.broadcastTitle')}
           </CardTitle>
         </CardHeader>
@@ -1011,7 +1011,7 @@ function NotificationsTab() {
             disabled={!title.trim() || sending}
             className="w-full"
           >
-            <Send className="w-4 h-4 mr-2" />
+            <Send className="size-4 mr-2" />
             {sending ? '...' : t('notifications.broadcastSend')}
           </Button>
         </CardContent>
@@ -1092,7 +1092,7 @@ function EmailTab() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Mail className="w-4 h-4" />
+            <Mail className="size-4" />
             État de l'intégration email
           </CardTitle>
         </CardHeader>
@@ -1104,7 +1104,7 @@ function EmailTab() {
               <div className="flex items-center gap-2 text-sm">
                 {status.configured ? (
                   <>
-                    <CheckCircle2 className="w-4 h-4 text-success" />
+                    <CheckCircle2 className="size-4 text-success" />
                     <span className="text-foreground">Resend configuré</span>
                     <Badge variant="outline" className="ml-1 text-[10px] font-mono">
                       RESEND_API_KEY
@@ -1112,7 +1112,7 @@ function EmailTab() {
                   </>
                 ) : (
                   <>
-                    <AlertTriangle className="w-4 h-4 text-ember" />
+                    <AlertTriangle className="size-4 text-ember" />
                     <span className="text-foreground">Resend non configuré</span>
                     <Badge variant="outline" className="ml-1 text-[10px] font-mono text-muted-foreground">
                       RESEND_API_KEY manquante
@@ -1138,7 +1138,7 @@ function EmailTab() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Send className="w-4 h-4" />
+            <Send className="size-4" />
             Envoyer un email de test
           </CardTitle>
         </CardHeader>
@@ -1190,7 +1190,7 @@ function EmailTab() {
             disabled={!emailLooksValid || sending || (status !== null && !status.configured)}
             className="w-full"
           >
-            <Send className="w-4 h-4 mr-2" />
+            <Send className="size-4 mr-2" />
             {sending ? 'Envoi…' : 'Envoyer'}
           </Button>
         </CardContent>
@@ -1202,9 +1202,9 @@ function EmailTab() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               {lastResult.ok ? (
-                <CheckCircle2 className="w-4 h-4 text-success" />
+                <CheckCircle2 className="size-4 text-success" />
               ) : (
-                <AlertTriangle className="w-4 h-4 text-destructive" />
+                <AlertTriangle className="size-4 text-destructive" />
               )}
               Dernière tentative
             </CardTitle>
@@ -1344,7 +1344,7 @@ function OverviewTab({
                 >
                   {/* Background glow orb */}
                   <div
-                    className="absolute -top-8 -right-8 w-24 h-24 rounded-full opacity-[0.04] blur-2xl transition-opacity duration-500 group-hover:opacity-[0.08]"
+                    className="absolute -top-8 -right-8 size-24 rounded-full opacity-[0.04] blur-2xl transition-opacity duration-500 group-hover:opacity-[0.08]"
                     style={{
                       background: card.accent === 'neon'
                         ? 'oklch(0.82 0.19 190)'
@@ -1356,8 +1356,8 @@ function OverviewTab({
                     }}
                   />
 
-                  <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center mb-3', c.iconBg)}>
-                    <Icon className={cn('h-4.5 w-4.5', c.iconColor)} />
+                  <div className={cn('size-9 rounded-lg flex items-center justify-center mb-3', c.iconBg)}>
+                    <Icon className={cn('size-4.5', c.iconColor)} />
                   </div>
                   <div className={cn('text-3xl font-heading font-bold tracking-tight', c.valueColor)}>
                     <AnimatedNumber value={card.value} />
@@ -1391,7 +1391,7 @@ function OverviewTab({
           <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04]">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Theater className="h-4 w-4" />
+                <Theater className="size-4" />
                 Personas en rotation
               </CardTitle>
             </CardHeader>
@@ -1413,7 +1413,7 @@ function OverviewTab({
                       )}
                     >
                       <div
-                        className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-background"
+                        className="size-2.5 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-background"
                         style={{
                           backgroundColor: colorIntToHex(p.embedColor),
                           '--tw-ring-color': colorIntToHex(p.embedColor) + '40',
@@ -1421,7 +1421,7 @@ function OverviewTab({
                       />
                       <span className="text-sm truncate flex-1">{p.name}</span>
                       {p.isDefault && (
-                        <Lock className="h-3 w-3 text-muted-foreground/50" />
+                        <Lock className="size-3 text-muted-foreground/50" />
                       )}
                       <span className={cn(
                         'text-[10px] font-mono uppercase tracking-wider',
@@ -1447,7 +1447,7 @@ function OverviewTab({
           <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04]">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Users className="h-4 w-4" />
+                <Users className="size-4" />
                 Derniers inscrits
               </CardTitle>
             </CardHeader>
@@ -1463,7 +1463,7 @@ function OverviewTab({
                         key={u.id}
                         className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/[0.02]"
                       >
-                        <Avatar className="h-7 w-7">
+                        <Avatar className="size-7">
                           <AvatarImage src={u.avatarUrl} alt={u.displayName} />
                           <AvatarFallback className="text-[10px]">{u.displayName.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
@@ -1521,8 +1521,8 @@ function BotSettingsTab({
           <div className="h-[2px] bg-gradient-to-r from-primary/40 via-neon/30 to-transparent" />
           <CardHeader>
             <CardTitle className="flex items-center gap-2.5 text-base">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Bot className="h-4 w-4 text-primary" />
+              <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Bot className="size-4 text-primary" />
               </div>
               Rotation des personas
             </CardTitle>
@@ -1546,7 +1546,7 @@ function BotSettingsTab({
                     Rotation des personas activée
                   </label>
                   <div className={cn(
-                    'w-2 h-2 rounded-full transition-colors',
+                    'size-2 rounded-full transition-colors',
                     settings.persona_rotation_enabled ? 'bg-success' : 'bg-muted-foreground/30',
                   )} />
                 </div>
@@ -1587,7 +1587,7 @@ function BotSettingsTab({
                 {/* Persona override */}
                 <div className="space-y-2 pt-2">
                   <label htmlFor="persona-override" className="text-sm font-medium flex items-center gap-1.5">
-                    <Theater className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Theater className="size-3.5 text-muted-foreground" />
                     Forcer le persona du jour
                   </label>
                   <select
@@ -1623,8 +1623,8 @@ function BotSettingsTab({
           <div className="h-[2px] bg-gradient-to-r from-ember/40 via-reward/30 to-transparent" />
           <CardHeader>
             <CardTitle className="flex items-center gap-2.5 text-base">
-              <div className="w-8 h-8 rounded-lg bg-ember/10 flex items-center justify-center">
-                <Clock className="h-4 w-4 text-ember" />
+              <div className="size-8 rounded-lg bg-ember/10 flex items-center justify-center">
+                <Clock className="size-4 text-ember" />
               </div>
               Planification
             </CardTitle>
@@ -1668,7 +1668,7 @@ function BotSettingsTab({
 
                 <div className="space-y-1.5">
                   <label htmlFor="timezone" className="text-sm font-medium flex items-center gap-1.5">
-                    <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Globe className="size-3.5 text-muted-foreground" />
                     Fuseau horaire
                   </label>
                   <Input
@@ -1688,7 +1688,7 @@ function BotSettingsTab({
       {/* Save bar */}
       <motion.div variants={fadeUp} className="flex gap-3 pt-2">
         <Button onClick={onSave} disabled={saving || loading} className="gap-2">
-          <Save className="h-4 w-4" />
+          <Save className="size-4" />
           {saving ? 'Sauvegarde...' : 'Sauvegarder les paramètres'}
         </Button>
       </motion.div>
@@ -1722,7 +1722,7 @@ function PersonasTab({
           {personas.filter(p => p.isActive).length} actif{personas.filter(p => p.isActive).length > 1 ? 's' : ''} sur {personas.length}
         </div>
         <Button size="sm" className="gap-1.5" onClick={onCreate}>
-          <Plus className="h-4 w-4" />
+          <Plus className="size-4" />
           Ajouter un persona
         </Button>
       </div>
@@ -1762,7 +1762,7 @@ function PersonasTab({
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div
-                        className="w-4 h-4 rounded-full shrink-0 ring-2 ring-offset-2 ring-offset-card"
+                        className="size-4 rounded-full shrink-0 ring-2 ring-offset-2 ring-offset-card"
                         style={{
                           backgroundColor: colorIntToHex(persona.embedColor),
                           boxShadow: persona.isActive
@@ -1777,7 +1777,7 @@ function PersonasTab({
                     </div>
                     {persona.isDefault && (
                       <span title="Persona par défaut">
-                        <Lock className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 mt-0.5" />
+                        <Lock className="size-3.5 text-muted-foreground/40 shrink-0 mt-0.5" />
                       </span>
                     )}
                   </div>
@@ -1810,21 +1810,21 @@ function PersonasTab({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="size-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => onEdit(persona)}
                       title="Modifier"
                     >
-                      <Pencil className="h-3 w-3" />
+                      <Pencil className="size-3" />
                     </Button>
                     {!persona.isDefault && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 shrink-0 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="size-7 shrink-0 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={() => onDelete(persona.id)}
                         title="Supprimer"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="size-3" />
                       </Button>
                     )}
                   </div>
@@ -1884,7 +1884,7 @@ function UsersTab({
       {/* Search bar */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/50" />
           <Input
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -1896,7 +1896,7 @@ function UsersTab({
               onClick={() => onSearchChange('')}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="size-3.5" />
             </button>
           )}
         </div>
@@ -1930,13 +1930,13 @@ function UsersTab({
                   : 'border-white/[0.04] hover:border-white/[0.08]',
               )}>
                 <div className="relative">
-                  <Avatar className="h-10 w-10">
+                  <Avatar className="size-10">
                     <AvatarImage src={u.avatarUrl} alt={u.displayName} />
                     <AvatarFallback>{u.displayName.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   {u.isAdmin && (
-                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary/20 border border-card flex items-center justify-center">
-                      <ShieldCheck className="h-2.5 w-2.5 text-primary" />
+                    <div className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full bg-primary/20 border border-card flex items-center justify-center">
+                      <ShieldCheck className="size-2.5 text-primary" />
                     </div>
                   )}
                 </div>
@@ -1989,7 +1989,7 @@ function UsersTab({
                       onClick={() => onTogglePremium(u)}
                       title="Retirer l'accès premium offert"
                     >
-                      <Crown className="h-3.5 w-3.5" />
+                      <Crown className="size-3.5" />
                       <span className="hidden sm:inline">Retirer premium</span>
                     </Button>
                   ) : (
@@ -2000,7 +2000,7 @@ function UsersTab({
                       onClick={() => onTogglePremium(u)}
                       title="Offrir l'accès premium à cet utilisateur"
                     >
-                      <Crown className="h-3.5 w-3.5 text-reward" />
+                      <Crown className="size-3.5 text-reward" />
                       <span className="hidden sm:inline">Offrir premium</span>
                     </Button>
                   )}
@@ -2014,7 +2014,7 @@ function UsersTab({
                       disabled={u.id === currentUserId}
                       title={u.id === currentUserId ? 'Vous ne pouvez pas révoquer votre propre accès' : undefined}
                     >
-                      <ShieldOff className="h-3.5 w-3.5" />
+                      <ShieldOff className="size-3.5" />
                       <span className="hidden sm:inline">Révoquer</span>
                     </Button>
                   ) : (
@@ -2024,7 +2024,7 @@ function UsersTab({
                       className="gap-1.5"
                       onClick={() => onToggleAdmin(u)}
                     >
-                      <ShieldCheck className="h-3.5 w-3.5" />
+                      <ShieldCheck className="size-3.5" />
                       <span className="hidden sm:inline">Promouvoir</span>
                     </Button>
                   )}
@@ -2060,7 +2060,7 @@ function UsersTab({
               disabled={!canPrev}
               className="gap-1.5"
             >
-              <ChevronLeft className="h-3.5 w-3.5" />
+              <ChevronLeft className="size-3.5" />
               <span className="hidden sm:inline">Précédent</span>
             </Button>
             <Button
@@ -2071,7 +2071,7 @@ function UsersTab({
               className="gap-1.5"
             >
               <span className="hidden sm:inline">Suivant</span>
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="size-3.5" />
             </Button>
           </div>
         </div>

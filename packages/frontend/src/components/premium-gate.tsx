@@ -60,7 +60,7 @@ function PremiumGateFallback({ from, feature }: { from: PremiumFromKey; feature?
   return (
     <div className="flex flex-col items-center gap-3 py-6 px-4 rounded-lg border border-dashed border-primary/30 bg-gradient-to-b from-primary/5 to-transparent">
       <div className="flex items-center gap-2 text-foreground">
-        <Lock className="w-5 h-5 text-reward" />
+        <Lock className="size-5 text-reward" />
         <span className="text-sm font-semibold">{title}</span>
       </div>
 
@@ -74,7 +74,7 @@ function PremiumGateFallback({ from, feature }: { from: PremiumFromKey; feature?
         <ul className="text-xs text-muted-foreground space-y-1 max-w-xs w-full">
           {benefits.map((b) => (
             <li key={b} className="flex items-start gap-2">
-              <Check className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" />
+              <Check className="size-3.5 text-success shrink-0 mt-0.5" />
               <span>{b}</span>
             </li>
           ))}
@@ -82,7 +82,7 @@ function PremiumGateFallback({ from, feature }: { from: PremiumFromKey; feature?
       )}
 
       <Button size="sm" onClick={handleUpgrade}>
-        <Crown className="w-4 h-4 mr-1.5 text-reward" />
+        <Crown className="size-4 mr-1.5 text-reward" />
         {t('premium.unlock')}
       </Button>
     </div>
@@ -95,7 +95,7 @@ export function PremiumLockIcon() {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Lock className="w-3.5 h-3.5 text-muted-foreground inline ml-1" />
+        <Lock className="size-3.5 text-muted-foreground inline ml-1" />
       </TooltipTrigger>
       <TooltipContent>{t('premium.featureLocked')}</TooltipContent>
     </Tooltip>

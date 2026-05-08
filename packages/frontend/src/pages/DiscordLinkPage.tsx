@@ -42,7 +42,7 @@ export function DiscordLinkPage() {
   if (!code) {
     return (
       <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-4">
-        <X className="w-12 h-12 text-destructive mb-4" aria-hidden="true" />
+        <X className="size-12 text-destructive mb-4" aria-hidden="true" />
         <h1 className="text-2xl font-bold mb-2">{t('discordLink.invalidCode')}</h1>
         <p className="text-muted-foreground mb-6">{t('discordLink.noCode')}</p>
         <Button onClick={() => navigate('/')}>{t('discordLink.goHome')}</Button>
@@ -54,7 +54,7 @@ export function DiscordLinkPage() {
   if (!user) {
     return (
       <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-4">
-        <Gamepad2 className="w-12 h-12 text-primary mb-4" aria-hidden="true" />
+        <Gamepad2 className="size-12 text-primary mb-4" aria-hidden="true" />
         <h1 className="text-2xl font-bold mb-2">{t('discordLink.title')}</h1>
         <p className="text-muted-foreground mb-6">{t('discordLink.loginPrompt')}</p>
         <Button variant="steam" size="lg" asChild>
@@ -74,7 +74,7 @@ export function DiscordLinkPage() {
         aria-busy="true"
         aria-live="polite"
       >
-        <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" aria-hidden="true" />
+        <Loader2 className="size-8 animate-spin text-primary mb-4" aria-hidden="true" />
         <p className="text-muted-foreground">{t('discordLink.linking')}</p>
       </main>
     )
@@ -84,7 +84,7 @@ export function DiscordLinkPage() {
   if (discordUsername) {
     return (
       <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-4">
-        <Check className="w-12 h-12 text-success mb-4" aria-hidden="true" />
+        <Check className="size-12 text-success mb-4" aria-hidden="true" />
         <h1 className="text-2xl font-bold mb-2">{t('discordLink.linked')}</h1>
         <p className="text-muted-foreground mb-6">
           {t('discordLink.linkedDescription', { username: discordUsername })}
@@ -97,7 +97,7 @@ export function DiscordLinkPage() {
   // Error
   return (
     <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-4" role="alert">
-      <X className="w-12 h-12 text-destructive mb-4" aria-hidden="true" />
+      <X className="size-12 text-destructive mb-4" aria-hidden="true" />
       <h1 className="text-2xl font-bold mb-2">{t('discordLink.failed')}</h1>
       <p className="text-muted-foreground mb-6">{error}</p>
       <Button onClick={() => navigate('/')}>{t('discordLink.goHome')}</Button>

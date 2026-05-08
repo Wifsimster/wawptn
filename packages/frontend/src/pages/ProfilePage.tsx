@@ -334,7 +334,7 @@ export function ProfilePage() {
       <div className="min-h-dvh flex flex-col">
         <AppHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="size-5" />
           </Button>
         </AppHeader>
         <main
@@ -365,7 +365,7 @@ export function ProfilePage() {
     <div className="min-h-dvh flex flex-col">
       <AppHeader>
         <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="size-5" />
         </Button>
       </AppHeader>
 
@@ -384,13 +384,13 @@ export function ProfilePage() {
         >
           {/* Decorative holographic seal */}
           <div className="profile-holo-seal" aria-hidden="true">
-            <Gamepad2 className="w-4 h-4 relative z-10 text-foreground/25" />
+            <Gamepad2 className="size-4 relative z-10 text-foreground/25" />
           </div>
 
           <div className="relative z-10 flex flex-col items-center text-center">
             {/* Avatar with prismatic ring */}
             <motion.div variants={avatarReveal} className="profile-avatar-ring mb-5">
-              <Avatar className="w-24 h-24 sm:w-28 sm:h-28 ring-2 ring-background">
+              <Avatar className="size-24 sm:w-28 sm:h-28 ring-2 ring-background">
                 <AvatarImage src={profile.avatarUrl} alt={profile.displayName} />
                 <AvatarFallback className="text-3xl font-heading font-bold">
                   {profile.displayName.charAt(0).toUpperCase()}
@@ -428,7 +428,7 @@ export function ProfilePage() {
                 className="text-sm text-primary hover:text-primary/80 inline-flex items-center gap-1.5 transition-colors mt-1.5"
               >
                 {t('profile.steamProfile')}
-                <ExternalLink className="w-3.5 h-3.5" />
+                <ExternalLink className="size-3.5" />
               </motion.a>
             )}
 
@@ -447,7 +447,7 @@ export function ProfilePage() {
                   variants={statItem}
                   className="flex flex-col items-center"
                 >
-                  <stat.icon className="w-4 h-4 mb-2 text-muted-foreground/50" />
+                  <stat.icon className="size-4 mb-2 text-muted-foreground/50" />
                   <span className="text-2xl sm:text-3xl font-heading font-bold tracking-tight">
                     {formatStatValue(stat.raw)}
                   </span>
@@ -465,7 +465,7 @@ export function ProfilePage() {
         {/* ── Platforms ── */}
         <motion.section variants={fadeUp}>
           <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
-            <Gamepad2 className="w-4 h-4 shrink-0" />
+            <Gamepad2 className="size-4 shrink-0" />
             {t('profile.platforms')}
           </h3>
           <motion.div variants={stagger} className="space-y-2.5">
@@ -478,7 +478,7 @@ export function ProfilePage() {
               >
                 <PlatformIcon
                   platformId={platform.id}
-                  className="w-5 h-5 shrink-0 text-muted-foreground"
+                  className="size-5 shrink-0 text-muted-foreground"
                   aria-label={platform.name}
                 />
                 <div className="flex-1 min-w-0">
@@ -486,12 +486,12 @@ export function ProfilePage() {
                     <span className="font-medium text-sm">{platform.name}</span>
                     {platform.connected && platform.needsRelink ? (
                       <Badge variant="destructive" className="text-[10px] gap-1 py-0 h-5">
-                        <AlertTriangle className="w-3 h-3" />
+                        <AlertTriangle className="size-3" />
                         {t('profile.needsRelink')}
                       </Badge>
                     ) : platform.connected ? (
                       <span className="flex items-center gap-1 text-[10px] text-success font-medium">
-                        <Check className="w-3 h-3" />
+                        <Check className="size-3" />
                         {t('profile.connected')}
                       </span>
                     ) : platform.comingSoon ? (
@@ -515,13 +515,13 @@ export function ProfilePage() {
                           )}
                           {platform.totalPlaytimeMinutes != null && platform.totalPlaytimeMinutes > 0 && (
                             <span className="flex items-center gap-0.5">
-                              <Timer className="w-3 h-3" />
+                              <Timer className="size-3" />
                               {formatPlaytime(platform.totalPlaytimeMinutes)}
                             </span>
                           )}
                           {platform.lastSyncedAt ? (
                             <span className="flex items-center gap-0.5">
-                              <Clock className="w-3 h-3" />
+                              <Clock className="size-3" />
                               {t('profile.lastSync', {
                                 date: new Date(platform.lastSyncedAt).toLocaleDateString('fr-FR', {
                                   day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
@@ -543,7 +543,7 @@ export function ProfilePage() {
                     onClick={() => handleConnect(platform.id)}
                     className="shrink-0 h-8 text-xs"
                   >
-                    <Link className="w-3.5 h-3.5 mr-1" />
+                    <Link className="size-3.5 mr-1" />
                     {t('profile.reconnect')}
                   </Button>
                 )}
@@ -555,7 +555,7 @@ export function ProfilePage() {
                     disabled={syncingPlatform === platform.id}
                     className="shrink-0 h-8 text-xs"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 mr-1 ${syncingPlatform === platform.id ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`size-3.5 mr-1 ${syncingPlatform === platform.id ? 'animate-spin' : ''}`} />
                     {syncingPlatform === platform.id ? t('profile.syncing') : t('profile.syncNow')}
                   </Button>
                 )}
@@ -567,7 +567,7 @@ export function ProfilePage() {
                     disabled={unlinking === platform.id}
                     className="shrink-0 h-8 text-xs text-destructive hover:text-destructive"
                   >
-                    <Unlink className="w-3.5 h-3.5 mr-1" />
+                    <Unlink className="size-3.5 mr-1" />
                     {t('profile.disconnect')}
                   </Button>
                 )}
@@ -578,7 +578,7 @@ export function ProfilePage() {
                     onClick={() => handleConnect(platform.id)}
                     className="shrink-0 h-8 text-xs"
                   >
-                    <Link className="w-3.5 h-3.5 mr-1" />
+                    <Link className="size-3.5 mr-1" />
                     {t('profile.connect')}
                   </Button>
                 )}
@@ -590,20 +590,20 @@ export function ProfilePage() {
         {/* ── Discord Link ── */}
         <motion.section variants={fadeUp}>
           <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
-            <MessageCircle className="w-4 h-4 shrink-0" />
+            <MessageCircle className="size-4 shrink-0" />
             Discord
           </h3>
           <div
             className="flex items-start gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm border-l-[3px] transition-all duration-300 hover:bg-card/80"
             style={{ borderLeftColor: 'oklch(0.55 0.18 270)' }}
           >
-            <MessageCircle className="w-5 h-5 shrink-0 text-muted-foreground mt-0.5" />
+            <MessageCircle className="size-5 shrink-0 text-muted-foreground mt-0.5" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium text-sm">Discord</span>
                 {profile.discord?.linked ? (
                   <span className="flex items-center gap-1 text-[10px] text-success font-medium">
-                    <Check className="w-3 h-3" />
+                    <Check className="size-3" />
                     {t('profile.connected')}
                   </span>
                 ) : (
@@ -630,7 +630,7 @@ export function ProfilePage() {
                 disabled={unlinking === 'discord'}
                 className="shrink-0 h-8 text-xs text-destructive hover:text-destructive"
               >
-                <Unlink className="w-3.5 h-3.5 mr-1" />
+                <Unlink className="size-3.5 mr-1" />
                 {t('profile.disconnect')}
               </Button>
             )}
@@ -641,7 +641,7 @@ export function ProfilePage() {
         {visibility && (
           <motion.section variants={fadeUp}>
             <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
-              <Eye className="w-4 h-4 shrink-0" />
+              <Eye className="size-4 shrink-0" />
               Confidentialité
             </h3>
             <p className="text-xs text-muted-foreground leading-relaxed mb-3">
@@ -685,7 +685,7 @@ export function ProfilePage() {
         {profile.topGames && profile.topGames.length > 0 && (
           <motion.section variants={fadeUp}>
             <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
-              <Trophy className="w-4 h-4 shrink-0" />
+              <Trophy className="size-4 shrink-0" />
               {t('profile.topGames')}
             </h3>
             <motion.div variants={stagger} className="space-y-3">
@@ -705,7 +705,7 @@ export function ProfilePage() {
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                     <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-reward/90 text-reward-foreground rounded-lg px-2.5 py-1 text-xs font-bold backdrop-blur-sm shadow-lg">
-                      <Trophy className="w-3.5 h-3.5" />
+                      <Trophy className="size-3.5" />
                       #1
                     </div>
                     <div className="absolute bottom-0 left-0 right-0 px-4 py-3 flex items-center justify-between">
@@ -738,7 +738,7 @@ export function ProfilePage() {
                             loading="lazy"
                           />
                           <div className={`
-                            absolute top-1.5 left-1.5 w-6 h-6 rounded-md flex items-center justify-center
+                            absolute top-1.5 left-1.5 size-6 rounded-md flex items-center justify-center
                             text-[11px] font-bold backdrop-blur-sm
                             ${i === 0 ? 'bg-foreground/15 text-foreground/70' : i === 1 ? 'bg-ember/20 text-ember' : 'bg-muted/50 text-muted-foreground'}
                           `}>
@@ -765,7 +765,7 @@ export function ProfilePage() {
           <motion.section variants={fadeUp}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                <Target className="w-4 h-4 shrink-0" />
+                <Target className="size-4 shrink-0" />
                 {t('challenges.title')}
               </h3>
               <Badge variant="secondary" className="text-[10px] py-0 h-5 font-mono">

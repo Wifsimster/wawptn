@@ -388,7 +388,7 @@ export function GroupPage() {
     return (
       <div className="min-h-dvh flex flex-col">
         <AppHeader maxWidth="wide">
-          <Skeleton className="h-5 w-5 rounded" />
+          <Skeleton className="size-5 rounded" />
         </AppHeader>
         <main
           id="main-content"
@@ -413,12 +413,12 @@ export function GroupPage() {
       <AppHeader maxWidth="wide">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')} className="shrink-0">
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="size-5" />
           </Button>
           <h1 className="text-base sm:text-lg font-heading font-bold truncate min-w-0 flex-1">{currentGroup.name}</h1>
           {onlineUserIds.length > 0 && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal shrink-0 hidden sm:inline-flex">
-              <span className="w-1.5 h-1.5 rounded-full bg-online animate-pulse" />
+              <span className="size-1.5 rounded-full bg-online animate-pulse" />
               {t('group.onlineCount', { count: onlineUserIds.length })}
             </Badge>
           )}
@@ -438,13 +438,13 @@ export function GroupPage() {
           <div className="flex items-center gap-2 min-w-0">
             <div className="flex -space-x-1.5 shrink-0">
               {currentGroup.members.slice(0, 4).map((member) => (
-                <Avatar key={member.id} className="w-6 h-6 ring-2 ring-background">
+                <Avatar key={member.id} className="size-6 ring-2 ring-background">
                   <AvatarImage src={member.avatarUrl} alt={member.displayName} />
                   <AvatarFallback className="text-[9px]">{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
               ))}
               {currentGroup.members.length > 4 && (
-                <div className="w-6 h-6 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-[9px] text-muted-foreground font-medium">
+                <div className="size-6 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-[9px] text-muted-foreground font-medium">
                   +{currentGroup.members.length - 4}
                 </div>
               )}
@@ -455,12 +455,12 @@ export function GroupPage() {
               </span>
               {onlineUserIds.length > 0 && (
                 <span className="flex items-center gap-1 text-[11px] text-emerald-500 whitespace-nowrap">
-                  <span className="w-1.5 h-1.5 rounded-full bg-online animate-pulse" />
+                  <span className="size-1.5 rounded-full bg-online animate-pulse" />
                   {t('group.onlineCount', { count: onlineUserIds.length })}
                 </span>
               )}
             </div>
-            <UsersIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <UsersIcon className="size-3.5 text-muted-foreground shrink-0" />
           </div>
         </button>
 
@@ -509,7 +509,7 @@ export function GroupPage() {
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               >
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 sm:p-4 flex items-start gap-3">
-                  <Link2 className="w-5 h-5 mt-0.5 shrink-0 text-primary" />
+                  <Link2 className="size-5 mt-0.5 shrink-0 text-primary" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{t('group.discordBannerTitle')}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{t('group.discordBannerHint')}</p>
@@ -527,7 +527,7 @@ export function GroupPage() {
                 groups bound before the name-snapshot migration. */}
             {currentGroup.discordChannelId && (
               <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border border-border/60 bg-muted/20 rounded-full px-2.5 py-1">
-                <Link2 className="w-3 h-3 text-primary shrink-0" />
+                <Link2 className="size-3 text-primary shrink-0" />
                 {currentGroup.discordChannelName || currentGroup.discordGuildName ? (
                   <span className="truncate">
                     {currentGroup.discordChannelName && (

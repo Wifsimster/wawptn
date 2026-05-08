@@ -66,7 +66,7 @@ export function UserProfilePage() {
       <div className="min-h-dvh flex flex-col">
         <AppHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="size-5" />
           </Button>
         </AppHeader>
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 space-y-4">
@@ -85,12 +85,12 @@ export function UserProfilePage() {
       <div className="min-h-dvh flex flex-col">
         <AppHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="size-5" />
           </Button>
         </AppHeader>
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 flex-1 flex items-center justify-center">
           <div className="text-center space-y-3">
-            <Lock className="w-8 h-8 mx-auto text-muted-foreground" />
+            <Lock className="size-8 mx-auto text-muted-foreground" />
             <h1 className="text-lg font-semibold">{t('userProfile.unavailableTitle')}</h1>
             <p className="text-sm text-muted-foreground max-w-sm">
               {t('userProfile.unavailableBody')}
@@ -112,14 +112,14 @@ export function UserProfilePage() {
     <div className="min-h-dvh flex flex-col">
       <AppHeader>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="size-5" />
         </Button>
       </AppHeader>
 
       <main id="main-content" className="max-w-2xl mx-auto w-full p-4 space-y-6 pb-12">
         {/* ── Header card ── */}
         <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 flex flex-col items-center text-center">
-          <Avatar className="w-24 h-24 ring-2 ring-background mb-4">
+          <Avatar className="size-24 ring-2 ring-background mb-4">
             <AvatarImage src={profile.avatarUrl ?? undefined} alt={profile.displayName} />
             <AvatarFallback className="text-3xl font-heading font-bold">
               {profile.displayName.charAt(0).toUpperCase()}
@@ -127,7 +127,7 @@ export function UserProfilePage() {
           </Avatar>
           <h1 className="text-2xl font-heading font-bold">{profile.displayName}</h1>
           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-            <Clock className="w-3 h-3" />
+            <Clock className="size-3" />
             {t('userProfile.lastSyncedAt', { date: formatSyncedAt(profile.lastSyncedAt) })}
           </p>
 
@@ -163,7 +163,7 @@ export function UserProfilePage() {
               onClick={() => me && navigate(`/compare?a=${me.id}&b=${profile.id}`)}
               disabled={!me}
             >
-              <GitCompare className="w-4 h-4 mr-2" />
+              <GitCompare className="size-4 mr-2" />
               {t('userProfile.compareCta')}
             </Button>
             <Button
@@ -173,7 +173,7 @@ export function UserProfilePage() {
               disabled={isLoading}
               aria-label={t('userProfile.refreshLabel')}
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>
@@ -181,7 +181,7 @@ export function UserProfilePage() {
         {/* ── Common games with me ── */}
         <section>
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-            <Trophy className="w-4 h-4" />
+            <Trophy className="size-4" />
             {t('userProfile.commonHeading')}
           </h2>
           {commonCount === 0 ? (
@@ -235,7 +235,7 @@ export function UserProfilePage() {
         {profile.visibilityFullLibrary && profile.topGames && profile.topGames.length > 0 && (
           <section>
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-              <Trophy className="w-4 h-4" />
+              <Trophy className="size-4" />
               {t('userProfile.topGamesHeading')}
             </h2>
             <ul className="space-y-2">
@@ -260,7 +260,7 @@ export function UserProfilePage() {
         {/* ── Empty state when the user has opted out of full library ── */}
         {!profile.visibilityFullLibrary && (
           <div className="flex items-start gap-3 p-4 rounded-xl border border-dashed border-border/50 bg-muted/10">
-            <Lock className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+            <Lock className="size-4 text-muted-foreground shrink-0 mt-0.5" />
             <div className="text-xs text-muted-foreground leading-relaxed">
               <Trans
                 i18nKey="userProfile.fullLibraryHidden"

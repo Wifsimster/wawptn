@@ -89,12 +89,12 @@ export function InviteLink({ token, prominent = false, onContinue, continueLabel
         </code>
         <div className="flex flex-col sm:flex-row gap-2">
           <Button onClick={handleDiscordShare} className="gap-2 sm:flex-1">
-            <DiscordIcon className="w-4 h-4" />
+            <DiscordIcon className="size-4" />
             {t('invite.shareOnDiscord')}
           </Button>
           {canShare && (
             <Button variant="secondary" onClick={handleShare} aria-label={t('invite.share')}>
-              <Share2 className="w-4 h-4" />
+              <Share2 className="size-4" />
             </Button>
           )}
           <Button variant="ghost" onClick={handleCopy}>
@@ -105,7 +105,7 @@ export function InviteLink({ token, prominent = false, onContinue, continueLabel
           <div className="mt-3 flex justify-end">
             <Button variant="ghost" size="sm" onClick={onContinue}>
               {continueLabel ?? t('invite.continueToGroup')}
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="size-4" />
             </Button>
           </div>
         )}
@@ -124,11 +124,11 @@ export function InviteLink({ token, prominent = false, onContinue, continueLabel
           {t('invite.copy')}
         </Button>
         <Button size="sm" variant="secondary" onClick={handleDiscordShare} aria-label={t('invite.discord')}>
-          <DiscordIcon className="w-3.5 h-3.5" />
+          <DiscordIcon className="size-3.5" />
         </Button>
         {canShare && (
           <Button size="sm" variant="secondary" onClick={handleShare} aria-label={t('invite.share')}>
-            <Share2 className="w-3.5 h-3.5" />
+            <Share2 className="size-3.5" />
           </Button>
         )}
       </div>

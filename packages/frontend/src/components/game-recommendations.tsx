@@ -57,7 +57,7 @@ export function GameRecommendations({ groupId, onStartVote, compact = false }: G
       return (
         <div className="space-y-2">
           <h2 className="font-semibold flex items-center gap-2 text-sm">
-            <Lightbulb className="w-4 h-4" />
+            <Lightbulb className="size-4" />
             {t('recommendations.title')}
           </h2>
           {content}
@@ -68,7 +68,7 @@ export function GameRecommendations({ groupId, onStartVote, compact = false }: G
       <Card>
         <CardHeader className="pb-3">
           <h2 className="font-semibold flex items-center gap-2 text-sm">
-            <Lightbulb className="w-4 h-4" />
+            <Lightbulb className="size-4" />
             {t('recommendations.title')}
           </h2>
         </CardHeader>
@@ -103,7 +103,7 @@ export function GameRecommendations({ groupId, onStartVote, compact = false }: G
                 className="w-full mt-2"
                 onClick={onStartVote}
               >
-                <Vote className="w-4 h-4 mr-2" />
+                <Vote className="size-4 mr-2" />
                 {t('recommendations.startVote')}
               </Button>
             </TooltipTrigger>

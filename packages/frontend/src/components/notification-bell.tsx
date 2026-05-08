@@ -137,7 +137,7 @@ export function NotificationBell() {
           animate={{ rotate: [0, 12, -12, 8, -8, 0] }}
           transition={{ duration: 0.4 }}
         >
-          <Bell className="w-5 h-5" aria-hidden="true" />
+          <Bell className="size-5" aria-hidden="true" />
         </motion.div>
         <AnimatePresence>
           {unreadCount > 0 && (
@@ -146,7 +146,7 @@ export function NotificationBell() {
               animate={{ scale: [0, 1.2, 1] }}
               exit={{ scale: 0 }}
               aria-hidden="true"
-              className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-destructive rounded-full"
+              className="absolute top-1.5 right-1.5 size-2.5 bg-destructive rounded-full"
             />
           )}
         </AnimatePresence>
@@ -179,7 +179,7 @@ export function NotificationBell() {
                     onClick={() => markAllAsRead()}
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <CheckCheck className="w-3.5 h-3.5" aria-hidden="true" />
+                    <CheckCheck className="size-3.5" aria-hidden="true" />
                     {t('notifications.markAllRead')}
                   </button>
                 )}
@@ -195,7 +195,7 @@ export function NotificationBell() {
                   onClick={handleEnableNotifications}
                   className="flex items-center gap-2 px-3 py-2 border-b border-border text-xs text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors"
                 >
-                  <BellRing className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+                  <BellRing className="size-3.5 text-primary" aria-hidden="true" />
                   {t('pwa.enableNotifications')}
                 </button>
               )}
@@ -236,7 +236,7 @@ export function NotificationBell() {
                           </p>
                         </div>
                         {!notification.read && (
-                          <span className="w-2 h-2 bg-primary rounded-full mt-1.5 flex-shrink-0" />
+                          <span className="size-2 bg-primary rounded-full mt-1.5 flex-shrink-0" />
                         )}
                       </motion.button>
                     ))}

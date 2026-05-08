@@ -106,7 +106,7 @@ function App() {
         aria-live="polite"
         aria-label="Chargement de l'application"
       >
-        <Skeleton className="h-12 w-12 rounded-full" />
+        <Skeleton className="size-12 rounded-full" />
         <Skeleton className="h-4 w-32" />
       </div>
     )

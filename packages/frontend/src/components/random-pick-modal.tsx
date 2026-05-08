@@ -113,14 +113,14 @@ function RandomPickContent({ games }: { games: Game[] }) {
                 onClick={reroll}
                 disabled={games.length <= 1}
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="size-4" />
                 {t('randomPick.reroll')}
               </Button>
 
               {Number.isInteger(currentGame.steamAppId) && currentGame.steamAppId > 0 && (
                 <Button variant="steam" className="w-full sm:w-auto sm:flex-1 gap-2" asChild>
                   <a href={`steam://run/${currentGame.steamAppId}`}>
-                    <ExternalLink className="w-4 h-4" />
+                    <ExternalLink className="size-4" />
                     {t('randomPick.launch')}
                   </a>
                 </Button>

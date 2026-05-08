@@ -90,7 +90,7 @@ export function PersonaBadge({ groupId, persona: initialPersona, variant = 'hero
         aria-label={t('persona.todayGroup')}
         title={persona.introMessage}
       >
-        <Sparkles className="w-3 h-3" />
+        <Sparkles className="size-3" />
         <span className="truncate max-w-[140px]">{persona.name}</span>
       </span>
     )
@@ -110,11 +110,11 @@ export function PersonaBadge({ groupId, persona: initialPersona, variant = 'hero
     >
       <div className="flex items-start gap-3">
         <div
-          className="flex items-center justify-center w-9 h-9 rounded-full shrink-0 mt-0.5"
+          className="flex items-center justify-center size-9 rounded-full shrink-0 mt-0.5"
           style={{ backgroundColor: `${color}26`, color }}
           aria-hidden="true"
         >
-          <Sparkles className="w-4 h-4" />
+          <Sparkles className="size-4" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">

@@ -152,7 +152,7 @@ export function ShareButton({
         aria-expanded={open}
         className="gap-2"
       >
-        <Share2 className="w-4 h-4" />
+        <Share2 className="size-4" />
         {prominent ? t('share.promoteCta') : t('share.button')}
       </Button>
 
@@ -172,23 +172,23 @@ export function ShareButton({
             )}
           >
             <ShareMenuItem
-              icon={<Link2 className="w-4 h-4" />}
+              icon={<Link2 className="size-4" />}
               label={t('share.copyLink')}
               onClick={handleCopyLink}
             />
             <ShareMenuItem
-              icon={<Twitter className="w-4 h-4" />}
+              icon={<Twitter className="size-4" />}
               label={t('share.shareOnTwitter')}
               onClick={handleTwitterShare}
             />
             <ShareMenuItem
-              icon={<DiscordIcon className="w-4 h-4" />}
+              icon={<DiscordIcon className="size-4" />}
               label={t('share.shareOnDiscord')}
               onClick={handleDiscordShare}
             />
             {canWebShare && (
               <ShareMenuItem
-                icon={<Share2 className="w-4 h-4" />}
+                icon={<Share2 className="size-4" />}
                 label={t('share.webShare')}
                 onClick={handleWebShare}
               />
@@ -220,7 +220,7 @@ function ShareMenuItem({
         'focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:ring-[2px] focus-visible:ring-ring/60'
       )}
     >
-      <span className="flex h-4 w-4 items-center justify-center text-muted-foreground">
+      <span className="flex size-4 items-center justify-center text-muted-foreground">
         {icon}
       </span>
       <span className="flex-1 text-left">{label}</span>

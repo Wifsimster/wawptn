@@ -282,7 +282,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
               sort, genres, gamesOnly, controllerOnly) into a drawer. */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1 min-w-0" role="search">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               <Input
                 type="search"
                 inputMode="search"
@@ -304,7 +304,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   aria-label={t('group.clearSearch')}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="size-4" />
                 </button>
               )}
             </div>
@@ -316,7 +316,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
               aria-haspopup="dialog"
               aria-expanded={filtersDrawerOpen}
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <SlidersHorizontal className="size-3.5" />
               <span className="hidden sm:inline">{t('group.moreFilters')}</span>
               {advancedFilterCount > 0 && (
                 <Badge variant="secondary" className="ml-0.5 h-4 px-1.5 text-[10px]">
@@ -338,7 +338,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
               className="gap-1.5"
               aria-pressed={filters.multiplayerOnly}
             >
-              <Users className="w-3.5 h-3.5" />
+              <Users className="size-3.5" />
               {t('group.multiplayerOnly')}
             </Button>
             <Button
@@ -348,7 +348,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
               className="gap-1.5"
               aria-pressed={filters.coopOnly}
             >
-              <Handshake className="w-3.5 h-3.5" />
+              <Handshake className="size-3.5" />
               {t('group.coopOnly')}
             </Button>
           </div>
@@ -358,7 +358,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
               so all presets stay reachable without wrapping. */}
           <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-1 px-1 pb-0.5">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1 shrink-0 pr-1">
-              <Sparkles className="w-3 h-3" />
+              <Sparkles className="size-3" />
               {t('filterPresets.label')}
             </span>
             {FILTER_PRESETS.map((preset) => {
@@ -376,7 +376,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                       : 'bg-secondary/60 text-secondary-foreground hover:bg-secondary'
                   }`}
                 >
-                  <Icon className="w-3 h-3" />
+                  <Icon className="size-3" />
                   {t(preset.labelKey)}
                 </button>
               )
@@ -394,9 +394,9 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
                   aria-label={t('group.clearFilter', { name: `Metacritic ${filters.minMetacritic}+` })}
                 >
-                  <Star className="w-3 h-3" />
+                  <Star className="size-3" />
                   {filters.minMetacritic}+
-                  <X className="w-3 h-3" />
+                  <X className="size-3" />
                 </button>
               )}
               {filters.controllerOnly && (
@@ -406,9 +406,9 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
                   aria-label={t('group.clearFilter', { name: t('group.controllerSupport') })}
                 >
-                  <Gamepad2 className="w-3 h-3" />
+                  <Gamepad2 className="size-3" />
                   {t('group.controllerSupport')}
-                  <X className="w-3 h-3" />
+                  <X className="size-3" />
                 </button>
               )}
               {!filters.gamesOnly && (
@@ -418,9 +418,9 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
                   aria-label={t('group.clearFilter', { name: t('group.gamesOnly') })}
                 >
-                  <Monitor className="w-3 h-3" />
+                  <Monitor className="size-3" />
                   {t('group.includeDLC')}
-                  <X className="w-3 h-3" />
+                  <X className="size-3" />
                 </button>
               )}
               {filters.sortBy !== 'popularity' && (
@@ -430,9 +430,9 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
                   aria-label={t('group.clearFilter', { name: t('group.sortBy') })}
                 >
-                  <TrendingUp className="w-3 h-3" />
+                  <TrendingUp className="size-3" />
                   {t(`group.sort_${filters.sortBy}`)}
-                  <X className="w-3 h-3" />
+                  <X className="size-3" />
                 </button>
               )}
               {filters.selectedGenres.length > 0 && (
@@ -443,7 +443,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                   aria-label={t('group.clearGenres')}
                 >
                   {t('group.genres')} · {filters.selectedGenres.length}
-                  <X className="w-3 h-3" />
+                  <X className="size-3" />
                 </button>
               )}
             </div>
@@ -464,7 +464,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
             {/* Metacritic */}
             <section>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-2">
-                <Star className="w-3 h-3" />
+                <Star className="size-3" />
                 {t('group.metacritic')}
               </h3>
               <div className="flex flex-wrap items-center gap-1.5">
@@ -486,7 +486,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
             {/* Sort */}
             <section>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-2">
-                <TrendingUp className="w-3 h-3" />
+                <TrendingUp className="size-3" />
                 {t('group.sortBy')}
               </h3>
               <div className="flex flex-wrap items-center gap-1.5">
@@ -518,7 +518,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                   className="gap-1.5"
                   aria-pressed={filters.gamesOnly}
                 >
-                  <Monitor className="w-3.5 h-3.5" />
+                  <Monitor className="size-3.5" />
                   {t('group.gamesOnly')}
                 </Button>
                 <Button
@@ -528,7 +528,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                   className="gap-1.5"
                   aria-pressed={filters.controllerOnly}
                 >
-                  <Gamepad2 className="w-3.5 h-3.5" />
+                  <Gamepad2 className="size-3.5" />
                   {t('group.controllerSupport')}
                 </Button>
               </div>
@@ -543,7 +543,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                   onClick={() => setGenreExpanded(!genreExpanded)}
                   aria-expanded={genreExpanded}
                 >
-                  <ChevronDown className={`w-3 h-3 transition-transform ${genreExpanded ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`size-3 transition-transform ${genreExpanded ? 'rotate-180' : ''}`} />
                   {t('group.genres')}
                   {filters.selectedGenres.length > 0 && (
                     <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-xs">
@@ -600,7 +600,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
       {!loading && hiddenByMetacritic > 0 && (
         <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <Star className="w-3.5 h-3.5 shrink-0" />
+            <Star className="size-3.5 shrink-0" />
             {t('group.metacriticHidden', { count: hiddenByMetacritic })}
           </span>
           <Button
@@ -634,15 +634,15 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
           hint={(
             <ul className="space-y-2 text-xs text-muted-foreground">
               <li className="flex items-start gap-2">
-                <ShieldAlert className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
+                <ShieldAlert className="size-3.5 text-warning mt-0.5 shrink-0" />
                 <span>{t('group.noCommonGamesHint1')}</span>
               </li>
               <li className="flex items-start gap-2">
-                <EyeOff className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
+                <EyeOff className="size-3.5 text-warning mt-0.5 shrink-0" />
                 <span>{t('group.noCommonGamesHint2')}</span>
               </li>
               <li className="flex items-start gap-2">
-                <Users className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
+                <Users className="size-3.5 text-warning mt-0.5 shrink-0" />
                 <span>{t('group.noCommonGamesHint3')}</span>
               </li>
             </ul>
@@ -778,7 +778,7 @@ function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<s
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="absolute top-1 right-1 text-xs bg-black/70 text-white px-1.5 py-0.5 rounded flex items-center gap-0.5 cursor-help">
-              <Users className="w-2.5 h-2.5" />
+              <Users className="size-2.5" />
               {game.ownerCount}/{game.totalMembers}
             </span>
           </TooltipTrigger>
@@ -797,11 +797,11 @@ function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<s
             onClick={handleWishlistClick}
             aria-label={isWishlisted ? t('wishlist.removeLabel') : t('wishlist.addLabel')}
             aria-pressed={isWishlisted}
-            className={`absolute ${game.ownerCount < game.totalMembers ? 'top-8' : 'top-1'} right-1 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition-all hover:bg-black/80 ${
+            className={`absolute ${game.ownerCount < game.totalMembers ? 'top-8' : 'top-1'} right-1 flex size-7 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition-all hover:bg-black/80 ${
               isWishlisted ? 'text-reward' : 'text-white/60 hover:text-white'
             }`}
           >
-            <Star className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-current' : ''}`} />
+            <Star className={`size-3.5 ${isWishlisted ? 'fill-current' : ''}`} />
           </button>
         </TooltipTrigger>
         <TooltipContent side="left" className="text-xs">
@@ -818,7 +818,7 @@ function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<s
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="text-xs bg-black/70 text-white px-1 py-0.5 rounded cursor-help">
-                <Gamepad2 className="w-2.5 h-2.5" />
+                <Gamepad2 className="size-2.5" />
               </span>
             </TooltipTrigger>
             <TooltipContent>

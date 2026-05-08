@@ -268,7 +268,7 @@ export function VotePage() {
       <div className="min-h-dvh flex flex-col">
         <AppHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(`/groups/${id}`)} aria-label={t('group.back')}>
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="size-5" />
           </Button>
         </AppHeader>
         <main id="main-content" className="flex-1 flex items-center justify-center p-4">
@@ -315,7 +315,7 @@ export function VotePage() {
 
     return (
       <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-3 sm:px-4 py-4">
-        <Check className="w-16 h-16 text-success mb-4" aria-hidden="true" />
+        <Check className="size-16 text-success mb-4" aria-hidden="true" />
         <h1 className="text-2xl font-heading font-bold mb-2">{t('vote.submitted')}</h1>
 
         {isScheduledSession && (
@@ -361,7 +361,7 @@ export function VotePage() {
                   key={pid}
                   role="listitem"
                   aria-label={voted ? t('vote.participantVoted') : t('vote.participantWaiting')}
-                  className={`h-2.5 w-2.5 rounded-full transition-colors duration-300 ${
+                  className={`size-2.5 rounded-full transition-colors duration-300 ${
                     voted
                       ? 'bg-primary shadow-[0_0_8px_oklch(0.55_0.27_270_/_0.45)]'
                       : 'bg-muted-foreground/30'
@@ -374,7 +374,7 @@ export function VotePage() {
 
         {canClose && (
           <Button onClick={handleClose} disabled={closing}>
-            {closing && <Loader2 className="w-4 h-4 animate-spin" />}
+            {closing && <Loader2 className="size-4 animate-spin" />}
             {t('vote.closeVote')}
           </Button>
         )}
@@ -394,7 +394,7 @@ export function VotePage() {
   if (!isParticipant) {
     return (
       <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center p-4">
-        <Vote className="w-16 h-16 text-muted-foreground mb-4" aria-hidden="true" />
+        <Vote className="size-16 text-muted-foreground mb-4" aria-hidden="true" />
         <h1 className="text-2xl font-heading font-bold mb-2">{t('vote.sessionInProgress')}</h1>
         <p className="text-muted-foreground mb-6">
           {t('vote.notParticipant')}
@@ -414,7 +414,7 @@ export function VotePage() {
     <div className="min-h-dvh flex flex-col">
       <AppHeader>
         <Button variant="ghost" size="icon" onClick={() => navigate(`/groups/${id}`)} aria-label={t('group.back')}>
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="size-5" />
         </Button>
       </AppHeader>
 
@@ -428,7 +428,7 @@ export function VotePage() {
 
         {/* Search bar */}
         <div className="relative mb-4" role="search">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" aria-hidden="true" />
           <input
             type="search"
             inputMode="search"
@@ -506,8 +506,8 @@ export function VotePage() {
                   />
                 </button>
                 {isSelected && (
-                  <div className="absolute top-1.5 right-1.5 w-6 h-6 bg-primary rounded-full flex items-center justify-center pointer-events-none">
-                    <Check className="w-4 h-4 text-primary-foreground" />
+                  <div className="absolute top-1.5 right-1.5 size-6 bg-primary rounded-full flex items-center justify-center pointer-events-none">
+                    <Check className="size-4 text-primary-foreground" />
                   </div>
                 )}
                 {game.metacriticScore != null && (
@@ -531,7 +531,7 @@ export function VotePage() {
                         className="ml-1 shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary active:bg-accent/10 active:scale-95 transition-all"
                         aria-label={t('vote.gameDetails')}
                       >
-                        <Info className="w-3.5 h-3.5" />
+                        <Info className="size-3.5" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="text-xs">
@@ -562,9 +562,9 @@ export function VotePage() {
             </span>
             <Button onClick={submitVotes} disabled={submitting || selectedGames.size === 0} aria-label={t('vote.submitSelection')} className="relative">
               {submitting ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                <Loader2 className="size-4 animate-spin mr-2" />
               ) : (
-                <Send className="w-4 h-4 mr-2" />
+                <Send className="size-4 mr-2" />
               )}
               {t('vote.submitSelection')}
               {selectedGames.size > 0 && (
@@ -670,7 +670,7 @@ function ResultScreen({
           aria-live="polite"
         >
           <CircleOff
-            className="w-16 h-16 mx-auto mb-4 text-muted-foreground"
+            className="size-16 mx-auto mb-4 text-muted-foreground"
             aria-hidden="true"
           />
           <h1
@@ -686,9 +686,9 @@ function ResultScreen({
           <div className="flex flex-col items-center gap-3">
             <Button onClick={onRematch} disabled={rematching}>
               {rematching ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin" />
               ) : (
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="size-4" />
               )}
               {t('vote.rematch')}
             </Button>
@@ -898,7 +898,7 @@ function ResultScreen({
                   className="gap-2"
                   onClick={() => onSteamLaunch(result.steamAppId)}
                 >
-                  <ExternalLink className="w-5 h-5" />
+                  <ExternalLink className="size-5" />
                   {t('vote.launchSteam')}
                 </a>
               </Button>
@@ -931,9 +931,9 @@ function ResultScreen({
               className="mt-1 inline-flex items-center gap-1.5 px-2 py-2 min-h-[44px] text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 decoration-dotted rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {rematching ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
+                <Loader2 className="size-3 animate-spin" />
               ) : (
-                <RefreshCw className="w-3 h-3" />
+                <RefreshCw className="size-3" />
               )}
               {t('vote.rematch')}
             </button>
@@ -994,7 +994,7 @@ function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }: GameD
                 'border-score-bad text-score-bad'
               }`}
             >
-              <Star className="w-3 h-3" />
+              <Star className="size-3" />
               Metacritic {game.metacriticScore}
             </Badge>
           )}
@@ -1009,7 +1009,7 @@ function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }: GameD
           {/* Controller support */}
           {game.controllerSupport && (
             <Badge variant="secondary" className="gap-1">
-              <Gamepad2 className="w-3 h-3" />
+              <Gamepad2 className="size-3" />
               {t('vote.controllerSupport', { level: game.controllerSupport })}
             </Badge>
           )}
@@ -1029,19 +1029,19 @@ function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }: GameD
             <div className="flex gap-2">
               {game.platforms.windows && (
                 <span className="flex items-center gap-1 text-xs text-foreground">
-                  <Monitor className="w-3.5 h-3.5" />
+                  <Monitor className="size-3.5" />
                   Windows
                 </span>
               )}
               {game.platforms.mac && (
                 <span className="flex items-center gap-1 text-xs text-foreground">
-                  <Apple className="w-3.5 h-3.5" />
+                  <Apple className="size-3.5" />
                   Mac
                 </span>
               )}
               {game.platforms.linux && (
                 <span className="flex items-center gap-1 text-xs text-foreground">
-                  <Monitor className="w-3.5 h-3.5" />
+                  <Monitor className="size-3.5" />
                   Linux
                 </span>
               )}
@@ -1076,7 +1076,7 @@ function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }: GameD
             className="gap-1.5"
           >
             <a href={steamStoreUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="w-4 h-4" />
+              <ExternalLink className="size-4" />
               {t('vote.viewOnSteam')}
             </a>
           </Button>
@@ -1087,7 +1087,7 @@ function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }: GameD
             onClick={() => onToggle(game.steamAppId)}
             className="gap-1.5"
           >
-            <Check className={`w-4 h-4 ${isSelected ? '' : 'opacity-0'}`} />
+            <Check className={`size-4 ${isSelected ? '' : 'opacity-0'}`} />
             {isSelected ? t('vote.deselect') : t('vote.select')}
           </Button>
         </ResponsiveDialogFooter>

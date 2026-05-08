@@ -47,14 +47,14 @@ export function GroupStats({ groupId, compact = false }: GroupStatsProps) {
       {/* Summary counters */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex items-center gap-2 rounded-md bg-muted/50 p-2.5">
-          <Vote className="w-4 h-4 text-primary shrink-0" />
+          <Vote className="size-4 text-primary shrink-0" />
           <div>
             <p className="text-lg font-bold leading-tight">{stats.totalSessions}</p>
             <p className="text-xs text-muted-foreground">{t('stats.sessions')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 rounded-md bg-muted/50 p-2.5">
-          <BarChart3 className="w-4 h-4 text-primary shrink-0" />
+          <BarChart3 className="size-4 text-primary shrink-0" />
           <div>
             <p className="text-lg font-bold leading-tight">{stats.totalVotes}</p>
             <p className="text-xs text-muted-foreground">{t('stats.votes')}</p>
@@ -66,7 +66,7 @@ export function GroupStats({ groupId, compact = false }: GroupStatsProps) {
       {stats.topGames.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide flex items-center gap-1.5">
-            <Trophy className="w-3.5 h-3.5" />
+            <Trophy className="size-3.5" />
             {t('stats.topGames')}
           </h3>
           <div className="space-y-1.5">
@@ -102,13 +102,13 @@ export function GroupStats({ groupId, compact = false }: GroupStatsProps) {
       {stats.memberParticipation.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5" />
+            <Users className="size-3.5" />
             {t('stats.participation')}
           </h3>
           <div className="space-y-1.5">
             {stats.memberParticipation.map((member) => (
               <div key={member.userId} className="flex items-center gap-2.5">
-                <Avatar className="w-6 h-6 shrink-0">
+                <Avatar className="size-6 shrink-0">
                   <AvatarImage src={member.avatarUrl} alt={member.displayName} />
                   <AvatarFallback className="text-xs">{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
@@ -133,7 +133,7 @@ export function GroupStats({ groupId, compact = false }: GroupStatsProps) {
       {stats.recentWinners.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide flex items-center gap-1.5">
-            <Trophy className="w-3.5 h-3.5" />
+            <Trophy className="size-3.5" />
             {t('stats.recentWinners')}
           </h3>
           <div className="space-y-1.5">
@@ -175,10 +175,10 @@ export function GroupStats({ groupId, compact = false }: GroupStatsProps) {
           aria-controls="group-stats-panel-compact"
         >
           <h2 className="font-semibold flex items-center gap-2 text-sm">
-            <BarChart3 className="w-4 h-4" aria-hidden="true" />
+            <BarChart3 className="size-4" aria-hidden="true" />
             {t('stats.title')}
           </h2>
-          {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" aria-hidden="true" />}
+          {expanded ? <ChevronUp className="size-4 text-muted-foreground" aria-hidden="true" /> : <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />}
         </button>
         {expanded && <div id="group-stats-panel-compact">{content}</div>}
       </div>
@@ -196,10 +196,10 @@ export function GroupStats({ groupId, compact = false }: GroupStatsProps) {
           aria-controls="group-stats-panel"
         >
           <h2 className="font-semibold flex items-center gap-2 text-sm">
-            <BarChart3 className="w-4 h-4" aria-hidden="true" />
+            <BarChart3 className="size-4" aria-hidden="true" />
             {t('stats.title')}
           </h2>
-          {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" aria-hidden="true" />}
+          {expanded ? <ChevronUp className="size-4 text-muted-foreground" aria-hidden="true" /> : <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />}
         </button>
       </CardHeader>
       {expanded && (

@@ -73,7 +73,7 @@ export function SubscriptionPage() {
       <AppHeader />
       <main id="main-content" className="max-w-2xl mx-auto px-4 py-8">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-4">
-          <ArrowLeft className="w-4 h-4 mr-2" />
+          <ArrowLeft className="size-4 mr-2" />
           {t('group.back')}
         </Button>
         <h1 className="text-2xl font-heading font-bold mb-6">{t('subscription.title')}</h1>
@@ -93,9 +93,9 @@ export function SubscriptionPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 {isPremium ? (
-                  <Crown className="w-5 h-5 text-reward" />
+                  <Crown className="size-5 text-reward" />
                 ) : (
-                  <CreditCard className="w-5 h-5 text-muted-foreground" />
+                  <CreditCard className="size-5 text-muted-foreground" />
                 )}
                 {t('subscription.currentPlan')}
               </CardTitle>
@@ -127,7 +127,7 @@ export function SubscriptionPage() {
                   </p>
                 )}
                 <Button variant="secondary" onClick={handlePortal} disabled={actionLoading}>
-                  <ExternalLink className="w-4 h-4 mr-2" />
+                  <ExternalLink className="size-4 mr-2" />
                   {t('subscription.manageButton')}
                 </Button>
               </>
@@ -139,13 +139,13 @@ export function SubscriptionPage() {
                 <ul className="space-y-2 text-sm">
                   {[1, 2, 3, 4, 5, 6].map((n) => (
                     <li key={n} className="flex items-center gap-2">
-                      <Crown className="w-4 h-4 text-reward shrink-0" />
+                      <Crown className="size-4 text-reward shrink-0" />
                       {t(`landing.premiumFeature${n}`)}
                     </li>
                   ))}
                 </ul>
                 <Button onClick={handleCheckout} disabled={actionLoading} className="mt-2">
-                  <Crown className="w-4 h-4 mr-2" />
+                  <Crown className="size-4 mr-2" />
                   {t('subscription.upgradeButton')}
                 </Button>
               </>

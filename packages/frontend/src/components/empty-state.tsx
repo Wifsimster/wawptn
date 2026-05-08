@@ -69,10 +69,10 @@ export function EmptyState({
 
       <div className="relative z-10 flex flex-col items-center max-w-sm">
         <div className={cn(
-          'w-14 h-14 rounded-full bg-card/60 border border-border/60 backdrop-blur-sm flex items-center justify-center mb-4',
+          'size-14 rounded-full bg-card/60 border border-border/60 backdrop-blur-sm flex items-center justify-center mb-4',
           ringTone,
         )}>
-          <Icon className="w-7 h-7" />
+          <Icon className="size-7" />
         </div>
         <h3 className="text-lg font-heading font-semibold mb-1">{title}</h3>
         <p className="text-sm text-muted-foreground">{description}</p>
@@ -84,7 +84,7 @@ export function EmptyState({
                 onClick={action.onClick}
                 disabled={action.loading}
               >
-                {ActionIcon && <ActionIcon className={`w-4 h-4 ${action.loading ? 'animate-spin' : ''}`} />}
+                {ActionIcon && <ActionIcon className={`size-4 ${action.loading ? 'animate-spin' : ''}`} />}
                 {action.label}
               </Button>
             )}
@@ -93,7 +93,7 @@ export function EmptyState({
                 variant="ghost"
                 onClick={secondaryAction.onClick}
               >
-                {SecondaryActionIcon && <SecondaryActionIcon className="w-4 h-4" />}
+                {SecondaryActionIcon && <SecondaryActionIcon className="size-4" />}
                 {secondaryAction.label}
               </Button>
             )}

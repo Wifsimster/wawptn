@@ -48,7 +48,7 @@ export function ChallengeCard({ challenge }: { challenge: ChallengeProgress }) {
       `}
     >
       {/* Icon */}
-      <div className="text-2xl shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-muted/30">
+      <div className="text-2xl shrink-0 size-10 flex items-center justify-center rounded-lg bg-muted/30">
         {challenge.icon}
       </div>
 

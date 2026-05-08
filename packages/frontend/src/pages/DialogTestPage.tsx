@@ -86,7 +86,7 @@ export function DialogTestPage() {
           <div className="space-y-3">
             {Array.from({ length: 20 }, (_, i) => (
               <div key={i} className="flex items-center gap-3 py-2.5 px-2 rounded-md hover:bg-accent/50">
-                <div className="w-8 h-8 rounded-full bg-muted" />
+                <div className="size-8 rounded-full bg-muted" />
                 <span className="text-sm">Member {i + 1}</span>
               </div>
             ))}

@@ -27,6 +27,16 @@ export type AdminAuditAction =
   | 'bot_settings.update'
   | 'games.dedupe'
   | 'email.test'
+  | 'subscription.system.activate'
+  | 'subscription.system.update'
+  | 'subscription.system.cancel_scheduled'
+  | 'subscription.system.canceled'
+  | 'subscription.system.past_due'
+  | 'subscription.system.recovered'
+  | 'subscription.system.refunded'
+  | 'subscription.system.disputed'
+  | 'subscription.system.trial_started'
+  | 'subscription.system.reconciled'
 
 interface RecordAdminActionInput {
   /** Express request, used to extract the actor id and forensic context. */
@@ -68,6 +78,34 @@ export async function recordAdminAction(input: RecordAdminActionInput): Promise<
     authLogger.error(
       { error: String(error), actorId, action, targetUserId },
       'failed to write admin audit log entry',
+    )
+  }
+}
+
+/**
+ * Record a system-driven audit entry (no human actor) such as a Stripe
+ * webhook flipping subscription state. Uses null actor_id and tags
+ * metadata.source so it can be distinguished from admin actions when
+ * reporting. Never throws.
+ */
+export async function recordSystemAction(
+  action: AdminAuditAction,
+  targetUserId: string | null,
+  metadata: Record<string, unknown> = {},
+): Promise<void> {
+  try {
+    await db('admin_audit_log').insert({
+      actor_id: null,
+      target_user_id: targetUserId,
+      action,
+      metadata: JSON.stringify({ source: 'system', ...metadata }),
+      ip_address: null,
+      user_agent: null,
+    })
+  } catch (error) {
+    authLogger.error(
+      { error: String(error), action, targetUserId },
+      'failed to write system audit log entry',
     )
   }
 }

@@ -653,4 +653,65 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;')
 }
 
+// ─── Subscription / Stripe health ────────────────────────────────────────────
+// Surfaces the daily reconciler's last-pass counters and the recent webhook
+// outcomes so ops can answer "have webhooks been failing for 24h?" without
+// grepping logs. Read-only.
+router.get('/subscription-health', async (_req: Request, res: Response) => {
+  const { getReconcilerHealth, runReconciliation: _runReconciliation } = await import(
+    '../../infrastructure/scheduler/subscription-reconciler.js'
+  )
+  const { getStripeMode, isStripeEnabled } = await import('../../infrastructure/stripe/stripe-client.js')
+
+  const reconciler = getReconcilerHealth()
+
+  // Webhook event outcomes for the last 24h, grouped by event_type and status.
+  const since = new Date(Date.now() - 24 * 60 * 60_000)
+  const events = await db('stripe_events')
+    .where('processed_at', '>=', since)
+    .select('event_type', 'status')
+    .count<{ event_type: string; status: string; count: string }[]>('* as count')
+    .groupBy('event_type', 'status')
+
+  // Subscription tier breakdown for at-a-glance sanity.
+  const tiers = await db('subscriptions')
+    .select('tier', 'status')
+    .count<{ tier: string; status: string; count: string }[]>('* as count')
+    .groupBy('tier', 'status')
+
+  res.json({
+    timestamp: new Date().toISOString(),
+    stripe: {
+      enabled: isStripeEnabled(),
+      mode: getStripeMode(),
+      automaticTaxEnabled: env.STRIPE_AUTOMATIC_TAX_ENABLED,
+    },
+    reconciler,
+    webhookEvents24h: events.map((e) => ({
+      eventType: e.event_type,
+      status: e.status,
+      count: Number(e.count),
+    })),
+    subscriptionMix: tiers.map((t) => ({
+      tier: t.tier,
+      status: t.status,
+      count: Number(t.count),
+    })),
+  })
+})
+
+// Manual trigger for the reconciler — useful when the daily 03:00 UTC pass
+// has been failing and ops wants to re-run after a fix without waiting.
+router.post('/subscription-health/reconcile', async (req: Request, res: Response) => {
+  const { runReconciliation } = await import('../../infrastructure/scheduler/subscription-reconciler.js')
+  try {
+    const result = await runReconciliation()
+    authLogger.info({ userId: req.userId, ...result }, 'admin manually triggered subscription reconciliation')
+    res.json(result)
+  } catch (error) {
+    authLogger.error({ error: String(error) }, 'manual reconciliation failed')
+    res.status(500).json({ error: 'internal', message: 'Reconciliation failed' })
+  }
+})
+
 export { router as adminRoutes }

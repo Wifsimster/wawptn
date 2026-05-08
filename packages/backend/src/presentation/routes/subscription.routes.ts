@@ -1,11 +1,16 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
-import { getStripe } from '../../infrastructure/stripe/stripe-client.js'
+import type Stripe from 'stripe'
+import { getStripe, isStripeError, stripeErrorContext } from '../../infrastructure/stripe/stripe-client.js'
 import { env } from '../../config/env.js'
 import { db } from '../../infrastructure/database/connection.js'
 import { logger } from '../../infrastructure/logger/logger.js'
+import { invalidatePremiumCache } from '../../domain/subscription-service.js'
+import { recordSystemAction, type AdminAuditAction } from '../../domain/admin-audit-log.js'
 
 export const subscriptionRoutes = Router()
+
+const subLogger = logger.child({ module: 'subscription' })
 
 // GET /api/subscription/me — current subscription state
 // Admins and admin-granted premium users are reported as active premium so
@@ -19,7 +24,7 @@ subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
         .first(),
       db('subscriptions')
         .where({ user_id: req.userId })
-        .select('tier', 'status', 'current_period_end')
+        .select('tier', 'status', 'current_period_end', 'cancel_at_period_end')
         .first(),
     ])
 
@@ -28,6 +33,7 @@ subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
         tier: 'premium',
         status: 'active',
         currentPeriodEnd: subscription?.current_period_end || null,
+        cancelAtPeriodEnd: false,
       })
       return
     }
@@ -36,9 +42,10 @@ subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
       tier: subscription?.tier || 'free',
       status: subscription?.status || 'inactive',
       currentPeriodEnd: subscription?.current_period_end || null,
+      cancelAtPeriodEnd: !!subscription?.cancel_at_period_end,
     })
   } catch (error) {
-    logger.error({ error: String(error) }, 'subscription: failed to get status')
+    subLogger.error({ error: String(error) }, 'failed to get status')
     res.status(500).json({ error: 'internal', message: 'Failed to get subscription status' })
   }
 })
@@ -47,46 +54,82 @@ subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
 subscriptionRoutes.post('/checkout', async (req: Request, res: Response) => {
   try {
     const stripe = getStripe()
+    const userId = req.userId!
 
-    // Get or create Stripe customer
-    let subscription = await db('subscriptions')
-      .where({ user_id: req.userId })
+    // Get or create Stripe customer. The idempotency key keyed off userId
+    // makes the customer-create call safe under concurrent double-clicks
+    // (same key returns the same customer, no duplicates). The local
+    // upsert on user_id covers the DB-side race.
+    const subscription = await db('subscriptions')
+      .where({ user_id: userId })
       .first()
 
     let customerId = subscription?.stripe_customer_id
 
     if (!customerId) {
-      const user = await db('users').where({ id: req.userId }).select('display_name').first()
-      const customer = await stripe.customers.create({
-        metadata: { userId: req.userId! },
-        name: user?.display_name || undefined,
-      })
+      const user = await db('users')
+        .where({ id: userId })
+        .select('display_name', 'email')
+        .first()
+
+      const customer = await stripe.customers.create(
+        {
+          metadata: { userId },
+          name: user?.display_name || undefined,
+          email: user?.email || undefined,
+        },
+        { idempotencyKey: `customer:${userId}` },
+      )
       customerId = customer.id
 
-      if (subscription) {
-        await db('subscriptions')
-          .where({ user_id: req.userId })
-          .update({ stripe_customer_id: customerId, updated_at: db.fn.now() })
-      } else {
-        await db('subscriptions').insert({
-          user_id: req.userId,
+      await db('subscriptions')
+        .insert({
+          user_id: userId,
           stripe_customer_id: customerId,
         })
-      }
+        .onConflict('user_id')
+        .merge(['stripe_customer_id', 'updated_at'])
     }
 
-    const session = await stripe.checkout.sessions.create({
+    // 5-minute bucket: a determined double-click resolves to the same
+    // Checkout Session, but an honest retry hours later gets a fresh one.
+    const bucket = Math.floor(Date.now() / (5 * 60_000))
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: env.STRIPE_PRICE_ID, quantity: 1 }],
       success_url: `${env.CORS_ORIGIN}/subscription?success=true`,
       cancel_url: `${env.CORS_ORIGIN}/subscription?canceled=true`,
-      client_reference_id: req.userId!,
-    })
+      client_reference_id: userId,
+      // Propagate userId onto the Subscription itself so webhook handlers
+      // and the reconciler can identify the user from any Subscription
+      // object — not just from the Checkout Session.
+      subscription_data: { metadata: { userId } },
+      metadata: { userId },
+      allow_promotion_codes: true,
+    }
+
+    if (env.STRIPE_AUTOMATIC_TAX_ENABLED) {
+      sessionParams.automatic_tax = { enabled: true }
+      sessionParams.tax_id_collection = { enabled: true }
+      sessionParams.customer_update = { address: 'auto', name: 'auto' }
+    }
+
+    const session = await stripe.checkout.sessions.create(
+      sessionParams,
+      { idempotencyKey: `checkout:${userId}:${env.STRIPE_PRICE_ID}:${bucket}` },
+    )
 
     res.json({ url: session.url })
   } catch (error) {
-    logger.error({ error: String(error) }, 'subscription: failed to create checkout session')
+    if (isStripeError(error)) {
+      subLogger.warn(stripeErrorContext(error), 'checkout failed')
+      const status = error.statusCode && error.statusCode < 500 ? 400 : 500
+      res.status(status).json({ error: 'stripe_error', message: error.message })
+      return
+    }
+    subLogger.error({ error: String(error) }, 'failed to create checkout session')
     res.status(500).json({ error: 'internal', message: 'Failed to create checkout session' })
   }
 })
@@ -95,9 +138,10 @@ subscriptionRoutes.post('/checkout', async (req: Request, res: Response) => {
 subscriptionRoutes.post('/portal', async (req: Request, res: Response) => {
   try {
     const stripe = getStripe()
+    const userId = req.userId!
 
     const subscription = await db('subscriptions')
-      .where({ user_id: req.userId })
+      .where({ user_id: userId })
       .select('stripe_customer_id')
       .first()
 
@@ -106,19 +150,34 @@ subscriptionRoutes.post('/portal', async (req: Request, res: Response) => {
       return
     }
 
-    const session = await stripe.billingPortal.sessions.create({
-      customer: subscription.stripe_customer_id,
-      return_url: `${env.CORS_ORIGIN}/subscription`,
-    })
+    // Per-day bucket: prevents portal-spam duplicates within a day, allows
+    // a fresh session next day.
+    const bucket = Math.floor(Date.now() / (24 * 60 * 60_000))
+
+    const session = await stripe.billingPortal.sessions.create(
+      {
+        customer: subscription.stripe_customer_id,
+        return_url: `${env.CORS_ORIGIN}/subscription`,
+      },
+      { idempotencyKey: `portal:${userId}:${bucket}` },
+    )
 
     res.json({ url: session.url })
   } catch (error) {
-    logger.error({ error: String(error) }, 'subscription: failed to create portal session')
+    if (isStripeError(error)) {
+      subLogger.warn(stripeErrorContext(error), 'portal failed')
+      const status = error.statusCode && error.statusCode < 500 ? 400 : 500
+      res.status(status).json({ error: 'stripe_error', message: error.message })
+      return
+    }
+    subLogger.error({ error: String(error) }, 'failed to create portal session')
     res.status(500).json({ error: 'internal', message: 'Failed to create portal session' })
   }
 })
 
-// Webhook route — mounted separately with raw body parser
+// ─── Webhook ────────────────────────────────────────────────────────────────
+// Mounted separately with raw body parser so signature verification gets
+// the unparsed Buffer.
 export const subscriptionWebhookRouter = Router()
 
 /** Extract current_period_end from subscription items (Stripe SDK v20 / clover API) */
@@ -135,6 +194,143 @@ function getInvoiceSubscriptionId(invoice: { parent?: { subscription_details?: {
   return typeof sub === 'string' ? sub : sub.id
 }
 
+/** Extract userId from a Subscription's metadata (set by the Checkout flow
+ *  via subscription_data.metadata). Falls back to null — the caller will
+ *  resolve via stripe_customer_id lookup. */
+function getUserIdFromSubscription(sub: Stripe.Subscription): string | null {
+  const metaUser = sub.metadata?.['userId']
+  return typeof metaUser === 'string' && metaUser.length > 0 ? metaUser : null
+}
+
+/** Map a Stripe Subscription's status to local (tier, status). The webhook
+ *  handler always uses this rather than trusting the inbound event payload
+ *  directly, so out-of-order delivery can't downgrade an active sub.
+ *
+ *  Rules:
+ *  - active or trialing → premium / active (cancel_at_period_end is a
+ *    separate flag, NOT a status flip)
+ *  - past_due, unpaid, incomplete, incomplete_expired → free / past_due
+ *  - canceled → free / canceled
+ */
+function mapStripeStatus(sub: Stripe.Subscription): {
+  tier: 'free' | 'premium'
+  status: 'active' | 'past_due' | 'canceled' | 'inactive'
+  cancelAtPeriodEnd: boolean
+} {
+  const cancelAtPeriodEnd = !!sub.cancel_at_period_end
+
+  if (sub.status === 'active' || sub.status === 'trialing') {
+    return { tier: 'premium', status: 'active', cancelAtPeriodEnd }
+  }
+  if (sub.status === 'canceled') {
+    return { tier: 'free', status: 'canceled', cancelAtPeriodEnd }
+  }
+  // past_due, unpaid, incomplete, incomplete_expired, paused
+  return { tier: 'free', status: 'past_due', cancelAtPeriodEnd }
+}
+
+/** Resolve the local subscriptions row for a Stripe Subscription. Tries
+ *  metadata.userId first (set by the Checkout flow), then falls back to
+ *  stripe_customer_id. Returns the row or null. */
+async function findLocalSubscription(stripeSub: Stripe.Subscription): Promise<{
+  user_id: string
+} | null> {
+  const userId = getUserIdFromSubscription(stripeSub)
+  if (userId) {
+    const row = await db('subscriptions').where({ user_id: userId }).select('user_id').first()
+    if (row) return row
+  }
+  const customer = typeof stripeSub.customer === 'string' ? stripeSub.customer : stripeSub.customer.id
+  return db('subscriptions').where({ stripe_customer_id: customer }).select('user_id').first() ?? null
+}
+
+/** Refetch the Subscription from Stripe and apply state. Centralised so
+ *  every event handler converges on the same write path — out-of-order
+ *  events self-heal because we always use Stripe's authoritative state. */
+async function applySubscriptionState(
+  stripeSub: Stripe.Subscription,
+  source: AdminAuditAction,
+): Promise<void> {
+  const local = await findLocalSubscription(stripeSub)
+  const customer = typeof stripeSub.customer === 'string' ? stripeSub.customer : stripeSub.customer.id
+
+  const { tier, status, cancelAtPeriodEnd } = mapStripeStatus(stripeSub)
+  const periodEnd = getSubscriptionPeriodEnd(stripeSub.items)
+
+  // Capture past_due_since on the transition into past_due. Don't bump it
+  // on subsequent updates — that's what made the grace period reset every
+  // dunning retry.
+  let pastDueSince: Date | null | undefined = undefined
+  if (status === 'past_due') {
+    const existing = local
+      ? await db('subscriptions')
+          .where({ user_id: local.user_id })
+          .select('status', 'past_due_since')
+          .first()
+      : null
+    if (existing?.status !== 'past_due') {
+      pastDueSince = new Date()
+    }
+  } else {
+    pastDueSince = null
+  }
+
+  const update: Record<string, unknown> = {
+    stripe_subscription_id: stripeSub.id,
+    stripe_customer_id: customer,
+    tier,
+    status,
+    cancel_at_period_end: cancelAtPeriodEnd,
+    current_period_end: periodEnd,
+    updated_at: db.fn.now(),
+  }
+  if (pastDueSince !== undefined) update['past_due_since'] = pastDueSince
+
+  if (local) {
+    await db('subscriptions').where({ user_id: local.user_id }).update(update)
+    invalidatePremiumCache(local.user_id)
+    await recordSystemAction(source, local.user_id, {
+      stripeSubscriptionId: stripeSub.id,
+      stripeStatus: stripeSub.status,
+      tier,
+      status,
+      cancelAtPeriodEnd,
+    })
+  } else {
+    // No local row yet: this happens when /checkout's customers.create
+    // succeeded but the local insert failed, or when a customer.subscription
+    // event fires before the matching checkout.session.completed has been
+    // processed. Try to recover via the Subscription metadata.
+    const userId = getUserIdFromSubscription(stripeSub)
+    if (userId) {
+      await db('subscriptions')
+        .insert({
+          user_id: userId,
+          stripe_customer_id: customer,
+          stripe_subscription_id: stripeSub.id,
+          tier,
+          status,
+          cancel_at_period_end: cancelAtPeriodEnd,
+          current_period_end: periodEnd,
+          past_due_since: pastDueSince ?? null,
+        })
+        .onConflict('user_id')
+        .merge()
+      invalidatePremiumCache(userId)
+      await recordSystemAction(source, userId, {
+        stripeSubscriptionId: stripeSub.id,
+        stripeStatus: stripeSub.status,
+        recovered: true,
+      })
+    } else {
+      subLogger.error(
+        { stripeSubscriptionId: stripeSub.id, customer },
+        'subscription event for unknown user — cannot resolve userId',
+      )
+    }
+  }
+}
+
 subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
   const stripe = getStripe()
   const signature = req.headers['stripe-signature']
@@ -144,28 +340,50 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
     return
   }
 
-  let event
+  let event: Stripe.Event
   try {
     event = stripe.webhooks.constructEvent(req.body, signature, env.STRIPE_WEBHOOK_SECRET)
   } catch (error) {
-    logger.warn({ error: String(error) }, 'subscription: webhook signature verification failed')
+    subLogger.warn({ error: String(error) }, 'webhook signature verification failed')
     res.status(400).json({ error: 'invalid_signature' })
     return
   }
 
-  // Idempotency check
-  const existing = await db('stripe_events').where({ event_id: event.id }).first()
-  if (existing) {
+  // Atomic dedup-and-claim: insert with ON CONFLICT DO NOTHING. If we
+  // claimed the row (rowCount === 1) we proceed; otherwise some other
+  // delivery already processed it.
+  //
+  // Crucially the row starts in status='pending' — the success status is
+  // written *after* the handler completes. This way a transient handler
+  // failure leaves the row in 'pending'/'failure' and the next Stripe
+  // retry can re-claim it (we look for status != 'success' on lookup).
+  const claimed = await db.transaction(async (trx) => {
+    const inserted = await trx('stripe_events')
+      .insert({
+        event_id: event.id,
+        event_type: event.type,
+        status: 'pending',
+        attempt_count: 1,
+      })
+      .onConflict('event_id')
+      .merge({
+        attempt_count: trx.raw('stripe_events.attempt_count + 1'),
+        last_attempted_at: trx.fn.now(),
+      })
+      .returning(['status', 'attempt_count'])
+
+    const row = inserted[0]
+    // If the existing row is already 'success', it's a true duplicate —
+    // skip. Otherwise (pending/failure), we re-attempt.
+    return row?.status !== 'success'
+  })
+
+  if (!claimed) {
     res.json({ received: true, duplicate: true })
     return
   }
 
   try {
-    await db('stripe_events').insert({
-      event_id: event.id,
-      event_type: event.type,
-    })
-
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object
@@ -173,77 +391,220 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
           const subscriptionId = typeof session.subscription === 'string'
             ? session.subscription
             : session.subscription.id
-          const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId)
+          // Re-fetch fresh state — out-of-order events self-heal.
+          const stripeSub = await stripe.subscriptions.retrieve(subscriptionId)
 
-          await db('subscriptions')
-            .where({ stripe_customer_id: session.customer })
-            .update({
-              stripe_subscription_id: subscriptionId,
-              tier: 'premium',
-              status: 'active',
-              current_period_end: getSubscriptionPeriodEnd(stripeSubscription.items),
-              updated_at: db.fn.now(),
+          // Prefer client_reference_id (set by /checkout) so we can recover
+          // the local row even if it was never inserted (zero-row UPDATE bug).
+          const userId = (session.client_reference_id as string | null)
+            ?? getUserIdFromSubscription(stripeSub)
+
+          if (userId) {
+            const customer = typeof session.customer === 'string'
+              ? session.customer
+              : session.customer?.id
+            const { tier, status, cancelAtPeriodEnd } = mapStripeStatus(stripeSub)
+            const periodEnd = getSubscriptionPeriodEnd(stripeSub.items)
+
+            await db('subscriptions')
+              .insert({
+                user_id: userId,
+                stripe_customer_id: customer,
+                stripe_subscription_id: subscriptionId,
+                tier,
+                status,
+                cancel_at_period_end: cancelAtPeriodEnd,
+                current_period_end: periodEnd,
+              })
+              .onConflict('user_id')
+              .merge([
+                'stripe_customer_id',
+                'stripe_subscription_id',
+                'tier',
+                'status',
+                'cancel_at_period_end',
+                'current_period_end',
+                'updated_at',
+              ])
+
+            invalidatePremiumCache(userId)
+            await recordSystemAction('subscription.system.activate', userId, {
+              stripeSubscriptionId: subscriptionId,
+              stripeStatus: stripeSub.status,
             })
-
-          logger.info({ customerId: session.customer }, 'subscription: activated premium')
+            subLogger.info({ userId, subscriptionId }, 'activated premium')
+          } else {
+            // No client_reference_id and no metadata.userId — this should
+            // not happen with the new Checkout config, but log loudly.
+            subLogger.error(
+              { customerId: session.customer, subscriptionId },
+              'checkout.session.completed without resolvable userId',
+            )
+          }
         }
         break
       }
 
+      case 'customer.subscription.created':
       case 'customer.subscription.updated': {
-        const subscription = event.data.object
-        const status = subscription.cancel_at_period_end ? 'canceled' : subscription.status === 'active' ? 'active' : 'past_due'
-        const tier = subscription.status === 'active' ? 'premium' : 'free'
-
-        await db('subscriptions')
-          .where({ stripe_subscription_id: subscription.id })
-          .update({
-            tier,
-            status,
-            current_period_end: getSubscriptionPeriodEnd(subscription.items),
-            updated_at: db.fn.now(),
-          })
-
-        logger.info({ subscriptionId: subscription.id, status, tier }, 'subscription: updated')
+        // Always re-fetch — defends against out-of-order delivery and
+        // payload staleness.
+        const incoming = event.data.object as Stripe.Subscription
+        const fresh = await stripe.subscriptions.retrieve(incoming.id)
+        const action: AdminAuditAction = event.type === 'customer.subscription.created'
+          ? 'subscription.system.update'
+          : (fresh.cancel_at_period_end ? 'subscription.system.cancel_scheduled' : 'subscription.system.update')
+        await applySubscriptionState(fresh, action)
         break
       }
 
       case 'customer.subscription.deleted': {
-        const subscription = event.data.object
-
-        await db('subscriptions')
-          .where({ stripe_subscription_id: subscription.id })
-          .update({
-            tier: 'free',
-            status: 'canceled',
-            updated_at: db.fn.now(),
+        const subscription = event.data.object as Stripe.Subscription
+        const local = await findLocalSubscription(subscription)
+        if (local) {
+          await db('subscriptions')
+            .where({ user_id: local.user_id })
+            .update({
+              tier: 'free',
+              status: 'canceled',
+              cancel_at_period_end: false,
+              past_due_since: null,
+              updated_at: db.fn.now(),
+            })
+          invalidatePremiumCache(local.user_id)
+          await recordSystemAction('subscription.system.canceled', local.user_id, {
+            stripeSubscriptionId: subscription.id,
           })
+        }
+        subLogger.info({ subscriptionId: subscription.id }, 'subscription canceled/deleted')
+        break
+      }
 
-        logger.info({ subscriptionId: subscription.id }, 'subscription: canceled/deleted')
+      case 'customer.subscription.trial_will_end': {
+        const subscription = event.data.object as Stripe.Subscription
+        const local = await findLocalSubscription(subscription)
+        if (local) {
+          await recordSystemAction('subscription.system.trial_started', local.user_id, {
+            stripeSubscriptionId: subscription.id,
+            trialEnd: subscription.trial_end,
+          })
+        }
         break
       }
 
       case 'invoice.payment_failed': {
-        const invoice = event.data.object
-        const subscriptionId = getInvoiceSubscriptionId(invoice)
-
+        const invoice = event.data.object as Stripe.Invoice
+        const subscriptionId = getInvoiceSubscriptionId(
+          invoice as unknown as Parameters<typeof getInvoiceSubscriptionId>[0],
+        )
         if (subscriptionId) {
-          await db('subscriptions')
-            .where({ stripe_subscription_id: subscriptionId })
-            .update({
-              status: 'past_due',
-              updated_at: db.fn.now(),
-            })
+          const fresh = await stripe.subscriptions.retrieve(subscriptionId)
+          await applySubscriptionState(fresh, 'subscription.system.past_due')
+          subLogger.warn({ subscriptionId }, 'payment failed')
+        }
+        break
+      }
 
-          logger.warn({ subscriptionId }, 'subscription: payment failed')
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice
+        const subscriptionId = getInvoiceSubscriptionId(
+          invoice as unknown as Parameters<typeof getInvoiceSubscriptionId>[0],
+        )
+        if (subscriptionId) {
+          // Recovery from past_due — refetch to pick up the new status.
+          const fresh = await stripe.subscriptions.retrieve(subscriptionId)
+          await applySubscriptionState(fresh, 'subscription.system.recovered')
+        }
+        break
+      }
+
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge
+        const customer = typeof charge.customer === 'string' ? charge.customer : charge.customer?.id
+        if (customer) {
+          const local = await db('subscriptions')
+            .where({ stripe_customer_id: customer })
+            .select('user_id', 'stripe_subscription_id')
+            .first()
+          if (local) {
+            await db('subscriptions')
+              .where({ user_id: local.user_id })
+              .update({ tier: 'free', status: 'canceled', updated_at: db.fn.now() })
+            invalidatePremiumCache(local.user_id)
+            await recordSystemAction('subscription.system.refunded', local.user_id, {
+              chargeId: charge.id,
+              amount: charge.amount_refunded,
+              stripeSubscriptionId: local.stripe_subscription_id,
+            })
+            subLogger.warn({ chargeId: charge.id, userId: local.user_id }, 'charge refunded — premium revoked')
+          }
+        }
+        break
+      }
+
+      case 'charge.dispute.created':
+      case 'charge.dispute.funds_withdrawn': {
+        const dispute = event.data.object as Stripe.Dispute
+        const charge = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge.id
+        // Dispute objects don't have a customer field directly — look up
+        // via the charge.
+        const stripeCharge = await stripe.charges.retrieve(charge)
+        const customer = typeof stripeCharge.customer === 'string' ? stripeCharge.customer : stripeCharge.customer?.id
+        if (customer) {
+          const local = await db('subscriptions')
+            .where({ stripe_customer_id: customer })
+            .select('user_id', 'stripe_subscription_id')
+            .first()
+          if (local) {
+            await db('subscriptions')
+              .where({ user_id: local.user_id })
+              .update({ tier: 'free', status: 'canceled', updated_at: db.fn.now() })
+            invalidatePremiumCache(local.user_id)
+            await recordSystemAction('subscription.system.disputed', local.user_id, {
+              disputeId: dispute.id,
+              reason: dispute.reason,
+              stripeSubscriptionId: local.stripe_subscription_id,
+            })
+            subLogger.error({ disputeId: dispute.id, userId: local.user_id }, 'dispute opened — premium revoked')
+          }
         }
         break
       }
     }
 
+    await db('stripe_events')
+      .where({ event_id: event.id })
+      .update({ status: 'success', last_attempted_at: db.fn.now() })
+
     res.json({ received: true })
   } catch (error) {
-    logger.error({ error: String(error), eventId: event.id }, 'subscription: webhook processing error')
-    res.status(500).json({ error: 'processing_error' })
+    // Mark the event as failed so a Stripe retry can re-claim it. Classify
+    // the error: 4xx Stripe errors and known data-shape errors are
+    // permanent failures (return 200 to stop retries); 5xx and network
+    // errors are transient (return 500 so Stripe retries).
+    const transient = isStripeError(error)
+      ? (error.statusCode ?? 500) >= 500 || error.type === 'StripeConnectionError'
+      : true
+
+    await db('stripe_events')
+      .where({ event_id: event.id })
+      .update({
+        status: 'failure',
+        processing_error: String(error).slice(0, 4096),
+        last_attempted_at: db.fn.now(),
+      })
+
+    subLogger.error(
+      { ...stripeErrorContext(error), eventId: event.id, eventType: event.type, transient },
+      'webhook processing error',
+    )
+
+    if (transient) {
+      res.status(500).json({ error: 'processing_error' })
+    } else {
+      // Permanent failure: 200 stops Stripe from retrying. The failure is
+      // recorded in stripe_events for the team to investigate.
+      res.status(200).json({ received: true, error: 'permanent_failure' })
+    }
   }
 })

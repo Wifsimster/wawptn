@@ -363,7 +363,7 @@ export function VotePage() {
                   aria-label={voted ? t('vote.participantVoted') : t('vote.participantWaiting')}
                   className={`h-2.5 w-2.5 rounded-full transition-colors duration-300 ${
                     voted
-                      ? 'bg-primary shadow-[0_0_8px_rgba(120,200,255,0.45)]'
+                      ? 'bg-primary shadow-[0_0_8px_oklch(0.55_0.27_270_/_0.45)]'
                       : 'bg-muted-foreground/30'
                   }`}
                 />
@@ -430,12 +430,18 @@ export function VotePage() {
         <div className="relative mb-4" role="search">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
           <input
-            type="text"
+            type="search"
+            inputMode="search"
+            enterKeyHint="search"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('group.searchGames')}
             aria-label={t('group.searchGames')}
-            className="w-full rounded-lg border border-border bg-background pl-10 pr-4 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:border-primary/30"
+            className="w-full min-h-[44px] rounded-lg border border-border bg-background pl-10 pr-4 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:border-primary/30"
           />
         </div>
 
@@ -463,13 +469,18 @@ export function VotePage() {
               </span>
             </div>
           )}
-          <div role="list" className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {/* The interactive children below are <button>s with their own
+              accessible names; an outer role="list"/role="listitem" stack
+              causes screen readers to announce each card twice ("list, 1
+              of N, button"). Native <ul>/<li> would carry the same
+              implicit semantics, but in this grid layout we skip the
+              wrapper roles entirely. */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {filteredGames.map(game => {
             const isSelected = selectedGames.has(game.steamAppId)
             return (
               <div
                 key={game.steamAppId}
-                role="listitem"
                 className={`relative rounded-lg overflow-hidden border-2 transition-all ${
                   isSelected
                     ? 'border-primary ring-2 ring-primary/30 shadow-lg'
@@ -859,10 +870,12 @@ function ResultScreen({
                 shouldReduceMotion
                   ? undefined
                   : {
+                      // Steam-blue pulse — referenced by oklch so it
+                      // tracks `--steam` if the brand evolves.
                       boxShadow: [
-                        '0 0 0 0 rgba(102,192,244,0)',
-                        '0 0 0 10px rgba(102,192,244,0.18)',
-                        '0 0 0 0 rgba(102,192,244,0)',
+                        '0 0 0 0 oklch(0.55 0.18 240 / 0)',
+                        '0 0 0 10px oklch(0.55 0.18 240 / 0.18)',
+                        '0 0 0 0 oklch(0.55 0.18 240 / 0)',
                       ],
                     }
               }

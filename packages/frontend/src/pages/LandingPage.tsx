@@ -120,7 +120,7 @@ export function LandingPage() {
             variants={fadeUp}
             className="font-heading font-extrabold tracking-[-0.05em]"
           >
-            <span className="block text-[clamp(1.3rem,4vw,2.5rem)] text-foreground/40 leading-tight mb-3 sm:mb-4">
+            <span className="block text-[clamp(1.3rem,4vw,2.5rem)] text-foreground/70 leading-tight mb-3 sm:mb-4">
               {t('landing.headlineLine1')}
             </span>
             <span className="block text-[clamp(3.5rem,15vw,12rem)] leading-[0.82] landing-gradient-text">
@@ -138,7 +138,7 @@ export function LandingPage() {
           {/* Subtitle */}
           <motion.p
             variants={fadeUp}
-            className="text-base sm:text-lg text-muted-foreground/45 mb-10 sm:mb-14 max-w-md mx-auto leading-relaxed"
+            className="text-base sm:text-lg text-muted-foreground mb-10 sm:mb-14 max-w-md mx-auto leading-relaxed"
           >
             {t('landing.subheadline')}
           </motion.p>
@@ -164,7 +164,7 @@ export function LandingPage() {
                 <ChevronRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1.5" />
               </a>
             </Button>
-            <p className="text-xs text-muted-foreground/25">
+            <p className="text-xs text-muted-foreground">
               {t('landing.ctaSubtext')}
             </p>
           </motion.div>
@@ -283,7 +283,7 @@ export function LandingPage() {
             <h2 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.03em] mb-5">
               {t('landing.pricingTitle')}
             </h2>
-            <p className="text-muted-foreground/45 max-w-md mx-auto">
+            <p className="text-muted-foreground max-w-md mx-auto">
               {t('landing.pricingSubtitle')}
             </p>
           </motion.div>

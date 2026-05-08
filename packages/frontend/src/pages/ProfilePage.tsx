@@ -709,10 +709,10 @@ export function ProfilePage() {
                       #1
                     </div>
                     <div className="absolute bottom-0 left-0 right-0 px-4 py-3 flex items-center justify-between">
-                      <span className="font-heading font-semibold truncate text-white drop-shadow-md">
+                      <span className="font-heading font-semibold truncate text-foreground drop-shadow-md">
                         {crownGame.gameName}
                       </span>
-                      <Badge variant="secondary" className="shrink-0 font-mono text-xs bg-black/40 border-white/10 text-white/90 backdrop-blur-sm">
+                      <Badge variant="secondary" className="shrink-0 font-mono text-xs bg-black/40 border-foreground/10 text-foreground/90 backdrop-blur-sm">
                         {formatPlaytime(crownGame.playtimeForever)}
                       </Badge>
                     </div>

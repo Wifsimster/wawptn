@@ -48,7 +48,7 @@ function DrawerContent({
         )}
         {...props}
       >
-        <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/60 shadow-[0_0_8px_oklch(0.55_0.27_270_/_0.15)]" />
+        <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/60 shadow-glow" />
         {children}
       </DrawerPrimitive.Content>
     </DrawerPortal>

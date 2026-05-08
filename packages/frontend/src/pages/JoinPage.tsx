@@ -204,9 +204,9 @@ export function JoinPage() {
 
           {inAppBrowser && !overrideInAppBrowser ? (
             <motion.div variants={fadeUp} className="w-full">
-              <Card className="p-4 mb-4 border-amber-500/40 bg-amber-500/5">
+              <Card className="p-4 mb-4 border-warning/40 bg-warning/5">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" aria-hidden="true" />
+                  <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" aria-hidden="true" />
                   <div className="min-w-0">
                     <p className="font-semibold mb-1">{t('join.inAppBrowserTitle')}</p>
                     <p className="text-sm text-muted-foreground mb-2">{t('join.inAppBrowserBody')}</p>

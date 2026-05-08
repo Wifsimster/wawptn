@@ -4,10 +4,14 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import type { ChallengeProgress } from '@wawptn/types'
 
-const TIER_STYLES: Record<number, { border: string; badge: string; label: string }> = {
-  1: { border: 'border-l-amber-700/60', badge: 'bg-amber-900/30 text-amber-400 border-amber-700/40', label: 'Bronze' },
-  2: { border: 'border-l-slate-400/60', badge: 'bg-slate-700/30 text-slate-300 border-slate-500/40', label: 'Argent' },
-  3: { border: 'border-l-yellow-500/60', badge: 'bg-yellow-900/30 text-yellow-400 border-yellow-600/40', label: 'Or' },
+// Tier styling uses the existing warm-cool-warm semantic tokens rather
+// than raw amber/slate/yellow Tailwind hues so future palette tweaks
+// flow through to challenges automatically. ember=Bronze, neon=Argent
+// (cool metallic), reward=Or.
+const TIER_STYLES: Record<number, { border: string; badgeVariant: 'reward' | 'info' | 'success'; label: string }> = {
+  1: { border: 'border-l-ember/60', badgeVariant: 'reward', label: 'Bronze' },
+  2: { border: 'border-l-neon/60', badgeVariant: 'info', label: 'Argent' },
+  3: { border: 'border-l-reward/60', badgeVariant: 'reward', label: 'Or' },
 }
 
 const unlockPop: Variants = {
@@ -40,7 +44,7 @@ export function ChallengeCard({ challenge }: { challenge: ChallengeProgress }) {
         flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm
         border-l-[3px] transition-all duration-300 hover:bg-card/80 hover:border-border/70
         ${tier.border}
-        ${isUnlocked ? 'ring-1 ring-inset ring-yellow-500/10' : ''}
+        ${isUnlocked ? 'ring-1 ring-inset ring-reward/10' : ''}
       `}
     >
       {/* Icon */}
@@ -53,7 +57,7 @@ export function ChallengeCard({ challenge }: { challenge: ChallengeProgress }) {
         <div className="flex items-center gap-2 mb-0.5">
           <span className="font-medium text-sm truncate">{challenge.title}</span>
           {isUnlocked && (
-            <Badge variant="outline" className={`text-[10px] py-0 h-5 shrink-0 ${tier.badge}`}>
+            <Badge variant={tier.badgeVariant} className="text-[10px] py-0 h-5 shrink-0">
               {tier.label}
             </Badge>
           )}

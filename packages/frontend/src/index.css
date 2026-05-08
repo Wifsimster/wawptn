@@ -53,6 +53,13 @@
   /* New: Warm ember accent */
   --ember: oklch(0.72 0.18 50);
   --ember-foreground: oklch(0.15 0.05 50);
+  /* Semantic: cautionary/info surfaces. `--warning` replaces ad-hoc
+     amber-500 usage in invite-error / no-common-games / network-warning
+     contexts; `--info` for neutral attention-grab without alarm. */
+  --warning: oklch(0.78 0.17 80);
+  --warning-foreground: oklch(0.20 0.06 80);
+  --info: oklch(0.70 0.13 230);
+  --info-foreground: oklch(0.15 0.04 230);
 }
 
 @theme inline {
@@ -103,6 +110,10 @@
   --color-online: var(--online);
   --color-ember: var(--ember);
   --color-ember-foreground: var(--ember-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);

@@ -627,15 +627,15 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
           hint={(
             <ul className="space-y-2 text-xs text-muted-foreground">
               <li className="flex items-start gap-2">
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                <ShieldAlert className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
                 <span>{t('group.noCommonGamesHint1')}</span>
               </li>
               <li className="flex items-start gap-2">
-                <EyeOff className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                <EyeOff className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
                 <span>{t('group.noCommonGamesHint2')}</span>
               </li>
               <li className="flex items-start gap-2">
-                <Users className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                <Users className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
                 <span>{t('group.noCommonGamesHint3')}</span>
               </li>
             </ul>

@@ -449,8 +449,13 @@ export function VotePage() {
               scrolling thumb, so this pill keeps the context visible at the
               top of the viewport. */}
           {selectedGames.size > 0 && (
+            // Polite live region instead of aria-hidden — screen reader users
+            // also need the count, especially on long ballots where the
+            // bottom bar duplicate scrolls out of view.
             <div
-              aria-hidden="true"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
               className="sticky top-0 z-10 -mx-1 mb-3 flex justify-center pointer-events-none"
             >
               <span className="rounded-full border border-primary/40 bg-background/85 px-3 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur">
@@ -828,7 +833,7 @@ function ResultScreen({
                 className="h-2 w-full overflow-hidden rounded-full bg-secondary"
               >
                 <motion.div
-                  className="h-full rounded-full bg-gradient-to-r from-reward to-amber-300 shadow-[0_0_12px_rgba(255,215,128,0.45)]"
+                  className="h-full rounded-full bg-gradient-to-r from-reward to-warning shadow-[0_0_12px_oklch(0.82_0.17_70_/_0.45)]"
                   initial={{ width: '0%' }}
                   animate={{ width: `${percent}%` }}
                   transition={{

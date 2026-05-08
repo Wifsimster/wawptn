@@ -44,4 +44,6 @@ function Badge({
   )
 }
 
-export { Badge, badgeVariants }
+// See note on Button: `badgeVariants` is intentionally module-private
+// to keep this file a clean components-only export.
+export { Badge }

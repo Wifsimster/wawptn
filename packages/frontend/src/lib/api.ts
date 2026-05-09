@@ -82,7 +82,7 @@ export const api = {
   },
 
   // Groups
-  getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null; todayPersona: { id: string; name: string; embedColor: number; introMessage: string } | null; discordGuildId: string | null; discordChannelId: string | null; discordGuildName: string | null; discordChannelName: string | null }[]>('/groups'),
+  getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null; activeVoteSession: { id: string; scheduledAt: string | null } | null; todayPersona: { id: string; name: string; embedColor: number; introMessage: string } | null; discordGuildId: string | null; discordChannelId: string | null; discordGuildName: string | null; discordChannelName: string | null }[]>('/groups'),
   getGroup: (id: string) => request<{
     id: string; name: string; createdBy: string; commonGameThreshold: number | null; createdAt: string;
     autoVoteSchedule: string | null; autoVoteDurationMinutes: number;

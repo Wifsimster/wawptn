@@ -241,6 +241,7 @@ async function reconcileSubscriptions(): Promise<void> {
           const periodEnd = stripeSub.items.data[0]
             ? new Date(stripeSub.items.data[0].current_period_end * 1000)
             : null
+          const price = stripeSub.items.data[0]?.price
           await db('subscriptions')
             .insert({
               user_id: userId,
@@ -250,6 +251,9 @@ async function reconcileSubscriptions(): Promise<void> {
               status: stripeStatus,
               cancel_at_period_end: cancelAtPeriodEnd,
               current_period_end: periodEnd,
+              price_id: price?.id ?? null,
+              amount_cents: typeof price?.unit_amount === 'number' ? price.unit_amount : null,
+              currency: typeof price?.currency === 'string' ? price.currency : null,
             })
             .onConflict('user_id')
             .merge()
@@ -272,16 +276,23 @@ async function reconcileSubscriptions(): Promise<void> {
         const periodEnd = stripeSub.items.data[0]
           ? new Date(stripeSub.items.data[0].current_period_end * 1000)
           : null
+        const price = stripeSub.items.data[0]?.price
+        const update: Record<string, unknown> = {
+          tier: stripeTier,
+          status: stripeStatus,
+          cancel_at_period_end: cancelAtPeriodEnd,
+          current_period_end: periodEnd,
+          updated_at: db.fn.now(),
+        }
+        if (price?.id) {
+          update['price_id'] = price.id
+          update['amount_cents'] = typeof price.unit_amount === 'number' ? price.unit_amount : null
+          update['currency'] = typeof price.currency === 'string' ? price.currency : null
+        }
 
         await db('subscriptions')
           .where({ user_id: local.user_id })
-          .update({
-            tier: stripeTier,
-            status: stripeStatus,
-            cancel_at_period_end: cancelAtPeriodEnd,
-            current_period_end: periodEnd,
-            updated_at: db.fn.now(),
-          })
+          .update(update)
 
         invalidatePremiumCache(local.user_id)
         await recordSystemAction('subscription.system.reconciled', local.user_id, {

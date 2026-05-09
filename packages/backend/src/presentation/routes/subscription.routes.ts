@@ -188,6 +188,31 @@ function getSubscriptionPeriodEnd(items: { data: Array<{ current_period_end: num
   return new Date(item.current_period_end * 1000)
 }
 
+/** Snapshot of the price the subscription was last billed on. We persist
+ *  it alongside tier/status so reporting + future audits can answer "what
+ *  did this user pay?" without re-fetching from Stripe row by row. Pricing
+ *  changes (or A/B variants) leave a historical trail in the audit log.
+ *
+ *  Returns nulls when the Subscription has no items (degenerate state) so
+ *  callers can apply a partial UPDATE without clobbering existing values
+ *  with garbage. */
+function getSubscriptionPricing(sub: Stripe.Subscription): {
+  priceId: string | null
+  amountCents: number | null
+  currency: string | null
+} {
+  const item = sub.items.data[0]
+  const price = item?.price
+  if (!price) return { priceId: null, amountCents: null, currency: null }
+  return {
+    priceId: price.id,
+    // Stripe sends `unit_amount` as integer cents; null only on metered
+    // / tiered prices (we don't ship those today, but coerce defensively).
+    amountCents: typeof price.unit_amount === 'number' ? price.unit_amount : null,
+    currency: typeof price.currency === 'string' ? price.currency : null,
+  }
+}
+
 /** Extract subscription ID from an invoice's parent (Stripe SDK v20 / clover API) */
 function getInvoiceSubscriptionId(invoice: { parent?: { subscription_details?: { subscription?: string | { id: string } } | null } | null }): string | null {
   const sub = invoice.parent?.subscription_details?.subscription
@@ -300,6 +325,7 @@ export async function applySubscriptionState(
 
   const { tier, status, cancelAtPeriodEnd } = mapStripeStatus(stripeSub)
   const periodEnd = getSubscriptionPeriodEnd(stripeSub.items)
+  const pricing = getSubscriptionPricing(stripeSub)
 
   // Capture past_due_since on the transition into past_due. Don't bump it
   // on subsequent updates — that's what made the grace period reset every
@@ -322,6 +348,14 @@ export async function applySubscriptionState(
     updated_at: trx.fn.now(),
   }
   if (pastDueSince !== undefined) update['past_due_since'] = pastDueSince
+  // Only overwrite pricing columns when Stripe gave us a fresh snapshot —
+  // a degenerate Subscription with no items shouldn't blank out the
+  // history we already have.
+  if (pricing.priceId) {
+    update['price_id'] = pricing.priceId
+    update['amount_cents'] = pricing.amountCents
+    update['currency'] = pricing.currency
+  }
 
   if (local) {
     await trx('subscriptions').where({ user_id: local.user_id }).update(update)
@@ -350,6 +384,9 @@ export async function applySubscriptionState(
           cancel_at_period_end: cancelAtPeriodEnd,
           current_period_end: periodEnd,
           past_due_since: pastDueSince ?? null,
+          price_id: pricing.priceId,
+          amount_cents: pricing.amountCents,
+          currency: pricing.currency,
         })
         .onConflict('user_id')
         .merge()
@@ -448,6 +485,7 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
                 : session.customer?.id
               const { tier, status, cancelAtPeriodEnd } = mapStripeStatus(stripeSub)
               const periodEnd = getSubscriptionPeriodEnd(stripeSub.items)
+              const pricing = getSubscriptionPricing(stripeSub)
 
               await trx('subscriptions')
                 .insert({
@@ -458,6 +496,9 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
                   status,
                   cancel_at_period_end: cancelAtPeriodEnd,
                   current_period_end: periodEnd,
+                  price_id: pricing.priceId,
+                  amount_cents: pricing.amountCents,
+                  currency: pricing.currency,
                 })
                 .onConflict('user_id')
                 .merge([
@@ -467,6 +508,9 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
                   'status',
                   'cancel_at_period_end',
                   'current_period_end',
+                  'price_id',
+                  'amount_cents',
+                  'currency',
                   'updated_at',
                 ])
 

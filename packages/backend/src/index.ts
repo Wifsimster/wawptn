@@ -12,7 +12,7 @@ import { testConnection, runMigrations } from './infrastructure/database/connect
 import { createSocketServer } from './infrastructure/socket/socket.js'
 import { startVoteScheduler } from './infrastructure/scheduler/vote-scheduler.js'
 import { startAutoVoteScheduler } from './infrastructure/scheduler/auto-vote-scheduler.js'
-import { startSubscriptionReconciler } from './infrastructure/scheduler/subscription-reconciler.js'
+import { startSubscriptionReconciler, stopSubscriptionReconciler } from './infrastructure/scheduler/subscription-reconciler.js'
 import { logger } from './infrastructure/logger/logger.js'
 import { authRoutes } from './presentation/routes/auth.routes.js'
 import { groupRoutes } from './presentation/routes/group.routes.js'
@@ -278,6 +278,10 @@ async function main() {
   const shutdown = async () => {
     logger.info('shutting down...')
     httpServer.close()
+    // Stop accepting new reconciler passes and wait for any in-flight pass
+    // so we don't kill an active Stripe pagination loop or leave a Postgres
+    // advisory lock orphaned mid-transaction.
+    await stopSubscriptionReconciler()
     const { closeConnection } = await import('./infrastructure/database/connection.js')
     await closeConnection()
     process.exit(0)

@@ -195,6 +195,22 @@ function getInvoiceSubscriptionId(invoice: { parent?: { subscription_details?: {
   return typeof sub === 'string' ? sub : sub.id
 }
 
+/** Resolve the subscription a charge belongs to. The reviewer flagged
+ *  charge.refunded firing for unrelated past invoices and silently nuking
+ *  premium — this helper is the single place we answer "which sub did
+ *  this charge pay for?". Retrieves the invoice if necessary so the
+ *  answer is always authoritative. */
+async function chargeSubscriptionId(stripe: Stripe, charge: Stripe.Charge): Promise<string | null> {
+  let invoice: { parent?: { subscription_details?: { subscription?: string | { id: string } } | null } | null } | null = null
+  if (typeof charge.invoice === 'string' && charge.invoice.length > 0) {
+    invoice = await stripe.invoices.retrieve(charge.invoice) as unknown as typeof invoice
+  } else if (charge.invoice && typeof charge.invoice === 'object') {
+    invoice = charge.invoice as unknown as typeof invoice
+  }
+  if (!invoice) return null
+  return getInvoiceSubscriptionId(invoice)
+}
+
 /** Extract userId from a Subscription's metadata (set by the Checkout flow
  *  via subscription_data.metadata). Falls back to null — the caller will
  *  resolve via stripe_customer_id lookup. */
@@ -210,8 +226,11 @@ function getUserIdFromSubscription(sub: Stripe.Subscription): string | null {
  *  Rules:
  *  - active or trialing → premium / active (cancel_at_period_end is a
  *    separate flag, NOT a status flip)
- *  - past_due, unpaid, incomplete, incomplete_expired → free / past_due
- *  - canceled → free / canceled
+ *  - past_due, unpaid, incomplete → free / past_due (3-day grace applies)
+ *  - canceled, incomplete_expired → free / canceled (immediate downgrade,
+ *    no grace — incomplete_expired means the initial payment never
+ *    succeeded inside Stripe's retry window, so there's no legitimate
+ *    "active" period to grace)
  */
 function mapStripeStatus(sub: Stripe.Subscription): {
   tier: 'free' | 'premium'
@@ -223,10 +242,10 @@ function mapStripeStatus(sub: Stripe.Subscription): {
   if (sub.status === 'active' || sub.status === 'trialing') {
     return { tier: 'premium', status: 'active', cancelAtPeriodEnd }
   }
-  if (sub.status === 'canceled') {
+  if (sub.status === 'canceled' || sub.status === 'incomplete_expired') {
     return { tier: 'free', status: 'canceled', cancelAtPeriodEnd }
   }
-  // past_due, unpaid, incomplete, incomplete_expired, paused
+  // past_due, unpaid, incomplete, paused — payment is recoverable
   return { tier: 'free', status: 'past_due', cancelAtPeriodEnd }
 }
 
@@ -538,24 +557,47 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
 
         case 'charge.refunded': {
           const charge = event.data.object as Stripe.Charge
+          // Only revoke premium when the refunded charge belongs to the
+          // user's CURRENT subscription. A charge.refunded event fires for
+          // any charge on the customer — including one-off charges, partial
+          // refunds, or refunds of an unrelated previous subscription that's
+          // already been replaced. Without this check, a partial refund on
+          // an old invoice silently nukes a paying user's premium.
+          const subscriptionId = await chargeSubscriptionId(stripe, charge)
           const customer = typeof charge.customer === 'string' ? charge.customer : charge.customer?.id
-          if (customer) {
+          if (customer && subscriptionId) {
             const local = await trx('subscriptions')
               .where({ stripe_customer_id: customer })
               .select('user_id', 'stripe_subscription_id')
               .forUpdate()
               .first()
-            if (local) {
-              await trx('subscriptions')
-                .where({ user_id: local.user_id })
-                .update({ tier: 'free', status: 'canceled', updated_at: trx.fn.now() })
-              invalidatePremiumCache(local.user_id)
-              await recordSystemAction('subscription.system.refunded', local.user_id, {
-                chargeId: charge.id,
-                amount: charge.amount_refunded,
-                stripeSubscriptionId: local.stripe_subscription_id,
-              }, trx)
-              subLogger.warn({ chargeId: charge.id, userId: local.user_id }, 'charge refunded — premium revoked')
+            if (local && local.stripe_subscription_id === subscriptionId) {
+              // Treat full refunds (refunded === true) and amount_refunded
+              // matching amount as a revocation; partial refunds are logged
+              // but do not flip tier — Stripe-side accounting only.
+              const fullyRefunded = charge.refunded === true || charge.amount_refunded >= charge.amount
+              if (fullyRefunded) {
+                await trx('subscriptions')
+                  .where({ user_id: local.user_id })
+                  .update({ tier: 'free', status: 'canceled', updated_at: trx.fn.now() })
+                invalidatePremiumCache(local.user_id)
+                await recordSystemAction('subscription.system.refunded', local.user_id, {
+                  chargeId: charge.id,
+                  amount: charge.amount_refunded,
+                  stripeSubscriptionId: local.stripe_subscription_id,
+                }, trx)
+                subLogger.warn({ chargeId: charge.id, userId: local.user_id }, 'charge refunded — premium revoked')
+              } else {
+                subLogger.info(
+                  { chargeId: charge.id, userId: local.user_id, amountRefunded: charge.amount_refunded, amount: charge.amount },
+                  'partial refund — premium retained',
+                )
+              }
+            } else if (local) {
+              subLogger.info(
+                { chargeId: charge.id, userId: local.user_id, chargeSubId: subscriptionId, currentSubId: local.stripe_subscription_id },
+                'refund for a non-current subscription — premium retained',
+              )
             }
           }
           break
@@ -564,18 +606,20 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
         case 'charge.dispute.created':
         case 'charge.dispute.funds_withdrawn': {
           const dispute = event.data.object as Stripe.Dispute
-          const charge = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge.id
+          const chargeId = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge.id
           // Dispute objects don't have a customer field directly — look up
-          // via the charge.
-          const stripeCharge = await stripe.charges.retrieve(charge)
+          // via the charge so we can scope the revocation to the current
+          // subscription, mirroring the refund handler.
+          const stripeCharge = await stripe.charges.retrieve(chargeId)
           const customer = typeof stripeCharge.customer === 'string' ? stripeCharge.customer : stripeCharge.customer?.id
-          if (customer) {
+          const subscriptionId = await chargeSubscriptionId(stripe, stripeCharge)
+          if (customer && subscriptionId) {
             const local = await trx('subscriptions')
               .where({ stripe_customer_id: customer })
               .select('user_id', 'stripe_subscription_id')
               .forUpdate()
               .first()
-            if (local) {
+            if (local && local.stripe_subscription_id === subscriptionId) {
               await trx('subscriptions')
                 .where({ user_id: local.user_id })
                 .update({ tier: 'free', status: 'canceled', updated_at: trx.fn.now() })
@@ -586,6 +630,11 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
                 stripeSubscriptionId: local.stripe_subscription_id,
               }, trx)
               subLogger.error({ disputeId: dispute.id, userId: local.user_id }, 'dispute opened — premium revoked')
+            } else if (local) {
+              subLogger.warn(
+                { disputeId: dispute.id, userId: local.user_id, chargeSubId: subscriptionId, currentSubId: local.stripe_subscription_id },
+                'dispute for a non-current subscription — premium retained',
+              )
             }
           }
           break

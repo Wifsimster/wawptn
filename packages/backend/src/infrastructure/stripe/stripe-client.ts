@@ -12,7 +12,7 @@ export function getStripe(): Stripe {
       throw new Error('STRIPE_SECRET_KEY is not configured')
     }
 
-    const mode = env.STRIPE_SECRET_KEY.startsWith('sk_live_') ? 'live' : 'test'
+    const mode = /^(sk|rk)_live_/.test(env.STRIPE_SECRET_KEY) ? 'live' : 'test'
     stripeLogger.info({ mode, apiVersion: '2026-02-25.clover' }, 'initializing stripe client')
 
     stripeInstance = new Stripe(env.STRIPE_SECRET_KEY, {
@@ -34,7 +34,7 @@ export function isStripeEnabled(): boolean {
  *  /admin/subscription-health endpoint so ops can spot a mode mismatch. */
 export function getStripeMode(): 'live' | 'test' | 'unconfigured' {
   if (!env.STRIPE_SECRET_KEY) return 'unconfigured'
-  return env.STRIPE_SECRET_KEY.startsWith('sk_live_') ? 'live' : 'test'
+  return /^(sk|rk)_live_/.test(env.STRIPE_SECRET_KEY) ? 'live' : 'test'
 }
 
 /** Type guard around the Stripe SDK error hierarchy. Lets call sites map

@@ -117,7 +117,7 @@ export function validateEnv(): void {
     }
     // Mode parity: live secret with test webhook (or vice versa) silently
     // fails signature verification with no startup error.
-    const liveKey = env.STRIPE_SECRET_KEY.startsWith('sk_live_')
+    const liveKey = /^(sk|rk)_live_/.test(env.STRIPE_SECRET_KEY)
     const liveWebhook = !env.STRIPE_WEBHOOK_SECRET.startsWith('whsec_test_')
       && !env.STRIPE_WEBHOOK_SECRET.includes('test')
     // The webhook secret naming convention isn't strictly enforced by Stripe

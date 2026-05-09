@@ -24,6 +24,7 @@ import { statsRoutes } from './presentation/routes/stats.routes.js'
 import { requireAuth } from './presentation/middleware/auth.middleware.js'
 import { requireBotAuth } from './presentation/middleware/bot-auth.middleware.js'
 import { requireAdmin } from './presentation/middleware/admin.middleware.js'
+import { requireSameOrigin } from './presentation/middleware/csrf.middleware.js'
 import { discordRoutes, discordUserRoutes } from './presentation/routes/discord.routes.js'
 import { adminRoutes } from './presentation/routes/admin.routes.js'
 import { subscriptionRoutes, subscriptionWebhookRouter } from './presentation/routes/subscription.routes.js'
@@ -176,9 +177,11 @@ async function main() {
     skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
   })
 
-  // Admin routes (requires authenticated admin user)
-  app.use('/api/admin', requireAuth, requireAdmin, adminMutationLimiter, adminRoutes)
-  app.use('/api/admin/notifications', requireAuth, requireAdmin, adminMutationLimiter, adminNotificationRoutes)
+  // Admin routes (requires authenticated admin user). requireSameOrigin
+  // blocks CSRF on mutating endpoints — without it, lax-cookie sessions
+  // could be coerced into granting privileges via a victim admin's browser.
+  app.use('/api/admin', requireAuth, requireAdmin, requireSameOrigin, adminMutationLimiter, adminRoutes)
+  app.use('/api/admin/notifications', requireAuth, requireAdmin, requireSameOrigin, adminMutationLimiter, adminNotificationRoutes)
 
   // Discord user-facing routes (session auth, no bot auth required)
   app.use('/api/discord', discordUserRoutes)
@@ -188,9 +191,13 @@ async function main() {
     app.use('/api/discord', requireBotAuth, discordRoutes)
   }
 
-  // Stripe subscription routes (feature-flagged)
+  // Stripe subscription routes (feature-flagged). requireSameOrigin blocks
+  // CSRF on /checkout and /portal — both initiate Stripe interactions and
+  // create customer state, so a forged cross-site POST would be costly.
+  // The webhook router is mounted earlier without requireAuth/requireSameOrigin
+  // because Stripe authenticates by signed payload, not browser cookies.
   if (isStripeEnabled()) {
-    app.use('/api/subscription', requireAuth, subscriptionRoutes)
+    app.use('/api/subscription', requireAuth, requireSameOrigin, subscriptionRoutes)
   }
 
   // Invite preview route (public, no auth) — serves OG meta tags for Discord/social embeds

@@ -36,6 +36,13 @@
     "logoutConfirm": "Log out",
     "logoutCancel": "Cancel",
     "commonGames": "{{count}} common games",
+    "membersCount_one": "{{count}} member",
+    "membersCount_other": "{{count}} members",
+    "voteOngoing": "Vote in progress",
+    "startVote": "Start the vote",
+    "joinVote": "Join the vote",
+    "joinWithCode": "Join with a code",
+    "otherGroups": "Other groups",
     "searchGroups": "Search for a group...",
     "noSearchResults": "No groups match your search.",
     "clearSearch": "Clear search"

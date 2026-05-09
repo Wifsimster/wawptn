@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Users as UsersIcon, Link2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -36,6 +36,7 @@ export function GroupPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { currentGroup, fetchGroup, leaveGroup, deleteGroup, renameGroup } = useGroupStore()
   useDocumentTitle(currentGroup?.name ?? t('groups.title'))
   const { user } = useAuthStore()
@@ -379,6 +380,26 @@ export function GroupPage() {
       setTodayPersona(currentGroup.todayPersona)
     }
   }, [currentGroup?.todayPersona])
+
+  // Action-first launch from GroupsPage: ?startVote=1 means the user clicked
+  // the hero CTA on the dashboard. Once members are loaded (the vote setup
+  // dialog needs them), open the right surface — join an existing vote, or
+  // open the participant picker — and strip the param so a refresh doesn't
+  // re-trigger the flow.
+  useEffect(() => {
+    if (searchParams.get('startVote') !== '1') return
+    if (!currentGroup) return
+    if (activeVoteSession) {
+      navigate(`/groups/${currentGroup.id}/vote`, { replace: true })
+    } else {
+      setVoteSetupOpen(true)
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('startVote')
+        return next
+      }, { replace: true })
+    }
+  }, [searchParams, currentGroup, activeVoteSession, navigate, setSearchParams])
 
   const onlineMembers = useMemo(() => new Set(onlineUserIds), [onlineUserIds])
   const lastSeenMap = lastSeenMapRef.current

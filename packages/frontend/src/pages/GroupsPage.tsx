@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Plus, LogIn, Users, Gamepad2, Trophy, Crown, Search, X, RefreshCw, ChevronRight, Vote, Sparkles, ClipboardPaste } from 'lucide-react'
+import { Plus, LogIn, Crown, Search, X, RefreshCw, Vote, ClipboardPaste } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { motion, type Variants } from 'framer-motion'
@@ -22,8 +22,6 @@ import {
 import { AppHeader } from '@/components/app-header'
 import { AppFooter } from '@/components/app-footer'
 import { InviteLink } from '@/components/invite-link'
-import { PersonaBadge } from '@/components/persona-badge'
-import { StreakBadge } from '@/components/streak-badge'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 const fadeUp: Variants = {
@@ -38,6 +36,24 @@ const fadeUp: Variants = {
 const stagger: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.06 } },
+}
+
+type GroupListItem = ReturnType<typeof useGroupStore.getState>['groups'][number]
+
+// Hero pick: the group most likely to be acted on right now. Active vote
+// always wins; otherwise we fall back to the most-recently-finished session,
+// then to creation date. Stable enough that returning users land on the
+// same group every time.
+function pickHeroGroup(groups: GroupListItem[]): GroupListItem | null {
+  if (groups.length === 0) return null
+  const sorted = [...groups].sort((a, b) => {
+    if (a.activeVoteSession && !b.activeVoteSession) return -1
+    if (!a.activeVoteSession && b.activeVoteSession) return 1
+    const aTime = a.lastSession?.closedAt ?? a.createdAt
+    const bTime = b.lastSession?.closedAt ?? b.createdAt
+    return new Date(bTime).getTime() - new Date(aTime).getTime()
+  })
+  return sorted[0] ?? null
 }
 
 export function GroupsPage() {
@@ -59,8 +75,6 @@ export function GroupsPage() {
   const [joinError, setJoinError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Extract raw token from an invite URL (e.g. https://wawptn.app/invite/abc123 → abc123)
-  // Falls back to the raw input if it doesn't look like a URL.
   const extractInviteToken = (raw: string): string => {
     const input = raw.trim()
     if (!input) return input
@@ -72,11 +86,16 @@ export function GroupsPage() {
   const normalize = (s: string) =>
     s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
-  const filteredGroups = useMemo(() => {
-    if (!searchQuery.trim()) return groups
+  const heroGroup = useMemo(() => pickHeroGroup(groups), [groups])
+  const otherGroups = useMemo(
+    () => (heroGroup ? groups.filter((g) => g.id !== heroGroup.id) : []),
+    [groups, heroGroup],
+  )
+  const filteredOtherGroups = useMemo(() => {
+    if (!searchQuery.trim()) return otherGroups
     const q = normalize(searchQuery)
-    return groups.filter((g) => normalize(g.name).includes(q))
-  }, [groups, searchQuery])
+    return otherGroups.filter((g) => normalize(g.name).includes(q))
+  }, [otherGroups, searchQuery])
 
   useEffect(() => {
     let cancelled = false
@@ -131,8 +150,6 @@ export function GroupsPage() {
     try {
       const result = await createGroup({ name: groupName.trim() })
       setGroupName('')
-      // Keep the dialog open and surface the fresh invite link so the user can
-      // invite friends immediately — this is the core adoption loop.
       setInviteResult(result.inviteToken)
       setCreatedGroupId(result.id)
       fetchGroups()
@@ -178,9 +195,6 @@ export function GroupsPage() {
       setInviteToken('')
       setShowJoin(false)
       fetchGroups()
-      // Mirror JoinPage: if a vote is already running in the target group,
-      // drop the user straight on the ballot instead of walking them
-      // through the group detail page first.
       navigate(result.activeVoteSession ? `/groups/${result.id}/vote` : `/groups/${result.id}`)
       toast.success(t('joinGroup.success'))
       track('group.joined')
@@ -214,6 +228,19 @@ export function GroupsPage() {
     }
   }
 
+  const goToHeroVote = useCallback(() => {
+    if (!heroGroup) return
+    if (heroGroup.activeVoteSession) {
+      track('group.hero_join_vote')
+      navigate(`/groups/${heroGroup.id}/vote`)
+    } else {
+      // Hand off to GroupPage's vote-setup flow via a query param so the
+      // dashboard stays free of the participant-picker dialog. GroupPage
+      // reads ?startVote=1 once members have loaded and opens the dialog.
+      track('group.hero_start_vote')
+      navigate(`/groups/${heroGroup.id}?startVote=1`)
+    }
+  }, [heroGroup, navigate])
 
   return (
     <div className="min-h-dvh flex flex-col">
@@ -222,7 +249,7 @@ export function GroupsPage() {
       <main
         id="main-content"
         ref={mainRef}
-        className="max-w-2xl mx-auto p-4"
+        className="max-w-2xl mx-auto p-4 w-full"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -242,31 +269,24 @@ export function GroupsPage() {
             </div>
           </div>
         )}
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-heading font-bold tracking-[-0.03em]">{t('groups.title')}</h1>
-            <StreakBadge />
-          </div>
-          {/* Desktop-only top-right actions. On mobile these are duplicated
-              into a thumb-zone bottom bar (below) so the primary CTAs
-              aren't stranded in the top-right unreachable zone. */}
-          <div className="hidden sm:flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setShowJoin(true)}>
-              <LogIn className="size-4" />
-              {t('groups.join')}
-            </Button>
-            <Button size="sm" onClick={() => setShowCreate(true)}>
-              <Plus className="size-4" />
-              {t('groups.create')}
-            </Button>
-          </div>
+
+        <div className="flex items-center justify-between gap-2 mb-6">
+          <h1 className="text-2xl font-heading font-bold tracking-[-0.03em]">{t('groups.title')}</h1>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowCreate(true)}
+            aria-label={t('groups.create')}
+            title={t('groups.create')}
+            className="gap-1.5"
+          >
+            <Plus className="size-4" />
+            <span className="hidden sm:inline">{t('groups.create')}</span>
+          </Button>
         </div>
 
-        {/* Per-group persona du jour lives on each GroupCard below —
-            no longer a single global badge at the top of the page. */}
-
-        {/* Search Groups */}
-        {groups.length > 3 && (
+        {/* Search — only useful past a handful of groups. */}
+        {otherGroups.length > 7 && (
           <div className="relative mb-4" role="search">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
             <Input
@@ -412,7 +432,7 @@ export function GroupsPage() {
           </ResponsiveDialogContent>
         </ResponsiveDialog>
 
-        {/* Groups List */}
+        {/* Loading skeleton */}
         {loading ? (
           <div
             className="space-y-3"
@@ -421,180 +441,241 @@ export function GroupsPage() {
             aria-live="polite"
             aria-label={t('common.loading', 'Chargement…')}
           >
-            {[0, 1, 2].map((i) => (
-              <Skeleton
-                key={i}
-                className="h-[72px] w-full rounded-lg"
-                style={{ animationDelay: `${i * 150}ms` }}
-              />
-            ))}
+            <Skeleton className="h-32 w-full rounded-lg" />
+            <Skeleton className="h-14 w-full rounded-lg" style={{ animationDelay: '150ms' }} />
+            <Skeleton className="h-14 w-full rounded-lg" style={{ animationDelay: '300ms' }} />
           </div>
         ) : groups.length === 0 ? (
-          <motion.div
-            className="py-10 sm:py-16 relative overflow-hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            <span
-              aria-hidden="true"
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-heading font-extrabold text-[20vw] sm:text-[12rem] leading-none landing-question-mark pointer-events-none select-none"
-            >
-              ?
-            </span>
-            <div className="relative z-10 text-center max-w-xl mx-auto">
-              <h2 className="text-2xl font-heading font-bold tracking-[-0.02em] mb-2">
-                {t('groups.welcomeTitle')}
-              </h2>
-              <p className="text-muted-foreground mb-8">
-                {t('groups.welcomeSubtitle')}
-              </p>
-
-              <ol className="text-left space-y-4 mb-8">
-                <li className="flex items-start gap-3">
-                  <div className="flex items-center justify-center size-8 rounded-full bg-primary/10 border border-primary/20 text-primary shrink-0">
-                    <Users className="size-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">{t('groups.welcomeStep1')}</p>
-                    <p className="text-xs text-muted-foreground">{t('groups.welcomeStep1Desc')}</p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="flex items-center justify-center size-8 rounded-full bg-neon/10 border border-neon/20 text-neon shrink-0">
-                    <Vote className="size-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">{t('groups.welcomeStep2')}</p>
-                    <p className="text-xs text-muted-foreground">{t('groups.welcomeStep2Desc')}</p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="flex items-center justify-center size-8 rounded-full bg-reward/10 border border-reward/20 text-reward shrink-0">
-                    <Sparkles className="size-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">{t('groups.welcomeStep3')}</p>
-                    <p className="text-xs text-muted-foreground">{t('groups.welcomeStep3Desc')}</p>
-                  </div>
-                </li>
-              </ol>
-
-              <div className="flex flex-col sm:flex-row justify-center gap-3">
-                <Button size="lg" onClick={() => setShowCreate(true)}>
-                  <Plus className="size-4" />
-                  {t('groups.welcomeCta')}
-                </Button>
-                <Button size="lg" variant="secondary" onClick={() => setShowJoin(true)}>
-                  <LogIn className="size-4" />
-                  {t('groups.join')}
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        ) : filteredGroups.length === 0 && searchQuery ? (
-          <motion.div
-            className="text-center py-8"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <p className="text-sm text-muted-foreground mb-2">{t('groups.noSearchResults')}</p>
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="text-sm text-primary hover:underline"
-            >
-              {t('groups.clearSearch')}
-            </button>
-          </motion.div>
+          <EmptyState
+            onCreate={() => setShowCreate(true)}
+            onJoin={() => setShowJoin(true)}
+          />
         ) : (
           <motion.div
-            className="space-y-3"
+            className="space-y-6"
             initial="hidden"
             animate="visible"
             variants={stagger}
           >
-            {filteredGroups.map((group) => (
-              <motion.div key={group.id} variants={fadeUp}>
-                <Link to={`/groups/${group.id}`} className="block group/card">
-                  <Card
-                    className={cn(
-                      'p-4 card-hover-glow',
-                      group.role === 'owner' && 'border-primary/15',
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold flex items-center gap-1.5">
-                          {group.name}
-                          {group.role === 'owner' && (
-                            <Crown className="size-4 text-reward shrink-0" />
-                          )}
-                          {group.todayPersona && (
-                            <PersonaBadge
-                              variant="compact"
-                              persona={group.todayPersona}
-                              className="ml-1"
-                            />
-                          )}
-                        </h3>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
-                          <span className="flex items-center gap-1">
-                            <Users className="size-3" />
-                            {group.memberCount}
-                          </span>
-                          <span className="text-muted-foreground/30">·</span>
-                          <span className="flex items-center gap-1">
-                            <Gamepad2 className="size-3" />
-                            {t('groups.commonGames', { count: group.commonGameCount })}
-                          </span>
-                          {group.lastSession && (
-                            <>
-                              <span className="text-muted-foreground/30">·</span>
-                              <span className="flex items-center gap-1 truncate">
-                                <Trophy className="size-3 shrink-0" />
-                                <span className="truncate">{group.lastSession.gameName}</span>
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <ChevronRight className="size-4 text-muted-foreground/20 shrink-0 transition-all duration-300 group-hover/card:translate-x-0.5 group-hover/card:text-muted-foreground/50" />
-                    </div>
-                  </Card>
-                </Link>
+            {/* Hero card — primary action surface for the group most likely
+                to be played tonight. Inline CTA collapses two taps (open
+                group → start vote) into one. */}
+            {heroGroup && (
+              <motion.div variants={fadeUp}>
+                <HeroGroupCard group={heroGroup} onAction={goToHeroVote} />
               </motion.div>
-            ))}
+            )}
+
+            {/* Other groups — compact rows. No icons, no badges, no chevron.
+                The only signal worth surfacing is "vote en cours" because it
+                still beats the hero pick when the user has multiple groups. */}
+            {filteredOtherGroups.length > 0 && (
+              <motion.div variants={fadeUp} className="space-y-2">
+                <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground px-1">
+                  {t('groups.otherGroups')}
+                </h2>
+                <div className="space-y-1.5">
+                  {filteredOtherGroups.map((group) => (
+                    <CompactGroupRow key={group.id} group={group} />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {filteredOtherGroups.length === 0 && otherGroups.length > 0 && searchQuery && (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground mb-2">{t('groups.noSearchResults')}</p>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-sm text-primary hover:underline"
+                >
+                  {t('groups.clearSearch')}
+                </button>
+              </div>
+            )}
+
+            {/* Demoted Join — present but quiet. Most users open this page
+                to act inside an existing group, not to join a new one. */}
+            <motion.div variants={fadeUp} className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => setShowJoin(true)}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
+              >
+                <LogIn className="size-3.5" />
+                {t('groups.joinWithCode')}
+              </button>
+            </motion.div>
           </motion.div>
         )}
 
-        {/* Mobile: fixed thumb-zone action bar. Mirrors the pattern used on
-            GroupPage (line ~579) so the two list/detail entry points behave
-            the same on phones. Desktop keeps the top-right buttons above. */}
+        {/* Spacer so the last row isn't covered by the mobile bottom bar. */}
+        {heroGroup && <div className="h-24 sm:hidden" />}
+      </main>
+
+      {/* Mobile thumb-zone bar — mirrors the hero CTA so the primary action
+          stays reachable when the hero scrolls off-screen. The previous
+          Create/Join pair lived here and stole the prime real estate from
+          the action returning users actually want. */}
+      {heroGroup && !loading && groups.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <div className="flex gap-2 max-w-2xl mx-auto">
+          <div className="flex max-w-2xl mx-auto">
             <Button
-              variant="secondary"
-              onClick={() => setShowJoin(true)}
-              className="flex-1 h-12 gap-2"
+              onClick={goToHeroVote}
+              className={cn(
+                'flex-1 h-12 gap-2 font-semibold',
+                heroGroup.activeVoteSession && 'animate-pulse',
+              )}
             >
-              <LogIn className="size-4" />
-              {t('groups.join')}
-            </Button>
-            <Button
-              onClick={() => setShowCreate(true)}
-              className="flex-1 h-12 gap-2"
-            >
-              <Plus className="size-4" />
-              {t('groups.create')}
+              <Vote className="size-4" />
+              {heroGroup.activeVoteSession
+                ? t('groups.joinVote')
+                : t('groups.startVote')}
             </Button>
           </div>
         </div>
-        {/* Spacer so the last group card isn't covered by the bottom bar. */}
-        <div className="h-20 sm:hidden" />
-      </main>
+      )}
+
       <AppFooter />
     </div>
+  )
+}
+
+interface HeroGroupCardProps {
+  group: GroupListItem
+  onAction: () => void
+}
+
+function HeroGroupCard({ group, onAction }: HeroGroupCardProps) {
+  const { t } = useTranslation()
+  const isActive = !!group.activeVoteSession
+
+  return (
+    <Card
+      className={cn(
+        'p-5 sm:p-6 relative overflow-hidden card-hover-glow',
+        isActive
+          ? 'border-neon/40 shadow-[0_0_24px_-8px_rgb(var(--neon)/0.45)]'
+          : 'border-primary/15',
+      )}
+    >
+      {isActive && (
+        <span
+          aria-hidden="true"
+          className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-neon to-transparent animate-pulse"
+        />
+      )}
+
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0 flex-1">
+          <Link
+            to={`/groups/${group.id}`}
+            className="inline-flex items-center gap-2 hover:opacity-90 transition-opacity"
+          >
+            <h2 className="text-xl sm:text-2xl font-heading font-bold tracking-[-0.02em] truncate">
+              {group.name}
+            </h2>
+            {group.role === 'owner' && (
+              <Crown className="size-4 text-reward shrink-0" aria-label={t('group.roleOwner', 'propriétaire')} />
+            )}
+          </Link>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {t('groups.membersCount', { count: group.memberCount })}
+          </p>
+        </div>
+
+        {isActive && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-neon/40 bg-neon/10 px-2.5 py-1 text-xs font-semibold text-neon shrink-0">
+            <span className="size-1.5 rounded-full bg-neon animate-pulse" aria-hidden="true" />
+            {t('groups.voteOngoing')}
+          </span>
+        )}
+      </div>
+
+      <Button
+        size="lg"
+        onClick={onAction}
+        className={cn(
+          'w-full h-12 gap-2 font-semibold',
+          isActive && 'animate-pulse',
+        )}
+      >
+        <Vote className="size-4" />
+        {isActive ? t('groups.joinVote') : t('groups.startVote')}
+      </Button>
+    </Card>
+  )
+}
+
+interface CompactGroupRowProps {
+  group: GroupListItem
+}
+
+function CompactGroupRow({ group }: CompactGroupRowProps) {
+  const { t } = useTranslation()
+  const isActive = !!group.activeVoteSession
+
+  return (
+    <Link
+      to={`/groups/${group.id}`}
+      className={cn(
+        'flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border hover:bg-muted/40 transition-colors',
+        group.role === 'owner' && 'border-l-2 border-l-reward/40',
+      )}
+    >
+      <div className="min-w-0 flex-1">
+        <span className="font-medium truncate block">{group.name}</span>
+        <span className="text-xs text-muted-foreground">
+          {t('groups.membersCount', { count: group.memberCount })}
+        </span>
+      </div>
+      {isActive && (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-neon/10 px-2 py-0.5 text-[11px] font-semibold text-neon shrink-0">
+          <span className="size-1.5 rounded-full bg-neon animate-pulse" aria-hidden="true" />
+          {t('groups.voteOngoing')}
+        </span>
+      )}
+    </Link>
+  )
+}
+
+interface EmptyStateProps {
+  onCreate: () => void
+  onJoin: () => void
+}
+
+function EmptyState({ onCreate, onJoin }: EmptyStateProps) {
+  const { t } = useTranslation()
+  return (
+    <motion.div
+      className="py-12 sm:py-20 text-center max-w-md mx-auto"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+    >
+      <h2 className="text-2xl font-heading font-bold tracking-[-0.02em] mb-2">
+        {t('groups.welcomeTitle')}
+      </h2>
+      <p className="text-muted-foreground mb-8">
+        {t('groups.welcomeSubtitle')}
+      </p>
+
+      <Button size="lg" onClick={onCreate} className="w-full sm:w-auto h-12 gap-2 font-semibold">
+        <Plus className="size-4" />
+        {t('groups.welcomeCta')}
+      </Button>
+
+      <div className="mt-4">
+        <button
+          type="button"
+          onClick={onJoin}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
+        >
+          <LogIn className="size-3.5" />
+          {t('groups.joinWithCode')}
+        </button>
+      </div>
+    </motion.div>
   )
 }

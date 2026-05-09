@@ -275,7 +275,23 @@ router.patch('/users/:id/premium', validateBody(TogglePremiumSchema), async (req
   }
 
   const wasPremium = !!target.admin_granted_premium
-  await db('users').where({ id: targetId }).update({ admin_granted_premium: isPremium })
+  // Track who granted the premium and when so the row is self-describing
+  // even if the audit log is purged. The CHECK constraint added in
+  // 20260509_admin_grant_metadata enforces that _by/_at are both populated
+  // when the flag is true and both null when revoked.
+  await db('users').where({ id: targetId }).update(
+    isPremium
+      ? {
+          admin_granted_premium: true,
+          admin_granted_premium_by: req.userId ?? null,
+          admin_granted_premium_at: db.fn.now(),
+        }
+      : {
+          admin_granted_premium: false,
+          admin_granted_premium_by: null,
+          admin_granted_premium_at: null,
+        },
+  )
   invalidatePremiumCache(targetId)
 
   authLogger.warn(
@@ -662,8 +678,13 @@ router.get('/subscription-health', async (_req: Request, res: Response) => {
     '../../infrastructure/scheduler/subscription-reconciler.js'
   )
   const { getStripeMode, isStripeEnabled } = await import('../../infrastructure/stripe/stripe-client.js')
+  const { getWebhookMetrics } = await import('../../infrastructure/stripe/webhook-metrics.js')
 
   const reconciler = getReconcilerHealth()
+  const webhookMetrics = getWebhookMetrics()
+  const reconcilerStaleHours = reconciler.lastRunAt
+    ? (Date.now() - reconciler.lastRunAt.getTime()) / (60 * 60_000)
+    : null
 
   // Webhook event outcomes for the last 24h, grouped by event_type and status.
   const since = new Date(Date.now() - 24 * 60 * 60_000)
@@ -686,7 +707,16 @@ router.get('/subscription-health', async (_req: Request, res: Response) => {
       mode: getStripeMode(),
       automaticTaxEnabled: env.STRIPE_AUTOMATIC_TAX_ENABLED,
     },
-    reconciler,
+    reconciler: {
+      ...reconciler,
+      // Hours since last completed run — alarm above ~25h indicates the
+      // daily 03:00 UTC cron stopped firing or every replica lost the
+      // advisory lock race.
+      hoursSinceLastRun: reconcilerStaleHours,
+    },
+    // Per-replica counters from webhook-metrics. Reset on process
+    // restart; for a fleet view, query each replica's health endpoint.
+    webhookMetrics,
     webhookEvents24h: events.map((e) => ({
       eventType: e.event_type,
       status: e.status,

@@ -12,7 +12,7 @@ import { testConnection, runMigrations } from './infrastructure/database/connect
 import { createSocketServer } from './infrastructure/socket/socket.js'
 import { startVoteScheduler } from './infrastructure/scheduler/vote-scheduler.js'
 import { startAutoVoteScheduler } from './infrastructure/scheduler/auto-vote-scheduler.js'
-import { startSubscriptionReconciler } from './infrastructure/scheduler/subscription-reconciler.js'
+import { startSubscriptionReconciler, stopSubscriptionReconciler } from './infrastructure/scheduler/subscription-reconciler.js'
 import { logger } from './infrastructure/logger/logger.js'
 import { authRoutes } from './presentation/routes/auth.routes.js'
 import { groupRoutes } from './presentation/routes/group.routes.js'
@@ -24,6 +24,7 @@ import { statsRoutes } from './presentation/routes/stats.routes.js'
 import { requireAuth } from './presentation/middleware/auth.middleware.js'
 import { requireBotAuth } from './presentation/middleware/bot-auth.middleware.js'
 import { requireAdmin } from './presentation/middleware/admin.middleware.js'
+import { requireSameOrigin } from './presentation/middleware/csrf.middleware.js'
 import { discordRoutes, discordUserRoutes } from './presentation/routes/discord.routes.js'
 import { adminRoutes } from './presentation/routes/admin.routes.js'
 import { subscriptionRoutes, subscriptionWebhookRouter } from './presentation/routes/subscription.routes.js'
@@ -79,6 +80,12 @@ async function main() {
   // Rate limiting. Key on the signed session cookie when present so that
   // two users sharing a NAT/IP don't deplete each other's budget; fall
   // back to the client IP for unauthenticated traffic.
+  //
+  // The Stripe webhook is mounted upstream of this and skipped explicitly
+  // here too — Stripe delivers from a small set of egress IPs and a noisy
+  // morning of events from one IP can deplete the global budget, after
+  // which a 429 response triggers Stripe retries forever (the dead-letter
+  // would never clear).
   const apiLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 300,
@@ -89,8 +96,31 @@ async function main() {
       if (typeof token === 'string' && token.length > 0) return `s:${token}`
       return `ip:${req.ip ?? 'unknown'}`
     },
+    skip: (req) => req.path === '/subscription/webhook' || req.path.startsWith('/subscription/webhook/'),
   })
   app.use('/api/', apiLimiter)
+
+  // Per-user limiter for Stripe-billed endpoints. The global apiLimiter
+  // already covers casual abuse, but a buggy client (or a logged-in
+  // attacker) could spam customers.create / checkout.sessions.create at
+  // the global cap and have us throttled org-wide by Stripe before the
+  // global limit fires. Cap creation calls per session to a sensible
+  // ceiling (10/min); ample for a real user retrying or comparing plans,
+  // hostile to a script.
+  const stripeBilledLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+      const token = req.signedCookies?.[SESSION_COOKIE_NAME]
+      if (typeof token === 'string' && token.length > 0) return `s:${token}`
+      return `ip:${req.ip ?? 'unknown'}`
+    },
+    // Only count POSTs (creates a Stripe-billed session); GET /me reads
+    // cached local state and stays on the global limiter.
+    skip: (req) => req.method !== 'POST',
+  })
 
   const voteLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -176,9 +206,11 @@ async function main() {
     skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
   })
 
-  // Admin routes (requires authenticated admin user)
-  app.use('/api/admin', requireAuth, requireAdmin, adminMutationLimiter, adminRoutes)
-  app.use('/api/admin/notifications', requireAuth, requireAdmin, adminMutationLimiter, adminNotificationRoutes)
+  // Admin routes (requires authenticated admin user). requireSameOrigin
+  // blocks CSRF on mutating endpoints — without it, lax-cookie sessions
+  // could be coerced into granting privileges via a victim admin's browser.
+  app.use('/api/admin', requireAuth, requireAdmin, requireSameOrigin, adminMutationLimiter, adminRoutes)
+  app.use('/api/admin/notifications', requireAuth, requireAdmin, requireSameOrigin, adminMutationLimiter, adminNotificationRoutes)
 
   // Discord user-facing routes (session auth, no bot auth required)
   app.use('/api/discord', discordUserRoutes)
@@ -188,9 +220,13 @@ async function main() {
     app.use('/api/discord', requireBotAuth, discordRoutes)
   }
 
-  // Stripe subscription routes (feature-flagged)
+  // Stripe subscription routes (feature-flagged). requireSameOrigin blocks
+  // CSRF on /checkout and /portal — both initiate Stripe interactions and
+  // create customer state, so a forged cross-site POST would be costly.
+  // The webhook router is mounted earlier without requireAuth/requireSameOrigin
+  // because Stripe authenticates by signed payload, not browser cookies.
   if (isStripeEnabled()) {
-    app.use('/api/subscription', requireAuth, subscriptionRoutes)
+    app.use('/api/subscription', requireAuth, requireSameOrigin, stripeBilledLimiter, subscriptionRoutes)
   }
 
   // Invite preview route (public, no auth) — serves OG meta tags for Discord/social embeds
@@ -278,6 +314,10 @@ async function main() {
   const shutdown = async () => {
     logger.info('shutting down...')
     httpServer.close()
+    // Stop accepting new reconciler passes and wait for any in-flight pass
+    // so we don't kill an active Stripe pagination loop or leave a Postgres
+    // advisory lock orphaned mid-transaction.
+    await stopSubscriptionReconciler()
     const { closeConnection } = await import('./infrastructure/database/connection.js')
     await closeConnection()
     process.exit(0)

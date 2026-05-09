@@ -320,7 +320,7 @@ export const api = {
     }),
 
   // Subscription
-  getSubscription: () => request<{ tier: 'free' | 'premium'; status: 'active' | 'past_due' | 'canceled' | 'inactive'; currentPeriodEnd: string | null }>('/subscription/me'),
+  getSubscription: () => request<{ tier: 'free' | 'premium'; status: 'active' | 'past_due' | 'canceled' | 'inactive'; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean }>('/subscription/me'),
   createCheckout: () => request<{ url: string }>('/subscription/checkout', { method: 'POST' }),
   createPortal: () => request<{ url: string }>('/subscription/portal', { method: 'POST' }),
 

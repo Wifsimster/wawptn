@@ -1,5 +1,6 @@
 import cron from 'node-cron'
 import type Stripe from 'stripe'
+import type { Knex } from 'knex'
 import { db } from '../database/connection.js'
 import { getStripe, isStripeEnabled } from '../stripe/stripe-client.js'
 import { logger } from '../logger/logger.js'
@@ -10,6 +11,24 @@ const reconcilerLogger = logger.child({ module: 'subscription-reconciler' })
 
 /** Grace period in days before downgrading past_due subscriptions */
 const GRACE_PERIOD_DAYS = 3
+
+/** Postgres advisory-lock key — only one replica may hold this at a time, so
+ *  the daily reconcile fires once across the fleet instead of N times. The
+ *  literal value is arbitrary but must be stable; pick a fixed bigint. */
+const RECONCILER_LOCK_KEY = 0x5741575054_4e525043n // 'WAWPTNRPC'
+
+/** Same-instance overlap guard: a manual /admin trigger that lands while the
+ *  cron is mid-run would otherwise queue up duplicate work. */
+let isRunning = false
+
+/** SIGTERM coordination — the inner pass polls this flag between Stripe
+ *  pages so a graceful shutdown can stop without aborting an in-flight
+ *  Stripe call. */
+let shuttingDown = false
+
+/** Promise of the in-flight pass, exposed so the process shutdown handler
+ *  can await it before closing the DB connection. */
+let currentRun: Promise<unknown> | null = null
 
 /** In-memory snapshot of the last reconcile pass — surfaced by the
  *  /admin/subscription-health endpoint so ops can see whether the daily
@@ -43,11 +62,10 @@ export function getReconcilerHealth(): ReconcilerHealth {
 /**
  * Start daily cron job to reconcile subscription state with Stripe.
  *
- * Note: in a multi-instance deploy this fires on every replica (no leader
- * election). That's acceptable — `last-write-wins` on the local update,
- * and Stripe's API rate limit is ~100 req/s which dwarfs our subscriber
- * count. If the user count grows past ~5k premium subscribers we should
- * add leader election or move to a queue.
+ * Cross-replica election is enforced via a Postgres advisory lock acquired
+ * inside `runReconciliation` — every replica's cron fires, but only the one
+ * that wins the lock proceeds. The rest log and exit, so we don't hammer
+ * Stripe N times per day on a multi-replica deploy.
  */
 export function startSubscriptionReconciler(): void {
   if (!isStripeEnabled()) return
@@ -59,58 +77,125 @@ export function startSubscriptionReconciler(): void {
   reconcilerLogger.info('subscription reconciler scheduled (daily at 03:00 UTC)')
 }
 
-/** Single pass — exposed for testability and for an /admin endpoint that
- *  manually triggers reconciliation if the daily job has been failing. */
-export async function runReconciliation(): Promise<ReconcilerHealth> {
-  const start = Date.now()
-  reconcilerLogger.info('starting subscription reconciliation')
-
-  health.lastRunAt = new Date()
-  health.lastRunSucceeded = null
-  health.lastRunSynced = 0
-  health.lastRunErrors = 0
-  health.lastRunDrifts = 0
-  health.lastRunRepaired = 0
-  health.lastRunDowngraded = 0
-
-  try {
-    await reconcileSubscriptions()
-    await repairOrphanCustomers()
-    health.lastRunDowngraded = await enforcePastDueGracePeriod()
-    health.lastRunSucceeded = true
-  } catch (error) {
-    health.lastRunSucceeded = false
-    reconcilerLogger.error({ error: String(error) }, 'subscription reconciliation failed')
+/** Signal the reconciler that the process is shutting down and wait for any
+ *  in-flight pass to settle. Called from the SIGTERM/SIGINT handler so an
+ *  active Stripe pagination loop has a chance to stop cleanly between pages
+ *  before the DB connection is closed. */
+export async function stopSubscriptionReconciler(): Promise<void> {
+  shuttingDown = true
+  if (currentRun) {
+    try {
+      await currentRun
+    } catch {
+      // Errors are already logged inside runReconciliation.
+    }
   }
-
-  health.lastRunDurationMs = Date.now() - start
-
-  // Surface a loud signal if the error rate is alarming so log-based
-  // alerting can pick it up. Threshold: any non-zero errors and >50% of
-  // attempted rows.
-  const total = health.lastRunSynced + health.lastRunErrors
-  const errorRate = total > 0 ? health.lastRunErrors / total : 0
-  if (errorRate > 0.5 && health.lastRunErrors > 0) {
-    reconcilerLogger.error(
-      { synced: health.lastRunSynced, errors: health.lastRunErrors, errorRate },
-      'reconciler error rate above 50%',
-    )
-  } else {
-    reconcilerLogger.info(
-      {
-        synced: health.lastRunSynced,
-        errors: health.lastRunErrors,
-        drifts: health.lastRunDrifts,
-        repaired: health.lastRunRepaired,
-        downgraded: health.lastRunDowngraded,
-        durationMs: health.lastRunDurationMs,
-      },
-      'reconciliation pass complete',
-    )
-  }
-
-  return getReconcilerHealth()
 }
+
+/** Single pass — exposed for testability and for an /admin endpoint that
+ *  manually triggers reconciliation if the daily job has been failing.
+ *
+ *  Concurrency model:
+ *    1. `isRunning` blocks a second concurrent call on the SAME instance.
+ *    2. `pg_try_advisory_xact_lock` on a dedicated transaction blocks
+ *       concurrent runs across replicas. The lock is auto-released when the
+ *       lock-holding transaction commits (xact-scoped), so a crashed replica
+ *       cannot leave the lock orphaned.
+ *
+ *  The lock-holding transaction does no business work — it just sits idle
+ *  for the duration of the pass. All actual reconciliation queries use the
+ *  regular `db` pool so reads/writes don't pile onto a long-lived tx. */
+export async function runReconciliation(): Promise<ReconcilerHealth> {
+  if (isRunning) {
+    reconcilerLogger.warn('reconciliation already in flight on this instance — skipping')
+    return getReconcilerHealth()
+  }
+  isRunning = true
+  const start = Date.now()
+  const passPromise = (async () => {
+    let lockTrx: Knex.Transaction | null = null
+    try {
+      lockTrx = await db.transaction()
+      const lockResult = await lockTrx.raw<{ rows: Array<{ got: boolean }> }>(
+        'SELECT pg_try_advisory_xact_lock(?) AS got',
+        [RECONCILER_LOCK_KEY.toString()],
+      )
+      const got = !!lockResult.rows?.[0]?.got
+      if (!got) {
+        reconcilerLogger.info('reconciliation lock held by another instance — skipping')
+        await lockTrx.commit()
+        lockTrx = null
+        return getReconcilerHealth()
+      }
+
+      reconcilerLogger.info('starting subscription reconciliation')
+
+      health.lastRunAt = new Date()
+      health.lastRunSucceeded = null
+      health.lastRunSynced = 0
+      health.lastRunErrors = 0
+      health.lastRunDrifts = 0
+      health.lastRunRepaired = 0
+      health.lastRunDowngraded = 0
+
+      try {
+        await reconcileSubscriptions()
+        if (!shuttingDown) await repairOrphanCustomers()
+        if (!shuttingDown) {
+          health.lastRunDowngraded = await enforcePastDueGracePeriod()
+        }
+        health.lastRunSucceeded = true
+      } catch (error) {
+        health.lastRunSucceeded = false
+        reconcilerLogger.error({ error: String(error) }, 'subscription reconciliation failed')
+      }
+
+      health.lastRunDurationMs = Date.now() - start
+
+      const total = health.lastRunSynced + health.lastRunErrors
+      const errorRate = total > 0 ? health.lastRunErrors / total : 0
+      if (errorRate > 0.5 && health.lastRunErrors > 0) {
+        reconcilerLogger.error(
+          { synced: health.lastRunSynced, errors: health.lastRunErrors, errorRate },
+          'reconciler error rate above 50%',
+        )
+      } else {
+        reconcilerLogger.info(
+          {
+            synced: health.lastRunSynced,
+            errors: health.lastRunErrors,
+            drifts: health.lastRunDrifts,
+            repaired: health.lastRunRepaired,
+            downgraded: health.lastRunDowngraded,
+            downgradedDuringShutdown: shuttingDown,
+            durationMs: health.lastRunDurationMs,
+          },
+          'reconciliation pass complete',
+        )
+      }
+
+      await lockTrx.commit()
+      lockTrx = null
+      return getReconcilerHealth()
+    } catch (error) {
+      reconcilerLogger.error({ error: String(error) }, 'reconciliation outer failure')
+      if (lockTrx) {
+        try { await lockTrx.rollback() } catch { /* swallow */ }
+      }
+      health.lastRunSucceeded = false
+      health.lastRunDurationMs = Date.now() - start
+      return getReconcilerHealth()
+    }
+  })()
+  currentRun = passPromise
+  try {
+    return await passPromise
+  } finally {
+    isRunning = false
+    currentRun = null
+  }
+}
+
 
 /**
  * Reconcile active subscriptions with Stripe to fix drift. Pulls Stripe's
@@ -132,6 +217,10 @@ async function reconcileSubscriptions(): Promise<void> {
   // event. Status='all' returns canceled rows too — we want those to
   // detect divergence.
   for await (const stripeSub of stripe.subscriptions.list({ status: 'all', limit: 100 })) {
+    if (shuttingDown) {
+      reconcilerLogger.warn('shutdown signaled — aborting reconcileSubscriptions mid-pass')
+      return
+    }
     const local = byStripeId.get(stripeSub.id)
 
     const cancelAtPeriodEnd = !!stripeSub.cancel_at_period_end
@@ -152,6 +241,7 @@ async function reconcileSubscriptions(): Promise<void> {
           const periodEnd = stripeSub.items.data[0]
             ? new Date(stripeSub.items.data[0].current_period_end * 1000)
             : null
+          const price = stripeSub.items.data[0]?.price
           await db('subscriptions')
             .insert({
               user_id: userId,
@@ -161,6 +251,9 @@ async function reconcileSubscriptions(): Promise<void> {
               status: stripeStatus,
               cancel_at_period_end: cancelAtPeriodEnd,
               current_period_end: periodEnd,
+              price_id: price?.id ?? null,
+              amount_cents: typeof price?.unit_amount === 'number' ? price.unit_amount : null,
+              currency: typeof price?.currency === 'string' ? price.currency : null,
             })
             .onConflict('user_id')
             .merge()
@@ -183,16 +276,23 @@ async function reconcileSubscriptions(): Promise<void> {
         const periodEnd = stripeSub.items.data[0]
           ? new Date(stripeSub.items.data[0].current_period_end * 1000)
           : null
+        const price = stripeSub.items.data[0]?.price
+        const update: Record<string, unknown> = {
+          tier: stripeTier,
+          status: stripeStatus,
+          cancel_at_period_end: cancelAtPeriodEnd,
+          current_period_end: periodEnd,
+          updated_at: db.fn.now(),
+        }
+        if (price?.id) {
+          update['price_id'] = price.id
+          update['amount_cents'] = typeof price.unit_amount === 'number' ? price.unit_amount : null
+          update['currency'] = typeof price.currency === 'string' ? price.currency : null
+        }
 
         await db('subscriptions')
           .where({ user_id: local.user_id })
-          .update({
-            tier: stripeTier,
-            status: stripeStatus,
-            cancel_at_period_end: cancelAtPeriodEnd,
-            current_period_end: periodEnd,
-            updated_at: db.fn.now(),
-          })
+          .update(update)
 
         invalidatePremiumCache(local.user_id)
         await recordSystemAction('subscription.system.reconciled', local.user_id, {
@@ -234,6 +334,10 @@ async function repairOrphanCustomers(): Promise<void> {
     .select('user_id', 'stripe_customer_id')
 
   for (const row of orphans) {
+    if (shuttingDown) {
+      reconcilerLogger.warn('shutdown signaled — aborting repairOrphanCustomers mid-pass')
+      return
+    }
     try {
       // List active and trialing subs for this customer. If there's one,
       // the checkout completed at Stripe but we missed the webhook.

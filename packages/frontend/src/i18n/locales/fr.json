@@ -508,6 +508,9 @@
     },
     "manageButton": "Gérer mon abonnement",
     "activated": "Abonnement Premium activé !",
+    "activating": "Activation de ton abonnement...",
+    "activationDelayed": "L'activation prend plus longtemps que prévu — recharge la page dans un instant.",
+    "canceledFromCheckout": "Paiement annulé. Tu peux réessayer quand tu veux.",
     "checkoutError": "Impossible de lancer le paiement",
     "portalError": "Impossible d'ouvrir le portail de gestion"
   },

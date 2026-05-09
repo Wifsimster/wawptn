@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Lock, Crown, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useSubscriptionStore } from '@/stores/subscription.store'
+import { useSubscriptionStore, selectIsPremium } from '@/stores/subscription.store'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { track } from '@/lib/analytics'
@@ -29,8 +29,7 @@ interface PremiumGateProps {
 }
 
 export function PremiumGate({ children, from = 'feature', feature, fallback }: PremiumGateProps) {
-  const { tier, status } = useSubscriptionStore()
-  const isPremium = tier === 'premium' && status === 'active'
+  const isPremium = useSubscriptionStore(selectIsPremium)
 
   if (isPremium) return <>{children}</>
   if (fallback) return <>{fallback}</>

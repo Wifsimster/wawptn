@@ -1,4 +1,5 @@
 import type { Request } from 'express'
+import type { Knex } from 'knex'
 import { db } from '../infrastructure/database/connection.js'
 import { authLogger } from '../infrastructure/logger/logger.js'
 
@@ -86,15 +87,23 @@ export async function recordAdminAction(input: RecordAdminActionInput): Promise<
  * Record a system-driven audit entry (no human actor) such as a Stripe
  * webhook flipping subscription state. Uses null actor_id and tags
  * metadata.source so it can be distinguished from admin actions when
- * reporting. Never throws.
+ * reporting.
+ *
+ * Optional `executor` lets a webhook handler enroll the audit row in the
+ * same transaction as the state change, so a failure rolls both back
+ * together. When omitted, falls back to the default pool connection and
+ * never throws — so audit-log issues can't break a non-transactional
+ * admin action.
  */
 export async function recordSystemAction(
   action: AdminAuditAction,
   targetUserId: string | null,
   metadata: Record<string, unknown> = {},
+  executor?: Knex | Knex.Transaction,
 ): Promise<void> {
+  const exec = executor ?? db
   try {
-    await db('admin_audit_log').insert({
+    await exec('admin_audit_log').insert({
       actor_id: null,
       target_user_id: targetUserId,
       action,
@@ -103,6 +112,10 @@ export async function recordSystemAction(
       user_agent: null,
     })
   } catch (error) {
+    // When the caller supplied a transaction the failure must propagate so
+    // the surrounding handler rolls back too — otherwise we'd commit the
+    // state change without the matching audit row.
+    if (executor) throw error
     authLogger.error(
       { error: String(error), action, targetUserId },
       'failed to write system audit log entry',

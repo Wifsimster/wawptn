@@ -98,7 +98,7 @@ vi.mock('@/domain/admin-audit-log.js', () => ({
 }))
 
 import type Stripe from 'stripe'
-import { applySubscriptionState } from '../subscription.routes.js'
+import { applySubscriptionState } from '../../../domain/stripe-event-handlers.js'
 
 // ---------------------------------------------------------------------------
 // Helpers

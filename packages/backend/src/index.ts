@@ -80,6 +80,12 @@ async function main() {
   // Rate limiting. Key on the signed session cookie when present so that
   // two users sharing a NAT/IP don't deplete each other's budget; fall
   // back to the client IP for unauthenticated traffic.
+  //
+  // The Stripe webhook is mounted upstream of this and skipped explicitly
+  // here too — Stripe delivers from a small set of egress IPs and a noisy
+  // morning of events from one IP can deplete the global budget, after
+  // which a 429 response triggers Stripe retries forever (the dead-letter
+  // would never clear).
   const apiLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 300,
@@ -90,8 +96,31 @@ async function main() {
       if (typeof token === 'string' && token.length > 0) return `s:${token}`
       return `ip:${req.ip ?? 'unknown'}`
     },
+    skip: (req) => req.path === '/subscription/webhook' || req.path.startsWith('/subscription/webhook/'),
   })
   app.use('/api/', apiLimiter)
+
+  // Per-user limiter for Stripe-billed endpoints. The global apiLimiter
+  // already covers casual abuse, but a buggy client (or a logged-in
+  // attacker) could spam customers.create / checkout.sessions.create at
+  // the global cap and have us throttled org-wide by Stripe before the
+  // global limit fires. Cap creation calls per session to a sensible
+  // ceiling (10/min); ample for a real user retrying or comparing plans,
+  // hostile to a script.
+  const stripeBilledLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+      const token = req.signedCookies?.[SESSION_COOKIE_NAME]
+      if (typeof token === 'string' && token.length > 0) return `s:${token}`
+      return `ip:${req.ip ?? 'unknown'}`
+    },
+    // Only count POSTs (creates a Stripe-billed session); GET /me reads
+    // cached local state and stays on the global limiter.
+    skip: (req) => req.method !== 'POST',
+  })
 
   const voteLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -197,7 +226,7 @@ async function main() {
   // The webhook router is mounted earlier without requireAuth/requireSameOrigin
   // because Stripe authenticates by signed payload, not browser cookies.
   if (isStripeEnabled()) {
-    app.use('/api/subscription', requireAuth, requireSameOrigin, subscriptionRoutes)
+    app.use('/api/subscription', requireAuth, requireSameOrigin, stripeBilledLimiter, subscriptionRoutes)
   }
 
   // Invite preview route (public, no auth) — serves OG meta tags for Discord/social embeds

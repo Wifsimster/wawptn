@@ -199,13 +199,19 @@ function getInvoiceSubscriptionId(invoice: { parent?: { subscription_details?: {
  *  charge.refunded firing for unrelated past invoices and silently nuking
  *  premium — this helper is the single place we answer "which sub did
  *  this charge pay for?". Retrieves the invoice if necessary so the
- *  answer is always authoritative. */
+ *  answer is always authoritative.
+ *
+ *  Note on types: the Stripe SDK v20 clover API doesn't surface the
+ *  invoice link on the Charge type, but the API field is still present
+ *  on the wire and webhook payload. We narrow it locally so callers
+ *  don't have to cast everywhere. */
 async function chargeSubscriptionId(stripe: Stripe, charge: Stripe.Charge): Promise<string | null> {
+  const invoiceField = (charge as unknown as { invoice?: string | { id: string; parent?: { subscription_details?: { subscription?: string | { id: string } } | null } | null } | null }).invoice
   let invoice: { parent?: { subscription_details?: { subscription?: string | { id: string } } | null } | null } | null = null
-  if (typeof charge.invoice === 'string' && charge.invoice.length > 0) {
-    invoice = await stripe.invoices.retrieve(charge.invoice) as unknown as typeof invoice
-  } else if (charge.invoice && typeof charge.invoice === 'object') {
-    invoice = charge.invoice as unknown as typeof invoice
+  if (typeof invoiceField === 'string' && invoiceField.length > 0) {
+    invoice = await stripe.invoices.retrieve(invoiceField) as unknown as typeof invoice
+  } else if (invoiceField && typeof invoiceField === 'object') {
+    invoice = invoiceField as unknown as typeof invoice
   }
   if (!invoice) return null
   return getInvoiceSubscriptionId(invoice)

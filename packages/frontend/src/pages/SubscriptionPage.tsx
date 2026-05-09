@@ -20,6 +20,7 @@ export function SubscriptionPage() {
   const { tier, status, currentPeriodEnd, loading, fetchSubscription } = useSubscriptionStore()
   const [searchParams] = useSearchParams()
   const [actionLoading, setActionLoading] = useState(false)
+  const [pollEnded, setPollEnded] = useState(false)
 
   useEffect(() => {
     fetchSubscription()
@@ -29,21 +30,66 @@ export function SubscriptionPage() {
   // Drives the lead-in copy (e.g. "You've hit the free group limit") and
   // the analytics attribution on the resulting checkout.
   const fromKey = searchParams.get('from')
+  const wantsActivation = searchParams.get('success') === 'true'
+  // Derived — true while we're still waiting for the webhook to flip
+  // tier to premium. Avoids storing redundant state in the component and
+  // keeps the synchronous-setState-in-effect lint happy.
+  const activating = wantsActivation && !pollEnded && tier !== 'premium'
 
   useEffect(() => {
-    if (searchParams.get('success') === 'true') {
-      toast.success(t('subscription.activated'))
-      fetchSubscription()
-      // Fire the funnel-completion event once on landing. We don't have
-      // the originating `from` here unless it was carried back through
-      // the success_url; Stripe doesn't echo arbitrary query params, so
-      // we record the event without attribution and rely on the checkout
-      // _started event to provide it.
-      track('premium.checkout_completed')
+    if (searchParams.get('canceled') === 'true') {
+      toast.message(t('subscription.canceledFromCheckout'))
     }
-  }, [searchParams, t, fetchSubscription])
+  }, [searchParams, t])
+
+  useEffect(() => {
+    if (!wantsActivation) return
+
+    // Stripe redirects to success_url synchronously, but the
+    // checkout.session.completed webhook can land 1–5 s later. A single
+    // fetch right after redirect would often see tier='free' and render
+    // the upgrade CTA on the user we just charged. Poll briefly with
+    // backoff until the store reports premium, then stop.
+    let cancelled = false
+    track('premium.checkout_completed')
+
+    const delays = [400, 800, 1500, 2500, 4000, 6000]
+    let attempt = 0
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null
+
+    const poll = async (): Promise<void> => {
+      if (cancelled) return
+      await fetchSubscription()
+      if (cancelled) return
+      const { tier: t2 } = useSubscriptionStore.getState()
+      if (t2 === 'premium') {
+        toast.success(t('subscription.activated'))
+        setPollEnded(true)
+        return
+      }
+      if (attempt >= delays.length) {
+        // Webhook clearly hasn't landed; stop the spinner and show a soft
+        // notice so the user can refresh manually. The reconciler will
+        // self-heal within 24h, and a refresh after a few seconds will
+        // usually pick up the change.
+        toast.message(t('subscription.activationDelayed'))
+        setPollEnded(true)
+        return
+      }
+      const delay = delays[attempt] ?? 6000
+      attempt += 1
+      timeoutHandle = setTimeout(() => { void poll() }, delay)
+    }
+
+    void poll()
+    return () => {
+      cancelled = true
+      if (timeoutHandle) clearTimeout(timeoutHandle)
+    }
+  }, [wantsActivation, t, fetchSubscription])
 
   const handleCheckout = async () => {
+    if (actionLoading) return
     setActionLoading(true)
     track('premium.checkout_started', { from: fromKey ?? 'subscription_page' })
     try {
@@ -56,6 +102,7 @@ export function SubscriptionPage() {
   }
 
   const handlePortal = async () => {
+    if (actionLoading) return
     setActionLoading(true)
     try {
       const { url } = await api.createPortal()
@@ -105,7 +152,11 @@ export function SubscriptionPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {loading ? (
+            {activating ? (
+              <p className="text-muted-foreground" role="status" aria-live="polite">
+                {t('subscription.activating')}
+              </p>
+            ) : loading ? (
               <p className="text-muted-foreground">{t('subscription.loading')}</p>
             ) : isPremium ? (
               <>

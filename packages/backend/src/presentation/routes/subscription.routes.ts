@@ -2,7 +2,7 @@ import { Router } from 'express'
 import type { Request, Response } from 'express'
 import type Stripe from 'stripe'
 import type { Knex } from 'knex'
-import { getStripe, isStripeError, stripeErrorContext } from '../../infrastructure/stripe/stripe-client.js'
+import { getStripe, isStripeError, stripeErrorContext, verifyWebhookSignature } from '../../infrastructure/stripe/stripe-client.js'
 import {
   incrementWebhookReceived,
   incrementSignatureFailure,
@@ -425,7 +425,7 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
 
   let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(req.body, signature, env.STRIPE_WEBHOOK_SECRET)
+    event = verifyWebhookSignature(req.body, typeof signature === 'string' ? signature : signature[0] ?? '')
   } catch (error) {
     incrementSignatureFailure()
     subLogger.warn({ error: String(error) }, 'webhook signature verification failed')

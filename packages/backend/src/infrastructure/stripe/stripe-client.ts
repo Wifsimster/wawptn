@@ -57,3 +57,35 @@ export function stripeErrorContext(err: unknown): Record<string, unknown> {
     message: err.message,
   }
 }
+
+/** Parse `STRIPE_WEBHOOK_SECRET` into one or more secrets. Stripe lets
+ *  you have two active webhook signing secrets at the same time during
+ *  rotation: configure both as a comma-separated list and the webhook
+ *  handler tries each one. Once the old secret is removed at the
+ *  dashboard, drop it from env on the next deploy. */
+export function getWebhookSecrets(): string[] {
+  return env.STRIPE_WEBHOOK_SECRET
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+}
+
+/** Verify a Stripe webhook signature against any of the configured
+ *  secrets. Returns the parsed Event on success, throws on failure.
+ *  Tries each secret in order; the first that verifies wins. */
+export function verifyWebhookSignature(rawBody: Buffer | string, signature: string): Stripe.Event {
+  const secrets = getWebhookSecrets()
+  if (secrets.length === 0) throw new Error('no webhook secrets configured')
+
+  const stripe = getStripe()
+  let lastError: unknown
+  for (const secret of secrets) {
+    try {
+      return stripe.webhooks.constructEvent(rawBody, signature, secret)
+    } catch (error) {
+      lastError = error
+      continue
+    }
+  }
+  throw lastError ?? new Error('signature verification failed')
+}

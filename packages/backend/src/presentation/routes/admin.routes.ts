@@ -275,7 +275,23 @@ router.patch('/users/:id/premium', validateBody(TogglePremiumSchema), async (req
   }
 
   const wasPremium = !!target.admin_granted_premium
-  await db('users').where({ id: targetId }).update({ admin_granted_premium: isPremium })
+  // Track who granted the premium and when so the row is self-describing
+  // even if the audit log is purged. The CHECK constraint added in
+  // 20260509_admin_grant_metadata enforces that _by/_at are both populated
+  // when the flag is true and both null when revoked.
+  await db('users').where({ id: targetId }).update(
+    isPremium
+      ? {
+          admin_granted_premium: true,
+          admin_granted_premium_by: req.userId ?? null,
+          admin_granted_premium_at: db.fn.now(),
+        }
+      : {
+          admin_granted_premium: false,
+          admin_granted_premium_by: null,
+          admin_granted_premium_at: null,
+        },
+  )
   invalidatePremiumCache(targetId)
 
   authLogger.warn(

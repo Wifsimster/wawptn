@@ -52,9 +52,21 @@ setInterval(() => {
   }
 }, EVICTION_INTERVAL_MS).unref()
 
-/** Check if a user has an active premium subscription (cached, 60s TTL).
- * Admins always receive premium access regardless of subscription state.
- * Users explicitly granted premium by an admin are also considered premium. */
+/**
+ * Check if a user has an active premium subscription (cached, 60s TTL).
+ *
+ * Precedence (most-permissive wins):
+ *   1. is_admin → premium (admins always have full access).
+ *   2. admin_granted_premium → premium (manual grant overrides Stripe).
+ *   3. Active paid subscription → premium when tier='premium', status='active',
+ *      and current_period_end is in the future.
+ *
+ * Rationale: an admin-granted flag must beat a paid subscription so the
+ * grant cannot be silently clobbered by a Stripe webhook flipping
+ * status='canceled'. The 20260509 migration enforces the metadata
+ * invariants for the admin-granted columns; the 20260321/20260508
+ * migrations enforce schema invariants on the subscriptions row.
+ */
 export async function isUserPremium(userId: string): Promise<boolean> {
   const now = Date.now()
   const cached = premiumCache.get(userId)

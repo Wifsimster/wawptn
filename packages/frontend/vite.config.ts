@@ -28,8 +28,8 @@ export default defineConfig({
         name: 'WAWPTN - On joue à quoi ce soir ?',
         short_name: 'WAWPTN',
         description: "Aide les groupes d'amis à choisir un jeu",
-        theme_color: '#0a0a0a',
-        background_color: '#0a0a0a',
+        theme_color: '#0d0b14',
+        background_color: '#0d0b14',
         display: 'standalone',
         // Intentionally no `orientation` — a hard portrait lock annoys
         // tablet users who install the PWA in landscape. The UI already

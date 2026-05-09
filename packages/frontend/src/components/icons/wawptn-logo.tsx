@@ -1,6 +1,13 @@
 import { cn } from '@/lib/utils'
 
 /**
+ * Brand mark — a stylised "?" with an amber answer-diamond, sitting in a
+ * gradient indigo tile. The artwork lives in three places that must stay in
+ * sync: this component (rendered in-app), `public/logo.svg` (favicon) and
+ * the generated `apple-touch-icon.png` / `pwa-*.png` files. The path data
+ * and gradient stops here are the source of truth — if you change them,
+ * regenerate the PNGs via `scripts/generate-logo-assets.mjs`.
+ *
  * Two canonical sizes are used across the app:
  *   - 16px for inline contexts (footer, alongside body copy, sidebar headers)
  *   - 28px for the app-header brand mark
@@ -14,47 +21,43 @@ interface WawptnLogoProps {
   variant?: 'mono' | 'color'
 }
 
+const QUESTION_MARK_PATH =
+  'M188 196c0-44 36-80 80-80s80 36 80 80c0 35-24 56-48 70l-8 5v21h-40v-50l12-8c16-10 28-22 28-38 0-22-18-40-40-40s-40 18-40 40'
+const ANSWER_DIAMOND_PATH = 'M268 364l28 28-28 28-28-28z'
+
 export function WawptnLogo({ size = 24, className, variant = 'mono' }: WawptnLogoProps) {
   if (variant === 'color') {
-    // The gradient stops below are derived from the design tokens
-    // (`--primary` ≈ oklch(0.55 0.27 270), `--reward` ≈ oklch(0.82 0.17 70))
-    // so the brand mark stays harmonised with the rest of the app. If the
-    // tokens evolve, update the stops here too — the mark is a deliberate
-    // brand element, not a runtime CSS-var binding.
+    // Gradient stops match the `--primary` token (oklch 0.55 0.27 270) and
+    // the diamond uses `--reward` (oklch 0.82 0.17 70). If those tokens
+    // evolve, update the stops here too — the mark is a deliberate brand
+    // element, not a runtime CSS-var binding (we want it identical in the
+    // favicon, the PWA icon, and the in-app render).
     return (
       <svg
         width={size}
         height={size}
-        viewBox="0 0 48 48"
+        viewBox="0 0 512 512"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className={className}
+        className={cn('shrink-0', className)}
         aria-hidden="true"
       >
         <defs>
-          <linearGradient id="wawptn-bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-            <stop stopColor="oklch(0.65 0.25 280)" />
-            <stop offset="0.5" stopColor="oklch(0.45 0.27 280)" />
-            <stop offset="1" stopColor="oklch(0.35 0.20 270)" />
+          <linearGradient id="wawptn-bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#7C5CFF" />
+            <stop offset="0.55" stopColor="#5B3FE0" />
+            <stop offset="1" stopColor="#2E1F8C" />
           </linearGradient>
-          <filter id="wawptn-glow">
-            <feGaussianBlur stdDeviation="1" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
+          <radialGradient id="wawptn-glow" cx="0.5" cy="0.42" r="0.55">
+            <stop offset="0" stopColor="#A78BFA" stopOpacity="0.45" />
+            <stop offset="1" stopColor="#A78BFA" stopOpacity="0" />
+          </radialGradient>
         </defs>
-        <rect width="48" height="48" rx="12" fill="url(#wawptn-bg)" />
-        <rect x="0.5" y="0.5" width="47" height="47" rx="11.5" stroke="oklch(1 0 0)" strokeOpacity="0.1" />
-        <path
-          d="M18.5 18.5c0-4 3.3-7.5 7.5-7.5s7.5 3.5 7.5 7.5c0 3.2-2.2 5.2-4.5 6.5l-.7.5V27h-3.8v-4.7l1.1-.7c1.5-1 2.6-2 2.6-3.6 0-2-1.7-3.7-3.7-3.7s-3.7 1.7-3.7 3.7"
-          stroke="oklch(1 0 0)"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          filter="url(#wawptn-glow)"
-        />
-        <path d="M24.8 33.5l2.2 2.2-2.2 2.2-2.2-2.2z" fill="oklch(0.82 0.17 70)" filter="url(#wawptn-glow)" />
+        <rect width="512" height="512" rx="116" fill="url(#wawptn-bg)" />
+        <rect x="4" y="4" width="504" height="504" rx="112" fill="url(#wawptn-glow)" />
+        <rect x="2" y="2" width="508" height="508" rx="114" stroke="#ffffff" strokeOpacity="0.12" strokeWidth="2" />
+        <path d={QUESTION_MARK_PATH} stroke="#ffffff" strokeWidth="36" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={ANSWER_DIAMOND_PATH} fill="#FBBF24" />
       </svg>
     )
   }
@@ -63,20 +66,15 @@ export function WawptnLogo({ size = 24, className, variant = 'mono' }: WawptnLog
     <svg
       width={size}
       height={size}
-      viewBox="0 0 48 48"
+      viewBox="0 0 512 512"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn('shrink-0', className)}
       aria-hidden="true"
     >
-      <rect x="2" y="2" width="44" height="44" rx="12" fill="currentColor" fillOpacity="0.08" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.12" />
-      <path
-        d="M18.5 18.5c0-4 3.3-7.5 7.5-7.5s7.5 3.5 7.5 7.5c0 3.2-2.2 5.2-4.5 6.5l-.7.5V27h-3.8v-4.7l1.1-.7c1.5-1 2.6-2 2.6-3.6 0-2-1.7-3.7-3.7-3.7s-3.7 1.7-3.7 3.7"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      <path d="M24.8 33.5l2.2 2.2-2.2 2.2-2.2-2.2z" fill="currentColor" />
+      <rect x="16" y="16" width="480" height="480" rx="108" fill="currentColor" fillOpacity="0.10" stroke="currentColor" strokeWidth="14" strokeOpacity="0.18" />
+      <path d={QUESTION_MARK_PATH} stroke="currentColor" strokeWidth="36" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={ANSWER_DIAMOND_PATH} fill="currentColor" />
     </svg>
   )
 }

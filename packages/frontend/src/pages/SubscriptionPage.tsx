@@ -8,7 +8,7 @@ import { AppFooter } from '@/components/app-footer'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { useSubscriptionStore } from '@/stores/subscription.store'
+import { useSubscriptionStore, selectIsPremium } from '@/stores/subscription.store'
 import { api } from '@/lib/api'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { track } from '@/lib/analytics'
@@ -17,7 +17,8 @@ export function SubscriptionPage() {
   const { t } = useTranslation()
   useDocumentTitle(t('subscription.title'))
   const navigate = useNavigate()
-  const { tier, status, currentPeriodEnd, loading, fetchSubscription } = useSubscriptionStore()
+  const { tier, currentPeriodEnd, cancelAtPeriodEnd, loading, fetchSubscription } = useSubscriptionStore()
+  const isPremium = useSubscriptionStore(selectIsPremium)
   const [searchParams] = useSearchParams()
   const [actionLoading, setActionLoading] = useState(false)
   const [pollEnded, setPollEnded] = useState(false)
@@ -113,7 +114,10 @@ export function SubscriptionPage() {
     }
   }
 
-  const isPremium = tier === 'premium' && (status === 'active' || status === 'canceled')
+  // isPremium is shared with PremiumGate via selectIsPremium so a user
+  // who would see the upgrade gate elsewhere never sees the "Premium"
+  // badge on this page (they used to diverge: the page treated
+  // status='canceled' as premium, the gate did not).
 
   return (
     <div className="min-h-dvh flex flex-col bg-background">
@@ -172,7 +176,7 @@ export function SubscriptionPage() {
                     })}
                   </p>
                 )}
-                {status === 'canceled' && (
+                {cancelAtPeriodEnd && (
                   <p className="text-sm text-reward">
                     {t('subscription.canceledNotice')}
                   </p>

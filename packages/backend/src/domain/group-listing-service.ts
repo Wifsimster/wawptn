@@ -11,6 +11,7 @@ export interface GroupListItem {
   memberCount: number
   commonGameCount: number
   lastSession: { gameName: string; gameAppId: number; closedAt: string } | null
+  activeVoteSession: { id: string; scheduledAt: string | null } | null
   todayPersona: unknown | null
   discordGuildId: string | null
   discordChannelId: string | null
@@ -35,6 +36,12 @@ interface LastSessionRow {
   winning_game_app_id: number
   winning_game_name: string
   closed_at: string
+}
+
+interface ActiveSessionRow {
+  group_id: string
+  id: string
+  scheduled_at: string | null
 }
 
 /**
@@ -76,6 +83,15 @@ export async function listGroupsForUser(userId: string): Promise<GroupListItem[]
     .select('group_id', 'winning_game_app_id', 'winning_game_name', 'closed_at')
   const lastSessionMap = indexBy(lastSessions, (s) => s.group_id)
 
+  // Open vote sessions per group. The DB enforces "at most one open session
+  // per group" via a partial unique index, so a single distinctOn-style
+  // batched lookup is sufficient and shape-matches lastSessionMap.
+  const activeSessions: ActiveSessionRow[] = await db('voting_sessions')
+    .whereIn('group_id', groupIds)
+    .where('status', 'open')
+    .select('group_id', 'id', 'scheduled_at')
+  const activeSessionMap = indexBy(activeSessions, (s) => s.group_id)
+
   const allMemberships: { group_id: string; user_id: string }[] = await db('group_members')
     .whereIn('group_id', groupIds)
     .select('group_id', 'user_id')
@@ -99,6 +115,7 @@ export async function listGroupsForUser(userId: string): Promise<GroupListItem[]
 
   return groups.map((g) => {
     const last = lastSessionMap.get(g.id)
+    const active = activeSessionMap.get(g.id)
     return {
       id: g.id,
       name: g.name,
@@ -112,6 +129,9 @@ export async function listGroupsForUser(userId: string): Promise<GroupListItem[]
             gameAppId: last.winning_game_app_id,
             closedAt: last.closed_at,
           }
+        : null,
+      activeVoteSession: active
+        ? { id: active.id, scheduledAt: active.scheduled_at }
         : null,
       todayPersona: personaMap.get(g.id) ?? null,
       discordGuildId: g.discord_guild_id ?? null,

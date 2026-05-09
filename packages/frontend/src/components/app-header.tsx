@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { WawptnLogo } from '@/components/icons/wawptn-logo'
 import { NotificationBell } from '@/components/notification-bell'
+import { StreakBadge } from '@/components/streak-badge'
 import { openKoeSupport } from '@/lib/koe-support'
 
 interface AppHeaderProps {
@@ -90,11 +91,12 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
               )}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-[180px]">
+          <DropdownMenuContent align="end" className="min-w-[200px]">
             {user && (
               <>
-                <DropdownMenuLabel className="truncate">
-                  {user.displayName}
+                <DropdownMenuLabel className="flex items-center justify-between gap-2">
+                  <span className="truncate">{user.displayName}</span>
+                  <StreakBadge />
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
               </>

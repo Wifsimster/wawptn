@@ -180,7 +180,7 @@ describe('applySubscriptionState — past_due transition', () => {
     // Last argument is the executor; should be the trx so the audit row
     // commits atomically with the state change.
     expect(recordSystemAction).toHaveBeenCalled()
-    const args = recordSystemAction.mock.calls[0]
+    const args = recordSystemAction.mock.calls[0] as unknown as unknown[]
     expect(args?.[3]).toBe(hoisted.trx)
   })
 })

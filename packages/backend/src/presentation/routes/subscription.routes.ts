@@ -3,6 +3,13 @@ import type { Request, Response } from 'express'
 import type Stripe from 'stripe'
 import type { Knex } from 'knex'
 import { getStripe, isStripeError, stripeErrorContext } from '../../infrastructure/stripe/stripe-client.js'
+import {
+  incrementWebhookReceived,
+  incrementSignatureFailure,
+  incrementWebhookDuplicate,
+  incrementWebhookSuccess,
+  incrementWebhookFailure,
+} from '../../infrastructure/stripe/webhook-metrics.js'
 import { env } from '../../config/env.js'
 import { db } from '../../infrastructure/database/connection.js'
 import { logger } from '../../infrastructure/logger/logger.js'
@@ -406,10 +413,12 @@ export async function applySubscriptionState(
 }
 
 subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
+  incrementWebhookReceived()
   const stripe = getStripe()
   const signature = req.headers['stripe-signature']
 
   if (!signature || !env.STRIPE_WEBHOOK_SECRET) {
+    incrementSignatureFailure()
     res.status(400).json({ error: 'missing_signature' })
     return
   }
@@ -418,6 +427,7 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
   try {
     event = stripe.webhooks.constructEvent(req.body, signature, env.STRIPE_WEBHOOK_SECRET)
   } catch (error) {
+    incrementSignatureFailure()
     subLogger.warn({ error: String(error) }, 'webhook signature verification failed')
     res.status(400).json({ error: 'invalid_signature' })
     return
@@ -453,6 +463,7 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
   })
 
   if (!claimed) {
+    incrementWebhookDuplicate()
     res.json({ received: true, duplicate: true })
     return
   }
@@ -698,8 +709,10 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
         .update({ status: 'success', last_attempted_at: trx.fn.now() })
     })
 
+    incrementWebhookSuccess(event.type)
     res.json({ received: true })
   } catch (error) {
+    incrementWebhookFailure(event.type)
     // Mark the event as failed so a Stripe retry can re-claim it. Classify
     // the error: 4xx Stripe errors and known data-shape errors are
     // permanent failures (return 200 to stop retries); 5xx and network

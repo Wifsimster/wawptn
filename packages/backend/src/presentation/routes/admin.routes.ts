@@ -678,8 +678,13 @@ router.get('/subscription-health', async (_req: Request, res: Response) => {
     '../../infrastructure/scheduler/subscription-reconciler.js'
   )
   const { getStripeMode, isStripeEnabled } = await import('../../infrastructure/stripe/stripe-client.js')
+  const { getWebhookMetrics } = await import('../../infrastructure/stripe/webhook-metrics.js')
 
   const reconciler = getReconcilerHealth()
+  const webhookMetrics = getWebhookMetrics()
+  const reconcilerStaleHours = reconciler.lastRunAt
+    ? (Date.now() - reconciler.lastRunAt.getTime()) / (60 * 60_000)
+    : null
 
   // Webhook event outcomes for the last 24h, grouped by event_type and status.
   const since = new Date(Date.now() - 24 * 60 * 60_000)
@@ -702,7 +707,16 @@ router.get('/subscription-health', async (_req: Request, res: Response) => {
       mode: getStripeMode(),
       automaticTaxEnabled: env.STRIPE_AUTOMATIC_TAX_ENABLED,
     },
-    reconciler,
+    reconciler: {
+      ...reconciler,
+      // Hours since last completed run — alarm above ~25h indicates the
+      // daily 03:00 UTC cron stopped firing or every replica lost the
+      // advisory lock race.
+      hoursSinceLastRun: reconcilerStaleHours,
+    },
+    // Per-replica counters from webhook-metrics. Reset on process
+    // restart; for a fleet view, query each replica's health endpoint.
+    webhookMetrics,
     webhookEvents24h: events.map((e) => ({
       eventType: e.event_type,
       status: e.status,

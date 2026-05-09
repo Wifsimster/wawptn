@@ -1,11 +1,18 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#7C3AED"/>
-      <stop offset="1" stop-color="#4338CA"/>
+    <linearGradient id="wawptn-bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7C5CFF"/>
+      <stop offset="0.55" stop-color="#5B3FE0"/>
+      <stop offset="1" stop-color="#2E1F8C"/>
     </linearGradient>
+    <radialGradient id="wawptn-glow" cx="0.5" cy="0.42" r="0.55">
+      <stop offset="0" stop-color="#A78BFA" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#A78BFA" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
-  <path d="M196 196c0-44 36-80 80-80s80 36 80 80c0 35-24 56-48 70l-8 5v21h-40v-50l12-8c16-10 28-22 28-38 0-22-18-40-40-40s-40 18-40 40" stroke="#fff" stroke-width="32" stroke-linecap="round"/>
-  <path d="M264 360l24 24-24 24-24-24z" fill="#FBBF24"/>
+  <rect width="512" height="512" rx="116" fill="url(#wawptn-bg)"/>
+  <rect x="4" y="4" width="504" height="504" rx="112" fill="url(#wawptn-glow)"/>
+  <rect x="2" y="2" width="508" height="508" rx="114" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2"/>
+  <path d="M188 196c0-44 36-80 80-80s80 36 80 80c0 35-24 56-48 70l-8 5v21h-40v-50l12-8c16-10 28-22 28-38 0-22-18-40-40-40s-40 18-40 40" stroke="#ffffff" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M268 364l28 28-28 28-28-28z" fill="#FBBF24"/>
 </svg>

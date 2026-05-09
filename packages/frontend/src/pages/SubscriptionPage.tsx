@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useSubscriptionStore, selectIsPremium } from '@/stores/subscription.store'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { track } from '@/lib/analytics'
 
@@ -21,7 +21,7 @@ export function SubscriptionPage() {
   const { t } = useTranslation()
   useDocumentTitle(t('subscription.title'))
   const navigate = useNavigate()
-  const { tier, currentPeriodEnd, cancelAtPeriodEnd, loading, fetchSubscription } = useSubscriptionStore()
+  const { tier, currentPeriodEnd, cancelAtPeriodEnd, source, loading, fetchSubscription } = useSubscriptionStore()
   const isPremium = useSubscriptionStore(selectIsPremium)
   const [searchParams] = useSearchParams()
   const [actionLoading, setActionLoading] = useState(false)
@@ -154,8 +154,15 @@ export function SubscriptionPage() {
     try {
       const { url } = await api.createPortal()
       window.location.href = url
-    } catch {
-      toast.error(t('subscription.portalError'))
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : 'unknown'
+      const messageKey =
+        code === 'no_subscription'
+          ? 'subscription.portalErrorNoSubscription'
+          : code === 'stripe_error'
+            ? 'subscription.portalErrorStripe'
+            : 'subscription.portalError'
+      toast.error(t(messageKey))
       setActionLoading(false)
     }
   }
@@ -164,6 +171,8 @@ export function SubscriptionPage() {
   // who would see the upgrade gate elsewhere never sees the "Premium"
   // badge on this page (they used to diverge: the page treated
   // status='canceled' as premium, the gate did not).
+  const isAdminGranted = isPremium && source === 'admin_grant'
+  const canManageSubscription = isPremium && source === 'stripe'
 
   return (
     <div className="min-h-dvh flex flex-col bg-background">
@@ -211,9 +220,11 @@ export function SubscriptionPage() {
             ) : isPremium ? (
               <>
                 <p className="text-muted-foreground">
-                  {t('subscription.premiumDescription')}
+                  {isAdminGranted
+                    ? t('subscription.adminGrantedDescription')
+                    : t('subscription.premiumDescription')}
                 </p>
-                {currentPeriodEnd && (
+                {currentPeriodEnd && !isAdminGranted && (
                   <p className="text-sm text-muted-foreground">
                     {t('subscription.renewsAt', {
                       date: new Date(currentPeriodEnd).toLocaleDateString('fr-FR', {
@@ -227,10 +238,12 @@ export function SubscriptionPage() {
                     {t('subscription.canceledNotice')}
                   </p>
                 )}
-                <Button variant="secondary" onClick={handlePortal} disabled={actionLoading}>
-                  <ExternalLink className="size-4 mr-2" />
-                  {t('subscription.manageButton')}
-                </Button>
+                {canManageSubscription && (
+                  <Button variant="secondary" onClick={handlePortal} disabled={actionLoading}>
+                    <ExternalLink className="size-4 mr-2" />
+                    {t('subscription.manageButton')}
+                  </Button>
+                )}
               </>
             ) : (
               <>

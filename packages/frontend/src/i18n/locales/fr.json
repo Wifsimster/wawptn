@@ -507,6 +507,7 @@
       "feature": "Cette fonctionnalité fait partie de Premium."
     },
     "manageButton": "Gérer mon abonnement",
+    "adminGrantedDescription": "Premium t'a été accordé par un administrateur. Aucun paiement n'est associé à ton compte — il n'y a donc pas de portail de gestion.",
     "activated": "Abonnement Premium activé !",
     "activating": "Activation de ton abonnement...",
     "activationDelayed": "L'activation prend plus longtemps que prévu — recharge la page dans un instant.",
@@ -521,7 +522,9 @@
       "prorationNotice": "En passant à l'annuel, vous êtes facturé immédiatement au prorata. Pas de remboursement sur le mois en cours."
     },
     "upgradeMonthly": "Passer en Premium — {{price}}/mois",
-    "upgradeYearly": "Passer en Premium — {{price}}/an"
+    "upgradeYearly": "Passer en Premium — {{price}}/an",
+    "portalErrorNoSubscription": "Aucun abonnement Stripe à gérer pour ce compte",
+    "portalErrorStripe": "Le portail de gestion Stripe n'est pas disponible pour le moment"
   },
   "premium": {
     "featureLocked": "Fonctionnalité Premium",

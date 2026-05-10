@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Crown, CreditCard, ExternalLink } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -13,6 +13,10 @@ import { api } from '@/lib/api'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { track } from '@/lib/analytics'
 
+type Cadence = 'monthly' | 'yearly'
+type CatalogEntry = { cadence: Cadence; priceId: string; unitAmount: number | null; currency: string | null; default: boolean }
+type Catalog = { entries: CatalogEntry[]; annualAvailable: boolean }
+
 export function SubscriptionPage() {
   const { t } = useTranslation()
   useDocumentTitle(t('subscription.title'))
@@ -22,10 +26,52 @@ export function SubscriptionPage() {
   const [searchParams] = useSearchParams()
   const [actionLoading, setActionLoading] = useState(false)
   const [pollEnded, setPollEnded] = useState(false)
+  const [catalog, setCatalog] = useState<Catalog | null>(null)
+  const [cadence, setCadence] = useState<Cadence>('yearly')
 
   useEffect(() => {
     fetchSubscription()
   }, [fetchSubscription])
+
+  // Catalog drives the cadence toggle. If the call fails or returns no
+  // entries (Stripe unconfigured / unreachable), the UI falls back to a
+  // single monthly CTA so the upgrade path is never broken.
+  useEffect(() => {
+    let cancelled = false
+    api.getCatalog()
+      .then((c) => {
+        if (cancelled) return
+        setCatalog(c)
+        const preferred = c.entries.find((e) => e.default) ?? c.entries[0]
+        if (preferred) setCadence(preferred.cadence)
+      })
+      .catch(() => {
+        if (!cancelled) setCatalog({ entries: [], annualAvailable: false })
+      })
+    return () => { cancelled = true }
+  }, [])
+
+  const monthlyEntry = useMemo(() => catalog?.entries.find((e) => e.cadence === 'monthly') ?? null, [catalog])
+  const yearlyEntry = useMemo(() => catalog?.entries.find((e) => e.cadence === 'yearly') ?? null, [catalog])
+  const showToggle = !!catalog?.annualAvailable && !!monthlyEntry && !!yearlyEntry
+
+  const formatAmount = (entry: CatalogEntry | null): string => {
+    if (!entry || entry.unitAmount === null || !entry.currency) return ''
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: entry.currency.toUpperCase() })
+      .format(entry.unitAmount / 100)
+  }
+
+  const yearlyPerMonth = useMemo((): string => {
+    if (!yearlyEntry || yearlyEntry.unitAmount === null || !yearlyEntry.currency) return ''
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: yearlyEntry.currency.toUpperCase() })
+      .format(yearlyEntry.unitAmount / 12 / 100)
+  }, [yearlyEntry])
+
+  const selectCadence = (next: Cadence) => {
+    if (next === cadence) return
+    setCadence(next)
+    track('premium.cadence_selected', { cadence: next })
+  }
 
   // The contextual gate banner: which feature/limit sent the user here.
   // Drives the lead-in copy (e.g. "You've hit the free group limit") and
@@ -92,9 +138,9 @@ export function SubscriptionPage() {
   const handleCheckout = async () => {
     if (actionLoading) return
     setActionLoading(true)
-    track('premium.checkout_started', { from: fromKey ?? 'subscription_page' })
+    track('premium.checkout_started', { from: fromKey ?? 'subscription_page', cadence })
     try {
-      const { url } = await api.createCheckout()
+      const { url } = await api.createCheckout(cadence)
       window.location.href = url
     } catch {
       toast.error(t('subscription.checkoutError'))
@@ -199,9 +245,56 @@ export function SubscriptionPage() {
                     </li>
                   ))}
                 </ul>
+
+                {showToggle && (
+                  <div
+                    className="flex flex-col gap-2"
+                    role="radiogroup"
+                    aria-label={t('subscription.cadence.monthly') + ' / ' + t('subscription.cadence.yearly')}
+                  >
+                    <div className="inline-flex rounded-lg border bg-muted p-1 self-start">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={cadence === 'monthly'}
+                        onClick={() => selectCadence('monthly')}
+                        className={`px-3 py-1.5 text-sm rounded-md transition ${cadence === 'monthly' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
+                      >
+                        {t('subscription.cadence.monthly')}
+                      </button>
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={cadence === 'yearly'}
+                        onClick={() => selectCadence('yearly')}
+                        className={`px-3 py-1.5 text-sm rounded-md transition flex items-center gap-2 ${cadence === 'yearly' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
+                      >
+                        {t('subscription.cadence.yearly')}
+                        <Badge variant="default" className="text-[10px] py-0 px-1.5">
+                          {t('subscription.cadence.savingsBadge')}
+                        </Badge>
+                      </button>
+                    </div>
+                    {cadence === 'yearly' && yearlyPerMonth && (
+                      <p className="text-xs text-muted-foreground">
+                        {t('subscription.cadence.yearlyPerMonth', { amount: yearlyPerMonth })}
+                      </p>
+                    )}
+                    {cadence === 'yearly' && (
+                      <p className="text-xs text-muted-foreground">
+                        {t('subscription.cadence.prorationNotice')}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <Button onClick={handleCheckout} disabled={actionLoading} className="mt-2">
                   <Crown className="size-4 mr-2" />
-                  {t('subscription.upgradeButton')}
+                  {cadence === 'yearly' && yearlyEntry
+                    ? t('subscription.upgradeYearly', { price: formatAmount(yearlyEntry) })
+                    : monthlyEntry
+                      ? t('subscription.upgradeMonthly', { price: formatAmount(monthlyEntry) })
+                      : t('subscription.upgradeButton')}
                 </Button>
               </>
             )}

@@ -321,7 +321,9 @@ export const api = {
 
   // Subscription
   getSubscription: () => request<{ tier: 'free' | 'premium'; status: 'active' | 'past_due' | 'canceled' | 'inactive'; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean }>('/subscription/me'),
-  createCheckout: () => request<{ url: string }>('/subscription/checkout', { method: 'POST' }),
+  getCatalog: () => request<{ entries: Array<{ cadence: 'monthly' | 'yearly'; priceId: string; unitAmount: number | null; currency: string | null; default: boolean }>; annualAvailable: boolean }>('/subscription/catalog'),
+  createCheckout: (cadence: 'monthly' | 'yearly' = 'monthly') =>
+    request<{ url: string }>('/subscription/checkout', { method: 'POST', body: JSON.stringify({ cadence }) }),
   createPortal: () => request<{ url: string }>('/subscription/portal', { method: 'POST' }),
 
   // Per-user streak roll-up (powers the GroupsPage streak badge)

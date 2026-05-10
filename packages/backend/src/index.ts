@@ -29,6 +29,7 @@ import { discordRoutes, discordUserRoutes } from './presentation/routes/discord.
 import { adminRoutes } from './presentation/routes/admin.routes.js'
 import { subscriptionRoutes, subscriptionWebhookRouter } from './presentation/routes/subscription.routes.js'
 import { isStripeEnabled } from './infrastructure/stripe/stripe-client.js'
+import { assertConfiguredPricesBelongToProduct } from './infrastructure/stripe/billing-bootstrap.js'
 import { personaRoutes } from './presentation/routes/persona.routes.js'
 import { koeRoutes } from './presentation/routes/koe.routes.js'
 import { notificationRoutes, adminNotificationRoutes } from './presentation/routes/notification.routes.js'
@@ -298,6 +299,22 @@ async function main() {
 
   // Auto-vote scheduler (recurring auto-created sessions)
   startAutoVoteScheduler()
+
+  // Anti-Toko guardrail: assert every configured price belongs to the
+  // expected product. Fatal in production (a wrong price ID would charge
+  // customers for the wrong SKU); a warning in dev so a half-set local
+  // env doesn't block running the app.
+  if (isStripeEnabled()) {
+    try {
+      await assertConfiguredPricesBelongToProduct()
+    } catch (err) {
+      if (env.NODE_ENV === 'production') {
+        logger.fatal({ error: String(err) }, 'stripe price/product assertion failed')
+        process.exit(1)
+      }
+      logger.warn({ error: String(err) }, 'stripe price/product assertion failed (non-prod)')
+    }
+  }
 
   // Subscription reconciler (daily Stripe sync + grace period enforcement)
   startSubscriptionReconciler()

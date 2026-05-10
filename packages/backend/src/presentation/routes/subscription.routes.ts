@@ -3,6 +3,7 @@ import type { Request, Response } from 'express'
 import type Stripe from 'stripe'
 import { getStripe, isStripeError, stripeErrorContext } from '../../infrastructure/stripe/stripe-client.js'
 import { env } from '../../config/env.js'
+import { isCadence, resolvePriceId, isAnnualAvailable, BILLING_CATALOG, type Cadence } from '../../config/billing.js'
 import { db } from '../../infrastructure/database/connection.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 
@@ -56,11 +57,65 @@ subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
   }
 })
 
+// GET /api/subscription/catalog — public-facing pricing catalog. Drives
+// the cadence toggle in the upgrade UI. Reads live amounts from Stripe
+// once and caches in-memory; if Stripe is unreachable, callers fall back
+// to the monthly-only single-CTA layout.
+const CATALOG_CACHE_TTL_MS = 5 * 60_000
+let catalogCache: { value: Array<{ cadence: Cadence; priceId: string; unitAmount: number | null; currency: string | null; default: boolean }>; expiresAt: number } | null = null
+
+subscriptionRoutes.get('/catalog', async (_req: Request, res: Response) => {
+  try {
+    const now = Date.now()
+    if (catalogCache && catalogCache.expiresAt > now) {
+      res.json({ entries: catalogCache.value, annualAvailable: isAnnualAvailable() })
+      return
+    }
+
+    const stripe = getStripe()
+    const entries: Array<{ cadence: Cadence; priceId: string; unitAmount: number | null; currency: string | null; default: boolean }> = []
+
+    for (const entry of BILLING_CATALOG) {
+      const priceId = resolvePriceId(entry.cadence)
+      if (!priceId) continue
+      try {
+        const price = await stripe.prices.retrieve(priceId)
+        entries.push({
+          cadence: entry.cadence,
+          priceId,
+          unitAmount: typeof price.unit_amount === 'number' ? price.unit_amount : null,
+          currency: typeof price.currency === 'string' ? price.currency : null,
+          default: entry.default,
+        })
+      } catch (err) {
+        subLogger.warn({ priceId, error: String(err) }, 'catalog: failed to retrieve price')
+      }
+    }
+
+    catalogCache = { value: entries, expiresAt: now + CATALOG_CACHE_TTL_MS }
+    res.json({ entries, annualAvailable: isAnnualAvailable() })
+  } catch (error) {
+    subLogger.error({ error: String(error) }, 'failed to build catalog')
+    res.status(500).json({ error: 'internal', message: 'Failed to load catalog' })
+  }
+})
+
 // POST /api/subscription/checkout — create Stripe Checkout Session
 subscriptionRoutes.post('/checkout', async (req: Request, res: Response) => {
   try {
     const stripe = getStripe()
     const userId = req.userId!
+
+    // Resolve cadence: client sends a discrete enum, server maps it to a
+    // configured price ID. The price string is never taken from the
+    // client — that closes the price-substitution attack surface.
+    const requestedCadence: unknown = (req.body as { cadence?: unknown } | undefined)?.cadence
+    const cadence: Cadence = isCadence(requestedCadence) ? requestedCadence : 'monthly'
+    const priceId = resolvePriceId(cadence)
+    if (!priceId) {
+      res.status(400).json({ error: 'cadence_unavailable', message: `Cadence "${cadence}" is not configured` })
+      return
+    }
 
     // Get or create Stripe customer. The idempotency key keyed off userId
     // makes the customer-create call safe under concurrent double-clicks
@@ -104,15 +159,16 @@ subscriptionRoutes.post('/checkout', async (req: Request, res: Response) => {
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       mode: 'subscription',
-      line_items: [{ price: env.STRIPE_PRICE_ID, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${env.CORS_ORIGIN}/subscription?success=true`,
       cancel_url: `${env.CORS_ORIGIN}/subscription?canceled=true`,
       client_reference_id: userId,
-      // Propagate userId onto the Subscription itself so webhook handlers
-      // and the reconciler can identify the user from any Subscription
-      // object — not just from the Checkout Session.
-      subscription_data: { metadata: { userId } },
-      metadata: { userId },
+      // Propagate userId AND cadence onto the Subscription itself so
+      // webhook handlers, the reconciler, and any future audit query can
+      // identify both the user and the picked cadence from any
+      // Subscription object — not just from the Checkout Session.
+      subscription_data: { metadata: { userId, cadence } },
+      metadata: { userId, cadence },
       allow_promotion_codes: true,
     }
 
@@ -124,7 +180,7 @@ subscriptionRoutes.post('/checkout', async (req: Request, res: Response) => {
 
     const session = await stripe.checkout.sessions.create(
       sessionParams,
-      { idempotencyKey: `checkout:${userId}:${env.STRIPE_PRICE_ID}:${bucket}` },
+      { idempotencyKey: `checkout:${userId}:${priceId}:${bucket}` },
     )
 
     res.json({ url: session.url })

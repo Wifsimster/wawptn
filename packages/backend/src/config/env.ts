@@ -58,7 +58,18 @@ export const env = {
   // configuration cannot silently 400 every webhook.
   STRIPE_SECRET_KEY: process.env['STRIPE_SECRET_KEY'] || '',
   STRIPE_WEBHOOK_SECRET: process.env['STRIPE_WEBHOOK_SECRET'] || '',
+  /** Legacy single-cadence price ID. Kept for back-compat — when only
+   *  STRIPE_PRICE_ID is set the checkout uses it for the monthly cadence
+   *  and the annual toggle is hidden. New deployments should set the
+   *  cadence-scoped vars below instead. */
   STRIPE_PRICE_ID: process.env['STRIPE_PRICE_ID'] || '',
+  STRIPE_PRICE_ID_MONTHLY: process.env['STRIPE_PRICE_ID_MONTHLY'] || '',
+  STRIPE_PRICE_ID_YEARLY: process.env['STRIPE_PRICE_ID_YEARLY'] || '',
+  /** Stripe Product ID for WAWPTN Premium. When set, validateEnv() asserts
+   *  every configured price belongs to this product — guards against the
+   *  "STRIPE_PRICE_ID points at the wrong product" misconfiguration that
+   *  produced the Toko Premium incident. Empty disables the check. */
+  STRIPE_PRODUCT_ID: process.env['STRIPE_PRODUCT_ID'] || '',
   // Enables Stripe Tax (automatic_tax + tax_id_collection) on Checkout.
   // Requires Stripe Tax to be onboarded in the dashboard and tax_behavior
   // set on the price object — keep disabled until that's done or Checkout
@@ -112,8 +123,11 @@ export function validateEnv(): void {
     if (!env.STRIPE_WEBHOOK_SECRET) {
       throw new Error('STRIPE_WEBHOOK_SECRET is required when STRIPE_SECRET_KEY is set')
     }
-    if (!env.STRIPE_PRICE_ID) {
-      throw new Error('STRIPE_PRICE_ID is required when STRIPE_SECRET_KEY is set')
+    // Either the legacy single-price var OR the cadence-scoped monthly var
+    // must be present so checkout can resolve a default price. Yearly is
+    // optional — when missing the UI hides the annual toggle.
+    if (!env.STRIPE_PRICE_ID && !env.STRIPE_PRICE_ID_MONTHLY) {
+      throw new Error('STRIPE_PRICE_ID (or STRIPE_PRICE_ID_MONTHLY) is required when STRIPE_SECRET_KEY is set')
     }
     // Mode parity: live secret with test webhook (or vice versa) silently
     // fails signature verification with no startup error.

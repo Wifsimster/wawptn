@@ -512,7 +512,16 @@
     "activationDelayed": "L'activation prend plus longtemps que prévu — recharge la page dans un instant.",
     "canceledFromCheckout": "Paiement annulé. Tu peux réessayer quand tu veux.",
     "checkoutError": "Impossible de lancer le paiement",
-    "portalError": "Impossible d'ouvrir le portail de gestion"
+    "portalError": "Impossible d'ouvrir le portail de gestion",
+    "cadence": {
+      "monthly": "Mensuel",
+      "yearly": "Annuel",
+      "savingsBadge": "Économisez 36 %",
+      "yearlyPerMonth": "soit ~{{amount}}/mois",
+      "prorationNotice": "En passant à l'annuel, vous êtes facturé immédiatement au prorata. Pas de remboursement sur le mois en cours."
+    },
+    "upgradeMonthly": "Passer en Premium — {{price}}/mois",
+    "upgradeYearly": "Passer en Premium — {{price}}/an"
   },
   "premium": {
     "featureLocked": "Fonctionnalité Premium",

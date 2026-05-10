@@ -38,6 +38,7 @@ export type AnalyticsEvent =
   // property (e.g. `from: 'group_limit'`).
   | 'premium.gate_shown'
   | 'premium.upgrade_clicked'
+  | 'premium.cadence_selected'
   | 'premium.checkout_started'
   | 'premium.checkout_completed'
 

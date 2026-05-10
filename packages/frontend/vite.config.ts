@@ -22,7 +22,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // Prompt-based: a new SW waits in the background until the user
+      // confirms via <PwaUpdatePanel>. Switching from `autoUpdate` avoids
+      // dropping a vote / unsaved input on the floor when a deploy lands
+      // mid-session.
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'logo.svg'],
       manifest: {
         name: 'WAWPTN - On joue à quoi ce soir ?',

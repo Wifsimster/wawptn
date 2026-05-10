@@ -574,7 +574,12 @@
     "enableNotifications": "Activer les notifications",
     "notificationsEnabled": "Notifications activées",
     "notificationsDenied": "Permission refusée (vérifiez vos paramètres navigateur)",
-    "notificationsUnsupported": "Non supporté sur ce navigateur"
+    "notificationsUnsupported": "Non supporté sur ce navigateur",
+    "updateAvailableTitle": "Mise à jour disponible",
+    "updateAvailableDescription": "Une nouvelle version de WAWPTN est prête. Rafraîchissez pour l'appliquer.",
+    "updateAction": "Rafraîchir",
+    "updateLater": "Plus tard",
+    "updateDismissLabel": "Ignorer la notification de mise à jour"
   },
   "notifications": {
     "title": "Notifications",

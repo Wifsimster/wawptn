@@ -488,7 +488,12 @@
     "enableNotifications": "Enable notifications",
     "notificationsEnabled": "Notifications enabled",
     "notificationsDenied": "Permission denied (check your browser settings)",
-    "notificationsUnsupported": "Not supported in this browser"
+    "notificationsUnsupported": "Not supported in this browser",
+    "updateAvailableTitle": "Update available",
+    "updateAvailableDescription": "A new version of WAWPTN is ready. Refresh to apply it.",
+    "updateAction": "Refresh",
+    "updateLater": "Later",
+    "updateDismissLabel": "Dismiss update notification"
   },
   "notifications": {
     "title": "Notifications",

@@ -3,9 +3,10 @@
  * notification delivery via the registered service worker, and the
  * `beforeinstallprompt` capture for "install to home screen" UX.
  *
- * The service worker itself is registered automatically by vite-plugin-pwa
- * (`registerType: 'autoUpdate'` in vite.config.ts). This module is a thin
- * wrapper over the browser APIs — it never installs its own SW.
+ * The service worker itself is registered by vite-plugin-pwa in `prompt`
+ * mode — `<PwaUpdatePanel>` calls `useRegisterSW` and surfaces the refresh
+ * UI. This module is a thin wrapper over the browser APIs — it never
+ * installs its own SW.
  */
 
 /** Whether the current browser supports the Notification API at all. */

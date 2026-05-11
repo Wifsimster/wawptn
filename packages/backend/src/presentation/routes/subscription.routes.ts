@@ -226,6 +226,13 @@ subscriptionRoutes.post('/portal', async (req: Request, res: Response) => {
       {
         customer: subscription.stripe_customer_id,
         return_url: `${env.CORS_ORIGIN}/subscription`,
+        // Restricts the portal to WAWPTN Premium products only. The four
+        // apps share one Stripe account, so without a config a WAWPTN
+        // customer would see Toko / The Box / CoproPilot prices in the
+        // "switch plan" picker.
+        ...(env.STRIPE_PORTAL_CONFIG_ID
+          ? { configuration: env.STRIPE_PORTAL_CONFIG_ID }
+          : {}),
       },
       { idempotencyKey: `portal:${userId}:${bucket}` },
     )

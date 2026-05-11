@@ -70,6 +70,12 @@ export const env = {
    *  "STRIPE_PRICE_ID points at the wrong product" misconfiguration that
    *  produced the Toko Premium incident. Empty disables the check. */
   STRIPE_PRODUCT_ID: process.env['STRIPE_PRODUCT_ID'] || '',
+  /** Stripe Billing Portal configuration ID (bpc_…). When set, portal
+   *  sessions are created with this configuration so the customer can
+   *  only switch between WAWPTN Premium prices, not toward products of
+   *  other apps that share the same Stripe account. When empty, Stripe
+   *  uses the account's default configuration. */
+  STRIPE_PORTAL_CONFIG_ID: process.env['STRIPE_PORTAL_CONFIG_ID'] || '',
   // Enables Stripe Tax (automatic_tax + tax_id_collection) on Checkout.
   // Requires Stripe Tax to be onboarded in the dashboard and tax_behavior
   // set on the price object — keep disabled until that's done or Checkout

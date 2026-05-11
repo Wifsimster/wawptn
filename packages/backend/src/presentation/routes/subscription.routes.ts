@@ -22,6 +22,8 @@ const subLogger = logger.child({ module: 'subscription' })
 // GET /api/subscription/me — current subscription state
 // Admins and admin-granted premium users are reported as active premium so
 // the client-side PremiumGate unlocks features regardless of Stripe state.
+// `source` distinguishes a real Stripe-backed sub (manageable via the Customer
+// Portal) from an admin grant (no Stripe customer — Manage button is hidden).
 subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
   try {
     const [user, subscription] = await Promise.all([
@@ -31,9 +33,11 @@ subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
         .first(),
       db('subscriptions')
         .where({ user_id: req.userId })
-        .select('tier', 'status', 'current_period_end', 'cancel_at_period_end')
+        .select('tier', 'status', 'current_period_end', 'cancel_at_period_end', 'stripe_customer_id')
         .first(),
     ])
+
+    const hasStripeCustomer = !!subscription?.stripe_customer_id
 
     if (user?.is_admin || user?.admin_granted_premium) {
       res.json({
@@ -41,6 +45,7 @@ subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
         status: 'active',
         currentPeriodEnd: subscription?.current_period_end || null,
         cancelAtPeriodEnd: false,
+        source: hasStripeCustomer ? 'stripe' : 'admin_grant',
       })
       return
     }
@@ -50,6 +55,7 @@ subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
       status: subscription?.status || 'inactive',
       currentPeriodEnd: subscription?.current_period_end || null,
       cancelAtPeriodEnd: !!subscription?.cancel_at_period_end,
+      source: hasStripeCustomer ? 'stripe' : 'none',
     })
   } catch (error) {
     subLogger.error({ error: String(error) }, 'failed to get status')

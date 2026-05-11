@@ -320,7 +320,7 @@ export const api = {
     }),
 
   // Subscription
-  getSubscription: () => request<{ tier: 'free' | 'premium'; status: 'active' | 'past_due' | 'canceled' | 'inactive'; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean }>('/subscription/me'),
+  getSubscription: () => request<{ tier: 'free' | 'premium'; status: 'active' | 'past_due' | 'canceled' | 'inactive'; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean; source: 'stripe' | 'admin_grant' | 'none' }>('/subscription/me'),
   getCatalog: () => request<{ entries: Array<{ cadence: 'monthly' | 'yearly'; priceId: string; unitAmount: number | null; currency: string | null; default: boolean }>; annualAvailable: boolean }>('/subscription/catalog'),
   createCheckout: (cadence: 'monthly' | 'yearly' = 'monthly') =>
     request<{ url: string }>('/subscription/checkout', { method: 'POST', body: JSON.stringify({ cadence }) }),

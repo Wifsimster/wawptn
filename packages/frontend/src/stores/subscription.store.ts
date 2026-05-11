@@ -14,6 +14,7 @@ interface SubscriptionState {
   status: SubscriptionStatus
   currentPeriodEnd: string | null
   cancelAtPeriodEnd: boolean
+  source: 'stripe' | 'admin_grant' | 'none'
   loading: boolean
   /** True after the first successful fetch — lets the UI distinguish
    *  "we don't know yet" (loading + !hydrated) from "user really is free"
@@ -31,6 +32,7 @@ interface SubscriptionSnapshot {
   status: SubscriptionStatus
   currentPeriodEnd: string | null
   cancelAtPeriodEnd: boolean
+  source: 'stripe' | 'admin_grant' | 'none'
 }
 
 function readSnapshot(): SubscriptionSnapshot | null {
@@ -63,6 +65,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   status: initialSnapshot?.status ?? 'inactive',
   currentPeriodEnd: initialSnapshot?.currentPeriodEnd ?? null,
   cancelAtPeriodEnd: initialSnapshot?.cancelAtPeriodEnd ?? false,
+  source: initialSnapshot?.source ?? 'none',
   loading: true,
   hydrated: !!initialSnapshot,
   fetchSubscription: async () => {
@@ -73,6 +76,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         status: data.status,
         currentPeriodEnd: data.currentPeriodEnd,
         cancelAtPeriodEnd: data.cancelAtPeriodEnd,
+        source: data.source,
       }
       writeSnapshot(snapshot)
       set({ ...snapshot, loading: false, hydrated: true })
@@ -88,6 +92,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
           status: 'inactive',
           currentPeriodEnd: null,
           cancelAtPeriodEnd: false,
+          source: 'none',
           loading: false,
         })
       } else {

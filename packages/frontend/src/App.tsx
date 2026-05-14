@@ -3,17 +3,7 @@ import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 import { connectSocket, disconnectSocket } from '@/lib/socket'
 import { LandingPage } from '@/pages/LandingPage'
-import { GroupsPage } from '@/pages/GroupsPage'
-import { GroupPage } from '@/pages/GroupPage'
-import { VotePage } from '@/pages/VotePage'
-import { JoinPage } from '@/pages/JoinPage'
-import { ProfilePage } from '@/pages/ProfilePage'
-import { UserProfilePage } from '@/pages/UserProfilePage'
-import { ComparePage } from '@/pages/ComparePage'
-import { DiscordLinkPage } from '@/pages/DiscordLinkPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
-import { AdminPage } from '@/pages/AdminPage'
-import { SubscriptionPage } from '@/pages/SubscriptionPage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useNotificationListener } from '@/hooks/useNotificationListener'
 import { useChallengeListener } from '@/hooks/useChallengeListener'
@@ -22,6 +12,20 @@ import { useSocketConnectionStatus } from '@/hooks/useSocketConnectionStatus'
 import { useNotificationStore } from '@/stores/notification.store'
 import { useWishlistStore } from '@/stores/wishlist.store'
 import { KoeSupport } from '@/components/KoeSupport'
+
+// Route-level code splitting. Keeps LandingPage (LCP target) and
+// NotFoundPage eager; everything else loads on demand so the first paint
+// for an unauthenticated visitor doesn't ship VotePage + framer-motion.
+const GroupsPage = lazy(() => import('@/pages/GroupsPage').then((m) => ({ default: m.GroupsPage })))
+const GroupPage = lazy(() => import('@/pages/GroupPage').then((m) => ({ default: m.GroupPage })))
+const VotePage = lazy(() => import('@/pages/VotePage').then((m) => ({ default: m.VotePage })))
+const JoinPage = lazy(() => import('@/pages/JoinPage').then((m) => ({ default: m.JoinPage })))
+const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })))
+const UserProfilePage = lazy(() => import('@/pages/UserProfilePage').then((m) => ({ default: m.UserProfilePage })))
+const ComparePage = lazy(() => import('@/pages/ComparePage').then((m) => ({ default: m.ComparePage })))
+const DiscordLinkPage = lazy(() => import('@/pages/DiscordLinkPage').then((m) => ({ default: m.DiscordLinkPage })))
+const AdminPage = lazy(() => import('@/pages/AdminPage').then((m) => ({ default: m.AdminPage })))
+const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage').then((m) => ({ default: m.SubscriptionPage })))
 
 // Dev-only sandbox; lazy + DEV-gated so it never ships in the prod bundle.
 const DialogTestPage = import.meta.env.DEV
@@ -114,37 +118,56 @@ function App() {
 
   if (!user) {
     return (
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/join/:token" element={<JoinPage />} />
-        {/* /invite/:token is the OG-rich URL surfaced by InviteLink — point
-            it at the SPA join page so a deep-linked invitee from Discord
-            doesn't hit the 404 fallback. */}
-        <Route path="/invite/:token" element={<InviteRedirect />} />
-        <Route path="/discord/link" element={<DiscordLinkPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/join/:token" element={<JoinPage />} />
+          {/* /invite/:token is the OG-rich URL surfaced by InviteLink — point
+              it at the SPA join page so a deep-linked invitee from Discord
+              doesn't hit the 404 fallback. */}
+          <Route path="/invite/:token" element={<InviteRedirect />} />
+          <Route path="/discord/link" element={<DiscordLinkPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     )
   }
 
   return (
     <>
-      <Routes>
-        <Route path="/" element={<GroupsPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/u/:userId" element={<UserProfilePage />} />
-        <Route path="/compare" element={<ComparePage />} />
-        <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
-        <Route path="/subscription" element={<SubscriptionPage />} />
-        <Route path="/groups/:id" element={<GroupPage />} />
-        <Route path="/groups/:id/vote" element={<VotePage />} />
-        <Route path="/join/:token" element={<JoinPage />} />
-        <Route path="/invite/:token" element={<InviteRedirect />} />
-        <Route path="/discord/link" element={<DiscordLinkPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/" element={<GroupsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/u/:userId" element={<UserProfilePage />} />
+          <Route path="/compare" element={<ComparePage />} />
+          <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
+          <Route path="/subscription" element={<SubscriptionPage />} />
+          <Route path="/groups/:id" element={<GroupPage />} />
+          <Route path="/groups/:id/vote" element={<VotePage />} />
+          <Route path="/join/:token" element={<JoinPage />} />
+          <Route path="/invite/:token" element={<InviteRedirect />} />
+          <Route path="/discord/link" element={<DiscordLinkPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
       <KoeSupport />
     </>
+  )
+}
+
+function RouteFallback() {
+  return (
+    <div
+      className="min-h-dvh flex flex-col items-center justify-center gap-4"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+      aria-label="Chargement de la page"
+    >
+      <Skeleton className="size-12 rounded-full" />
+      <Skeleton className="h-4 w-32" />
+    </div>
   )
 }
 

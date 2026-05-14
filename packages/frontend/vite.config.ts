@@ -127,6 +127,31 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(appVersion),
     __BUILD_TIME__: JSON.stringify(buildTime),
   },
+  // Vendor isolation. Hot-path libraries (React, the router) stay in their
+  // own long-lived chunk so a stylistic tweak in app code doesn't bust
+  // them. Heavy libraries used by a single route (framer-motion is mainly
+  // VotePage, virtual is the game grid) get split so the landing path
+  // doesn't pay for them.
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (!id.includes('node_modules')) return
+          if (id.includes('/react-router')) return 'router'
+          if (
+            id.includes('/react/') ||
+            id.includes('/react-dom/') ||
+            id.includes('/scheduler/')
+          ) return 'react'
+          if (id.includes('/framer-motion/') || id.includes('/motion-')) return 'motion'
+          if (id.includes('/@radix-ui/') || id.includes('/radix-ui/')) return 'radix'
+          if (id.includes('/socket.io-client/') || id.includes('/engine.io-client/')) return 'socket'
+          if (id.includes('/i18next') || id.includes('/react-i18next')) return 'i18n'
+          if (id.includes('/@tanstack/')) return 'tanstack'
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

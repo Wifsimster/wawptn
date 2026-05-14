@@ -1,6 +1,10 @@
 import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
-import { generateVoteResultImage } from '../../infrastructure/og/og-image-generator.js'
+import {
+  generateVoteResultImage,
+  generateInvitePreviewImage,
+} from '../../infrastructure/og/og-image-generator.js'
+import { hashInviteToken } from '../../infrastructure/steam/steam-client.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 
 const router = Router()
@@ -85,6 +89,64 @@ router.get('/og/vote/:sessionId.png', async (req: Request, res: Response) => {
     res.send(png)
   } catch (error) {
     logger.error({ error: String(error), sessionId }, 'og vote image generation failed')
+    res.status(500).json({ error: 'internal', message: 'Failed to generate image' })
+  }
+})
+
+/**
+ * Public OG image endpoint for invite previews.
+ * Returns a 1200x630 PNG branded for the target group: name, member count,
+ * and up to 3 top-voted game thumbnails. Cached short (10 min) since member
+ * count and top games shift as the group plays.
+ */
+router.get('/og/invite/:token.png', async (req: Request, res: Response) => {
+  const token = String(req.params['token'])
+
+  try {
+    const hash = hashInviteToken(token)
+    const group = await db('groups')
+      .where({ invite_token_hash: hash })
+      .where('invite_expires_at', '>', new Date())
+      .first()
+
+    if (!group || group.invite_use_count >= group.invite_max_uses) {
+      res.status(404).json({ error: 'not_found', message: 'Invite not found or expired' })
+      return
+    }
+
+    const memberCountRow = await db('group_members')
+      .where({ group_id: group.id })
+      .count('* as count')
+      .first()
+    const memberCount = Number(memberCountRow?.count || 0)
+
+    const topGames = await db('votes')
+      .join('voting_sessions', 'voting_sessions.id', 'votes.session_id')
+      .join('voting_session_games', function () {
+        this.on('voting_session_games.session_id', '=', 'votes.session_id')
+            .andOn('voting_session_games.steam_app_id', '=', 'votes.steam_app_id')
+      })
+      .where({ 'voting_sessions.group_id': group.id, 'voting_sessions.status': 'closed', 'votes.vote': true })
+      .select(
+        'voting_session_games.game_name as gameName',
+        'voting_session_games.header_image_url as headerImageUrl',
+      )
+      .count('* as voteCount')
+      .groupBy('voting_session_games.game_name', 'voting_session_games.header_image_url')
+      .orderBy('voteCount', 'desc')
+      .limit(3) as unknown as { gameName: string; headerImageUrl: string | null }[]
+
+    const png = await generateInvitePreviewImage({
+      groupName: group.name,
+      memberCount,
+      topGames,
+    })
+
+    res.setHeader('Content-Type', 'image/png')
+    res.setHeader('Cache-Control', 'public, max-age=600')
+    res.send(png)
+  } catch (error) {
+    logger.error({ error: String(error), token }, 'og invite image generation failed')
     res.status(500).json({ error: 'internal', message: 'Failed to generate image' })
   }
 })

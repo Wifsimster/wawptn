@@ -458,7 +458,19 @@
     "premiumFeature3": "AI game suggestions",
     "premiumFeature4": "Discord bot with personalities",
     "premiumFeature5": "Scheduled auto-voting",
-    "premiumCtaButton": "Upgrade to Premium"
+    "premiumCtaButton": "Upgrade to Premium",
+    "faqTitle": "Frequently asked questions",
+    "faqSubtitle": "Everything you need to know before your first game night.",
+    "faq1Q": "What is WAWPTN, exactly?",
+    "faq1A": "WAWPTN (\"What Are We Playing Tonight?\") is a web app that helps a group of friends pick a Steam game to play together tonight. We sync your libraries, keep the games you all own, and put it to a vote.",
+    "faq2Q": "How does WAWPTN find common games?",
+    "faq2A": "When you sign in with Steam, we read your game list via the official API (never your payment info, never your password). We then intersect every member's library: only games owned by everyone show up in the vote.",
+    "faq3Q": "Do I need a Discord account?",
+    "faq3A": "No. WAWPTN works on its own in the browser. If your group hangs out on Discord, the WAWPTN bot can announce the session, the winner, and invite people to vote directly in your channel — but that's optional.",
+    "faq4Q": "How much does it cost?",
+    "faq4A": "The free tier covers up to 2 groups of 12 with unlimited votes. Premium (€3/month) adds unlimited groups, up to 30 members, full vote history, AI game suggestions, and the personality-driven Discord bot.",
+    "faq5Q": "Is my Steam data private?",
+    "faq5A": "We only store what's strictly needed to compute common games: your public Steam ID, your nickname, your avatar, and the list of games you own. No sensitive playtime, no purchases, no friend lists. You can delete your account at any time."
   },
   "challenges": {
     "title": "Challenges",

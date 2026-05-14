@@ -1,0 +1,23 @@
+# WAWPTN — robots.txt
+# Allow public marketing surface; keep API and auth-walled routes out of the index.
+
+User-agent: *
+Allow: /$
+Allow: /share/
+Allow: /invite/
+Allow: /og-image.png
+Allow: /logo.svg
+Allow: /apple-touch-icon.png
+Allow: /pwa-192x192.png
+Allow: /pwa-512x512.png
+
+Disallow: /api/
+Disallow: /groups
+Disallow: /groups/
+Disallow: /profile
+Disallow: /profile/
+Disallow: /admin
+Disallow: /admin/
+Disallow: /join/
+
+Sitemap: https://wawptn.battistella.ovh/sitemap.xml

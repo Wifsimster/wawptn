@@ -92,7 +92,7 @@ export function JoinPage() {
 
   if (!user) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center px-4">
+      <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-4">
         <motion.div
           className="flex flex-col items-center w-full max-w-md"
           variants={stagger}
@@ -121,6 +121,10 @@ export function JoinPage() {
                         key={i}
                         src={url}
                         alt=""
+                        width={32}
+                        height={32}
+                        loading="lazy"
+                        decoding="async"
                         className="size-8 rounded-full border-2 border-background"
                       />
                     ))}
@@ -142,6 +146,10 @@ export function JoinPage() {
                         <img
                           src={preview.recentWinner.headerImageUrl}
                           alt={preview.recentWinner.gameName}
+                          width={64}
+                          height={32}
+                          loading="lazy"
+                          decoding="async"
                           className="w-16 h-8 rounded object-cover shrink-0"
                         />
                       )}
@@ -165,6 +173,10 @@ export function JoinPage() {
                           <img
                             src={game.headerImageUrl}
                             alt={game.gameName}
+                            width={460}
+                            height={215}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full aspect-[460/215] rounded object-cover"
                           />
                         ) : (
@@ -255,26 +267,26 @@ export function JoinPage() {
             </motion.div>
           )}
         </motion.div>
-      </div>
+      </main>
     )
   }
 
   if (joining) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center">
+      <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center">
         <Loader2 className="size-8 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground">{t('join.connecting')}</p>
-      </div>
+      </main>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center px-4">
+      <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-4">
         <h1 className="text-2xl font-bold mb-2 text-destructive">{t('join.failed')}</h1>
         <p className="text-muted-foreground mb-6">{error}</p>
         <Button onClick={() => navigate('/')}>{t('join.goToGroups')}</Button>
-      </div>
+      </main>
     )
   }
 

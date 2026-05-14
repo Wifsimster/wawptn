@@ -199,6 +199,9 @@ export function UserProfilePage() {
                     <img
                       src={game.headerImageUrl}
                       alt={game.gameName}
+                      width={460}
+                      height={215}
+                      decoding="async"
                       className="w-20 h-10 object-cover rounded-md shrink-0"
                       loading="lazy"
                     />

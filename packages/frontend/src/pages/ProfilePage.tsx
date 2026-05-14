@@ -697,6 +697,9 @@ export function ProfilePage() {
                       <img
                         src={crownGame.headerImageUrl}
                         alt={crownGame.gameName}
+                        width={460}
+                        height={215}
+                        decoding="async"
                         className="w-full aspect-[460/215] object-cover"
                         loading="lazy"
                       />
@@ -734,6 +737,9 @@ export function ProfilePage() {
                           <img
                             src={game.headerImageUrl}
                             alt={game.gameName}
+                            width={460}
+                            height={215}
+                            decoding="async"
                             className="w-full aspect-[460/215] object-cover"
                             loading="lazy"
                           />

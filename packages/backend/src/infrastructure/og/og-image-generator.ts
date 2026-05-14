@@ -341,3 +341,231 @@ export async function generateVoteResultImage(
     return renderFallbackPng(params)
   }
 }
+
+export interface GenerateInvitePreviewImageParams {
+  groupName: string
+  memberCount: number
+  topGames: { gameName: string; headerImageUrl: string | null }[]
+}
+
+function renderInviteFallbackPng(params: GenerateInvitePreviewImageParams): Buffer {
+  const safeGroup = escapeXml(truncate(params.groupName, 40))
+  const safeMembers = `${params.memberCount} membre${params.memberCount > 1 ? 's' : ''}`
+
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#9333ea" />
+    </linearGradient>
+  </defs>
+  <rect width="${WIDTH}" height="${HEIGHT}" fill="url(#bg)" />
+  <text x="60" y="120" fill="#ffffff" font-family="sans-serif" font-size="36" font-weight="700">WAWPTN</text>
+  <text x="60" y="290" fill="#c7d2fe" font-family="sans-serif" font-size="32" font-weight="400">Vous etes invite a rejoindre</text>
+  <text x="60" y="380" fill="#ffffff" font-family="sans-serif" font-size="72" font-weight="800">${safeGroup}</text>
+  <text x="60" y="520" fill="#ffffff" font-family="sans-serif" font-size="36" font-weight="600">${safeMembers} · Connectez-vous avec Steam</text>
+</svg>`
+
+  try {
+    const resvg = new Resvg(svg, {
+      fitTo: { mode: 'width', value: WIDTH },
+      font: { loadSystemFonts: true },
+    })
+    return resvg.render().asPng()
+  } catch (error) {
+    ogLogger.error({ error: String(error) }, 'og invite fallback render failed, returning raw svg bytes')
+    return Buffer.from(svg, 'utf-8')
+  }
+}
+
+function buildInviteLayout(params: GenerateInvitePreviewImageParams): unknown {
+  const { groupName, memberCount, topGames } = params
+  const children: unknown[] = []
+
+  // Header row: logo + member count badge
+  children.push({
+    type: 'div',
+    props: {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+      },
+      children: [
+        {
+          type: 'div',
+          props: {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              fontSize: 36,
+              fontWeight: 800,
+              color: '#ffffff',
+              letterSpacing: -1,
+            },
+            children: 'WAWPTN',
+          },
+        },
+        {
+          type: 'div',
+          props: {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              padding: '12px 24px',
+              borderRadius: 999,
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              color: '#ffffff',
+              fontSize: 24,
+              fontWeight: 600,
+            },
+            children: `${memberCount} membre${memberCount > 1 ? 's' : ''}`,
+          },
+        },
+      ],
+    },
+  })
+
+  // Middle: headline
+  children.push({
+    type: 'div',
+    props: {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        marginTop: 20,
+      },
+      children: [
+        {
+          type: 'div',
+          props: {
+            style: {
+              fontSize: 28,
+              fontWeight: 400,
+              color: '#c7d2fe',
+              marginBottom: 12,
+              display: 'flex',
+            },
+            children: 'Vous êtes invité à rejoindre',
+          },
+        },
+        {
+          type: 'div',
+          props: {
+            style: {
+              fontSize: 76,
+              fontWeight: 800,
+              color: '#ffffff',
+              lineHeight: 1.05,
+              letterSpacing: -1.5,
+              display: 'flex',
+            },
+            children: truncate(groupName, 36),
+          },
+        },
+      ],
+    },
+  })
+
+  // Top games strip (up to 3 thumbnails)
+  const thumbs = topGames.filter(g => g.headerImageUrl).slice(0, 3)
+  if (thumbs.length > 0) {
+    children.push({
+      type: 'div',
+      props: {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 20,
+          marginTop: 20,
+        },
+        children: thumbs.map(g => ({
+          type: 'img',
+          props: {
+            src: g.headerImageUrl as string,
+            width: 300,
+            height: 140,
+            style: {
+              borderRadius: 12,
+              objectFit: 'cover',
+              boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
+            },
+          },
+        })),
+      },
+    })
+  }
+
+  // Footer: CTA hint
+  children.push({
+    type: 'div',
+    props: {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        width: '100%',
+        fontSize: 28,
+        fontWeight: 600,
+        color: '#ffffff',
+      },
+      children: 'Connectez-vous avec Steam pour rejoindre',
+    },
+  })
+
+  return {
+    type: 'div',
+    props: {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        width: '100%',
+        height: '100%',
+        padding: '60px',
+        backgroundImage: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%)',
+        fontFamily: 'Inter',
+      },
+      children,
+    },
+  }
+}
+
+export async function generateInvitePreviewImage(
+  params: GenerateInvitePreviewImageParams,
+): Promise<Buffer> {
+  try {
+    const fonts = await getFonts()
+    if (!fonts) {
+      ogLogger.warn('og fonts unavailable, returning invite fallback image')
+      return renderInviteFallbackPng(params)
+    }
+
+    const layout = buildInviteLayout(params)
+
+    const svg = await satori(layout as never, {
+      width: WIDTH,
+      height: HEIGHT,
+      fonts: [
+        { name: 'Inter', data: fonts.regular, weight: 400, style: 'normal' },
+        { name: 'Inter', data: fonts.bold, weight: 700, style: 'normal' },
+        { name: 'Inter', data: fonts.bold, weight: 800, style: 'normal' },
+      ],
+    })
+
+    const resvg = new Resvg(svg, {
+      fitTo: { mode: 'width', value: WIDTH },
+      font: { loadSystemFonts: false },
+    })
+    return resvg.render().asPng()
+  } catch (error) {
+    ogLogger.error(
+      { error: String(error), groupName: params.groupName },
+      'og invite image generation failed, returning fallback',
+    )
+    return renderInviteFallbackPng(params)
+  }
+}

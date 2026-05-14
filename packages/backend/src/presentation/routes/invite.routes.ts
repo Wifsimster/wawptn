@@ -153,7 +153,11 @@ router.get('/:token', async (req: Request, res: Response) => {
 
   const baseUrl = `${req.protocol}://${req.get('host')}`
   const spaUrl = `${baseUrl}/join/${token}`
-  const ogImageUrl = `${baseUrl}/og-image.png`
+  // Valid invites get a dynamic branded card (group name, member count, top
+  // games); expired/invalid tokens fall back to the static logo.
+  const ogImageUrl = isValid
+    ? `${baseUrl}/api/og/invite/${token}.png`
+    : `${baseUrl}/og-image.png`
 
   // Minimal HTML with OG tags for crawlers + meta refresh redirect for humans
   const html = `<!DOCTYPE html>

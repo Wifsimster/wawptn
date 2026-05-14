@@ -45,6 +45,14 @@ const STEPS = [
   { icon: Sparkles, titleKey: 'landing.feature3Title', descKey: 'landing.feature3Desc', accent: 'reward' },
 ] as const
 
+const FAQ_ITEMS = [
+  { qKey: 'landing.faq1Q', aKey: 'landing.faq1A' },
+  { qKey: 'landing.faq2Q', aKey: 'landing.faq2A' },
+  { qKey: 'landing.faq3Q', aKey: 'landing.faq3A' },
+  { qKey: 'landing.faq4Q', aKey: 'landing.faq4A' },
+  { qKey: 'landing.faq5Q', aKey: 'landing.faq5A' },
+] as const
+
 const ACCENT_STYLES = {
   neon: { icon: 'text-neon', badge: 'bg-neon/10 border-neon/20 text-neon', glow: 'bg-neon/5' },
   primary: { icon: 'text-primary', badge: 'bg-primary/10 border-primary/20 text-primary', glow: 'bg-primary/5' },
@@ -397,6 +405,67 @@ export function LandingPage() {
             </motion.div>
           </motion.div>
         </div>
+      </section>
+
+      {/* ═══ FAQ ═══ */}
+      <section className="px-4 py-24 sm:py-28" id="faq" aria-labelledby="faq-title">
+        <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
+        <div className="max-w-3xl mx-auto">
+          <motion.div
+            className="text-center mb-12 sm:mb-16"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-100px' }}
+            transition={{ duration: 0.7 }}
+          >
+            <h2 id="faq-title" className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.03em] mb-4">
+              {t('landing.faqTitle')}
+            </h2>
+            <p className="text-muted-foreground/70 text-base sm:text-lg max-w-xl mx-auto">
+              {t('landing.faqSubtitle')}
+            </p>
+          </motion.div>
+
+          <motion.ul
+            className="space-y-3"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={stagger}
+          >
+            {FAQ_ITEMS.map((item) => (
+              <motion.li key={item.qKey} variants={fadeUp}>
+                <details className="group landing-glass-card rounded-2xl">
+                  <summary className="flex items-center justify-between gap-4 cursor-pointer list-none px-5 py-4 sm:px-6 sm:py-5 font-heading font-semibold text-base sm:text-lg">
+                    <span>{t(item.qKey)}</span>
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="size-5 shrink-0 text-muted-foreground transition-transform duration-300 group-open:rotate-90"
+                    />
+                  </summary>
+                  <div className="px-5 pb-5 sm:px-6 sm:pb-6 text-sm sm:text-base text-muted-foreground/80 leading-relaxed">
+                    {t(item.aKey)}
+                  </div>
+                </details>
+              </motion.li>
+            ))}
+          </motion.ul>
+        </div>
+
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'FAQPage',
+              mainEntity: FAQ_ITEMS.map((item) => ({
+                '@type': 'Question',
+                name: t(item.qKey),
+                acceptedAnswer: { '@type': 'Answer', text: t(item.aKey) },
+              })),
+            }),
+          }}
+        />
       </section>
 
       </main>

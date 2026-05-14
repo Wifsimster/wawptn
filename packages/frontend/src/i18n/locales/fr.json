@@ -484,7 +484,19 @@
     "premiumFeature3": "Suggestions de jeux par IA",
     "premiumFeature4": "Bot Discord avec personnalités",
     "premiumFeature5": "Vote automatique programmable",
-    "premiumCtaButton": "Passer en Premium"
+    "premiumCtaButton": "Passer en Premium",
+    "faqTitle": "Questions fréquentes",
+    "faqSubtitle": "Tout ce qu'il faut savoir avant de lancer ta première soirée jeu.",
+    "faq1Q": "WAWPTN, c'est quoi exactement ?",
+    "faq1A": "WAWPTN (« What Are We Playing Tonight? ») est une app web qui aide un groupe d'amis à choisir un jeu Steam à jouer ensemble ce soir. On synchronise vos bibliothèques, on garde les jeux que vous avez en commun, et on vote.",
+    "faq2Q": "Comment WAWPTN trouve les jeux en commun ?",
+    "faq2A": "Quand vous vous connectez avec Steam, on lit votre liste de jeux via l'API officielle (jamais vos infos de paiement, ni votre mot de passe). On croise ensuite les bibliothèques de tous les membres du groupe : seuls les jeux possédés par tout le monde apparaissent au vote.",
+    "faq3Q": "Faut-il un compte Discord ?",
+    "faq3A": "Non. WAWPTN marche tout seul dans le navigateur. Si votre groupe traîne sur Discord, le bot WAWPTN peut annoncer la session, le gagnant et inviter à voter directement dans le salon — mais c'est optionnel.",
+    "faq4Q": "Combien ça coûte ?",
+    "faq4A": "La version gratuite couvre jusqu'à 2 groupes de 12 personnes avec des votes illimités. Premium (3 €/mois) ajoute les groupes illimités, jusqu'à 30 membres, l'historique complet, les suggestions IA et le bot Discord avec personnalités.",
+    "faq5Q": "Mes données Steam sont-elles privées ?",
+    "faq5A": "On ne stocke que ce qui est strictement nécessaire au calcul des jeux en commun : votre identifiant Steam public, votre pseudo, votre avatar et la liste des jeux possédés. Pas de temps de jeu sensible, pas d'achats, pas d'amis. Vous pouvez supprimer votre compte à tout moment."
   },
   "subscription": {
     "title": "Mon abonnement",

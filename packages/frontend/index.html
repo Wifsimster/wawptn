@@ -27,6 +27,47 @@
   <meta name="twitter:description" content="Votez en groupe pour le jeu Steam de la soirée. Connectez-vous avec Steam, trouvez vos jeux en commun et lancez la partie." />
   <meta name="twitter:image" content="https://wawptn.battistella.ovh/og-image.png" />
 
+  <!-- Structured data: brand + product. Search engines use this for the
+       SiteLinks search box and rich brand cards in SERPs. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://wawptn.battistella.ovh/#organization",
+        "name": "WAWPTN",
+        "url": "https://wawptn.battistella.ovh/",
+        "logo": "https://wawptn.battistella.ovh/og-image.png",
+        "sameAs": ["https://github.com/wifsimster/wawptn"]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://wawptn.battistella.ovh/#website",
+        "url": "https://wawptn.battistella.ovh/",
+        "name": "WAWPTN",
+        "description": "Aide les groupes d'amis à choisir un jeu Steam en commun et à voter ensemble.",
+        "inLanguage": "fr-FR",
+        "publisher": { "@id": "https://wawptn.battistella.ovh/#organization" }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "WAWPTN",
+        "url": "https://wawptn.battistella.ovh/",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Web",
+        "inLanguage": "fr-FR",
+        "description": "Connectez-vous avec Steam, rassemblez vos amis, trouvez vos jeux en commun et votez pour le jeu de la soirée.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "EUR"
+        }
+      }
+    ]
+  }
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">

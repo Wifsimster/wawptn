@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import compression from 'compression'
 import helmet from 'helmet'
 import { createServer } from 'http'
 import path from 'path'
@@ -64,6 +65,9 @@ async function main() {
     },
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   }))
+
+  // gzip/brotli on text responses. Cuts HTML/JSON/CSS/JS transfer by ~60-80%.
+  app.use(compression())
 
   // Stripe webhook — must be registered BEFORE express.json() to receive raw body
   if (isStripeEnabled()) {

@@ -35,27 +35,34 @@ function DialogContent({
   return (
     <DialogPortal>
       <DialogOverlay />
-      <DialogPrimitive.Content
-        ref={ref}
-        data-slot="dialog-content"
-        className={cn(
-          // max-h prevents content from overflowing the viewport on tablet
-          // portrait (640-768px), where ResponsiveDialog still uses Dialog
-          // rather than Drawer.
-          'fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto -translate-x-1/2 -translate-y-1/2 gap-4 border border-border bg-card p-6 shadow-3 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg',
-          className
-        )}
-        {...props}
-      >
-        {children}
-        <DialogPrimitive.Close
-          aria-label="Fermer"
-          className="absolute right-2 top-2 inline-flex items-center justify-center size-11 min-h-[44px] min-w-[44px] rounded-md opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+      {/* Center via a flex wrapper rather than a translate offset: the panel's
+          zoom/fade animation drives `transform`, which previously fought the
+          translate-based centering and left the dialog pinned off-center.
+          The wrapper stays pointer-events-none so clicks around the panel
+          still reach the overlay and dismiss the dialog. */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+        <DialogPrimitive.Content
+          ref={ref}
+          data-slot="dialog-content"
+          className={cn(
+            // max-h keeps the panel inside the viewport on short screens and
+            // on tablet portrait (640-768px), where ResponsiveDialog still
+            // renders Dialog rather than Drawer.
+            'pointer-events-auto relative grid w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto gap-4 border border-border bg-card p-6 shadow-3 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg',
+            className
+          )}
+          {...props}
         >
-          <X className="size-4" />
-          <span className="sr-only">Close</span>
-        </DialogPrimitive.Close>
-      </DialogPrimitive.Content>
+          {children}
+          <DialogPrimitive.Close
+            aria-label="Fermer"
+            className="absolute right-2 top-2 inline-flex items-center justify-center size-11 min-h-[44px] min-w-[44px] rounded-md opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+          >
+            <X className="size-4" />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        </DialogPrimitive.Content>
+      </div>
     </DialogPortal>
   )
 }

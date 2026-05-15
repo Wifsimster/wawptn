@@ -80,6 +80,8 @@ interface SteamAppDetailsResponse {
   success: boolean
   data?: {
     type?: string
+    name?: string
+    header_image?: string
     short_description?: string
     is_free?: boolean
     categories?: SteamAppCategory[]
@@ -234,6 +236,166 @@ async function enrichGameMetadata(appIds: number[]): Promise<void> {
 
   if (enrichedCount > 0) {
     steamLogger.info({ enrichedCount, total: toEnrich.length }, 'game metadata enrichment batch done')
+  }
+}
+
+// ─── New-releases digest support ────────────────────────────────────────────
+//
+// Steam has no clean, date-filtered "new releases" Web API endpoint, so the
+// weekly digest uses the public storefront search (sorted by release date,
+// pre-filtered to multiplayer/co-op categories) to get a candidate app-id
+// list, then confirms each candidate through `getStoreAppForDigest` — the
+// authoritative source for category, type, release date and content
+// descriptors. Both reuse the rate limiter + circuit breaker above so the
+// digest can never out-pace or bypass the Store API protections.
+
+const STEAM_STORE_SEARCH_URL = 'https://store.steampowered.com/search/results/'
+
+/** Authoritative per-app metadata the digest needs. `null` means the Store
+ *  API was unavailable (circuit open or transient error) — the caller must
+ *  treat that as "stop scanning", not "app rejected". */
+export interface DigestStoreApp {
+  appId: number
+  name: string
+  headerImage: string | null
+  type: string | null
+  isCoop: boolean
+  isMultiplayer: boolean
+  /** Localized release-date string from Steam (English locale requested). */
+  releaseDateRaw: string | null
+  comingSoon: boolean
+  contentDescriptorIds: number[]
+}
+
+/**
+ * Candidate app IDs for the weekly digest, newest-first.
+ *
+ * Primary source: the storefront search JSON, sorted `Released_DESC` and
+ * pre-filtered server-side to Multi-player (1), Co-op (9) and Online Co-op
+ * (38). The response embeds an HTML fragment; we extract only the
+ * `data-ds-appid` attribute from it — the narrowest, most stable thing to
+ * scrape (prices/badges get restyled constantly, app IDs don't).
+ *
+ * Fallback: `featuredcategories.new_releases` when search yields nothing.
+ */
+export async function getNewReleaseCandidateIds(limit = 100): Promise<number[]> {
+  if (isStoreCircuitOpen()) return []
+
+  const ids = new Set<number>()
+
+  try {
+    const params = new URLSearchParams({
+      query: '',
+      start: '0',
+      count: String(limit),
+      sort_by: 'Released_DESC',
+      cc: 'us',
+      l: 'english',
+      infinite: '1',
+      json: '1',
+    })
+    const url = `${STEAM_STORE_SEARCH_URL}?${params.toString()}&category2=1&category2=9&category2=38`
+    const response = await storeRateLimitedFetch(url)
+
+    if (response.ok) {
+      recordStoreSuccess()
+      const json = (await response.json()) as { results_html?: string }
+      for (const match of (json.results_html ?? '').matchAll(/data-ds-appid="([0-9,]+)"/g)) {
+        const first = match[1]?.split(',')[0]
+        const id = Number(first)
+        if (Number.isInteger(id) && id > 0) ids.add(id)
+      }
+    } else {
+      recordStoreFailure()
+      steamLogger.warn({ status: response.status }, 'Steam new-releases search failed')
+    }
+  } catch (error) {
+    recordStoreFailure()
+    steamLogger.error({ error: String(error) }, 'Steam new-releases search request failed')
+  }
+
+  if (ids.size > 0) return [...ids]
+
+  // Fallback: the curated "new & trending" block. Coarser than the search
+  // (no strict 7-day guarantee) but every candidate is still confirmed by
+  // getStoreAppForDigest, which re-checks the real release date.
+  try {
+    const response = await storeRateLimitedFetch(`${STEAM_STORE_API_BASE}/featuredcategories?cc=us&l=english`)
+    if (response.ok) {
+      recordStoreSuccess()
+      const json = (await response.json()) as { new_releases?: { items?: { id?: number }[] } }
+      for (const item of json.new_releases?.items ?? []) {
+        if (typeof item.id === 'number' && item.id > 0) ids.add(item.id)
+      }
+    } else {
+      recordStoreFailure()
+    }
+  } catch (error) {
+    steamLogger.error({ error: String(error) }, 'Steam featuredcategories fallback failed')
+  }
+
+  return [...ids]
+}
+
+/**
+ * Authoritative app details for a digest candidate. English locale is
+ * requested explicitly so `release_date.date` comes back in a parseable
+ * `D Month, YYYY` shape regardless of the server region.
+ *
+ * Returns `null` only when the Store API is unavailable (circuit open or a
+ * transient/HTTP error). A delisted or region-locked app comes back as a
+ * resolved object with null fields — that's a "reject this game", not a
+ * "stop scanning".
+ */
+export async function getStoreAppForDigest(appId: number): Promise<DigestStoreApp | null> {
+  if (isStoreCircuitOpen()) return null
+
+  try {
+    const url = `${STEAM_STORE_API_BASE}/appdetails?appids=${appId}&cc=us&l=english&filters=basic,categories,release_date,content_descriptors`
+    const response = await storeRateLimitedFetch(url)
+
+    if (!response.ok) {
+      recordStoreFailure()
+      steamLogger.error({ status: response.status, appId }, 'Steam digest appdetails failed')
+      return null
+    }
+
+    const data = (await response.json()) as Record<string, SteamAppDetailsResponse>
+    const appData = data[String(appId)]
+    recordStoreSuccess()
+
+    if (!appData?.success || !appData.data) {
+      // Delisted / region-locked — resolved, but not digest-eligible.
+      return {
+        appId,
+        name: '',
+        headerImage: null,
+        type: null,
+        isCoop: false,
+        isMultiplayer: false,
+        releaseDateRaw: null,
+        comingSoon: false,
+        contentDescriptorIds: [],
+      }
+    }
+
+    const d = appData.data
+    const categoryIds = (d.categories ?? []).map((c) => c.id)
+    return {
+      appId,
+      name: d.name ?? '',
+      headerImage: d.header_image ?? null,
+      type: d.type ?? null,
+      isMultiplayer: categoryIds.some((id) => MULTIPLAYER_CATEGORY_IDS.has(id)),
+      isCoop: categoryIds.some((id) => COOP_CATEGORY_IDS.has(id)),
+      releaseDateRaw: d.release_date?.date ?? null,
+      comingSoon: d.release_date?.coming_soon ?? false,
+      contentDescriptorIds: d.content_descriptors?.ids ?? [],
+    }
+  } catch (error) {
+    recordStoreFailure()
+    steamLogger.error({ error: String(error), appId }, 'Steam digest appdetails request failed')
+    return null
   }
 }
 

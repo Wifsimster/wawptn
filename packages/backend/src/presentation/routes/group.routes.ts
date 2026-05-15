@@ -6,6 +6,7 @@ import { generateInviteToken, hashInviteToken, getHeaderImageUrl } from '../../i
 import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-store-client.js'
 import { getIO, forceLeaveRoom } from '../../infrastructure/socket/socket.js'
 import { updateGroupSchedule } from '../../infrastructure/scheduler/auto-vote-scheduler.js'
+import { updateGroupDigestSchedule } from '../../infrastructure/scheduler/releases-digest-scheduler.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 import { isUserPremium, FREE_TIER_LIMITS, PREMIUM_TIER_LIMITS, requirePremiumFeature } from '../middleware/tier.middleware.js'
 import { TIER_ERRORS } from '../../domain/subscription-service.js'
@@ -58,6 +59,9 @@ router.get('/:id', requireGroupMembership(), async (req: Request, res: Response)
     commonGameThreshold: group.common_game_threshold,
     autoVoteSchedule: group.auto_vote_schedule || null,
     autoVoteDurationMinutes: group.auto_vote_duration_minutes || 120,
+    releasesDigestEnabled: group.releases_digest_enabled ?? false,
+    releasesDigestSchedule: group.releases_digest_schedule || '0 21 * * 5',
+    releasesDigestCoopOnly: group.releases_digest_coop_only ?? false,
     discordGuildId: group.discord_guild_id ?? null,
     discordChannelId: group.discord_channel_id ?? null,
     discordGuildName: group.discord_guild_name ?? null,
@@ -349,6 +353,62 @@ router.patch(
   logger.info({ userId, groupId, schedule, durationMinutes: duration }, 'auto-vote schedule updated')
   res.json({ ok: true })
 })
+
+// Configure the weekly Steam new-releases digest (owner only, premium).
+// Posts the week's newest co-op / multiplayer Steam releases into the
+// group's linked Discord on a recurring schedule (default Friday 21:00).
+router.patch(
+  '/:id/releases-digest',
+  requireGroupMembership({ role: 'owner' }),
+  requirePremiumFeature('releases-digest'),
+  async (req: Request, res: Response) => {
+    const userId = req.userId!
+    const groupId = String(req.params['id'])
+    const { enabled, schedule, coopOnly } = req.body as {
+      enabled?: boolean
+      schedule?: string
+      coopOnly?: boolean
+    }
+
+    if (typeof enabled !== 'boolean') {
+      res.status(400).json({ error: 'validation', message: 'enabled must be a boolean' })
+      return
+    }
+    if (coopOnly !== undefined && typeof coopOnly !== 'boolean') {
+      res.status(400).json({ error: 'validation', message: 'coopOnly must be a boolean' })
+      return
+    }
+
+    // The schedule is only meaningful when the digest is enabled; when it
+    // is, require a valid cron expression. Default to Friday 21:00.
+    let cronSchedule = '0 21 * * 5'
+    if (schedule !== undefined && schedule !== null) {
+      if (typeof schedule !== 'string' || !cron.validate(schedule)) {
+        res.status(400).json({ error: 'validation', message: 'Invalid cron expression' })
+        return
+      }
+      cronSchedule = schedule
+    }
+
+    await db('groups').where({ id: groupId }).update({
+      releases_digest_enabled: enabled,
+      releases_digest_schedule: cronSchedule,
+      releases_digest_coop_only: coopOnly ?? false,
+      updated_at: db.fn.now(),
+    })
+
+    // Apply the change to the running scheduler immediately.
+    updateGroupDigestSchedule(groupId, enabled, cronSchedule)
+
+    logger.info({ userId, groupId, enabled, schedule: cronSchedule, coopOnly: coopOnly ?? false }, 'releases digest config updated')
+    res.json({
+      ok: true,
+      releasesDigestEnabled: enabled,
+      releasesDigestSchedule: cronSchedule,
+      releasesDigestCoopOnly: coopOnly ?? false,
+    })
+  },
+)
 
 // Generate new invite link (owner only)
 router.post('/:id/invite', requireGroupMembership({ role: 'owner' }), async (req: Request, res: Response) => {

@@ -86,6 +86,7 @@ export const api = {
   getGroup: (id: string) => request<{
     id: string; name: string; createdBy: string; commonGameThreshold: number | null; createdAt: string;
     autoVoteSchedule: string | null; autoVoteDurationMinutes: number;
+    releasesDigestEnabled: boolean; releasesDigestSchedule: string; releasesDigestCoopOnly: boolean;
     discordGuildId: string | null; discordChannelId: string | null;
     discordGuildName: string | null; discordChannelName: string | null;
     members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string; notificationsEnabled: boolean }[];
@@ -143,6 +144,14 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ schedule, ...(durationMinutes !== undefined ? { durationMinutes } : {}) }),
     }),
+  updateReleasesDigest: (groupId: string, input: { enabled: boolean; schedule: string; coopOnly: boolean }) =>
+    request<{ ok: boolean; releasesDigestEnabled: boolean; releasesDigestSchedule: string; releasesDigestCoopOnly: boolean }>(
+      `/groups/${groupId}/releases-digest`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+    ),
   syncLibraries: (groupId: string) => request(`/groups/${groupId}/sync`, { method: 'POST' }),
   getRecommendations: (groupId: string) => request<{
     recommendations: { gameName: string; steamAppId: number; headerImageUrl: string; reason: string }[];

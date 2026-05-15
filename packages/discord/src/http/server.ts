@@ -4,6 +4,7 @@ import { env } from '../env.js'
 import { isAuthorized } from './auth.js'
 import {
   BotHandlerError,
+  handleChannelPost,
   handleSessionClosed,
   handleSessionCreated,
   handleSessionUpdate,
@@ -68,6 +69,8 @@ const routes: Record<string, Route> = {
     handleSessionUpdate(client, body as Parameters<typeof handleSessionUpdate>[1]),
   'POST /internal/session/closed': (client, body) =>
     handleSessionClosed(client, body as Parameters<typeof handleSessionClosed>[1]),
+  'POST /internal/channel/post': (client, body) =>
+    handleChannelPost(client, body as Parameters<typeof handleChannelPost>[1]),
 }
 
 export function startHttpApi(client: Client): void {

@@ -353,6 +353,56 @@ export interface DiscordSessionClosedRequest {
   summary: DiscordVoteSummary
 }
 
+/** Minimal Discord embed shape — a subset of the Discord API embed object,
+ *  carrying only the fields WAWPTN actually emits. Used for plain
+ *  (non-interactive) posts that flow through either a webhook or the bot's
+ *  generic channel-post endpoint. */
+export interface DiscordEmbedField {
+  name: string
+  value: string
+  inline?: boolean
+}
+
+export interface DiscordEmbedPayload {
+  title?: string
+  description?: string
+  url?: string
+  color?: number
+  fields?: DiscordEmbedField[]
+  image?: { url: string }
+  thumbnail?: { url: string }
+  footer?: { text: string }
+  timestamp?: string
+}
+
+/** Backend → bot: post one or more plain embeds into a channel. Generic on
+ *  purpose — unlike the session endpoints it carries no business logic, so
+ *  any best-effort announcement (e.g. the weekly Steam releases digest) can
+ *  reuse it. */
+export interface DiscordChannelPostRequest {
+  channelId: string
+  embeds: DiscordEmbedPayload[]
+}
+
+export interface DiscordChannelPostResponse {
+  messageId: string
+}
+
+// ============================================
+// Steam releases digest
+// ============================================
+
+/** One game row in the weekly "new Steam releases" digest. */
+export interface ReleaseDigestGame {
+  steamAppId: number
+  name: string
+  headerImageUrl: string
+  /** Release date as an ISO calendar date (YYYY-MM-DD). */
+  releaseDate: string
+  isCoop: boolean
+  isMultiplayer: boolean
+}
+
 // ============================================
 // Challenges
 // ============================================

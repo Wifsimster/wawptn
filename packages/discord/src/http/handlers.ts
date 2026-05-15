@@ -1,5 +1,7 @@
 import type { Client } from 'discord.js'
 import type {
+  DiscordChannelPostRequest,
+  DiscordChannelPostResponse,
   DiscordSessionClosedRequest,
   DiscordSessionCreatedRequest,
   DiscordSessionCreatedResponse,
@@ -99,4 +101,24 @@ export async function handleSessionClosed(
 
   await editMessage(client, channelId, messageId, { embeds, components })
   return { ok: true }
+}
+
+/**
+ * Posts plain embeds into a channel. Generic transport for best-effort
+ * announcements (e.g. the weekly Steam releases digest) — the embeds are
+ * already-shaped Discord embed objects, so the bot just forwards them to
+ * `channel.send` without rebuilding anything.
+ */
+export async function handleChannelPost(
+  client: Client,
+  body: DiscordChannelPostRequest,
+): Promise<DiscordChannelPostResponse> {
+  const { channelId, embeds } = body
+
+  if (!channelId || !Array.isArray(embeds) || embeds.length === 0) {
+    throw new BotHandlerError(400, 'channelId and a non-empty embeds array are required')
+  }
+
+  const sent = await sendMessage(client, channelId, { embeds })
+  return { messageId: sent.id }
 }

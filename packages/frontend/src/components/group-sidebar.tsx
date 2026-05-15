@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil, Bell, BellOff, CalendarClock, Lock } from 'lucide-react'
+import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil, Bell, BellOff, CalendarClock, Lock, Newspaper } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -57,6 +57,12 @@ interface GroupSidebarProps {
   currentUserRole: string
   autoVoteSchedule: string | null
   autoVoteDurationMinutes: number
+  releasesDigestEnabled: boolean
+  releasesDigestSchedule: string
+  releasesDigestCoopOnly: boolean
+  /** Null when the group has no linked Discord channel — the digest has
+   *  nowhere to post, so the config entry point is shown disabled. */
+  discordChannelId: string | null
   onSync: () => void
   onGenerateInvite: () => void
   onLeaveGroup: () => void
@@ -66,6 +72,7 @@ interface GroupSidebarProps {
   onDeleteHistory: (sessionId: string) => void
   onToggleNotifications: (enabled: boolean) => void
   onUpdateAutoVote: (schedule: string | null, durationMinutes: number) => Promise<void>
+  onUpdateReleasesDigest: (input: { enabled: boolean; schedule: string; coopOnly: boolean }) => Promise<void>
   onStartVote: () => void
   /** When true, renders a compact layout for mobile bottom sheets (no Card wrappers) */
   compact?: boolean
@@ -84,7 +91,7 @@ function getLastSeenLabel(
   return t('groups.lastSeen.offline')
 }
 
-export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, voteHistoryTruncated, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onStartVote, compact = false }: GroupSidebarProps) {
+export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, voteHistoryTruncated, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, releasesDigestEnabled, releasesDigestSchedule, releasesDigestCoopOnly, discordChannelId, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onUpdateReleasesDigest, onStartVote, compact = false }: GroupSidebarProps) {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -98,6 +105,10 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
   const [autoVoteCron, setAutoVoteCron] = useState(autoVoteSchedule || '')
   const [autoVoteDuration, setAutoVoteDuration] = useState(autoVoteDurationMinutes)
   const [autoVoteSaving, setAutoVoteSaving] = useState(false)
+  const [digestOpen, setDigestOpen] = useState(false)
+  const [digestCron, setDigestCron] = useState(releasesDigestSchedule || '0 21 * * 5')
+  const [digestCoopOnly, setDigestCoopOnly] = useState(releasesDigestCoopOnly)
+  const [digestSaving, setDigestSaving] = useState(false)
   const { tier, status } = useSubscriptionStore()
   const isPremium = tier === 'premium' && status === 'active'
 
@@ -381,6 +392,50 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
         )
       )}
 
+      {/* Weekly Steam releases digest (owner only, premium, needs Discord) */}
+      {isOwner && (
+        !discordChannelId ? (
+          <Button
+            variant="outline"
+            className="w-full opacity-60"
+            disabled
+            title={t('group.releasesDigestNeedsDiscord')}
+          >
+            <Newspaper className="size-4 mr-2 text-muted-foreground" />
+            {t('group.releasesDigest')}
+          </Button>
+        ) : isPremium ? (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              setDigestCron(releasesDigestSchedule || '0 21 * * 5')
+              setDigestCoopOnly(releasesDigestCoopOnly)
+              setDigestOpen(true)
+            }}
+          >
+            <Newspaper className="size-4 mr-2" />
+            {t('group.releasesDigest')}
+            {releasesDigestEnabled && (
+              <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('group.releasesDigestEnabled')}</Badge>
+            )}
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            className="w-full opacity-60"
+            onClick={() => {
+              track('premium.upgrade_clicked', { from: 'releases_digest' })
+              window.location.href = '/subscription?from=releases_digest'
+            }}
+          >
+            <Lock className="size-4 mr-2 text-muted-foreground" />
+            {t('group.releasesDigest')}
+            <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('premium.featureLocked')}</Badge>
+          </Button>
+        )
+      )}
+
       <div className="pt-2 border-t space-y-2">
         {!isOwner && (
           <Button
@@ -631,6 +686,86 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
               )}
               <Button type="button" variant="outline" onClick={() => setAutoVoteOpen(false)}>{t('group.cancel')}</Button>
               <Button type="submit" disabled={!autoVoteCron.trim() || autoVoteSaving}>{t('group.autoVoteSave')}</Button>
+            </ResponsiveDialogFooter>
+          </form>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+
+      {/* Weekly Steam releases digest settings dialog */}
+      <ResponsiveDialog open={digestOpen} onOpenChange={setDigestOpen}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>{t('group.releasesDigest')}</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>{t('group.releasesDigestHint')}</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <form onSubmit={async (e) => {
+            e.preventDefault()
+            if (digestSaving || !digestCron.trim()) return
+            setDigestSaving(true)
+            try {
+              await onUpdateReleasesDigest({ enabled: true, schedule: digestCron.trim(), coopOnly: digestCoopOnly })
+              setDigestOpen(false)
+            } finally {
+              setDigestSaving(false)
+            }
+          }}>
+            <div className="px-4 pb-4 space-y-4">
+              <div>
+                <label htmlFor="digest-cron" className="text-sm font-medium mb-2 block">{t('group.releasesDigestSchedule')}</label>
+                <CronAutocomplete
+                  id="digest-cron"
+                  value={digestCron}
+                  onChange={setDigestCron}
+                  placeholder="0 21 * * 5"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">{t('group.releasesDigestFilter')}</label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={!digestCoopOnly ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDigestCoopOnly(false)}
+                  >
+                    {t('group.releasesDigestFilterAll')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={digestCoopOnly ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDigestCoopOnly(true)}
+                  >
+                    {t('group.releasesDigestFilterCoop')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <ResponsiveDialogFooter>
+              {releasesDigestEnabled && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive"
+                  onClick={async () => {
+                    setDigestSaving(true)
+                    try {
+                      await onUpdateReleasesDigest({ enabled: false, schedule: digestCron.trim() || '0 21 * * 5', coopOnly: digestCoopOnly })
+                      setDigestOpen(false)
+                    } finally {
+                      setDigestSaving(false)
+                    }
+                  }}
+                  disabled={digestSaving}
+                >
+                  {t('group.releasesDigestDisable')}
+                </Button>
+              )}
+              <Button type="button" variant="outline" onClick={() => setDigestOpen(false)}>{t('group.cancel')}</Button>
+              <Button type="submit" disabled={!digestCron.trim() || digestSaving}>
+                {releasesDigestEnabled ? t('group.releasesDigestSave') : t('group.releasesDigestEnable')}
+              </Button>
             </ResponsiveDialogFooter>
           </form>
         </ResponsiveDialogContent>

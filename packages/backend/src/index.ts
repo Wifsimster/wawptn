@@ -13,6 +13,7 @@ import { testConnection, runMigrations } from './infrastructure/database/connect
 import { createSocketServer } from './infrastructure/socket/socket.js'
 import { startVoteScheduler } from './infrastructure/scheduler/vote-scheduler.js'
 import { startAutoVoteScheduler } from './infrastructure/scheduler/auto-vote-scheduler.js'
+import { startReleasesDigestScheduler } from './infrastructure/scheduler/releases-digest-scheduler.js'
 import { startSubscriptionReconciler, stopSubscriptionReconciler } from './infrastructure/scheduler/subscription-reconciler.js'
 import { logger } from './infrastructure/logger/logger.js'
 import { authRoutes } from './presentation/routes/auth.routes.js'
@@ -303,6 +304,9 @@ async function main() {
 
   // Auto-vote scheduler (recurring auto-created sessions)
   startAutoVoteScheduler()
+
+  // Weekly Steam new-releases digest scheduler (per-group, owner-configured)
+  startReleasesDigestScheduler()
 
   // Anti-Toko guardrail: assert every configured price belongs to the
   // expected product. Fatal in production (a wrong price ID would charge

@@ -20,8 +20,11 @@
   --accent-foreground: oklch(0.96 0.005 270);
   --destructive: oklch(0.65 0.22 25);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 10%);
+  /* Raised from 8%/10% so card edges, dividers and outline-button borders
+     clear a perceptible non-text contrast on the dark background
+     (WCAG 1.4.11). Still a subtle hairline — just no longer near-invisible. */
+  --border: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 18%);
   --ring: oklch(0.55 0.27 270);
   --radius: 0.625rem;
   --steam: oklch(0.237 0.029 238);

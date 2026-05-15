@@ -173,6 +173,10 @@
     "kickConfirm": "Exclure",
     "kickError": "Impossible d'exclure le membre",
     "renameGroup": "Renommer le groupe",
+    "sectionMember": "Membre",
+    "sectionGroup": "Groupe",
+    "sectionPremium": "Premium",
+    "sectionDanger": "Zone de danger",
     "renameTitle": "Renommer le groupe",
     "renameDescription": "Choisis un nouveau nom pour le groupe.",
     "renameLabel": "Nouveau nom",
@@ -462,9 +466,7 @@
     "title": "Suggestions",
     "neverPlayed": "Jamais joué ensemble",
     "notPlayedLong": "Pas joué depuis longtemps",
-    "popularForgotten": "Populaire mais oublié",
-    "startVote": "Lancer un vote",
-    "startVoteHint": "Lancer un vote"
+    "popularForgotten": "Populaire mais oublié"
   },
   "landing": {
     "headline": "On joue à quoi ce soir ?",

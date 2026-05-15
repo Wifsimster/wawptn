@@ -102,7 +102,7 @@ export function PersonaBadge({ groupId, persona: initialPersona, variant = 'hero
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       aria-label={t('persona.todayGroup')}
-      className={`relative overflow-hidden rounded-lg border border-white/[0.06] bg-card/40 p-4 mb-6 ${className ?? ''}`}
+      className={`relative overflow-hidden rounded-xl border border-border bg-card/40 shadow-1 p-4 ${className ?? ''}`}
       style={{
         backgroundImage: `linear-gradient(135deg, ${color}14 0%, transparent 60%)`,
         borderLeft: `3px solid ${color}`,

@@ -423,15 +423,14 @@ export function GroupPage() {
         <AppHeader maxWidth="wide">
           <Skeleton className="size-5 rounded" />
         </AppHeader>
-        <main
-          id="main-content"
-          className="max-w-6xl mx-auto p-4"
-          role="status"
-          aria-busy="true"
-          aria-live="polite"
-          aria-label={t('common.loading', 'Chargement…')}
-        >
-          <div className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-6">
+        <main id="main-content" className="max-w-6xl mx-auto p-4">
+          <div
+            role="status"
+            aria-busy="true"
+            aria-live="polite"
+            aria-label={t('common.loading', 'Chargement…')}
+            className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-6"
+          >
             <Skeleton className="hidden lg:block h-[300px] rounded-lg" />
             <Skeleton className="h-[400px] w-full rounded-lg" />
           </div>
@@ -487,7 +486,7 @@ export function GroupPage() {
                 {t('group.members', { count: currentGroup.members.length })}
               </span>
               {onlineUserIds.length > 0 && (
-                <span className="flex items-center gap-1 text-[11px] text-emerald-500 whitespace-nowrap">
+                <span className="flex items-center gap-1 text-[11px] text-online whitespace-nowrap">
                   <span className="size-1.5 rounded-full bg-online animate-pulse" />
                   {t('group.onlineCount', { count: onlineUserIds.length })}
                 </span>
@@ -528,12 +527,11 @@ export function GroupPage() {
               onToggleNotifications={handleToggleNotifications}
               onUpdateAutoVote={handleUpdateAutoVote}
               onUpdateReleasesDigest={handleUpdateReleasesDigest}
-              onStartVote={openVoteFlow}
             />
           </div>
 
           {/* Main content: hero + games grid */}
-          <div className="space-y-3 sm:space-y-4 min-w-0">
+          <div className="space-y-4 min-w-0">
             {/* Owner-only prompt: if the group has no Discord channel
                 bound yet, surface a persistent banner inviting the owner
                 to link one. The banner stays visible until a channel is
@@ -757,7 +755,6 @@ export function GroupPage() {
               onToggleNotifications={handleToggleNotifications}
               onUpdateAutoVote={handleUpdateAutoVote}
               onUpdateReleasesDigest={handleUpdateReleasesDigest}
-              onStartVote={openVoteFlow}
               compact
             />
           </ResponsiveDialogContent>

@@ -373,6 +373,18 @@ export function GroupPage() {
     }
   }
 
+  const handleUpdateReleasesDigest = async (input: { enabled: boolean; schedule: string; coopOnly: boolean }) => {
+    if (!id) return
+    try {
+      await api.updateReleasesDigest(id, input)
+      toast.success(t('group.releasesDigestSuccess'))
+      fetchGroup(id)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('group.releasesDigestError'))
+      throw err
+    }
+  }
+
   // Keep the hero persona in sync with the group detail response. The
   // socket listener above applies live midnight/override flips on top.
   useEffect(() => {
@@ -502,6 +514,10 @@ export function GroupPage() {
               currentUserRole={currentUserRole}
               autoVoteSchedule={currentGroup.autoVoteSchedule}
               autoVoteDurationMinutes={currentGroup.autoVoteDurationMinutes}
+              releasesDigestEnabled={currentGroup.releasesDigestEnabled}
+              releasesDigestSchedule={currentGroup.releasesDigestSchedule}
+              releasesDigestCoopOnly={currentGroup.releasesDigestCoopOnly}
+              discordChannelId={currentGroup.discordChannelId}
               onSync={handleSync}
               onGenerateInvite={handleGenerateInvite}
               onLeaveGroup={handleLeaveGroup}
@@ -511,6 +527,7 @@ export function GroupPage() {
               onDeleteHistory={handleDeleteHistory}
               onToggleNotifications={handleToggleNotifications}
               onUpdateAutoVote={handleUpdateAutoVote}
+              onUpdateReleasesDigest={handleUpdateReleasesDigest}
               onStartVote={openVoteFlow}
             />
           </div>
@@ -726,6 +743,10 @@ export function GroupPage() {
               currentUserRole={currentUserRole}
               autoVoteSchedule={currentGroup.autoVoteSchedule}
               autoVoteDurationMinutes={currentGroup.autoVoteDurationMinutes}
+              releasesDigestEnabled={currentGroup.releasesDigestEnabled}
+              releasesDigestSchedule={currentGroup.releasesDigestSchedule}
+              releasesDigestCoopOnly={currentGroup.releasesDigestCoopOnly}
+              discordChannelId={currentGroup.discordChannelId}
               onSync={handleSync}
               onGenerateInvite={handleGenerateInvite}
               onLeaveGroup={handleLeaveGroup}
@@ -735,6 +756,7 @@ export function GroupPage() {
               onDeleteHistory={handleDeleteHistory}
               onToggleNotifications={handleToggleNotifications}
               onUpdateAutoVote={handleUpdateAutoVote}
+              onUpdateReleasesDigest={handleUpdateReleasesDigest}
               onStartVote={openVoteFlow}
               compact
             />

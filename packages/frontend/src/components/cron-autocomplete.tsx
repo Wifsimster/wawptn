@@ -22,8 +22,11 @@ const CRON_PRESETS: CronPreset[] = [
   { expression: '0 22 * * *', labelKey: 'group.autoVotePresetDaily22' },
   { expression: '0 20 * * 1-5', labelKey: 'group.autoVotePresetWeekdays20' },
   { expression: '0 20 * * 5', labelKey: 'group.autoVotePresetFriday20' },
+  { expression: '0 21 * * 5', labelKey: 'group.autoVotePresetFriday21' },
   { expression: '0 20 * * 6', labelKey: 'group.autoVotePresetSaturday20' },
+  { expression: '0 21 * * 6', labelKey: 'group.autoVotePresetSaturday21' },
   { expression: '0 20 * * 0', labelKey: 'group.autoVotePresetSunday20' },
+  { expression: '0 21 * * 0', labelKey: 'group.autoVotePresetSunday21' },
   { expression: '0 20 * * 5,6', labelKey: 'group.autoVotePresetFridaySaturday20' },
   { expression: '0 20 * * 0,6', labelKey: 'group.autoVotePresetWeekend20' },
 ]

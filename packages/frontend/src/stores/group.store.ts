@@ -8,6 +8,7 @@ interface GroupState {
   currentGroup: {
     id: string; name: string; createdBy: string; commonGameThreshold: number | null; createdAt: string;
     autoVoteSchedule: string | null; autoVoteDurationMinutes: number;
+    releasesDigestEnabled: boolean; releasesDigestSchedule: string; releasesDigestCoopOnly: boolean;
     discordGuildId: string | null; discordChannelId: string | null;
     discordGuildName: string | null; discordChannelName: string | null;
     members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string; notificationsEnabled: boolean }[];

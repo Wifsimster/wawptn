@@ -40,6 +40,7 @@ const PREMIUM_FEATURE_MESSAGES = {
   'auto-vote': 'Auto-vote scheduling requires a premium subscription',
   'vote-scheduling': 'Vote scheduling requires a premium subscription',
   'recommendations': 'Game recommendations require a premium subscription',
+  'releases-digest': 'The weekly Steam releases digest requires a premium subscription',
 } as const
 
 export type PremiumFeature = keyof typeof PREMIUM_FEATURE_MESSAGES

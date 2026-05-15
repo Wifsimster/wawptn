@@ -1,4 +1,6 @@
 import type {
+  DiscordChannelPostRequest,
+  DiscordEmbedPayload,
   DiscordSessionClosedRequest,
   DiscordSessionCreatedRequest,
   DiscordSessionCreatedResponse,
@@ -124,6 +126,24 @@ export async function postSessionClosed(payload: DiscordSessionClosedRequest): P
       { error: String(err), sessionId: payload.sessionId, messageId: payload.messageId },
       'bot-client: session/closed failed',
     )
+    return false
+  }
+}
+
+/**
+ * Ask the bot to post one or more plain embeds into a channel. Generic
+ * (no business logic) — used for best-effort announcements like the weekly
+ * Steam releases digest. Returns `true` only when the bot confirmed the
+ * post, so callers can fall back to a webhook on `false`.
+ */
+export async function postChannelEmbed(channelId: string, embeds: DiscordEmbedPayload[]): Promise<boolean> {
+  if (!isBotClientEnabled()) return false
+  const body: DiscordChannelPostRequest = { channelId, embeds }
+  try {
+    await postJson('/internal/channel/post', { body })
+    return true
+  } catch (err) {
+    logger.warn({ error: String(err), channelId }, 'bot-client: channel/post failed')
     return false
   }
 }

@@ -301,7 +301,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-0.5 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
                   aria-label={t('group.clearSearch')}
                 >
                   <X className="size-4" />
@@ -772,10 +772,10 @@ const GameCard = memo(function GameCard({ game, t }: { game: Game; t: (key: stri
       {game.metacriticScore !== null && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className={`absolute top-1 left-1 text-xs font-bold px-1.5 py-0.5 rounded cursor-default ${
-              game.metacriticScore >= 75 ? 'bg-score-good text-white' :
-              game.metacriticScore >= 50 ? 'bg-score-mixed text-white' :
-              'bg-score-bad text-white'
+            <span className={`absolute top-1 left-1 text-xs font-bold px-1.5 py-0.5 rounded cursor-default text-background ${
+              game.metacriticScore >= 75 ? 'bg-score-good' :
+              game.metacriticScore >= 50 ? 'bg-score-mixed' :
+              'bg-score-bad'
             }`}>
               {game.metacriticScore}
             </span>
@@ -828,7 +828,10 @@ const GameCard = memo(function GameCard({ game, t }: { game: Game; t: (key: stri
         {game.controllerSupport && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="text-xs bg-black/70 text-white px-1 py-0.5 rounded cursor-help">
+              <span
+                className="text-xs bg-black/70 text-white px-1 py-0.5 rounded cursor-help"
+                aria-label={t('group.controllerSupportLevel', { level: game.controllerSupport })}
+              >
                 <Gamepad2 className="size-2.5" />
               </span>
             </TooltipTrigger>

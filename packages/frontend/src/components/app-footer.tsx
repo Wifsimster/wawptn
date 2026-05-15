@@ -5,7 +5,7 @@ export function AppFooter() {
   const { t } = useTranslation()
 
   return (
-    <footer className="border-t border-white/[0.04] px-4 py-6 mt-auto">
+    <footer className="border-t border-border px-4 py-6 mt-auto">
       <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-muted-foreground text-center">
         <WawptnLogo size={16} className="text-muted-foreground shrink-0" />
         <span className="break-words min-w-0">

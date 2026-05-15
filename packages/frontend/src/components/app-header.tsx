@@ -47,7 +47,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
   }
 
   return (
-    <header className={cn('sticky top-0 z-50 w-full border-b border-white/[0.05] bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50', className)}>
+    <header className={cn('sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50', className)}>
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[60] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded-md">
         {t('app.skipToContent', 'Skip to content')}
       </a>

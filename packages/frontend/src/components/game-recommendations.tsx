@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Lightbulb, Vote } from 'lucide-react'
+import { Lightbulb } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { PremiumGate } from '@/components/premium-gate'
 import { api } from '@/lib/api'
 
@@ -17,11 +15,10 @@ interface Recommendation {
 
 interface GameRecommendationsProps {
   groupId: string
-  onStartVote: () => void
   compact?: boolean
 }
 
-export function GameRecommendations({ groupId, onStartVote, compact = false }: GameRecommendationsProps) {
+export function GameRecommendations({ groupId, compact = false }: GameRecommendationsProps) {
   const { t } = useTranslation()
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const fetchedGroupId = useRef<string | null>(null)
@@ -86,7 +83,7 @@ export function GameRecommendations({ groupId, onStartVote, compact = false }: G
               <img
                 src={game.headerImageUrl}
                 alt={game.gameName}
-                className="w-16 h-[34px] rounded object-cover shrink-0"
+                className="w-16 h-[34px] rounded-md object-cover shrink-0"
                 loading="lazy"
               />
               <div className="flex-1 min-w-0">
@@ -95,20 +92,6 @@ export function GameRecommendations({ groupId, onStartVote, compact = false }: G
               </div>
             </div>
           ))}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full mt-2"
-                onClick={onStartVote}
-              >
-                <Vote className="size-4 mr-2" />
-                {t('recommendations.startVote')}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('recommendations.startVoteHint')}</TooltipContent>
-          </Tooltip>
         </div>
       )}
     </PremiumGate>

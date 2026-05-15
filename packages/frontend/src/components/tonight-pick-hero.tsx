@@ -57,7 +57,7 @@ export function TonightPickHero({
 
   if (loading) {
     return (
-      <div className="relative overflow-hidden rounded-xl border border-border/60 bg-card/40">
+      <div className="relative overflow-hidden rounded-xl border border-border bg-card/40 shadow-1">
         <Skeleton className="w-full h-[220px] sm:h-[260px]" />
       </div>
     )
@@ -74,8 +74,8 @@ export function TonightPickHero({
     const isScheduled = !!activeVoteSession.scheduledAt
     const avatars = members.slice(0, 5)
     return (
-      <div className="relative overflow-hidden rounded-xl border border-primary/40 bg-card/40 ring-1 ring-primary/20">
-        {/* Soft animated glow to draw attention away from the regular hero. */}
+      <div className="relative overflow-hidden rounded-xl border border-primary/40 bg-card/40 shadow-1 ring-1 ring-primary/20">
+        {/* Soft primary-tinted wash to set this state apart from the regular hero. */}
         <div
           aria-hidden="true"
           className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/5 to-transparent pointer-events-none"
@@ -139,7 +139,7 @@ export function TonightPickHero({
   // No games available → minimal hero that still offers the primary CTA.
   if (!pick) {
     return (
-      <div className="rounded-xl border border-border/60 bg-card/40 p-5 sm:p-6">
+      <div className="rounded-xl border border-border bg-card/40 shadow-1 p-5 sm:p-6">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="size-4 text-primary" />
           <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
@@ -165,7 +165,7 @@ export function TonightPickHero({
   const avatars = members.slice(0, 5)
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border/60 bg-card/40 group">
+    <div className="relative overflow-hidden rounded-xl border border-border bg-card/40 shadow-1 group">
       {/* Background art: the Steam header, heavily masked. The image is
           absolute so the content below stays readable on any screen size. */}
       <div className="absolute inset-0">
@@ -222,12 +222,12 @@ export function TonightPickHero({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span
-                      className={`text-[11px] font-bold px-1.5 py-0.5 rounded cursor-default ${
+                      className={`text-[11px] font-bold px-1.5 py-0.5 rounded cursor-default text-background ${
                         game.metacriticScore >= 75
-                          ? 'bg-score-good text-white'
+                          ? 'bg-score-good'
                           : game.metacriticScore >= 50
-                            ? 'bg-score-mixed text-white'
-                            : 'bg-score-bad text-white'
+                            ? 'bg-score-mixed'
+                            : 'bg-score-bad'
                       }`}
                       aria-label={t('group.metacriticTooltip', { score: game.metacriticScore })}
                     >

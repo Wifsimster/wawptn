@@ -73,9 +73,19 @@ interface GroupSidebarProps {
   onToggleNotifications: (enabled: boolean) => void
   onUpdateAutoVote: (schedule: string | null, durationMinutes: number) => Promise<void>
   onUpdateReleasesDigest: (input: { enabled: boolean; schedule: string; coopOnly: boolean }) => Promise<void>
-  onStartVote: () => void
   /** When true, renders a compact layout for mobile bottom sheets (no Card wrappers) */
   compact?: boolean
+}
+
+/** Small uppercase divider label that groups the sidebar action buttons
+ *  into member / group / premium / danger clusters so destructive and
+ *  routine actions are no longer an undifferentiated stack. */
+function SidebarSectionLabel({ children }: { children: string }) {
+  return (
+    <p className="px-0.5 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      {children}
+    </p>
+  )
 }
 
 function getLastSeenLabel(
@@ -91,7 +101,7 @@ function getLastSeenLabel(
   return t('groups.lastSeen.offline')
 }
 
-export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, voteHistoryTruncated, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, releasesDigestEnabled, releasesDigestSchedule, releasesDigestCoopOnly, discordChannelId, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onUpdateReleasesDigest, onStartVote, compact = false }: GroupSidebarProps) {
+export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, voteHistoryTruncated, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, releasesDigestEnabled, releasesDigestSchedule, releasesDigestCoopOnly, discordChannelId, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onUpdateReleasesDigest, compact = false }: GroupSidebarProps) {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -300,143 +310,146 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
     </div>
   )
 
+  const currentMember = members.find(m => m.id === currentUserId)
+  const notificationsEnabled = currentMember?.notificationsEnabled ?? true
+
   const actionButtons = (
-    <div className="space-y-1.5 sm:space-y-2">
-      {compact && (
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={onSync}
-          disabled={syncing}
-        >
-          <RefreshCw className={`size-4 mr-2 ${syncing ? 'animate-spin text-primary' : ''}`} />
-          {t('group.syncLibraries')}
-        </Button>
-      )}
-
-      {isOwner && (
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => { setRenameName(groupName); setRenameOpen(true) }}
-        >
-          <Pencil className="size-4 mr-2" />
-          {t('group.renameGroup')}
-        </Button>
-      )}
-
-      {isOwner && (
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={onGenerateInvite}
-        >
-          <UserPlus className="size-4 mr-2" />
-          {t('group.inviteFriend')}
-        </Button>
-      )}
-
-      {inviteToken && <InviteLink token={inviteToken} />}
-
-      {/* Discord notification toggle */}
-      {(() => {
-        const currentMember = members.find(m => m.id === currentUserId)
-        const enabled = currentMember?.notificationsEnabled ?? true
-        return (
-          <Button
-            variant={enabled ? 'outline' : 'ghost'}
-            className={`w-full ${!enabled ? 'text-muted-foreground' : ''}`}
-            onClick={() => onToggleNotifications(!enabled)}
-          >
-            {enabled ? (
-              <Bell className="size-4 mr-2" />
-            ) : (
-              <BellOff className="size-4 mr-2" />
-            )}
-            {enabled ? t('group.notificationsEnabled') : t('group.notificationsDisabled')}
-          </Button>
-        )
-      })()}
-
-      {/* Auto-vote settings (owner only, premium feature) */}
-      {isOwner && (
-        isPremium ? (
+    <div className="space-y-4">
+      {/* Membre — actions available to every member */}
+      <div className="space-y-1.5">
+        <SidebarSectionLabel>{t('group.sectionMember')}</SidebarSectionLabel>
+        {compact && (
           <Button
             variant="outline"
             className="w-full"
-            onClick={() => {
-              setAutoVoteCron(autoVoteSchedule || '')
-              setAutoVoteDuration(autoVoteDurationMinutes)
-              setAutoVoteOpen(true)
-            }}
+            onClick={onSync}
+            disabled={syncing}
           >
-            <CalendarClock className="size-4 mr-2" />
-            {t('group.autoVote')}
-            {autoVoteSchedule && (
-              <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('group.autoVoteEnabled')}</Badge>
-            )}
+            <RefreshCw className={`size-4 mr-2 ${syncing ? 'animate-spin text-primary' : ''}`} />
+            {t('group.syncLibraries')}
           </Button>
-        ) : (
-          <Button
-            variant="outline"
-            className="w-full opacity-60"
-            onClick={() => {
-              track('premium.upgrade_clicked', { from: 'auto_vote' })
-              window.location.href = '/subscription?from=auto_vote'
-            }}
-          >
-            <Lock className="size-4 mr-2 text-muted-foreground" />
-            {t('group.autoVote')}
-            <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('premium.featureLocked')}</Badge>
-          </Button>
-        )
-      )}
+        )}
+        <Button
+          variant={notificationsEnabled ? 'outline' : 'ghost'}
+          className={`w-full ${!notificationsEnabled ? 'text-muted-foreground' : ''}`}
+          onClick={() => onToggleNotifications(!notificationsEnabled)}
+        >
+          {notificationsEnabled ? (
+            <Bell className="size-4 mr-2" />
+          ) : (
+            <BellOff className="size-4 mr-2" />
+          )}
+          {notificationsEnabled ? t('group.notificationsEnabled') : t('group.notificationsDisabled')}
+        </Button>
+      </div>
 
-      {/* Weekly Steam releases digest (owner only, premium, needs Discord) */}
+      {/* Groupe — owner-only group management */}
       {isOwner && (
-        !discordChannelId ? (
-          <Button
-            variant="outline"
-            className="w-full opacity-60"
-            disabled
-            title={t('group.releasesDigestNeedsDiscord')}
-          >
-            <Newspaper className="size-4 mr-2 text-muted-foreground" />
-            {t('group.releasesDigest')}
-          </Button>
-        ) : isPremium ? (
+        <div className="space-y-1.5">
+          <SidebarSectionLabel>{t('group.sectionGroup')}</SidebarSectionLabel>
           <Button
             variant="outline"
             className="w-full"
-            onClick={() => {
-              setDigestCron(releasesDigestSchedule || '0 21 * * 5')
-              setDigestCoopOnly(releasesDigestCoopOnly)
-              setDigestOpen(true)
-            }}
+            onClick={() => { setRenameName(groupName); setRenameOpen(true) }}
           >
-            <Newspaper className="size-4 mr-2" />
-            {t('group.releasesDigest')}
-            {releasesDigestEnabled && (
-              <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('group.releasesDigestEnabled')}</Badge>
-            )}
+            <Pencil className="size-4 mr-2" />
+            {t('group.renameGroup')}
           </Button>
-        ) : (
           <Button
             variant="outline"
-            className="w-full opacity-60"
-            onClick={() => {
-              track('premium.upgrade_clicked', { from: 'releases_digest' })
-              window.location.href = '/subscription?from=releases_digest'
-            }}
+            className="w-full"
+            onClick={onGenerateInvite}
           >
-            <Lock className="size-4 mr-2 text-muted-foreground" />
-            {t('group.releasesDigest')}
-            <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('premium.featureLocked')}</Badge>
+            <UserPlus className="size-4 mr-2" />
+            {t('group.inviteFriend')}
           </Button>
-        )
+          {inviteToken && <InviteLink token={inviteToken} />}
+        </div>
       )}
 
-      <div className="pt-2 border-t space-y-2">
+      {/* Premium — owner-only scheduled automations */}
+      {isOwner && (
+        <div className="space-y-1.5">
+          <SidebarSectionLabel>{t('group.sectionPremium')}</SidebarSectionLabel>
+          {/* Auto-vote settings */}
+          {isPremium ? (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                setAutoVoteCron(autoVoteSchedule || '')
+                setAutoVoteDuration(autoVoteDurationMinutes)
+                setAutoVoteOpen(true)
+              }}
+            >
+              <CalendarClock className="size-4 mr-2" />
+              {t('group.autoVote')}
+              {autoVoteSchedule && (
+                <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('group.autoVoteEnabled')}</Badge>
+              )}
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              className="w-full opacity-60"
+              onClick={() => {
+                track('premium.upgrade_clicked', { from: 'auto_vote' })
+                window.location.href = '/subscription?from=auto_vote'
+              }}
+            >
+              <Lock className="size-4 mr-2 text-muted-foreground" />
+              {t('group.autoVote')}
+              <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('premium.featureLocked')}</Badge>
+            </Button>
+          )}
+
+          {/* Weekly Steam releases digest (needs a linked Discord channel) */}
+          {!discordChannelId ? (
+            <Button
+              variant="outline"
+              className="w-full opacity-60"
+              disabled
+              title={t('group.releasesDigestNeedsDiscord')}
+            >
+              <Newspaper className="size-4 mr-2 text-muted-foreground" />
+              {t('group.releasesDigest')}
+            </Button>
+          ) : isPremium ? (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                setDigestCron(releasesDigestSchedule || '0 21 * * 5')
+                setDigestCoopOnly(releasesDigestCoopOnly)
+                setDigestOpen(true)
+              }}
+            >
+              <Newspaper className="size-4 mr-2" />
+              {t('group.releasesDigest')}
+              {releasesDigestEnabled && (
+                <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('group.releasesDigestEnabled')}</Badge>
+              )}
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              className="w-full opacity-60"
+              onClick={() => {
+                track('premium.upgrade_clicked', { from: 'releases_digest' })
+                window.location.href = '/subscription?from=releases_digest'
+              }}
+            >
+              <Lock className="size-4 mr-2 text-muted-foreground" />
+              {t('group.releasesDigest')}
+              <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('premium.featureLocked')}</Badge>
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Zone de danger — irreversible actions, fenced off from routine ones */}
+      <div className="space-y-1.5 border-t border-border pt-3">
+        <SidebarSectionLabel>{t('group.sectionDanger')}</SidebarSectionLabel>
         {!isOwner && (
           <Button
             variant="ghost"
@@ -462,10 +475,10 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
   )
 
   return (
-    <aside className="space-y-2 sm:space-y-3">
+    <aside className="space-y-3">
       {compact ? (
         // Compact layout for mobile bottom sheets — no Card wrappers
-        <div className="space-y-2 sm:space-y-3">
+        <div className="space-y-3">
           {historySection && (
             <div className="space-y-2">
               <h2 className="font-semibold flex items-center gap-2 text-sm">
@@ -476,7 +489,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
               {historyUpgradeCta}
             </div>
           )}
-          <GameRecommendations groupId={groupId} onStartVote={onStartVote} compact />
+          <GameRecommendations groupId={groupId} compact />
           <GroupStats groupId={groupId} compact />
           {membersHeader}
           {membersList}
@@ -500,7 +513,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
             </Card>
           )}
 
-          <GameRecommendations groupId={groupId} onStartVote={onStartVote} />
+          <GameRecommendations groupId={groupId} />
 
           <GroupStats groupId={groupId} />
 

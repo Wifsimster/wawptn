@@ -428,8 +428,9 @@ export function GroupsPage() {
           </ResponsiveDialogContent>
         </ResponsiveDialog>
 
-        {/* Loading skeleton */}
-        {loading ? (
+        {/* Loading skeleton — only on the first load. A background refetch
+            (e.g. the global vote-banner sync) keeps the list on screen. */}
+        {loading && groups.length === 0 ? (
           <div
             className="space-y-3"
             role="status"

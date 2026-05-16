@@ -252,6 +252,12 @@
     "historyEmptyTitle": "No game nights yet",
     "historyEmptyDescription": "Your vote history will show up here after your first game night."
   },
+  "voteBanner": {
+    "single": "A vote is in progress in “{{name}}”",
+    "multiple": "{{count}} votes in progress",
+    "join": "Join",
+    "view": "View"
+  },
   "filterPresets": {
     "label": "Vibe",
     "coopNight": "Co-op night",

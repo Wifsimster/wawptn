@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Outlet } from 'react-router-dom'
 import { AppHeader } from '@/components/app-header'
 import { AppFooter } from '@/components/app-footer'
+import { ActiveVoteBanner } from '@/components/active-vote-banner'
 import { Skeleton } from '@/components/ui/skeleton'
 
 interface HeaderSlot {
@@ -61,6 +62,7 @@ export function AppLayout() {
       <AppHeader maxWidth="wide" hasPageContent={hasContent}>
         <span ref={setElement} className="contents" />
       </AppHeader>
+      <ActiveVoteBanner />
       <HeaderSlotContext.Provider value={slot}>
         <Suspense fallback={<RouteFallback />}>
           <Outlet />

@@ -7,6 +7,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useNotificationListener } from '@/hooks/useNotificationListener'
 import { useChallengeListener } from '@/hooks/useChallengeListener'
+import { useActiveVoteSync } from '@/hooks/useActiveVoteSync'
 import { usePwaInstallPrompt } from '@/hooks/usePwaInstallPrompt'
 import { useSocketConnectionStatus } from '@/hooks/useSocketConnectionStatus'
 import { useNotificationStore } from '@/stores/notification.store'
@@ -80,6 +81,10 @@ function App() {
 
   // Global challenge unlock listener
   useChallengeListener()
+
+  // Keeps the group list fresh so the app-wide "vote in progress" banner
+  // reacts to votes starting / closing in any of the user's groups.
+  useActiveVoteSync()
 
   // PWA install prompt — captures beforeinstallprompt and surfaces a
   // sonner toast with a native install action.

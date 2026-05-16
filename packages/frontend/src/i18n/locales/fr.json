@@ -269,6 +269,12 @@
     "historyEmptyTitle": "Aucune soirée jouée",
     "historyEmptyDescription": "L'historique des votes apparaîtra ici après votre première soirée."
   },
+  "voteBanner": {
+    "single": "Un vote est en cours dans « {{name}} »",
+    "multiple": "{{count}} votes sont en cours",
+    "join": "Rejoindre",
+    "view": "Voir"
+  },
   "filterPresets": {
     "label": "Ambiance",
     "coopNight": "Soirée coop",

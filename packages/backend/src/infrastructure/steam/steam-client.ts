@@ -23,18 +23,26 @@ function setCache(key: string, data: unknown): void {
   cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS })
 }
 
-// Rate limiter: 1 request per second
+// Rate limiter: 1 request per second, serialized. Concurrent callers used
+// to all read the same `lastRequestTime` and fire near-simultaneously
+// (an 8-member library sync could burst 8 requests at once); chaining each
+// request onto the previous one enforces the 1s gap for real.
 let lastRequestTime = 0
+let fetchChain: Promise<unknown> = Promise.resolve()
 async function rateLimitedFetch(url: string): Promise<Response> {
-  const now = Date.now()
-  const timeSinceLastRequest = now - lastRequestTime
-  if (timeSinceLastRequest < 1000) {
-    await new Promise(resolve => setTimeout(resolve, 1000 - timeSinceLastRequest))
-  }
-  lastRequestTime = Date.now()
-  // Cap the request so a hung Steam connection cannot pin a request
-  // handler indefinitely; the caller treats a reject as a failure.
-  return fetch(url, { signal: AbortSignal.timeout(10_000) })
+  const result = fetchChain.then(async () => {
+    const sinceLast = Date.now() - lastRequestTime
+    if (sinceLast < 1000) {
+      await new Promise(resolve => setTimeout(resolve, 1000 - sinceLast))
+    }
+    lastRequestTime = Date.now()
+    // Cap the request so a hung Steam connection cannot pin a request
+    // handler indefinitely; the caller treats a reject as a failure.
+    return fetch(url, { signal: AbortSignal.timeout(10_000) })
+  })
+  // Keep the chain alive for the next caller even if this request rejects.
+  fetchChain = result.then(() => undefined, () => undefined)
+  return result
 }
 
 // Circuit breaker state

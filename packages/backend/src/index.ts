@@ -10,7 +10,7 @@ import rateLimit from 'express-rate-limit'
 import cron from 'node-cron'
 import { env, validateEnv } from './config/env.js'
 import { SESSION_COOKIE_NAME } from './config/session.js'
-import { testConnection, runMigrations } from './infrastructure/database/connection.js'
+import { testConnection, runMigrations, db, closeConnection } from './infrastructure/database/connection.js'
 import { createSocketServer } from './infrastructure/socket/socket.js'
 import { startVoteScheduler } from './infrastructure/scheduler/vote-scheduler.js'
 import { startAutoVoteScheduler } from './infrastructure/scheduler/auto-vote-scheduler.js'
@@ -140,7 +140,6 @@ async function main() {
   // Health endpoint
   app.get('/health', async (_req, res) => {
     try {
-      const { db } = await import('./infrastructure/database/connection.js')
       await db.raw('SELECT 1')
       res.json({ status: 'ok', timestamp: new Date().toISOString() })
     } catch {
@@ -390,7 +389,6 @@ async function main() {
     // mid-transaction.
     await stopSubscriptionReconciler()
 
-    const { closeConnection } = await import('./infrastructure/database/connection.js')
     await closeConnection()
 
     clearTimeout(forceExit)

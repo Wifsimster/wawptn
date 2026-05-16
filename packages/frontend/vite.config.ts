@@ -133,6 +133,9 @@ export default defineConfig({
   // VotePage, virtual is the game grid) get split so the landing path
   // doesn't pay for them.
   build: {
+    // Hidden source maps: emitted for stack-trace symbolication but not
+    // referenced from the bundle, so source is not exposed in DevTools.
+    sourcemap: 'hidden',
     rollupOptions: {
       output: {
         manualChunks: (id) => {

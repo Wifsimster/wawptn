@@ -29,9 +29,10 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+# Least-privilege default — read-only. The release job elevates per-job
+# to the contents:write / packages:write it actually needs.
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 jobs:
   detect-release:
@@ -113,10 +114,37 @@ jobs:
       - name: Type check
         run: npm run build:types
 
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    needs: [detect-release]
+    if: needs.detect-release.outputs.should_release == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared types
+        run: npm run build:types
+
+      - name: Run tests
+        run: npm test
+
   release:
     name: Create Release & Publish Docker Image
     runs-on: ubuntu-latest
-    needs: [lint, detect-release]
+    needs: [lint, test, detect-release]
+    permissions:
+      contents: write
+      packages: write
 
     steps:
       - name: Checkout code

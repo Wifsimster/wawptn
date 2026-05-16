@@ -29,6 +29,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check for leaked secrets in frontend
+        run: |
+          if grep -rn 'STRIPE_SECRET_KEY\|STRIPE_WEBHOOK_SECRET\|_API_SECRET\|APP_SECRET' packages/frontend/src/; then
+            echo "::error::Backend secrets referenced in frontend code!"
+            exit 1
+          fi
+
       - name: Build shared types
         run: npm run build:types
 
@@ -40,3 +47,25 @@ jobs:
 
       - name: Type check frontend
         run: npx tsc --noEmit -p packages/frontend/tsconfig.app.json
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared types
+        run: npm run build:types
+
+      - name: Run tests
+        run: npm test

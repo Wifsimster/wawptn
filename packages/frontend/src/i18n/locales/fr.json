@@ -441,7 +441,19 @@
     "subtitle": "Une question, un bug ou une idée ? Rejoins la communauté.",
     "discordTitle": "Serveur Discord officiel",
     "discordDescription": "Échange avec les autres joueurs, signale un bug et suis les nouveautés en direct.",
-    "discordCta": "Rejoindre le Discord"
+    "discordCta": "Rejoindre le Discord",
+    "emailTitle": "Support par e-mail",
+    "emailDescription": "Pour une question de facturation, de compte ou de confidentialité, écris-nous directement.",
+    "emailCta": "Envoyer un e-mail"
+  },
+  "footer": {
+    "legalNav": "Liens légaux",
+    "legalNotice": "Mentions légales",
+    "terms": "CGU",
+    "salesTerms": "CGV",
+    "privacy": "Confidentialité",
+    "cookies": "Cookies",
+    "refund": "Remboursement"
   },
   "stats": {
     "title": "Statistiques",

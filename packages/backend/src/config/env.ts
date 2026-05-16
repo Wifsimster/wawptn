@@ -9,6 +9,11 @@ export const env = {
   DATABASE_URL: process.env['DATABASE_URL'] || 'postgresql://wawptn:wawptn_secret@localhost:5432/wawptn',
   DB_POOL_MIN: parseInt(process.env['DB_POOL_MIN'] || '2', 10),
   DB_POOL_MAX: parseInt(process.env['DB_POOL_MAX'] || '10', 10),
+  /** Enables TLS on the Postgres connection. Off by default — in the
+   *  reference deploy Postgres is a sibling container on a private Docker
+   *  network where an extra TLS layer adds no security. Set DB_SSL=true
+   *  for a managed/remote database that requires an encrypted channel. */
+  DB_SSL: process.env['DB_SSL'] === 'true',
   CORS_ORIGIN: process.env['CORS_ORIGIN'] || 'http://localhost:5173',
 
   APP_SECRET: process.env['APP_SECRET'] || 'dev-secret-change-in-production-min-32-chars',
@@ -100,7 +105,10 @@ export function validateEnv(): void {
   const required = ['STEAM_API_KEY']
 
   if (env.NODE_ENV === 'production') {
-    required.push('APP_SECRET')
+    // DATABASE_URL is required so a blank-env prod build fails fast at
+    // startup instead of silently falling back to the localhost default
+    // and crashing at the first query.
+    required.push('APP_SECRET', 'DATABASE_URL')
 
     for (const key of required) {
       if (!process.env[key]) {
@@ -114,6 +122,21 @@ export function validateEnv(): void {
 
     if (env.CORS_ORIGIN.includes('localhost')) {
       throw new Error('CORS_ORIGIN must not contain localhost in production')
+    }
+
+    // The API is credentialed (session cookies). A wildcard or schemeless
+    // CORS origin would expose every authenticated endpoint to any site.
+    if (env.CORS_ORIGIN.trim() === '*') {
+      throw new Error('CORS_ORIGIN must be an explicit origin in production, not "*"')
+    }
+    let corsUrl: URL
+    try {
+      corsUrl = new URL(env.CORS_ORIGIN)
+    } catch {
+      throw new Error('CORS_ORIGIN must be a valid absolute URL in production')
+    }
+    if (corsUrl.protocol !== 'https:') {
+      throw new Error('CORS_ORIGIN must use https:// in production')
     }
 
     if (env.API_URL.includes('localhost')) {

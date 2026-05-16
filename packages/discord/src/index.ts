@@ -375,3 +375,33 @@ client.on(Events.MessageCreate, async (message: Message) => {
 })
 
 client.login(env.DISCORD_BOT_TOKEN)
+
+// Graceful shutdown — disconnect the gateway client cleanly so Discord
+// marks the bot offline immediately instead of waiting for a heartbeat
+// timeout, and so an in-flight interaction isn't cut mid-reply.
+let shuttingDown = false
+const shutdown = async (signal: string): Promise<void> => {
+  if (shuttingDown) return
+  shuttingDown = true
+  console.log(`[shutdown] received ${signal}, closing Discord client...`)
+  const forceExit = setTimeout(() => process.exit(1), 10_000)
+  forceExit.unref()
+  try {
+    await client.destroy()
+  } catch (err) {
+    console.error('[shutdown] error destroying client:', err)
+  }
+  clearTimeout(forceExit)
+  process.exit(0)
+}
+process.on('SIGTERM', () => { void shutdown('SIGTERM') })
+process.on('SIGINT', () => { void shutdown('SIGINT') })
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[fatal] unhandled promise rejection:', reason)
+  process.exit(1)
+})
+process.on('uncaughtException', (err) => {
+  console.error('[fatal] uncaught exception:', err)
+  process.exit(1)
+})

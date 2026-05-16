@@ -7,6 +7,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import cookieParser from 'cookie-parser'
 import rateLimit from 'express-rate-limit'
+import cron from 'node-cron'
 import { env, validateEnv } from './config/env.js'
 import { SESSION_COOKIE_NAME } from './config/session.js'
 import { testConnection, runMigrations } from './infrastructure/database/connection.js'
@@ -275,6 +276,22 @@ async function main() {
     })
   }
 
+  // Error handler of last resort. Express 5 routes a rejected async
+  // handler here — without it such a request hangs until the socket
+  // times out. Must be registered after all routes.
+  app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    const e = (err ?? {}) as { statusCode?: number; status?: number; message?: string; stack?: string }
+    logger.error(
+      { error: e.message ?? String(err), stack: e.stack, path: req.path, method: req.method },
+      'unhandled request error',
+    )
+    if (res.headersSent) return
+    const status = typeof e.statusCode === 'number' ? e.statusCode
+      : typeof e.status === 'number' ? e.status
+      : 500
+    res.status(status).json({ error: 'internal_error' })
+  })
+
   // Database
   const connected = await testConnection()
   if (!connected) {
@@ -293,7 +310,7 @@ async function main() {
   }
 
   // Socket.io
-  createSocketServer(httpServer)
+  const io = createSocketServer(httpServer)
 
   // Register domain event subscribers for session side effects
   // (Socket.io emissions, Discord webhooks, in-app notifications)
@@ -336,21 +353,64 @@ async function main() {
   })
 
   // Graceful shutdown
-  const shutdown = async () => {
-    logger.info('shutting down...')
-    httpServer.close()
-    // Stop accepting new reconciler passes and wait for any in-flight pass
-    // so we don't kill an active Stripe pagination loop or leave a Postgres
-    // advisory lock orphaned mid-transaction.
+  let shuttingDown = false
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return
+    shuttingDown = true
+    logger.info({ signal }, 'shutting down...')
+
+    // Force-exit if a clean shutdown stalls (a hung connection, a slow
+    // in-flight reconciler pass) so the orchestrator isn't left waiting.
+    const forceExit = setTimeout(() => {
+      logger.error('graceful shutdown timed out — forcing exit')
+      process.exit(1)
+    }, 15_000)
+    forceExit.unref()
+
+    // Stop accepting new HTTP connections.
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()))
+
+    // Stop every cron scheduler so no new work starts mid-shutdown.
+    for (const task of cron.getTasks().values()) {
+      try {
+        task.stop()
+      } catch {
+        /* already stopped */
+      }
+    }
+
+    // Close Socket.io — disconnects clients and stops the engine.
+    await new Promise<void>((resolve) => io.close(() => resolve()))
+
+    // Wait for any in-flight reconciler pass so we don't kill an active
+    // Stripe pagination loop or leave a Postgres advisory lock orphaned
+    // mid-transaction.
     await stopSubscriptionReconciler()
+
     const { closeConnection } = await import('./infrastructure/database/connection.js')
     await closeConnection()
+
+    clearTimeout(forceExit)
+    logger.info('shutdown complete')
     process.exit(0)
   }
 
-  process.on('SIGTERM', shutdown)
-  process.on('SIGINT', shutdown)
+  process.on('SIGTERM', () => { void shutdown('SIGTERM') })
+  process.on('SIGINT', () => { void shutdown('SIGINT') })
 }
+
+// Process-level safety net. A rejected promise or thrown error with no
+// local handler leaves the process in an undefined state — log it loudly
+// and exit so the container restarts cleanly (and an operator is paged)
+// instead of silently serving a broken process.
+process.on('unhandledRejection', (reason) => {
+  logger.fatal({ error: String(reason) }, 'unhandled promise rejection')
+  process.exit(1)
+})
+process.on('uncaughtException', (err) => {
+  logger.fatal({ error: String(err), stack: err?.stack }, 'uncaught exception')
+  process.exit(1)
+})
 
 main().catch(err => {
   logger.fatal({ error: String(err) }, 'failed to start server')

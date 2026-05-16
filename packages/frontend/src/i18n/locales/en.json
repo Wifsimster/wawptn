@@ -242,7 +242,15 @@
     "discordBannerHint": "Announcements and votes will be posted automatically in the channel you pick.",
     "discordBannerCta": "Link a channel",
     "discordBannerDialogTitle": "Link a Discord channel",
-    "discordLinkedFallback": "Discord linked"
+    "discordLinkedFallback": "Discord linked",
+    "tabsLabel": "Group sections",
+    "tabTonight": "Tonight",
+    "tabMembers": "Members",
+    "tabHistory": "History",
+    "tabStats": "Stats",
+    "tabSettings": "Settings",
+    "historyEmptyTitle": "No game nights yet",
+    "historyEmptyDescription": "Your vote history will show up here after your first game night."
   },
   "filterPresets": {
     "label": "Vibe",

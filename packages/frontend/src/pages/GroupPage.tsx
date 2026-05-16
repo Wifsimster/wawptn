@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Users as UsersIcon, Link2 } from 'lucide-react'
+import { ArrowLeft, Link2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
@@ -11,7 +11,6 @@ import { api, ApiError } from '@/lib/api'
 import { track } from '@/lib/analytics'
 import { getSocket } from '@/lib/socket'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -23,7 +22,8 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { AppHeader } from '@/components/app-header'
 import { AppFooter } from '@/components/app-footer'
-import { GroupSidebar } from '@/components/group-sidebar'
+import { GroupPanel } from '@/components/group-panel'
+import { GroupTabs, type GroupTab } from '@/components/group-tabs'
 import { GameGrid, type GameFilters } from '@/components/game-grid'
 import { RandomPickModal } from '@/components/random-pick-modal'
 import { VoteSetupDialog } from '@/components/vote-setup-dialog'
@@ -31,6 +31,10 @@ import { TonightPickHero } from '@/components/tonight-pick-hero'
 import { PersonaBadge } from '@/components/persona-badge'
 import { DiscordSetupInstructions } from '@/components/discord-setup-instructions'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+
+function isGroupTab(value: string | null): value is GroupTab {
+  return value === 'tonight' || value === 'members' || value === 'history' || value === 'stats' || value === 'settings'
+}
 
 export function GroupPage() {
   const { t } = useTranslation()
@@ -56,7 +60,6 @@ export function GroupPage() {
     sortBy: 'popularity',
   })
   const [voteSetupOpen, setVoteSetupOpen] = useState(false)
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [randomPickOpen, setRandomPickOpen] = useState(false)
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([])
   const [todayPersona, setTodayPersona] = useState<{ id: string; name: string; embedColor: number; introMessage: string } | null>(null)
@@ -431,27 +434,74 @@ export function GroupPage() {
   const lastSeenMap = lastSeenMapRef.current
   const currentUserRole = currentGroup?.members.find(m => m.id === user?.id)?.role || 'member'
 
+  // Active group-detail tab, mirrored in the URL (`?tab=`) so a section is
+  // deep-linkable and the browser back button leaves the group rather than
+  // cycling tabs. Defaults to "tonight" — the play-a-game-now surface.
+  const tabParam = searchParams.get('tab')
+  const activeTab: GroupTab = isGroupTab(tabParam) ? tabParam : 'tonight'
+  const setActiveTab = useCallback((next: GroupTab) => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev)
+      if (next === 'tonight') params.delete('tab')
+      else params.set('tab', next)
+      return params
+    }, { replace: true })
+  }, [setSearchParams])
+
   if (!currentGroup) {
     return (
       <div className="min-h-dvh flex flex-col">
         <AppHeader maxWidth="wide">
           <Skeleton className="size-5 rounded" />
         </AppHeader>
-        <main id="main-content" className="max-w-6xl mx-auto p-4">
+        <main id="main-content" className="max-w-5xl mx-auto p-4 w-full">
           <div
             role="status"
             aria-busy="true"
             aria-live="polite"
             aria-label={t('common.loading', 'Chargement…')}
-            className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-6"
+            className="space-y-4"
           >
-            <Skeleton className="hidden lg:block h-[300px] rounded-lg" />
+            <Skeleton className="h-10 w-full rounded-lg" />
             <Skeleton className="h-[400px] w-full rounded-lg" />
           </div>
         </main>
         <AppFooter />
       </div>
     )
+  }
+
+  // Shared props for the four secondary tab panels (members / history /
+  // stats / settings). Built once so the giant prop list isn't repeated.
+  const panelProps = {
+    members: currentGroup.members,
+    groupId: id!,
+    groupName: currentGroup.name,
+    syncing,
+    inviteToken,
+    voteHistory,
+    voteHistoryTruncated,
+    onlineMembers,
+    lastSeenMap,
+    currentUserId: user?.id || '',
+    currentUserRole,
+    autoVoteSchedule: currentGroup.autoVoteSchedule,
+    autoVoteDurationMinutes: currentGroup.autoVoteDurationMinutes,
+    releasesDigestEnabled: currentGroup.releasesDigestEnabled,
+    releasesDigestSchedule: currentGroup.releasesDigestSchedule,
+    releasesDigestCoopOnly: currentGroup.releasesDigestCoopOnly,
+    discordChannelId: currentGroup.discordChannelId,
+    onSync: handleSync,
+    onGenerateInvite: handleGenerateInvite,
+    onLeaveGroup: handleLeaveGroup,
+    onKickMember: handleKickMember,
+    onDeleteGroup: handleDeleteGroup,
+    onRenameGroup: handleRenameGroup,
+    onDeleteHistory: handleDeleteHistory,
+    onToggleNotifications: handleToggleNotifications,
+    onUpdateAutoVote: handleUpdateAutoVote,
+    onUpdateReleasesDigest: handleUpdateReleasesDigest,
+    onTestReleasesDigest: handleTestReleasesDigest,
   }
 
   return (
@@ -471,81 +521,17 @@ export function GroupPage() {
         </div>
       </AppHeader>
 
-      <main id="main-content" className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 min-w-0">
-        {/* Mobile: compact member pill strip — replaces the old "Ouvrir"
-            mini-bar. Tapping it still opens the sidebar sheet, but the
-            visual weight is cut in half and the bouncing chevron is gone. */}
-        <button
-          type="button"
-          className="lg:hidden mb-3 w-full min-h-[40px] rounded-full border border-border/60 bg-card/30 px-3 py-1.5 active:bg-card/60 active:scale-[0.99] transition-all"
-          onClick={() => setMobileSidebarOpen(true)}
-          aria-label={t('group.openSidebar')}
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="flex -space-x-1.5 shrink-0">
-              {currentGroup.members.slice(0, 4).map((member) => (
-                <Avatar key={member.id} className="size-6 ring-2 ring-background">
-                  <AvatarImage src={member.avatarUrl} alt={member.displayName} />
-                  <AvatarFallback className="text-[9px]">{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
-              ))}
-              {currentGroup.members.length > 4 && (
-                <div className="size-6 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-[9px] text-muted-foreground font-medium">
-                  +{currentGroup.members.length - 4}
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0 text-left flex items-center gap-2">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {t('group.members', { count: currentGroup.members.length })}
-              </span>
-              {onlineUserIds.length > 0 && (
-                <span className="flex items-center gap-1 text-[11px] text-online whitespace-nowrap">
-                  <span className="size-1.5 rounded-full bg-online animate-pulse" />
-                  {t('group.onlineCount', { count: onlineUserIds.length })}
-                </span>
-              )}
-            </div>
-            <UsersIcon className="size-3.5 text-muted-foreground shrink-0" />
-          </div>
-        </button>
+      <main id="main-content" className="w-full max-w-5xl mx-auto px-3 sm:px-4 py-4 min-w-0">
+        <GroupTabs active={activeTab} onChange={setActiveTab} />
 
-        <div className="lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-6">
-          {/* Sidebar — hidden on mobile, shown on lg+ */}
-          <div className="hidden lg:block min-w-0">
-            <GroupSidebar
-              members={currentGroup.members}
-              groupId={id!}
-              groupName={currentGroup.name}
-              syncing={syncing}
-              inviteToken={inviteToken}
-              voteHistory={voteHistory}
-              voteHistoryTruncated={voteHistoryTruncated}
-              onlineMembers={onlineMembers}
-              lastSeenMap={lastSeenMap}
-              currentUserId={user?.id || ''}
-              currentUserRole={currentUserRole}
-              autoVoteSchedule={currentGroup.autoVoteSchedule}
-              autoVoteDurationMinutes={currentGroup.autoVoteDurationMinutes}
-              releasesDigestEnabled={currentGroup.releasesDigestEnabled}
-              releasesDigestSchedule={currentGroup.releasesDigestSchedule}
-              releasesDigestCoopOnly={currentGroup.releasesDigestCoopOnly}
-              discordChannelId={currentGroup.discordChannelId}
-              onSync={handleSync}
-              onGenerateInvite={handleGenerateInvite}
-              onLeaveGroup={handleLeaveGroup}
-              onKickMember={handleKickMember}
-              onDeleteGroup={handleDeleteGroup}
-              onRenameGroup={handleRenameGroup}
-              onDeleteHistory={handleDeleteHistory}
-              onToggleNotifications={handleToggleNotifications}
-              onUpdateAutoVote={handleUpdateAutoVote}
-              onUpdateReleasesDigest={handleUpdateReleasesDigest}
-              onTestReleasesDigest={handleTestReleasesDigest}
-            />
-          </div>
+        <div className="pt-4">
+          {activeTab !== 'tonight' && (
+            <div className="max-w-2xl mx-auto">
+              <GroupPanel section={activeTab} {...panelProps} />
+            </div>
+          )}
 
-          {/* Main content: hero + games grid */}
+          {activeTab === 'tonight' && (
           <div className="space-y-4 min-w-0">
             {/* Owner-only prompt: if the group has no Discord channel
                 bound yet, surface a persistent banner inviting the owner
@@ -622,68 +608,6 @@ export function GroupPage() {
               onJoinActiveVote={() => navigate(`/groups/${id}/vote`)}
             />
 
-            {/* Mobile: fixed bottom action bar — kept as the persistent
-                primary CTA on small screens so the vote is always one tap
-                away even when the user has scrolled the grid. Flips to
-                "join vote" when a session is already open so the user
-                isn't walked through the setup dialog for nothing. */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <Button
-                onClick={openVoteFlow}
-                className="w-full h-12 gap-2 active:scale-[0.98] transition-transform"
-              >
-                {activeVoteSession ? (
-                  <span className="font-heading font-bold">{t('group.joinActiveVote')}</span>
-                ) : (
-                  <>
-                    <span className="font-heading font-bold">{t('group.startVote')}</span>
-                    <span className="opacity-80 text-sm">· {t('group.commonGamesCount', { count: commonGames.length })}</span>
-                  </>
-                )}
-              </Button>
-            </div>
-            {/* Spacer for fixed bottom bar on mobile */}
-            <div className="h-16 sm:hidden" />
-
-            <RandomPickModal
-              open={randomPickOpen}
-              onOpenChange={setRandomPickOpen}
-              games={commonGames}
-            />
-
-            <VoteSetupDialog
-              open={voteSetupOpen}
-              onOpenChange={setVoteSetupOpen}
-              members={currentGroup.members}
-              groupId={id!}
-              onlineMembers={onlineMembers}
-              activeFilter={activeFilter}
-              onStartVote={handleStartVote}
-            />
-
-            {/* Link-a-Discord-channel dialog — opened from the banner
-                above. Channel binding is driven by the bot's
-                `/wawptn-setup` slash command, so this dialog only shows
-                the two-step instructions and an invite-bot button. */}
-            <ResponsiveDialog open={discordDialogOpen} onOpenChange={setDiscordDialogOpen}>
-              <ResponsiveDialogContent>
-                <ResponsiveDialogHeader>
-                  <ResponsiveDialogTitle>{t('group.discordBannerDialogTitle')}</ResponsiveDialogTitle>
-                  <ResponsiveDialogDescription>
-                    {t('group.discordBannerHint')}
-                  </ResponsiveDialogDescription>
-                </ResponsiveDialogHeader>
-                <div className="mt-4 space-y-4">
-                  <DiscordSetupInstructions />
-                  <div className="flex items-center justify-end">
-                    <Button variant="secondary" onClick={() => setDiscordDialogOpen(false)}>
-                      {t('common.close', 'Fermer')}
-                    </Button>
-                  </div>
-                </div>
-              </ResponsiveDialogContent>
-            </ResponsiveDialog>
-
             <GameGrid
               games={commonGames}
               loading={loadingGames}
@@ -734,48 +658,71 @@ export function GroupPage() {
               onApplyPreset={(patch) => setGameFilters(prev => ({ ...prev, ...patch }))}
             />
           </div>
+          )}
         </div>
 
-        {/* Mobile: sidebar as responsive dialog sheet with snap points */}
-        <ResponsiveDialog open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen} snapPoints={[0.55, 1]}>
-          <ResponsiveDialogContent>
-            <ResponsiveDialogHeader>
-              <ResponsiveDialogTitle>{currentGroup.name}</ResponsiveDialogTitle>
-            </ResponsiveDialogHeader>
-            <GroupSidebar
-              members={currentGroup.members}
-              groupId={id!}
-              groupName={currentGroup.name}
-              syncing={syncing}
-              inviteToken={inviteToken}
-              voteHistory={voteHistory}
-              voteHistoryTruncated={voteHistoryTruncated}
-              onlineMembers={onlineMembers}
-              lastSeenMap={lastSeenMap}
-              currentUserId={user?.id || ''}
-              currentUserRole={currentUserRole}
-              autoVoteSchedule={currentGroup.autoVoteSchedule}
-              autoVoteDurationMinutes={currentGroup.autoVoteDurationMinutes}
-              releasesDigestEnabled={currentGroup.releasesDigestEnabled}
-              releasesDigestSchedule={currentGroup.releasesDigestSchedule}
-              releasesDigestCoopOnly={currentGroup.releasesDigestCoopOnly}
-              discordChannelId={currentGroup.discordChannelId}
-              onSync={handleSync}
-              onGenerateInvite={handleGenerateInvite}
-              onLeaveGroup={handleLeaveGroup}
-              onKickMember={handleKickMember}
-              onDeleteGroup={handleDeleteGroup}
-              onRenameGroup={handleRenameGroup}
-              onDeleteHistory={handleDeleteHistory}
-              onToggleNotifications={handleToggleNotifications}
-              onUpdateAutoVote={handleUpdateAutoVote}
-              onUpdateReleasesDigest={handleUpdateReleasesDigest}
-              onTestReleasesDigest={handleTestReleasesDigest}
-              compact
-            />
-          </ResponsiveDialogContent>
-        </ResponsiveDialog>
+        {/* Spacer so the mobile fixed action bar never covers content. */}
+        <div className="h-20 sm:hidden" />
       </main>
+
+      {/* Mobile: persistent bottom action bar — keeps the vote CTA one tap
+          away from every tab on small screens. Flips to "join vote" when a
+          session is already open so the user isn't walked through the setup
+          dialog for nothing. */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <Button
+          onClick={openVoteFlow}
+          className="w-full h-12 gap-2 active:scale-[0.98] transition-transform"
+        >
+          {activeVoteSession ? (
+            <span className="font-heading font-bold">{t('group.joinActiveVote')}</span>
+          ) : (
+            <>
+              <span className="font-heading font-bold">{t('group.startVote')}</span>
+              <span className="opacity-80 text-sm">· {t('group.commonGamesCount', { count: commonGames.length })}</span>
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Dialogs — mounted regardless of the active tab so the vote / random
+          pick / Discord flows can be triggered from anywhere (incl. the
+          `?startVote=1` deep link from the dashboard). */}
+      <RandomPickModal
+        open={randomPickOpen}
+        onOpenChange={setRandomPickOpen}
+        games={commonGames}
+      />
+
+      <VoteSetupDialog
+        open={voteSetupOpen}
+        onOpenChange={setVoteSetupOpen}
+        members={currentGroup.members}
+        groupId={id!}
+        onlineMembers={onlineMembers}
+        activeFilter={activeFilter}
+        onStartVote={handleStartVote}
+      />
+
+      <ResponsiveDialog open={discordDialogOpen} onOpenChange={setDiscordDialogOpen}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>{t('group.discordBannerDialogTitle')}</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>
+              {t('group.discordBannerHint')}
+            </ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <div className="mt-4 space-y-4">
+            <DiscordSetupInstructions />
+            <div className="flex items-center justify-end">
+              <Button variant="secondary" onClick={() => setDiscordDialogOpen(false)}>
+                {t('common.close', 'Fermer')}
+              </Button>
+            </div>
+          </div>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+
       <AppFooter />
     </div>
   )

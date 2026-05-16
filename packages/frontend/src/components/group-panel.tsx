@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil, Bell, BellOff, CalendarClock, Lock, Newspaper, Send } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { EmptyState } from '@/components/empty-state'
 import { track } from '@/lib/analytics'
 import {
   ResponsiveDialog,
@@ -41,7 +41,12 @@ interface VoteHistoryEntry {
   createdBy: string
 }
 
-interface GroupSidebarProps {
+/** Which slice of the group detail this panel renders. The "tonight"
+ *  surface lives directly in GroupPage; this component owns the four
+ *  secondary tabs. */
+export type GroupPanelSection = 'members' | 'history' | 'stats' | 'settings'
+
+interface GroupPanelProps {
   members: Member[]
   groupId: string
   groupName: string
@@ -76,14 +81,14 @@ interface GroupSidebarProps {
   /** Sends a one-off test message to the linked Discord channel so the
    *  owner can confirm the digest will land before relying on the schedule. */
   onTestReleasesDigest: () => Promise<void>
-  /** When true, renders a compact layout for mobile bottom sheets (no Card wrappers) */
-  compact?: boolean
+  /** Which secondary section this panel instance renders. */
+  section: GroupPanelSection
 }
 
-/** Small uppercase divider label that groups the sidebar action buttons
- *  into member / group / premium / danger clusters so destructive and
- *  routine actions are no longer an undifferentiated stack. */
-function SidebarSectionLabel({ children }: { children: string }) {
+/** Small uppercase divider label that groups the settings actions into
+ *  member / group / premium / danger clusters so destructive and routine
+ *  actions are no longer an undifferentiated stack. */
+function PanelSectionLabel({ children }: { children: string }) {
   return (
     <p className="px-0.5 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
       {children}
@@ -104,7 +109,7 @@ function getLastSeenLabel(
   return t('groups.lastSeen.offline')
 }
 
-export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, voteHistoryTruncated, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, releasesDigestEnabled, releasesDigestSchedule, releasesDigestCoopOnly, discordChannelId, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onUpdateReleasesDigest, onTestReleasesDigest, compact = false }: GroupSidebarProps) {
+export function GroupPanel({ members, groupId, groupName, syncing, inviteToken, voteHistory, voteHistoryTruncated, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, releasesDigestEnabled, releasesDigestSchedule, releasesDigestCoopOnly, discordChannelId, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onUpdateReleasesDigest, onTestReleasesDigest, section }: GroupPanelProps) {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -138,12 +143,9 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
   })
 
   const historySection = voteHistory.length > 0 && (
-    <div className={compact ? 'flex gap-2 sm:gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory pb-1 -mx-1 px-1' : 'space-y-2'}>
+    <div className="space-y-2">
       {voteHistory.map((session, index) => (
-        <div key={session.id} className={compact
-          ? 'flex-none w-[200px] snap-start rounded-lg border border-border bg-card/50 p-2 flex items-center gap-2 group/history'
-          : 'flex items-center gap-3 group/history'
-        }>
+        <div key={session.id} className="flex items-center gap-3 rounded-lg border border-border bg-card/50 p-2 group/history">
           <img
             src={getSteamHeaderImageUrl(session.winningGameAppId)}
             alt={session.winningGameName}
@@ -169,7 +171,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={`size-8 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive active:bg-accent/10 ${compact ? 'opacity-100' : 'opacity-0 group-hover/history:opacity-100'} transition-opacity shrink-0`}
+                  className="size-8 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive active:bg-accent/10 shrink-0"
                   onClick={() => setConfirmDeleteHistory(session)}
                   aria-label={t('group.deleteHistory')}
                 >
@@ -207,28 +209,16 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
   const onlineCount = members.filter(m => onlineMembers.has(m.id)).length
 
   const membersHeader = (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <h2 className="font-semibold flex items-center gap-2 text-sm">
-          <Users className="size-4" />
-          {t('group.members', { count: members.length })}
-        </h2>
-        {onlineCount > 0 && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
-            <span className="size-1.5 rounded-full bg-online animate-pulse" />
-            {t('groups.onlineCount', { count: onlineCount })}
-          </Badge>
-        )}
-      </div>
-      {!compact && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={onSync} disabled={syncing} aria-label={t('group.syncLibraries')} className="size-11 min-h-[44px] min-w-[44px] active:bg-accent/10">
-              <RefreshCw className={`size-4 ${syncing ? 'animate-spin text-primary' : ''}`} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('group.syncLibraries')}</TooltipContent>
-        </Tooltip>
+    <div className="flex items-center gap-2">
+      <h2 className="font-semibold flex items-center gap-2 text-sm">
+        <Users className="size-4" />
+        {t('group.members', { count: members.length })}
+      </h2>
+      {onlineCount > 0 && (
+        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
+          <span className="size-1.5 rounded-full bg-online animate-pulse" />
+          {t('groups.onlineCount', { count: onlineCount })}
+        </Badge>
       )}
     </div>
   )
@@ -255,7 +245,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                 <AvatarFallback>{member.displayName.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
               <span
-                className={`absolute bottom-0 right-0 size-2.5 rounded-full border-2 ${compact ? 'border-background' : 'border-card'} ${isOnline ? 'bg-online animate-pulse' : 'bg-muted-foreground/40'}`}
+                className={`absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-background ${isOnline ? 'bg-online animate-pulse' : 'bg-muted-foreground/40'}`}
                 aria-label={presenceLabel}
               />
             </button>
@@ -296,7 +286,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                   <Button
                     variant="ghost"
                     size="icon"
-                    className={`size-11 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive active:bg-accent/10 ${compact ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}
+                    className="size-11 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive active:bg-accent/10"
                     onClick={() => setConfirmKick(member)}
                     aria-label={t('group.kickMember', { name: member.displayName })}
                   >
@@ -321,18 +311,16 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
     <div className="space-y-4">
       {/* Membre — actions available to every member */}
       <div className="space-y-1.5">
-        <SidebarSectionLabel>{t('group.sectionMember')}</SidebarSectionLabel>
-        {compact && (
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={onSync}
-            disabled={syncing}
-          >
-            <RefreshCw className={`size-4 mr-2 ${syncing ? 'animate-spin text-primary' : ''}`} />
-            {t('group.syncLibraries')}
-          </Button>
-        )}
+        <PanelSectionLabel>{t('group.sectionMember')}</PanelSectionLabel>
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={onSync}
+          disabled={syncing}
+        >
+          <RefreshCw className={`size-4 mr-2 ${syncing ? 'animate-spin text-primary' : ''}`} />
+          {t('group.syncLibraries')}
+        </Button>
         <Button
           variant={notificationsEnabled ? 'outline' : 'ghost'}
           className={`w-full ${!notificationsEnabled ? 'text-muted-foreground' : ''}`}
@@ -350,7 +338,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
       {/* Groupe — owner-only group management */}
       {isOwner && (
         <div className="space-y-1.5">
-          <SidebarSectionLabel>{t('group.sectionGroup')}</SidebarSectionLabel>
+          <PanelSectionLabel>{t('group.sectionGroup')}</PanelSectionLabel>
           <Button
             variant="outline"
             className="w-full"
@@ -359,22 +347,13 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
             <Pencil className="size-4 mr-2" />
             {t('group.renameGroup')}
           </Button>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={onGenerateInvite}
-          >
-            <UserPlus className="size-4 mr-2" />
-            {t('group.inviteFriend')}
-          </Button>
-          {inviteToken && <InviteLink token={inviteToken} />}
         </div>
       )}
 
       {/* Premium — owner-only scheduled automations */}
       {isOwner && (
         <div className="space-y-1.5">
-          <SidebarSectionLabel>{t('group.sectionPremium')}</SidebarSectionLabel>
+          <PanelSectionLabel>{t('group.sectionPremium')}</PanelSectionLabel>
           {/* Auto-vote settings */}
           {isPremium ? (
             <Button
@@ -453,7 +432,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
 
       {/* Zone de danger — irreversible actions, fenced off from routine ones */}
       <div className="space-y-1.5 border-t border-border pt-3">
-        <SidebarSectionLabel>{t('group.sectionDanger')}</SidebarSectionLabel>
+        <PanelSectionLabel>{t('group.sectionDanger')}</PanelSectionLabel>
         {!isOwner && (
           <Button
             variant="ghost"
@@ -479,59 +458,46 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
   )
 
   return (
-    <aside className="space-y-3">
-      {compact ? (
-        // Compact layout for mobile bottom sheets — no Card wrappers
+    <div className="space-y-4">
+      {section === 'members' && (
         <div className="space-y-3">
-          {historySection && (
-            <div className="space-y-2">
-              <h2 className="font-semibold flex items-center gap-2 text-sm">
-                <History className="size-4" />
-                {t('group.history')}
-              </h2>
-              {historySection}
-              {historyUpgradeCta}
-            </div>
-          )}
-          <GameRecommendations groupId={groupId} compact />
-          <GroupStats groupId={groupId} compact />
           {membersHeader}
           {membersList}
-          {actionButtons}
-        </div>
-      ) : (
-        // Desktop layout with Card wrappers
-        <>
-          {historySection && (
-            <Card>
-              <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
-                <h2 className="font-semibold flex items-center gap-2 text-sm">
-                  <History className="size-4" />
-                  {t('group.history')}
-                </h2>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-4 pt-0 space-y-2">
-                {historySection}
-                {historyUpgradeCta}
-              </CardContent>
-            </Card>
+          {isOwner && (
+            <div className="space-y-1.5 border-t border-border pt-3">
+              <Button variant="outline" className="w-full" onClick={onGenerateInvite}>
+                <UserPlus className="size-4 mr-2" />
+                {t('group.inviteFriend')}
+              </Button>
+              {inviteToken && <InviteLink token={inviteToken} />}
+            </div>
           )}
-
-          <GameRecommendations groupId={groupId} />
-
-          <GroupStats groupId={groupId} />
-
-          <Card>
-            <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3 space-y-0">
-              {membersHeader}
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4 pt-0 space-y-2 sm:space-y-3">
-              {membersList}
-              {actionButtons}
-            </CardContent>
-          </Card>
-        </>
+        </div>
       )}
+
+      {section === 'history' && (
+        historySection ? (
+          <div className="space-y-2">
+            {historySection}
+            {historyUpgradeCta}
+          </div>
+        ) : (
+          <EmptyState
+            icon={History}
+            title={t('group.historyEmptyTitle')}
+            description={t('group.historyEmptyDescription')}
+          />
+        )
+      )}
+
+      {section === 'stats' && (
+        <div className="space-y-3">
+          <GameRecommendations groupId={groupId} />
+          <GroupStats groupId={groupId} />
+        </div>
+      )}
+
+      {section === 'settings' && actionButtons}
 
       {/* Leave confirmation dialog */}
       <ResponsiveDialog open={confirmLeave} onOpenChange={setConfirmLeave}>
@@ -804,6 +770,6 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
           </form>
         </ResponsiveDialogContent>
       </ResponsiveDialog>
-    </aside>
+    </div>
   )
 }

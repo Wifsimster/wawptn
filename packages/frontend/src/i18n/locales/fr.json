@@ -259,7 +259,15 @@
     "discordBannerHint": "Les annonces et votes seront postés automatiquement dans le salon de ton choix.",
     "discordBannerCta": "Lier un salon",
     "discordBannerDialogTitle": "Lier un salon Discord",
-    "discordLinkedFallback": "Discord lié"
+    "discordLinkedFallback": "Discord lié",
+    "tabsLabel": "Sections du groupe",
+    "tabTonight": "Ce soir",
+    "tabMembers": "Membres",
+    "tabHistory": "Historique",
+    "tabStats": "Stats",
+    "tabSettings": "Réglages",
+    "historyEmptyTitle": "Aucune soirée jouée",
+    "historyEmptyDescription": "L'historique des votes apparaîtra ici après votre première soirée."
   },
   "filterPresets": {
     "label": "Ambiance",

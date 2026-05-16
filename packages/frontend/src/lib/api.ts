@@ -248,6 +248,10 @@ export const api = {
       body: JSON.stringify(patch),
     }),
 
+  // Account (RGPD right to erasure). The export download is a plain
+  // authenticated navigation to /api/users/me/export, handled in the UI.
+  deleteAccount: () => request<{ ok: boolean }>('/users/me', { method: 'DELETE' }),
+
   // Persona — the app-wide endpoint is the global fallback (login page).
   // Prefer `getGroupPersona(groupId)` for the per-group "persona du jour".
   getCurrentPersona: () => request<{ id: string; name: string; embedColor: number; introMessage: string }>('/persona/current'),

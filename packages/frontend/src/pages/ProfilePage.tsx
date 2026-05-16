@@ -4,9 +4,14 @@ import { motion, type Variants } from 'framer-motion'
 import {
   ArrowLeft, RefreshCw, ExternalLink, Check, Clock,
   Gamepad2, Link, Unlink, AlertTriangle, Timer, Trophy, Target, MessageCircle, Eye,
+  Download, Trash2,
 } from 'lucide-react'
 import type { ProfileVisibilitySettings } from '@wawptn/types'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog'
 import { PlatformIcon } from '@/components/icons/platforms'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -187,6 +192,46 @@ export function ProfilePage() {
   const { challenges, totalUnlocked, totalChallenges, fetchChallenges } = useChallengeStore()
   const [visibility, setVisibility] = useState<ProfileVisibilitySettings | null>(null)
   const [visibilitySaving, setVisibilitySaving] = useState<keyof ProfileVisibilitySettings | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
+  const deleteConfirmWord = t('profile.deleteAccountConfirmWord')
+
+  async function handleExportData() {
+    setExporting(true)
+    try {
+      const res = await fetch('/api/users/me/export', { credentials: 'include' })
+      if (!res.ok) throw new Error('export failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'wawptn-data-export.json'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error(t('profile.exportError'))
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true)
+    try {
+      await api.deleteAccount()
+      toast.success(t('profile.deleteAccountSuccess'))
+      // The account and its session are gone — hard-reload to the landing page.
+      window.location.href = '/'
+    } catch {
+      toast.error(t('profile.deleteAccountError'))
+      setDeleting(false)
+    }
+  }
 
   useEffect(() => {
     api.getVisibility().then(setVisibility).catch(() => { /* silent — section just won't render */ })
@@ -783,7 +828,90 @@ export function ProfilePage() {
             </motion.div>
           </motion.section>
         )}
+        {/* ── Danger zone (RGPD) ── */}
+        <motion.section variants={fadeUp}>
+          <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+            <AlertTriangle className="size-4 shrink-0" />
+            {t('profile.dangerZone')}
+          </h3>
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm">
+              <Download className="size-5 shrink-0 text-muted-foreground" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">{t('profile.exportData')}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  {t('profile.exportDataDescription')}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportData}
+                disabled={exporting}
+                className="shrink-0 h-8 text-xs"
+              >
+                {exporting ? t('profile.exporting') : t('profile.exportButton')}
+              </Button>
+            </div>
+            <div className="flex items-center gap-3 p-3.5 rounded-xl border border-destructive/30 bg-destructive/5 backdrop-blur-sm">
+              <Trash2 className="size-5 shrink-0 text-destructive" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm text-destructive">{t('profile.deleteAccount')}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  {t('profile.deleteAccountDescription')}
+                </p>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteOpen(true)}
+                className="shrink-0 h-8 text-xs"
+              >
+                {t('profile.deleteAccountButton')}
+              </Button>
+            </div>
+          </div>
+        </motion.section>
       </motion.main>
+
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          setDeleteOpen(open)
+          if (!open) setConfirmText('')
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('profile.deleteAccountConfirmTitle')}</DialogTitle>
+            <DialogDescription>{t('profile.deleteAccountConfirmBody')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm">
+              {t('profile.deleteAccountConfirmPrompt', { word: deleteConfirmWord })}
+            </p>
+            <Input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={deleteConfirmWord}
+              autoComplete="off"
+              aria-label={t('profile.deleteAccountConfirmTitle')}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleting}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={deleting || confirmText.trim().toUpperCase() !== deleteConfirmWord}
+            >
+              {deleting ? t('profile.deleting') : t('profile.deleteAccountConfirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

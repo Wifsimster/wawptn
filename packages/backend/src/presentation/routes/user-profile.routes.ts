@@ -1,6 +1,8 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
 import { logger } from '../../infrastructure/logger/logger.js'
+import { requireSameOrigin } from '../middleware/csrf.middleware.js'
+import { SESSION_COOKIE_NAME } from '../../config/session.js'
 
 const router = Router()
 
@@ -251,6 +253,28 @@ router.patch('/me/visibility', async (req: Request, res: Response) => {
     visibilityFullLibrary: updated.visibility_full_library,
     visibilityLastPlayed: updated.visibility_last_played,
   })
+})
+
+// GET /api/users/me/export — RGPD data portability: download all of the
+// caller's own data as a JSON file.
+router.get('/me/export', async (req: Request, res: Response) => {
+  const { exportUserData } = await import('../../domain/account-deletion.js')
+  const data = await exportUserData(req.userId!)
+  res.setHeader('Content-Disposition', 'attachment; filename="wawptn-data-export.json"')
+  res.json(data)
+})
+
+// DELETE /api/users/me — RGPD right to erasure. Permanently deletes the
+// caller's account; owned groups are transferred to another member or
+// removed. requireSameOrigin blocks a forged cross-site request from
+// deleting a victim's account through their logged-in browser.
+router.delete('/me', requireSameOrigin, async (req: Request, res: Response) => {
+  const userId = req.userId!
+  const { deleteUserAccount } = await import('../../domain/account-deletion.js')
+  await deleteUserAccount(userId)
+  res.clearCookie(SESSION_COOKIE_NAME, { path: '/' })
+  logger.info({ userId }, 'account deleted at user request')
+  res.json({ ok: true })
 })
 
 // GET /api/users/compare?a=:userIdA&b=:userIdB — two-user comparison

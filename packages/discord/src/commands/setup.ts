@@ -25,6 +25,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       method: 'POST',
       body: {
         groupId: group.groupId,
+        // Invoking user — the backend verifies they own the target group
+        // before binding the channel.
+        discordUserId: interaction.user.id,
         discordChannelId: interaction.channelId,
         discordGuildId: guildId,
         // Snapshot the human-readable names so the web UI can render

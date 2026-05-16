@@ -780,7 +780,7 @@ router.get('/gog/link', requireAuth, (req: Request, res: Response) => {
   }
 
   const nonce = crypto.randomBytes(16).toString('hex')
-  const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex').slice(0, 16)
+  const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex')
   const state = `${nonce}.${userHash}`
 
   res.cookie(GOG_LINK_STATE_COOKIE, state, {

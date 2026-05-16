@@ -32,7 +32,9 @@ async function rateLimitedFetch(url: string): Promise<Response> {
     await new Promise(resolve => setTimeout(resolve, 1000 - timeSinceLastRequest))
   }
   lastRequestTime = Date.now()
-  return fetch(url)
+  // Cap the request so a hung Steam connection cannot pin a request
+  // handler indefinitely; the caller treats a reject as a failure.
+  return fetch(url, { signal: AbortSignal.timeout(10_000) })
 }
 
 // Circuit breaker state
@@ -198,7 +200,10 @@ export function getSteamLoginUrl(returnUrl: string): string {
     'openid.ns': 'http://specs.openid.net/auth/2.0',
     'openid.mode': 'checkid_setup',
     'openid.return_to': returnUrl,
-    'openid.realm': new URL(returnUrl).origin,
+    // Realm is pinned to the canonical app origin from trusted config —
+    // never derived from the caller-supplied returnUrl, which would be a
+    // phishing primitive if the returnUrl host could ever vary.
+    'openid.realm': new URL(env.API_URL).origin,
     'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
     'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
   })
@@ -226,6 +231,7 @@ export async function verifySteamLogin(params: Record<string, string>): Promise<
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: verifyParams.toString(),
+      signal: AbortSignal.timeout(10_000),
     })
 
     const text = await response.text()

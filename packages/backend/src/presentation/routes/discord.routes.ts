@@ -30,22 +30,38 @@ const router = Router()
 // decision C4 — 2026-04-14). The previous premium gate has been removed;
 // every user can bind a channel to their group.
 router.post('/setup', async (req: Request, res: Response) => {
-  const { groupId, discordChannelId, discordGuildId, discordGuildName, discordChannelName } = req.body as {
+  const { groupId, discordChannelId, discordGuildId, discordGuildName, discordChannelName, discordUserId } = req.body as {
     groupId: string
     discordChannelId: string
     discordGuildId: string
     discordGuildName?: string | null
     discordChannelName?: string | null
+    discordUserId?: string
   }
 
-  if (!groupId || !discordChannelId || !discordGuildId) {
-    res.status(400).json({ error: 'validation', message: 'groupId, discordChannelId, and discordGuildId are required' })
+  if (!groupId || !discordChannelId || !discordGuildId || !discordUserId) {
+    res.status(400).json({ error: 'validation', message: 'groupId, discordChannelId, discordGuildId, and discordUserId are required' })
     return
   }
 
   const group = await db('groups').where({ id: groupId }).first()
   if (!group) {
     res.status(404).json({ error: 'not_found', message: 'Group not found' })
+    return
+  }
+
+  // The bot is trusted, but the bot's Discord-side input — which group to
+  // bind — is not. Without this check any group member, or anyone holding
+  // the bot secret, could rebind another group's channel to a channel they
+  // control. Require the invoking Discord user to own the target group.
+  const link = await db('discord_links').where({ discord_id: discordUserId }).first()
+  const ownerMembership = link
+    ? await db('group_members')
+        .where({ group_id: groupId, user_id: link.user_id, role: 'owner' })
+        .first()
+    : null
+  if (!ownerMembership) {
+    res.status(403).json({ error: 'forbidden', message: 'Only the group owner can link a Discord channel' })
     return
   }
 

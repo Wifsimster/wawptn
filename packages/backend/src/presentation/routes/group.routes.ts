@@ -631,9 +631,31 @@ router.delete('/:id/members/:userId', async (req: Request, res: Response) => {
     }
   }
 
-  await db('group_members')
-    .where({ group_id: groupId, user_id: targetUserId })
-    .del()
+  // A kick implies a ban (decision D16) so the removed member cannot
+  // rejoin via a still-live invite link. A voluntary self-leave does not
+  // ban. The delete and the ban insert run in one transaction so the two
+  // never diverge.
+  await db.transaction(async (trx) => {
+    await trx('group_members')
+      .where({ group_id: groupId, user_id: targetUserId })
+      .del()
+
+    if (!isSelfLeave) {
+      const linkedDiscord = await trx('discord_links').where({ user_id: targetUserId }).first()
+      const alreadyBanned = await trx('group_bans')
+        .where({ group_id: groupId, user_id: targetUserId })
+        .first()
+      if (!alreadyBanned) {
+        await trx('group_bans').insert({
+          group_id: groupId,
+          user_id: targetUserId,
+          discord_id: linkedDiscord?.discord_id ?? null,
+          banned_by: currentUserId,
+          reason: 'Removed by group owner',
+        })
+      }
+    }
+  })
 
   // Force-evict kicked/left user from socket room
   forceLeaveRoom(groupId, targetUserId)

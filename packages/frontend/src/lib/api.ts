@@ -152,6 +152,10 @@ export const api = {
         body: JSON.stringify(input),
       },
     ),
+  testReleasesDigest: (groupId: string) =>
+    request<{ ok: boolean; delivered: boolean }>(`/groups/${groupId}/releases-digest/test`, {
+      method: 'POST',
+    }),
   syncLibraries: (groupId: string) => request(`/groups/${groupId}/sync`, { method: 'POST' }),
   getRecommendations: (groupId: string) => request<{
     recommendations: { gameName: string; steamAppId: number; headerImageUrl: string; reason: string }[];

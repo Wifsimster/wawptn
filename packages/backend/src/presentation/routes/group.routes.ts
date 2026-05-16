@@ -7,6 +7,7 @@ import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-st
 import { getIO, forceLeaveRoom } from '../../infrastructure/socket/socket.js'
 import { updateGroupSchedule } from '../../infrastructure/scheduler/auto-vote-scheduler.js'
 import { updateGroupDigestSchedule } from '../../infrastructure/scheduler/releases-digest-scheduler.js'
+import { notifyReleasesDigestTest } from '../../infrastructure/discord/releases-notifier.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 import { isUserPremium, FREE_TIER_LIMITS, PREMIUM_TIER_LIMITS, requirePremiumFeature } from '../middleware/tier.middleware.js'
 import { TIER_ERRORS } from '../../domain/subscription-service.js'
@@ -407,6 +408,39 @@ router.patch(
       releasesDigestSchedule: cronSchedule,
       releasesDigestCoopOnly: coopOnly ?? false,
     })
+  },
+)
+
+// Send a one-off test message to the group's linked Discord, so an owner
+// can confirm the digest will land in the right channel before relying on
+// the weekly schedule. Owner only, premium — same gate as the digest config.
+router.post(
+  '/:id/releases-digest/test',
+  requireGroupMembership({ role: 'owner' }),
+  requirePremiumFeature('releases-digest'),
+  async (req: Request, res: Response) => {
+    const userId = req.userId!
+    const groupId = String(req.params['id'])
+
+    const group = await db('groups').where({ id: groupId }).first()
+    if (!group) {
+      res.status(404).json({ error: 'not_found', message: 'Group not found' })
+      return
+    }
+    if (!group.discord_channel_id && !group.discord_webhook_url) {
+      res.status(409).json({ error: 'no_discord', message: 'Group has no linked Discord channel' })
+      return
+    }
+
+    const delivered = await notifyReleasesDigestTest({
+      id: group.id,
+      name: group.name,
+      discordChannelId: group.discord_channel_id ?? null,
+      discordWebhookUrl: group.discord_webhook_url ?? null,
+    })
+
+    logger.info({ userId, groupId, delivered }, 'releases digest test message sent')
+    res.json({ ok: true, delivered })
   },
 )
 

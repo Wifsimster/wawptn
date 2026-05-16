@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil, Bell, BellOff, CalendarClock, Lock, Newspaper } from 'lucide-react'
+import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil, Bell, BellOff, CalendarClock, Lock, Newspaper, Send } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -73,6 +73,9 @@ interface GroupSidebarProps {
   onToggleNotifications: (enabled: boolean) => void
   onUpdateAutoVote: (schedule: string | null, durationMinutes: number) => Promise<void>
   onUpdateReleasesDigest: (input: { enabled: boolean; schedule: string; coopOnly: boolean }) => Promise<void>
+  /** Sends a one-off test message to the linked Discord channel so the
+   *  owner can confirm the digest will land before relying on the schedule. */
+  onTestReleasesDigest: () => Promise<void>
   /** When true, renders a compact layout for mobile bottom sheets (no Card wrappers) */
   compact?: boolean
 }
@@ -101,7 +104,7 @@ function getLastSeenLabel(
   return t('groups.lastSeen.offline')
 }
 
-export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, voteHistoryTruncated, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, releasesDigestEnabled, releasesDigestSchedule, releasesDigestCoopOnly, discordChannelId, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onUpdateReleasesDigest, compact = false }: GroupSidebarProps) {
+export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken, voteHistory, voteHistoryTruncated, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, releasesDigestEnabled, releasesDigestSchedule, releasesDigestCoopOnly, discordChannelId, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onUpdateReleasesDigest, onTestReleasesDigest, compact = false }: GroupSidebarProps) {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -119,6 +122,7 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
   const [digestCron, setDigestCron] = useState(releasesDigestSchedule || '0 21 * * 5')
   const [digestCoopOnly, setDigestCoopOnly] = useState(releasesDigestCoopOnly)
   const [digestSaving, setDigestSaving] = useState(false)
+  const [digestTesting, setDigestTesting] = useState(false)
   const { tier, status } = useSubscriptionStore()
   const isPremium = tier === 'premium' && status === 'active'
 
@@ -775,6 +779,23 @@ export function GroupSidebar({ members, groupId, groupName, syncing, inviteToken
                   {t('group.releasesDigestDisable')}
                 </Button>
               )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={async () => {
+                  if (digestTesting) return
+                  setDigestTesting(true)
+                  try {
+                    await onTestReleasesDigest()
+                  } finally {
+                    setDigestTesting(false)
+                  }
+                }}
+                disabled={digestTesting || digestSaving}
+              >
+                <Send className={`size-4 mr-2 ${digestTesting ? 'animate-pulse' : ''}`} />
+                {t('group.releasesDigestTest')}
+              </Button>
               <Button type="button" variant="outline" onClick={() => setDigestOpen(false)}>{t('group.cancel')}</Button>
               <Button type="submit" disabled={!digestCron.trim() || digestSaving}>
                 {releasesDigestEnabled ? t('group.releasesDigestSave') : t('group.releasesDigestEnable')}

@@ -385,6 +385,20 @@ export function GroupPage() {
     }
   }
 
+  const handleTestReleasesDigest = async () => {
+    if (!id) return
+    try {
+      const { delivered } = await api.testReleasesDigest(id)
+      if (delivered) {
+        toast.success(t('group.releasesDigestTestSuccess'))
+      } else {
+        toast.error(t('group.releasesDigestTestNotDelivered'))
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('group.releasesDigestTestError'))
+    }
+  }
+
   // Keep the hero persona in sync with the group detail response. The
   // socket listener above applies live midnight/override flips on top.
   useEffect(() => {
@@ -527,6 +541,7 @@ export function GroupPage() {
               onToggleNotifications={handleToggleNotifications}
               onUpdateAutoVote={handleUpdateAutoVote}
               onUpdateReleasesDigest={handleUpdateReleasesDigest}
+              onTestReleasesDigest={handleTestReleasesDigest}
             />
           </div>
 
@@ -755,6 +770,7 @@ export function GroupPage() {
               onToggleNotifications={handleToggleNotifications}
               onUpdateAutoVote={handleUpdateAutoVote}
               onUpdateReleasesDigest={handleUpdateReleasesDigest}
+              onTestReleasesDigest={handleTestReleasesDigest}
               compact
             />
           </ResponsiveDialogContent>

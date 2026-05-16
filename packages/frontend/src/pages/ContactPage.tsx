@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Mail } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -8,6 +8,7 @@ import { AppFooter } from '@/components/app-footer'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 const DISCORD_INVITE_URL = 'https://discord.gg/YjVwENDVSH'
+const SUPPORT_EMAIL = 'battistella@proton.me'
 
 function DiscordIcon({ className }: { className?: string }) {
   return (
@@ -69,6 +70,29 @@ export function ContactPage() {
               <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
                 <DiscordIcon />
                 {t('contact.discordCta')}
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-4">
+          <CardContent
+            padding="lg"
+            className="flex flex-col items-center text-center gap-4 pt-6"
+          >
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/15">
+              <Mail className="size-7 text-primary" />
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="font-heading text-lg font-semibold">{t('contact.emailTitle')}</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {t('contact.emailDescription')}
+              </p>
+            </div>
+            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+              <a href={`mailto:${SUPPORT_EMAIL}`}>
+                <Mail />
+                {t('contact.emailCta')}
               </a>
             </Button>
           </CardContent>

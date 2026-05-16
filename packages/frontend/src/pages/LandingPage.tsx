@@ -7,6 +7,7 @@ import {
   Zap,
   ChevronRight,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { motion, type Variants } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -479,7 +480,12 @@ export function LandingPage() {
               WAWPTN — {t('app.tagline')} — v{__APP_VERSION__} — {new Date(__BUILD_TIME__).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
-          <p>{t('login.privacy')}</p>
+          <div className="flex flex-col sm:flex-row items-center gap-x-4 gap-y-2 sm:text-right">
+            <Link to="/contact" className="hover:text-foreground transition-colors">
+              {t('contact.title')}
+            </Link>
+            <p>{t('login.privacy')}</p>
+          </div>
         </div>
       </footer>
     </div>

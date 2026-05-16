@@ -26,6 +26,7 @@ const ComparePage = lazy(() => import('@/pages/ComparePage').then((m) => ({ defa
 const DiscordLinkPage = lazy(() => import('@/pages/DiscordLinkPage').then((m) => ({ default: m.DiscordLinkPage })))
 const AdminPage = lazy(() => import('@/pages/AdminPage').then((m) => ({ default: m.AdminPage })))
 const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage').then((m) => ({ default: m.SubscriptionPage })))
+const ContactPage = lazy(() => import('@/pages/ContactPage').then((m) => ({ default: m.ContactPage })))
 
 // Dev-only sandbox; lazy + DEV-gated so it never ships in the prod bundle.
 const DialogTestPage = import.meta.env.DEV
@@ -127,6 +128,7 @@ function App() {
               doesn't hit the 404 fallback. */}
           <Route path="/invite/:token" element={<InviteRedirect />} />
           <Route path="/discord/link" element={<DiscordLinkPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
@@ -148,6 +150,7 @@ function App() {
           <Route path="/join/:token" element={<JoinPage />} />
           <Route path="/invite/:token" element={<InviteRedirect />} />
           <Route path="/discord/link" element={<DiscordLinkPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>

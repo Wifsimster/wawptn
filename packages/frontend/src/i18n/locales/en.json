@@ -426,7 +426,11 @@
     "win": "win",
     "participation": "Participation",
     "memberVotes": "{{count}} votes",
-    "recentWinners": "Recent winners"
+    "recentWinners": "Recent winners",
+    "winRate": "{{rate}}% win rate",
+    "emptyTitle": "No statistics yet",
+    "emptyDescription": "Start your first vote to see your group stats here.",
+    "loadError": "Couldn't load statistics."
   },
   "profile": {
     "title": "My Profile",
@@ -466,7 +470,9 @@
     "title": "Suggestions",
     "neverPlayed": "Never played together",
     "notPlayedLong": "Not played in a while",
-    "popularForgotten": "Popular but forgotten"
+    "popularForgotten": "Popular but forgotten",
+    "emptyTitle": "No suggestions right now",
+    "emptyDescription": "Sync your libraries to discover games to try together."
   },
   "landing": {
     "headline": "What are we playing tonight?",

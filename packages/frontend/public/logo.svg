@@ -13,6 +13,6 @@
   <rect width="512" height="512" rx="116" fill="url(#wawptn-bg)"/>
   <rect x="4" y="4" width="504" height="504" rx="112" fill="url(#wawptn-glow)"/>
   <rect x="2" y="2" width="508" height="508" rx="114" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2"/>
-  <path d="M188 196c0-44 36-80 80-80s80 36 80 80c0 35-24 56-48 70l-8 5v21h-40v-50l12-8c16-10 28-22 28-38 0-22-18-40-40-40s-40 18-40 40" stroke="#ffffff" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M268 364l28 28-28 28-28-28z" fill="#FBBF24"/>
+  <path fill-rule="evenodd" clip-rule="evenodd" fill="#ffffff" d="M256 180C296 180 330 184 350 196C372 209 384 230 404 286C418 324 410 344 384 342C360 340 340 322 312 306C296 297 280 296 256 296C232 296 216 297 200 306C172 322 152 340 128 342C102 344 94 324 108 286C128 230 140 209 162 196C182 184 216 180 256 180ZM173 220H203V237H220V267H203V284H173V267H156V237H173V220ZM287 278A17 17 0 1 0 321 278A17 17 0 1 0 287 278Z"/>
+  <path fill="#FBBF24" d="M319 238A23 23 0 1 0 365 238A23 23 0 1 0 319 238Z"/>
 </svg>

@@ -436,6 +436,13 @@
     "description": "La page que tu cherches n'existe pas ou a été déplacée.",
     "backHome": "Retour à l'accueil"
   },
+  "contact": {
+    "title": "Contact",
+    "subtitle": "Une question, un bug ou une idée ? Rejoins la communauté.",
+    "discordTitle": "Serveur Discord officiel",
+    "discordDescription": "Échange avec les autres joueurs, signale un bug et suis les nouveautés en direct.",
+    "discordCta": "Rejoindre le Discord"
+  },
   "stats": {
     "title": "Statistiques",
     "sessions": "sessions",

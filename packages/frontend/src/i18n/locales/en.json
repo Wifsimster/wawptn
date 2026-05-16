@@ -410,6 +410,13 @@
     "description": "The page you are looking for does not exist or has been moved.",
     "backHome": "Back to home"
   },
+  "contact": {
+    "title": "Contact",
+    "subtitle": "A question, a bug or an idea? Join the community.",
+    "discordTitle": "Official Discord server",
+    "discordDescription": "Chat with other players, report bugs and follow updates in real time.",
+    "discordCta": "Join the Discord"
+  },
   "stats": {
     "title": "Statistics",
     "sessions": "sessions",

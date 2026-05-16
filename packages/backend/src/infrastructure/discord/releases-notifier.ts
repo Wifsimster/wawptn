@@ -103,3 +103,52 @@ export async function notifyReleasesDigest(group: DigestGroup, games: ReleaseDig
     )
   }
 }
+
+/**
+ * Posts a one-off test message into a group's Discord. Used by the digest
+ * settings dialog so an owner can confirm the channel link works before
+ * relying on the weekly schedule. Uses the same dual-transport posture as
+ * `notifyReleasesDigest` and returns whether Discord accepted the post so
+ * the caller can surface success or failure to the owner.
+ */
+export async function notifyReleasesDigestTest(group: DigestGroup): Promise<boolean> {
+  const embed: DiscordEmbedPayload = {
+    title: '🧪 Test — Nouveautés Steam',
+    description:
+      `Ceci est un message de test pour **${group.name}**.\n` +
+      "Si tu vois ce message, le digest hebdomadaire des nouveautés Steam est bien relié à ce salon.",
+    color: STEAM_BLUE,
+    footer: { text: 'WAWPTN — Nouveautés Steam' },
+    timestamp: new Date().toISOString(),
+  }
+
+  let delivered = false
+
+  if (group.discordChannelId && isBotClientEnabled()) {
+    delivered = await postChannelEmbed(group.discordChannelId, [embed])
+    if (delivered) {
+      logger.info({ groupId: group.id, channelId: group.discordChannelId }, 'releases digest test posted via bot')
+    }
+  }
+
+  if (!delivered && group.discordWebhookUrl) {
+    delivered = await postWebhook(group.discordWebhookUrl, embed)
+    if (delivered) {
+      logger.info({ groupId: group.id }, 'releases digest test posted via webhook')
+    }
+  }
+
+  if (!delivered) {
+    logger.warn(
+      {
+        groupId: group.id,
+        channelId: group.discordChannelId,
+        botEnabled: isBotClientEnabled(),
+        hasWebhook: !!group.discordWebhookUrl,
+      },
+      'releases digest test dropped: no transport could post',
+    )
+  }
+
+  return delivered
+}

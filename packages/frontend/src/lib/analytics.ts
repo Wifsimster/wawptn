@@ -25,6 +25,7 @@ export type AnalyticsEvent =
   | 'group.create_failed'
   | 'group.hero_start_vote'
   | 'group.hero_join_vote'
+  | 'group.row_join_vote'
   | 'invite.generated'
   | 'invite.link_copied'
   | 'invite.shared'

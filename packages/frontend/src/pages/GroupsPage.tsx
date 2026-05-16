@@ -609,29 +609,60 @@ interface CompactGroupRowProps {
 
 function CompactGroupRow({ group }: CompactGroupRowProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const isActive = !!group.activeVoteSession
 
+  // No live vote: the whole row is one link to the group page, where the
+  // prominent "tonight" CTA lives.
+  if (!isActive) {
+    return (
+      <Link
+        to={`/groups/${group.id}`}
+        className={cn(
+          'flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border hover:bg-muted/40 transition-colors',
+          group.role === 'owner' && 'border-l-2 border-l-reward/40',
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <span className="font-medium truncate block">{group.name}</span>
+          <span className="text-xs text-muted-foreground">
+            {t('groups.membersCount', { count: group.memberCount })}
+          </span>
+        </div>
+      </Link>
+    )
+  }
+
+  // A vote is live: surface a direct "join" shortcut so the user doesn't
+  // have to open the group page and hunt for it.
   return (
-    <Link
-      to={`/groups/${group.id}`}
+    <div
       className={cn(
-        'flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border hover:bg-muted/40 transition-colors',
+        'flex items-center gap-3 pl-4 pr-2 py-2 rounded-lg border border-neon/40 bg-neon/5',
         group.role === 'owner' && 'border-l-2 border-l-reward/40',
       )}
     >
-      <div className="min-w-0 flex-1">
+      <Link
+        to={`/groups/${group.id}`}
+        className="min-w-0 flex-1 py-1 hover:opacity-80 transition-opacity"
+      >
         <span className="font-medium truncate block">{group.name}</span>
         <span className="text-xs text-muted-foreground">
           {t('groups.membersCount', { count: group.memberCount })}
         </span>
-      </div>
-      {isActive && (
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-neon/10 px-2 py-0.5 text-[11px] font-semibold text-neon shrink-0">
-          <span className="size-1.5 rounded-full bg-neon animate-pulse" aria-hidden="true" />
-          {t('groups.voteOngoing')}
-        </span>
-      )}
-    </Link>
+      </Link>
+      <Button
+        size="sm"
+        onClick={() => {
+          track('group.row_join_vote')
+          navigate(`/groups/${group.id}/vote`)
+        }}
+        className="shrink-0 h-9 gap-1.5 animate-pulse"
+      >
+        <Vote className="size-3.5" />
+        {t('groups.joinVote')}
+      </Button>
+    </div>
   )
 }
 

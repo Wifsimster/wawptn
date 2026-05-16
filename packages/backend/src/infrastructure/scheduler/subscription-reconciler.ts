@@ -74,7 +74,14 @@ export function startSubscriptionReconciler(): void {
     await runReconciliation()
   })
 
-  reconcilerLogger.info('subscription reconciler scheduled (daily at 03:00 UTC)')
+  // Catch-up: in-process cron does not replay a fire time missed while the
+  // process was down, so a deploy or crash spanning 03:00 UTC would skip a
+  // day of reconciliation. Run once shortly after startup to cover that.
+  // The pass is idempotent and advisory-locked, so an extra run per deploy
+  // is harmless.
+  setTimeout(() => { void runReconciliation() }, 30_000)
+
+  reconcilerLogger.info('subscription reconciler scheduled (daily at 03:00 UTC, catch-up on startup)')
 }
 
 /** Signal the reconciler that the process is shutting down and wait for any

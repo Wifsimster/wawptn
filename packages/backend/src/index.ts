@@ -17,6 +17,7 @@ import { startAutoVoteScheduler } from './infrastructure/scheduler/auto-vote-sch
 import { startReleasesDigestScheduler } from './infrastructure/scheduler/releases-digest-scheduler.js'
 import { startSubscriptionReconciler, stopSubscriptionReconciler } from './infrastructure/scheduler/subscription-reconciler.js'
 import { logger } from './infrastructure/logger/logger.js'
+import { sendFatalAlert } from './infrastructure/alerting/alerter.js'
 import { authRoutes } from './presentation/routes/auth.routes.js'
 import { groupRoutes } from './presentation/routes/group.routes.js'
 import { voteRoutes } from './presentation/routes/vote.routes.js'
@@ -296,6 +297,7 @@ async function main() {
   const connected = await testConnection()
   if (!connected) {
     logger.fatal('Failed to connect to database')
+    await sendFatalAlert('database connection failed', 'testConnection() returned false at startup')
     process.exit(1)
   }
 
@@ -306,6 +308,7 @@ async function main() {
   const migrated = await runMigrations()
   if (!migrated) {
     logger.fatal('Database migrations failed')
+    await sendFatalAlert('database migrations failed', 'runMigrations() returned false at startup')
     process.exit(1)
   }
 
@@ -405,14 +408,14 @@ async function main() {
 // instead of silently serving a broken process.
 process.on('unhandledRejection', (reason) => {
   logger.fatal({ error: String(reason) }, 'unhandled promise rejection')
-  process.exit(1)
+  void sendFatalAlert('unhandled promise rejection', String(reason)).finally(() => process.exit(1))
 })
 process.on('uncaughtException', (err) => {
   logger.fatal({ error: String(err), stack: err?.stack }, 'uncaught exception')
-  process.exit(1)
+  void sendFatalAlert('uncaught exception', err?.stack ?? String(err)).finally(() => process.exit(1))
 })
 
 main().catch(err => {
   logger.fatal({ error: String(err) }, 'failed to start server')
-  process.exit(1)
+  void sendFatalAlert('server failed to start', err?.stack ?? String(err)).finally(() => process.exit(1))
 })

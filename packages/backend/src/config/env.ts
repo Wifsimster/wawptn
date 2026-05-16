@@ -99,6 +99,13 @@ export const env = {
   /** Public URL used to build absolute links in emails (e.g. "go to your
    *  account"). Falls back to CORS_ORIGIN which points at the frontend. */
   APP_PUBLIC_URL: process.env['APP_PUBLIC_URL'] || process.env['CORS_ORIGIN'] || 'http://localhost:5173',
+
+  /** Webhook URL (Discord-webhook format) that receives fatal-error
+   *  alerts — uncaught exceptions, failed startup, database outage — so a
+   *  2am failure pages someone instead of dying silently. Empty disables
+   *  alerting. This is the dependency-free baseline; a full error-tracking
+   *  service is still recommended for grouping and metrics. */
+  ALERT_WEBHOOK_URL: process.env['ALERT_WEBHOOK_URL'] || '',
 }
 
 export function validateEnv(): void {

@@ -9,14 +9,20 @@ const cleanupLogger = logger.child({ module: 'notification-cleanup' })
  * Runs every Sunday at 3:00 AM.
  */
 export function startNotificationCleanup(): void {
-  cron.schedule('0 3 * * 0', async () => {
+  const runCleanup = async (): Promise<void> => {
     try {
       const deleted = await cleanupExpiredNotifications()
       cleanupLogger.info({ deleted }, 'notification cleanup completed')
     } catch (error) {
       cleanupLogger.error({ error: String(error) }, 'notification cleanup failed')
     }
-  })
+  }
 
-  cleanupLogger.info('notification cleanup scheduler started (weekly, Sundays 3:00 AM)')
+  cron.schedule('0 3 * * 0', runCleanup)
+
+  // Catch-up: a restart spanning the weekly fire time would otherwise skip
+  // a week. The cleanup is an idempotent delete of expired rows.
+  setTimeout(() => { void runCleanup() }, 30_000)
+
+  cleanupLogger.info('notification cleanup scheduler started (weekly Sundays 3:00 AM, catch-up on startup)')
 }

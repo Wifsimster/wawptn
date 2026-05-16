@@ -90,7 +90,7 @@ export function GroupPage() {
       // `freeLimitApplied` tells us whether to show an upgrade CTA beneath
       // the list.
       const history = await api.getVoteHistory(groupId)
-      setVoteHistory(history.data.filter((h) => h.winningGameName).slice(0, 5))
+      setVoteHistory(history.data.filter((h) => h.winningGameName))
       setVoteHistoryTruncated(history.freeLimitApplied)
     } catch {
       // Non-critical, fail silently
@@ -520,7 +520,7 @@ export function GroupPage() {
       </PageHeader>
 
       <main id="main-content" className="w-full max-w-5xl mx-auto px-3 sm:px-4 py-4 min-w-0">
-        <GroupTabs active={activeTab} onChange={setActiveTab} />
+        <GroupTabs active={activeTab} onChange={setActiveTab} voteLive={!!activeVoteSession} />
 
         <div className="pt-4">
           {activeTab !== 'tonight' && (

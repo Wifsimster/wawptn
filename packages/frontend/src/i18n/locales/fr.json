@@ -304,6 +304,7 @@
     "selectAll": "Tout sélectionner",
     "selectedCount": "{{count}} joueur(s) sélectionné(s)",
     "next": "Suivant",
+    "moreOptions": "Plus d'options",
     "confirmTitle": "Lancer le vote ?",
     "confirmDescription": "{{players}} joueurs sélectionnés — {{games}} jeux en commun.",
     "confirmDescriptionNoPreview": "{{players}} joueurs sélectionnés.",

@@ -287,6 +287,7 @@
     "selectAll": "Select all",
     "selectedCount": "{{count}} player(s) selected",
     "next": "Next",
+    "moreOptions": "More options",
     "confirmTitle": "Start vote?",
     "confirmDescription": "{{players}} players selected — {{games}} games in common.",
     "confirmDescriptionNoPreview": "{{players}} players selected.",

@@ -182,6 +182,14 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
     setPreviewCount(null)
   }
 
+  // One-tap path: start the vote straight from the member-selection step
+  // with no game filters and no scheduling. The live common-game count is
+  // already shown above, so the confirm step adds nothing for this case.
+  const handleQuickStart = () => {
+    onStartVote(Array.from(selectedIds), undefined, undefined)
+    onOpenChange(false)
+  }
+
   const handleConfirm = () => {
     const scheduled = isScheduled && scheduledDate ? new Date(scheduledDate).toISOString() : undefined
     const filtersParam = hasActiveGameFilters ? gameFilters : undefined
@@ -280,14 +288,29 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
               ) : null}
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:justify-between items-center gap-2 mt-4">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mt-4">
               <span className="text-xs text-muted-foreground">
                 {t('voteSetup.selectedCount', { count: selectedIds.size })}
               </span>
-              <Button onClick={handleNext} disabled={!canProceed || loadingPreview} className="w-full sm:w-auto">
-                {loadingPreview && <Loader2 className="size-4 mr-2 animate-spin" />}
-                {t('voteSetup.next')}
-              </Button>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <Button
+                  variant="ghost"
+                  onClick={handleNext}
+                  disabled={!canProceed || loadingPreview}
+                  className="flex-1 sm:flex-initial"
+                >
+                  {loadingPreview && <Loader2 className="size-4 mr-2 animate-spin" />}
+                  {t('voteSetup.moreOptions')}
+                </Button>
+                <Button
+                  onClick={handleQuickStart}
+                  disabled={!canProceed || loadingPreview}
+                  className="flex-1 sm:flex-initial"
+                >
+                  <Vote className="size-4 mr-2" />
+                  {t('voteSetup.startVote')}
+                </Button>
+              </div>
             </div>
           </>
         )}

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { WawptnLogo } from '@/components/icons/wawptn-logo'
 import { useTranslation } from 'react-i18next'
 
@@ -11,6 +12,10 @@ export function AppFooter() {
         <span className="break-words min-w-0">
           WAWPTN — {t('app.tagline')} — v{__APP_VERSION__} — {new Date(__BUILD_TIME__).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
         </span>
+        <span aria-hidden="true">—</span>
+        <Link to="/contact" className="underline-offset-2 hover:text-foreground hover:underline transition-colors">
+          {t('contact.title')}
+        </Link>
       </div>
     </footer>
   )

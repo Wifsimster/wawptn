@@ -2,8 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Clock, GitCompare, Lock, RefreshCw, Trophy } from 'lucide-react'
 import { useTranslation, Trans } from 'react-i18next'
-import { AppHeader } from '@/components/app-header'
-import { AppFooter } from '@/components/app-footer'
+import { PageHeader } from '@/components/app-layout'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -63,31 +62,30 @@ export function UserProfilePage() {
 
   if (isLoading && !profile) {
     return (
-      <div className="min-h-dvh flex flex-col">
-        <AppHeader>
+      <>
+        <PageHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="size-5" />
           </Button>
-        </AppHeader>
+        </PageHeader>
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 space-y-4">
           <Skeleton className="h-40 rounded-2xl" />
           <Skeleton className="h-6 w-32" />
           <Skeleton className="h-24 rounded-xl" />
           <Skeleton className="h-24 rounded-xl" />
         </main>
-        <AppFooter />
-      </div>
+      </>
     )
   }
 
   if (error || !profile) {
     return (
-      <div className="min-h-dvh flex flex-col">
-        <AppHeader>
+      <>
+        <PageHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="size-5" />
           </Button>
-        </AppHeader>
+        </PageHeader>
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 flex-1 flex items-center justify-center">
           <div className="text-center space-y-3">
             <Lock className="size-8 mx-auto text-muted-foreground" />
@@ -100,8 +98,7 @@ export function UserProfilePage() {
             </Button>
           </div>
         </main>
-        <AppFooter />
-      </div>
+      </>
     )
   }
 
@@ -109,12 +106,12 @@ export function UserProfilePage() {
   const topCommon = profile.commonGamesWithViewer.slice(0, 3)
 
   return (
-    <div className="min-h-dvh flex flex-col">
-      <AppHeader>
+    <>
+      <PageHeader>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="size-5" />
         </Button>
-      </AppHeader>
+      </PageHeader>
 
       <main id="main-content" className="max-w-2xl mx-auto w-full p-4 space-y-6 pb-12">
         {/* ── Header card ── */}
@@ -274,7 +271,6 @@ export function UserProfilePage() {
           </div>
         )}
       </main>
-      <AppFooter />
-    </div>
+    </>
   )
 }

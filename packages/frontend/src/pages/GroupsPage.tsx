@@ -19,8 +19,6 @@ import {
   ResponsiveDialogTitle,
   ResponsiveDialogDescription,
 } from '@/components/ui/responsive-dialog'
-import { AppHeader } from '@/components/app-header'
-import { AppFooter } from '@/components/app-footer'
 import { InviteLink } from '@/components/invite-link'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
@@ -243,9 +241,7 @@ export function GroupsPage() {
   }, [heroGroup, navigate])
 
   return (
-    <div className="min-h-dvh flex flex-col">
-      <AppHeader />
-
+    <>
       <main
         id="main-content"
         ref={mainRef}
@@ -536,9 +532,7 @@ export function GroupsPage() {
           </div>
         </div>
       )}
-
-      <AppFooter />
-    </div>
+    </>
   )
 }
 

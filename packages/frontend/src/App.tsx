@@ -12,6 +12,7 @@ import { useSocketConnectionStatus } from '@/hooks/useSocketConnectionStatus'
 import { useNotificationStore } from '@/stores/notification.store'
 import { useWishlistStore } from '@/stores/wishlist.store'
 import { KoeSupport } from '@/components/KoeSupport'
+import { AppLayout } from '@/components/app-layout'
 
 // Route-level code splitting. Keeps LandingPage (LCP target) and
 // NotFoundPage eager; everything else loads on demand so the first paint
@@ -137,13 +138,18 @@ function App() {
     <>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          <Route path="/" element={<GroupsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/u/:userId" element={<UserProfilePage />} />
-          <Route path="/compare" element={<ComparePage />} />
-          <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
-          <Route path="/subscription" element={<SubscriptionPage />} />
-          <Route path="/groups/:id" element={<GroupPage />} />
+          {/* Standard pages — wrapped in the shared AppLayout shell
+              (persistent header + footer + header slot). */}
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<GroupsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/u/:userId" element={<UserProfilePage />} />
+            <Route path="/compare" element={<ComparePage />} />
+            <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
+            <Route path="/subscription" element={<SubscriptionPage />} />
+            <Route path="/groups/:id" element={<GroupPage />} />
+          </Route>
+          {/* Full-screen / chrome-less routes — own their own layout. */}
           <Route path="/groups/:id/vote" element={<VotePage />} />
           <Route path="/join/:token" element={<JoinPage />} />
           <Route path="/invite/:token" element={<InviteRedirect />} />

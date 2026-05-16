@@ -10,8 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { PlatformIcon } from '@/components/icons/platforms'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { AppHeader } from '@/components/app-header'
-import { AppFooter } from '@/components/app-footer'
+import { PageHeader } from '@/components/app-layout'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -331,12 +330,12 @@ export function ProfilePage() {
   /* ── Loading skeleton ── */
   if (loading) {
     return (
-      <div className="min-h-dvh flex flex-col">
-        <AppHeader>
+      <>
+        <PageHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
             <ArrowLeft className="size-5" />
           </Button>
-        </AppHeader>
+        </PageHeader>
         <main
           id="main-content"
           className="max-w-2xl mx-auto p-4 space-y-6"
@@ -351,8 +350,7 @@ export function ProfilePage() {
             {[1, 2, 3].map(i => <Skeleton key={i} className="h-[4.5rem] rounded-xl" />)}
           </div>
         </main>
-        <AppFooter />
-      </div>
+      </>
     )
   }
 
@@ -362,12 +360,12 @@ export function ProfilePage() {
   const otherGames = profile.topGames?.slice(1)
 
   return (
-    <div className="min-h-dvh flex flex-col">
-      <AppHeader>
+    <>
+      <PageHeader>
         <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
           <ArrowLeft className="size-5" />
         </Button>
-      </AppHeader>
+      </PageHeader>
 
       <motion.main
         id="main-content"
@@ -786,7 +784,6 @@ export function ProfilePage() {
           </motion.section>
         )}
       </motion.main>
-      <AppFooter />
-    </div>
+    </>
   )
 }

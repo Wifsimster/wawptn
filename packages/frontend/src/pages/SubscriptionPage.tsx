@@ -3,8 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Crown, CreditCard, ExternalLink } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { AppHeader } from '@/components/app-header'
-import { AppFooter } from '@/components/app-footer'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -175,9 +173,7 @@ export function SubscriptionPage() {
   const canManageSubscription = isPremium && source === 'stripe'
 
   return (
-    <div className="min-h-dvh flex flex-col bg-background">
-      <AppHeader />
-      <main id="main-content" className="max-w-2xl mx-auto px-4 py-8">
+    <main id="main-content" className="max-w-2xl mx-auto px-4 py-8">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-4">
           <ArrowLeft className="size-4 mr-2" />
           {t('group.back')}
@@ -313,8 +309,6 @@ export function SubscriptionPage() {
             )}
           </CardContent>
         </Card>
-      </main>
-      <AppFooter />
-    </div>
+    </main>
   )
 }

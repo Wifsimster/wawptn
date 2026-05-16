@@ -2,8 +2,7 @@ import { useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Gamepad2, Trophy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { AppHeader } from '@/components/app-header'
-import { AppFooter } from '@/components/app-footer'
+import { PageHeader } from '@/components/app-layout'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -66,12 +65,12 @@ export function ComparePage() {
 
   if (!a || !b || a === b) {
     return (
-      <div className="min-h-dvh flex flex-col">
-        <AppHeader>
+      <>
+        <PageHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="size-5" />
           </Button>
-        </AppHeader>
+        </PageHeader>
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 flex-1 flex items-center justify-center text-center">
           <div>
             <h1 className="text-lg font-semibold">{t('compare.impossibleTitle')}</h1>
@@ -80,19 +79,18 @@ export function ComparePage() {
             </p>
           </div>
         </main>
-        <AppFooter />
-      </div>
+      </>
     )
   }
 
   if (isLoading && !result) {
     return (
-      <div className="min-h-dvh flex flex-col">
-        <AppHeader>
+      <>
+        <PageHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="size-5" />
           </Button>
-        </AppHeader>
+        </PageHeader>
         <main
           id="main-content"
           className="max-w-3xl mx-auto w-full p-4 space-y-4"
@@ -105,19 +103,18 @@ export function ComparePage() {
           <Skeleton className="h-6 w-32" />
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
         </main>
-        <AppFooter />
-      </div>
+      </>
     )
   }
 
   if (error || !result) {
     return (
-      <div className="min-h-dvh flex flex-col">
-        <AppHeader>
+      <>
+        <PageHeader>
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="size-5" />
           </Button>
-        </AppHeader>
+        </PageHeader>
         <main id="main-content" className="max-w-2xl mx-auto w-full p-4 flex-1 flex items-center justify-center text-center">
           <div>
             <h1 className="text-lg font-semibold">{t('compare.unavailableTitle')}</h1>
@@ -129,8 +126,7 @@ export function ComparePage() {
             </Button>
           </div>
         </main>
-        <AppFooter />
-      </div>
+      </>
     )
   }
 
@@ -140,12 +136,12 @@ export function ComparePage() {
   const nameB = meIsB ? t('compare.you') : result.b.displayName
 
   return (
-    <div className="min-h-dvh flex flex-col">
-      <AppHeader>
+    <>
+      <PageHeader>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="size-5" />
         </Button>
-      </AppHeader>
+      </PageHeader>
 
       <main id="main-content" className="max-w-3xl mx-auto w-full p-4 space-y-6 pb-12">
         <h1 className="sr-only">{t('compare.srHeading', { a: nameA, b: nameB })}</h1>
@@ -249,8 +245,7 @@ export function ComparePage() {
           </section>
         )}
       </main>
-      <AppFooter />
-    </div>
+    </>
   )
 }
 

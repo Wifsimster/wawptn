@@ -32,14 +32,19 @@ interface AppHeaderProps {
   children?: React.ReactNode
   className?: string
   maxWidth?: 'narrow' | 'wide'
+  /** Set by AppLayout: whether a page has portalled content into the header
+   *  slot. When AppLayout passes an (always-truthy) slot node as `children`,
+   *  this — not `children` — decides the page-content layout. */
+  hasPageContent?: boolean
 }
 
-export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeaderProps) {
+export function AppHeader({ children, className, maxWidth = 'narrow', hasPageContent }: AppHeaderProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
   const { tier } = useSubscriptionStore()
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
+  const showPageContent = hasPageContent ?? !!children
 
   const handleLogout = async () => {
     await logout()
@@ -53,7 +58,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
       </a>
       <nav className={cn('mx-auto flex h-14 items-center gap-1 px-[max(0.75rem,env(safe-area-inset-left))]', maxWidth === 'wide' ? 'max-w-6xl' : 'max-w-2xl')} style={{ paddingRight: 'max(0.75rem, env(safe-area-inset-right))' }} aria-label={t('app.name')}>
         {children && (
-          <div className="flex items-center min-w-0 flex-1 sm:flex-initial">
+          <div className={cn('flex items-center min-w-0', showPageContent ? 'flex-1 sm:flex-initial' : 'contents')}>
             {children}
           </div>
         )}
@@ -64,9 +69,9 @@ export function AppHeader({ children, className, maxWidth = 'narrow' }: AppHeade
           aria-label={t('app.name') + ' — ' + t('app.tagline')}
         >
           <WawptnLogo size={28} className="text-primary" aria-hidden="true" />
-          <span className={cn('font-heading font-bold text-lg tracking-[-0.03em]', children ? 'hidden sm:inline' : 'inline')}>WAWPTN</span>
+          <span className={cn('font-heading font-bold text-lg tracking-[-0.03em]', showPageContent ? 'hidden sm:inline' : 'inline')}>WAWPTN</span>
         </button>
-        <div className={cn('flex-1', children && 'hidden sm:block')} />
+        <div className={cn('flex-1', showPageContent && 'hidden sm:block')} />
 
         {/* Notifications */}
         {user && <NotificationBell />}

@@ -20,8 +20,7 @@ import {
   ResponsiveDialogTitle,
   ResponsiveDialogDescription,
 } from '@/components/ui/responsive-dialog'
-import { AppHeader } from '@/components/app-header'
-import { AppFooter } from '@/components/app-footer'
+import { PageHeader } from '@/components/app-layout'
 import { GroupPanel } from '@/components/group-panel'
 import { GroupTabs, type GroupTab } from '@/components/group-tabs'
 import { GameGrid, type GameFilters } from '@/components/game-grid'
@@ -450,10 +449,10 @@ export function GroupPage() {
 
   if (!currentGroup) {
     return (
-      <div className="min-h-dvh flex flex-col">
-        <AppHeader maxWidth="wide">
+      <>
+        <PageHeader>
           <Skeleton className="size-5 rounded" />
-        </AppHeader>
+        </PageHeader>
         <main id="main-content" className="max-w-5xl mx-auto p-4 w-full">
           <div
             role="status"
@@ -466,8 +465,7 @@ export function GroupPage() {
             <Skeleton className="h-[400px] w-full rounded-lg" />
           </div>
         </main>
-        <AppFooter />
-      </div>
+      </>
     )
   }
 
@@ -505,8 +503,8 @@ export function GroupPage() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col">
-      <AppHeader maxWidth="wide">
+    <>
+      <PageHeader>
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')} className="shrink-0">
             <ArrowLeft className="size-5" />
@@ -519,7 +517,7 @@ export function GroupPage() {
             </Badge>
           )}
         </div>
-      </AppHeader>
+      </PageHeader>
 
       <main id="main-content" className="w-full max-w-5xl mx-auto px-3 sm:px-4 py-4 min-w-0">
         <GroupTabs active={activeTab} onChange={setActiveTab} />
@@ -722,8 +720,6 @@ export function GroupPage() {
           </div>
         </ResponsiveDialogContent>
       </ResponsiveDialog>
-
-      <AppFooter />
-    </div>
+    </>
   )
 }

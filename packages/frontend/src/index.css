@@ -182,6 +182,21 @@
     background-repeat: repeat;
     background-size: 256px 256px;
   }
+
+  /* ── Aurora ambient layer (react-bits WebGL background) ──
+     Host for the <AuroraBackground> WebGL canvas. Sits beneath the gradient
+     mesh (body::before, z-index -2) and the fog layer (body::after, -1) as
+     the deepest band of atmosphere, so it shows through wherever a page
+     leaves its root transparent. Held faint and pointer-inert so it never
+     competes with content; the React layer is skipped entirely on coarse-
+     pointer phones and under prefers-reduced-motion. */
+  .aurora-bg-layer {
+    position: fixed;
+    inset: 0;
+    z-index: -3;
+    pointer-events: none;
+    opacity: 0.28;
+  }
 }
 
 /* ── Keyframes ── */

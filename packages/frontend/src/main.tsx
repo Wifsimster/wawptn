@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from 'sonner'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { PwaUpdatePanel } from '@/components/pwa-update-panel'
+import { AuroraBackground } from '@/components/aurora-background'
 import App from './App'
 import './i18n'
 import './index.css'
@@ -13,6 +14,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <TooltipProvider delayDuration={300}>
+        <AuroraBackground />
         <ErrorBoundary>
           <App />
         </ErrorBoundary>

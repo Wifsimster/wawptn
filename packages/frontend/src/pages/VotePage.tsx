@@ -797,6 +797,8 @@ function ResultScreen({
                 <img
                   src={result.headerImageUrl}
                   alt=""
+                  width={460}
+                  height={215}
                   onError={(e) => {
                     e.currentTarget.style.display = 'none'
                   }}

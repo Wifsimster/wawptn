@@ -35,6 +35,8 @@ export function GameThumb({ appId, name, src, className }: GameThumbProps) {
     <img
       src={resolveSteamHeaderImage(appId, src)}
       alt=""
+      width={460}
+      height={215}
       className={cn('rounded object-cover bg-muted shrink-0', className)}
       loading="lazy"
       onError={() => setFailed(true)}

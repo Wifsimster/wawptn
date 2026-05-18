@@ -26,6 +26,8 @@ function AvatarImage({
     <AvatarPrimitive.Image
       ref={ref}
       data-slot="avatar-image"
+      width={40}
+      height={40}
       className={cn('aspect-square h-full w-full', className)}
       {...props}
     />

@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
+import { env } from '../../config/env.js'
 import { hashInviteToken } from '../../infrastructure/steam/steam-client.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 
@@ -151,13 +152,22 @@ router.get('/:token', async (req: Request, res: Response) => {
     ? `${memberCount} membre${memberCount > 1 ? 's' : ''} — Connecte-toi avec Steam et vote pour le jeu de ce soir !`
     : 'Connecte-toi avec Steam, rejoins un groupe et votez pour le jeu de ce soir !'
 
-  const baseUrl = `${req.protocol}://${req.get('host')}`
-  const spaUrl = `${baseUrl}/join/${token}`
+  // Absolute base URL from config. req.protocol/req.get('host') would be
+  // wrong behind the Traefik proxy (reports http, not https) and is
+  // attacker-controllable via the Host header — both would poison the OG
+  // image and canonical URLs handed to crawlers.
+  const baseUrl = env.API_URL
+  // `token` is a raw URL path segment. Escape every interpolation that lands
+  // in an HTML attribute so a crafted token cannot break out and inject markup.
+  const spaUrl = escapeHtml(`${baseUrl}/join/${token}`)
+  const inviteUrl = escapeHtml(`${baseUrl}/invite/${token}`)
   // Valid invites get a dynamic branded card (group name, member count, top
   // games); expired/invalid tokens fall back to the static logo.
-  const ogImageUrl = isValid
-    ? `${baseUrl}/api/og/invite/${token}.png`
-    : `${baseUrl}/og-image.png`
+  const ogImageUrl = escapeHtml(
+    isValid
+      ? `${baseUrl}/api/og/invite/${token}.png`
+      : `${baseUrl}/og-image.png`,
+  )
 
   // Minimal HTML with OG tags for crawlers + meta refresh redirect for humans
   const html = `<!DOCTYPE html>
@@ -172,7 +182,9 @@ router.get('/:token', async (req: Request, res: Response) => {
   <meta property="og:title" content="${escapeHtml(ogTitle)}">
   <meta property="og:description" content="${escapeHtml(ogDescription)}">
   <meta property="og:image" content="${ogImageUrl}">
-  <meta property="og:url" content="${baseUrl}/invite/${token}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="${inviteUrl}">
   <meta property="og:site_name" content="WAWPTN">
 
   <!-- Twitter Card -->

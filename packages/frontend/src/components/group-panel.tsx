@@ -149,6 +149,8 @@ export function GroupPanel({ members, groupId, groupName, syncing, inviteToken, 
           <img
             src={getSteamHeaderImageUrl(session.winningGameAppId)}
             alt={session.winningGameName}
+            width={64}
+            height={34}
             className="w-16 h-[34px] rounded object-cover shrink-0"
             loading="lazy"
           />

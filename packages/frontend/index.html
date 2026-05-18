@@ -68,10 +68,12 @@
   }
   </script>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <title>WAWPTN — Que jouons-nous ce soir ? | Vote de jeu Steam en groupe</title>
+  <!-- Self-hosted fonts (see src/index.css @font-face). Preload the latin
+       subsets used above the fold so the woff2 fetch starts before the CSS
+       bundle parses. -->
+  <link rel="preload" href="/fonts/plus-jakarta-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <title>Que jouons-nous ce soir ? | Vote de jeu Steam en groupe</title>
 </head>
 
 <body>

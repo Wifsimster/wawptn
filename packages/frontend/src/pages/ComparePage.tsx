@@ -205,6 +205,8 @@ export function ComparePage() {
                         <img
                           src={game.headerImageUrl}
                           alt={game.gameName}
+                          width={64}
+                          height={32}
                           className="w-16 h-8 object-cover rounded-md shrink-0"
                           loading="lazy"
                         />

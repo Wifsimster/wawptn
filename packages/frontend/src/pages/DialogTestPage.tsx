@@ -56,7 +56,7 @@ export function DialogTestPage() {
             <label htmlFor="test-input" className="text-sm font-medium">Label</label>
             <div className="flex gap-2">
               <Input id="test-input" placeholder="Type something..." />
-              <Button>Submit</Button>
+              <Button>Enregistrer</Button>
             </div>
           </div>
         </ResponsiveDialogContent>
@@ -93,7 +93,7 @@ export function DialogTestPage() {
           </div>
           <ResponsiveDialogFooter className="sm:justify-between">
             <Button variant="ghost" onClick={() => setActiveDialog(null)}>Back</Button>
-            <Button onClick={() => setActiveDialog(null)}>Continue</Button>
+            <Button onClick={() => setActiveDialog(null)}>Continuer vers l'étape suivante</Button>
           </ResponsiveDialogFooter>
         </ResponsiveDialogContent>
       </ResponsiveDialog>

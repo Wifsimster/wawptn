@@ -26,7 +26,7 @@ export function AppFooter() {
         <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
           <WawptnLogo size={16} className="text-muted-foreground shrink-0" />
           <span className="break-words min-w-0">
-            WAWPTN — {t('app.tagline')} — v{__APP_VERSION__} — {new Date(__BUILD_TIME__).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            WAWPTN · {t('app.tagline')} · v{__APP_VERSION__} · {new Date(__BUILD_TIME__).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
         <nav

@@ -1,7 +1,7 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback, useEffectEvent } from 'react'
 import { Bell, BellRing, CheckCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useNotificationStore } from '@/stores/notification.store'
@@ -11,6 +11,17 @@ import {
   type NotificationPermissionState,
 } from '@/lib/pwa'
 import type { Notification } from '@wawptn/types'
+
+function getNotificationIcon(type: string): string {
+  switch (type) {
+    case 'vote_opened': return '🗳️'
+    case 'vote_closed': return '🏆'
+    case 'admin_broadcast': return '📢'
+    case 'premium_granted': return '👑'
+    case 'premium_revoked': return '🔒'
+    default: return '🔔'
+  }
+}
 
 export function NotificationBell() {
   const { t } = useTranslation()
@@ -53,18 +64,22 @@ export function NotificationBell() {
     requestAnimationFrame(() => triggerRef.current?.focus())
   }, [])
 
-  // Escape closes the panel — registered only while it's open.
+  // Escape closes the panel — registered only while it's open. The key
+  // handler is wrapped in an effect event so closePanel doesn't force a
+  // re-subscribe on every render.
+  const onEscape = useEffectEvent((e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      closePanel()
+    }
+  })
+
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        closePanel()
-      }
-    }
+    const onKey = (e: KeyboardEvent) => onEscape(e)
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open, closePanel])
+  }, [open])
 
   // On open, move focus into the panel so SR users hear the dialog label
   // and keyboard users can Tab through items immediately. tabIndex=-1
@@ -102,17 +117,6 @@ export function NotificationBell() {
     return t('notifications.daysAgo', { count: days })
   }
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'vote_opened': return '🗳️'
-      case 'vote_closed': return '🏆'
-      case 'admin_broadcast': return '📢'
-      case 'premium_granted': return '👑'
-      case 'premium_revoked': return '🔒'
-      default: return '🔔'
-    }
-  }
-
   const bellLabel = unreadCount > 0
     ? t('notifications.titleWithCount', {
         defaultValue: '{{title}} ({{count}} non lues)',
@@ -132,19 +136,19 @@ export function NotificationBell() {
         className="relative flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors p-2 -m-1 min-h-[44px] min-w-[44px]"
         aria-label={bellLabel}
       >
-        <motion.div
+        <m.div
           key={bellAnimationKey}
           animate={{ rotate: [0, 12, -12, 8, -8, 0] }}
           transition={{ duration: 0.4 }}
         >
           <Bell className="size-5" aria-hidden="true" />
-        </motion.div>
+        </m.div>
         <AnimatePresence>
           {unreadCount > 0 && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: [0, 1.2, 1] }}
-              exit={{ scale: 0 }}
+            <m.span
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: [0.95, 1.2, 1], opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
               aria-hidden="true"
               className="absolute top-1.5 right-1.5 size-2.5 bg-destructive rounded-full"
             />
@@ -158,7 +162,7 @@ export function NotificationBell() {
             {/* Backdrop */}
             <div className="fixed inset-0 z-40" aria-hidden="true" onClick={closePanel} />
 
-            <motion.div
+            <m.div
               ref={panelRef}
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -209,7 +213,7 @@ export function NotificationBell() {
                 ) : (
                   <div className="divide-y divide-border">
                     {notifications.map((notification, i) => (
-                      <motion.button
+                      <m.button
                         key={notification.id}
                         initial={{ opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -241,12 +245,12 @@ export function NotificationBell() {
                         {!notification.read && (
                           <span className="size-2 bg-primary rounded-full mt-1.5 flex-shrink-0" />
                         )}
-                      </motion.button>
+                      </m.button>
                     ))}
                   </div>
                 )}
               </div>
-            </motion.div>
+            </m.div>
           </>
         )}
       </AnimatePresence>

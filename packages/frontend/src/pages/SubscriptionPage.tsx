@@ -15,6 +15,19 @@ type Cadence = 'monthly' | 'yearly'
 type CatalogEntry = { cadence: Cadence; priceId: string; unitAmount: number | null; currency: string | null; default: boolean }
 type Catalog = { entries: CatalogEntry[]; annualAvailable: boolean }
 
+// The currency varies per catalog entry, so a single hoisted
+// `Intl.NumberFormat` won't do. `Number.prototype.toLocaleString` formats
+// against the runtime's shared (engine-cached) formatter without
+// constructing a new instance on each call.
+function formatCurrency(amount: number, currency: string): string {
+  return amount.toLocaleString('fr-FR', { style: 'currency', currency })
+}
+
+function formatAmount(entry: CatalogEntry | null): string {
+  if (!entry || entry.unitAmount === null || !entry.currency) return ''
+  return formatCurrency(entry.unitAmount / 100, entry.currency.toUpperCase())
+}
+
 export function SubscriptionPage() {
   const { t } = useTranslation()
   useDocumentTitle(t('subscription.title'))
@@ -53,16 +66,9 @@ export function SubscriptionPage() {
   const yearlyEntry = useMemo(() => catalog?.entries.find((e) => e.cadence === 'yearly') ?? null, [catalog])
   const showToggle = !!catalog?.annualAvailable && !!monthlyEntry && !!yearlyEntry
 
-  const formatAmount = (entry: CatalogEntry | null): string => {
-    if (!entry || entry.unitAmount === null || !entry.currency) return ''
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: entry.currency.toUpperCase() })
-      .format(entry.unitAmount / 100)
-  }
-
   const yearlyPerMonth = useMemo((): string => {
     if (!yearlyEntry || yearlyEntry.unitAmount === null || !yearlyEntry.currency) return ''
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: yearlyEntry.currency.toUpperCase() })
-      .format(yearlyEntry.unitAmount / 12 / 100)
+    return formatCurrency(yearlyEntry.unitAmount / 12 / 100, yearlyEntry.currency.toUpperCase())
   }, [yearlyEntry])
 
   const selectCadence = (next: Cadence) => {
@@ -181,13 +187,12 @@ export function SubscriptionPage() {
         <h1 className="text-2xl font-heading font-bold mb-6">{t('subscription.title')}</h1>
 
         {!isPremium && fromKey && (
-          <div
-            className="mb-4 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground"
-            role="status"
+          <output
+            className="block mb-4 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground"
             aria-live="polite"
           >
             {t(`subscription.fromContext.${fromKey}`, t('subscription.fromContext.feature'))}
-          </div>
+          </output>
         )}
 
         <Card>

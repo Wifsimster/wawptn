@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BarChart3, Trophy, Users, Vote, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
@@ -27,34 +27,44 @@ interface GroupStatsProps {
 const SECTION_LABEL =
   'text-xs font-semibold uppercase text-muted-foreground tracking-wide flex items-center gap-1.5'
 
+interface StatsState {
+  stats: GroupStatsData | null
+  status: Status
+}
+
+const LOADING_STATE: StatsState = { stats: null, status: 'loading' }
+
+/** Fetches stats for a group and pushes the outcome into the passed setter.
+ *  Returns a cancel handle so an in-flight request can be discarded when the
+ *  group changes or the component unmounts. Module-scope (not reactive) so
+ *  both the load effect and the retry handler can call it without re-running. */
+function fetchGroupStats(groupId: string, setState: (next: StatsState | ((prev: StatsState) => StatsState)) => void) {
+  let cancelled = false
+  api.getGroupStats(groupId)
+    .then((data) => {
+      if (cancelled) return
+      setState({ stats: data, status: 'ready' })
+    })
+    .catch(() => {
+      if (!cancelled) setState((prev) => ({ ...prev, status: 'error' }))
+    })
+  return () => { cancelled = true }
+}
+
 export function GroupStats({ groupId }: GroupStatsProps) {
   const { t, i18n } = useTranslation()
-  const [stats, setStats] = useState<GroupStatsData | null>(null)
-  const [status, setStatus] = useState<Status>('loading')
-  const [request, setRequest] = useState(0)
-  const [trackedGroup, setTrackedGroup] = useState(groupId)
+  // State resets per group via a `key={groupId}` remount at the parent
+  // (see GroupPanel), so a stale group's stats never flash before the new
+  // fetch resolves — no in-render reset needed.
+  const [state, setState] = useState<StatsState>(LOADING_STATE)
+  const { stats, status } = state
 
-  // Reset to the loading state when the group changes, so a stale group's
-  // stats never flash before the new fetch resolves.
-  if (groupId !== trackedGroup) {
-    setTrackedGroup(groupId)
-    setStats(null)
-    setStatus('loading')
+  useEffect(() => fetchGroupStats(groupId, setState), [groupId])
+
+  const retry = () => {
+    setState(LOADING_STATE)
+    fetchGroupStats(groupId, setState)
   }
-
-  useEffect(() => {
-    let cancelled = false
-    api.getGroupStats(groupId)
-      .then((data) => {
-        if (cancelled) return
-        setStats(data)
-        setStatus('ready')
-      })
-      .catch(() => {
-        if (!cancelled) setStatus('error')
-      })
-    return () => { cancelled = true }
-  }, [groupId, request])
 
   return (
     <CollapsibleCard title={t('stats.title')} icon={BarChart3}>
@@ -63,7 +73,7 @@ export function GroupStats({ groupId }: GroupStatsProps) {
       {status === 'error' && (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <p className="text-sm text-muted-foreground">{t('stats.loadError')}</p>
-          <Button variant="outline" size="sm" onClick={() => { setStatus('loading'); setRequest((n) => n + 1) }}>
+          <Button variant="outline" size="sm" onClick={retry}>
             <RefreshCw className="size-4 mr-1.5" aria-hidden="true" />
             {t('common.retry')}
           </Button>
@@ -81,6 +91,10 @@ export function GroupStats({ groupId }: GroupStatsProps) {
 
 function StatsContent({ stats, language }: { stats: GroupStatsData; language: string }) {
   const { t } = useTranslation()
+  const dateFormat = useMemo(
+    () => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short' }),
+    [language],
+  )
 
   return (
     <div className="space-y-4">
@@ -178,7 +192,7 @@ function StatsContent({ stats, language }: { stats: GroupStatsData; language: st
                 <GameThumb appId={winner.steamAppId} name={winner.gameName} className="w-14 h-[26px]" />
                 <span className="text-sm truncate flex-1" title={winner.gameName}>{winner.gameName}</span>
                 <span className="text-xs text-muted-foreground shrink-0">
-                  {new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short' }).format(new Date(winner.closedAt))}
+                  {dateFormat.format(new Date(winner.closedAt))}
                 </span>
               </div>
             ))}

@@ -10,7 +10,7 @@
  */
 
 /** Whether the current browser supports the Notification API at all. */
-export function isNotificationSupported(): boolean {
+function isNotificationSupported(): boolean {
   return typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator
 }
 
@@ -127,10 +127,6 @@ export function installBeforeInstallPromptCapture(): void {
       listener(null)
     }
   })
-}
-
-export function getCapturedInstallEvent(): BeforeInstallPromptEvent | null {
-  return capturedInstallEvent
 }
 
 export function subscribeToInstallPrompt(

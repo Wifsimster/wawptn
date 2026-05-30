@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import { api } from '@/lib/api'
 
 interface PublicStats {
@@ -27,10 +27,12 @@ interface PublicStats {
 const MIN_CREDIBLE_USERS = 25
 const MIN_CREDIBLE_VOTES = 10
 
-function formatNumber(n: number, locale = 'fr-FR'): string {
+const numberFormatter = new Intl.NumberFormat('fr-FR')
+
+function formatNumber(n: number): string {
   if (n >= 10_000) return `${(n / 1_000).toFixed(0)}k`
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`.replace('.0k', 'k')
-  return new Intl.NumberFormat(locale).format(n)
+  return numberFormatter.format(n)
 }
 
 export function SocialProofStrip() {
@@ -50,7 +52,7 @@ export function SocialProofStrip() {
   if (stats.users < MIN_CREDIBLE_USERS && stats.votesClosed < MIN_CREDIBLE_VOTES) return null
 
   return (
-    <motion.div
+    <m.div
       className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
@@ -64,7 +66,7 @@ export function SocialProofStrip() {
         value={formatNumber(stats.votesClosed7d > 0 ? stats.votesClosed7d : stats.votesClosed)}
         label={stats.votesClosed7d > 0 ? t('socialProof.votes7d') : t('socialProof.votes')}
       />
-    </motion.div>
+    </m.div>
   )
 }
 

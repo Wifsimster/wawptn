@@ -19,31 +19,31 @@ interface GameRecommendationsProps {
   groupId: string
 }
 
+interface RecommendationsState {
+  recommendations: Recommendation[]
+  loaded: boolean
+}
+
+const INITIAL_STATE: RecommendationsState = { recommendations: [], loaded: false }
+
 export function GameRecommendations({ groupId }: GameRecommendationsProps) {
   const { t } = useTranslation()
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-  const [loaded, setLoaded] = useState(false)
-  const [trackedGroup, setTrackedGroup] = useState(groupId)
-
-  // Reset to the loading state when the group changes (see GroupStats).
-  if (groupId !== trackedGroup) {
-    setTrackedGroup(groupId)
-    setRecommendations([])
-    setLoaded(false)
-  }
+  // State resets per group via a `key={groupId}` remount at the parent
+  // (see GroupPanel), so stale recommendations never flash on group change.
+  const [state, setState] = useState<RecommendationsState>(INITIAL_STATE)
+  const { recommendations, loaded } = state
 
   useEffect(() => {
     let cancelled = false
     api.getRecommendations(groupId)
       .then((data) => {
         if (cancelled) return
-        setRecommendations(data.recommendations)
-        setLoaded(true)
+        setState({ recommendations: data.recommendations, loaded: true })
       })
       .catch(() => {
         // Non-critical (includes premium_required 403). Mark loaded so the
         // empty state shows instead of an endless skeleton.
-        if (!cancelled) setLoaded(true)
+        if (!cancelled) setState({ recommendations: [], loaded: true })
       })
     return () => { cancelled = true }
   }, [groupId])

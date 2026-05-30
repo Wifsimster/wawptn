@@ -51,7 +51,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
   const [open, setOpen] = useState(false)
   const [highlight, setHighlight] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
-  const listRef = useRef<HTMLUListElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   const filtered = useMemo(() => {
     const query = value.trim().toLowerCase()
@@ -81,7 +81,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
   // Keep the highlighted item visible when navigating with the keyboard.
   useEffect(() => {
     if (!open || !listRef.current || activeIndex < 0) return
-    const el = listRef.current.querySelector<HTMLLIElement>(`[data-index="${activeIndex}"]`)
+    const el = listRef.current.querySelector<HTMLDivElement>(`[data-index="${activeIndex}"]`)
     el?.scrollIntoView({ block: 'nearest' })
   }, [activeIndex, open])
 
@@ -124,10 +124,12 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
   return (
     <div ref={containerRef} className="relative">
       <div className="relative">
+        {/* oxlint-disable react-doctor/no-redundant-roles -- This is a custom ARIA 1.2 combobox (the input has no `list` attribute), so role="combobox" is required, not redundant. react-doctor's element→role table assumes every <input> is implicitly a combobox, which only holds for inputs wired to a <datalist> via `list`. */}
         <input
           id={id}
           type="text"
           role="combobox"
+          aria-label={t('group.autoVoteScheduleLabel', { defaultValue: 'Expression cron de la planification' })}
           aria-expanded={open}
           aria-autocomplete="list"
           aria-controls={listboxId}
@@ -146,6 +148,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
           autoComplete="off"
           className="flex h-10 w-full rounded-lg border border-input bg-card/50 pl-3 pr-9 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:border-primary/30 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
         />
+        {/* oxlint-enable react-doctor/no-redundant-roles */}
         <button
           type="button"
           tabIndex={-1}
@@ -171,7 +174,8 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
               {t('group.autoVotePresetsEmpty')}
             </div>
           ) : (
-            <ul
+            /* oxlint-disable react-doctor/prefer-tag-over-role -- WAI-ARIA custom listbox: div[role=listbox] + div[role=option] is the spec's authoring pattern. The suggested native <datalist>/<option> cannot render the custom rows (selected-check icon + two-line humanized label and cron expression) nor support filtering by both label and expression. */
+            <div
               ref={listRef}
               id={listboxId}
               role="listbox"
@@ -181,11 +185,12 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
                 const isActive = index === activeIndex
                 const isSelected = preset.expression === value.trim()
                 return (
-                  <li
+                  <div
                     key={preset.expression}
                     id={id ? `${id}-option-${index}` : undefined}
                     data-index={index}
                     role="option"
+                    tabIndex={-1}
                     aria-selected={isSelected}
                     onMouseDown={(e) => {
                       e.preventDefault()
@@ -202,10 +207,11 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
                       <div className="truncate">{t(preset.labelKey)}</div>
                       <div className="text-xs text-muted-foreground font-mono truncate">{preset.expression}</div>
                     </div>
-                  </li>
+                  </div>
                 )
               })}
-            </ul>
+            </div>
+            /* oxlint-enable react-doctor/prefer-tag-over-role */
           )}
         </div>
       )}

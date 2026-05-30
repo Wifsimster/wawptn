@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { motion, type Variants } from 'framer-motion'
+import { m, type Variants } from 'framer-motion'
 import {
   ArrowLeft, RefreshCw, ExternalLink, Check, Clock,
   Gamepad2, Link, Unlink, AlertTriangle, Timer, Trophy, Target, MessageCircle, Eye,
@@ -66,6 +66,10 @@ interface Profile {
 
 /* ── Helpers ── */
 
+function handleConnect(platformId: string) {
+  window.location.href = `/api/auth/${platformId}/link`
+}
+
 function formatPlaytime(minutes: number): string {
   if (minutes < 60) return `${minutes}min`
   const hours = Math.floor(minutes / 60)
@@ -73,9 +77,11 @@ function formatPlaytime(minutes: number): string {
   return `${(hours / 1000).toFixed(1)}kh`
 }
 
+const statValueFormatter = new Intl.NumberFormat('fr-FR')
+
 function formatStatValue(value: number): string {
   if (value >= 10000) return `${(value / 1000).toFixed(1)}k`
-  return new Intl.NumberFormat('fr-FR').format(value)
+  return statValueFormatter.format(value)
 }
 
 function useAnimatedValue(target: number, duration = 1400) {
@@ -177,27 +183,547 @@ const statItem: Variants = {
   },
 }
 
-/* ── Component ── */
+/* ── Loading skeleton ── */
 
-export function ProfilePage() {
+function ProfileSkeleton({ onBack, label }: { onBack: () => void; label: string }) {
+  return (
+    <>
+      <PageHeader>
+        <Button variant="ghost" size="icon" onClick={onBack}>
+          <ArrowLeft className="size-5" />
+        </Button>
+      </PageHeader>
+      <main
+        id="main-content"
+        className="max-w-2xl mx-auto p-4 space-y-6"
+        role="status"
+        aria-busy="true"
+        aria-live="polite"
+        aria-label={label}
+      >
+        <Skeleton className="h-80 rounded-2xl" />
+        <div className="space-y-3 pt-2">
+          <Skeleton className="h-4 w-48" />
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-[4.5rem] rounded-xl" />)}
+        </div>
+      </main>
+    </>
+  )
+}
+
+/* ── Holographic player card ── */
+
+function PlayerCard({
+  profile,
+  animGames,
+  animHours,
+  animPlatforms,
+}: {
+  profile: Profile
+  animGames: number
+  animHours: number
+  animPlatforms: number
+}) {
   const { t } = useTranslation()
-  useDocumentTitle(t('profile.title'))
-  const navigate = useNavigate()
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [syncingPlatform, setSyncingPlatform] = useState<string | null>(null)
-  const [unlinking, setUnlinking] = useState<string | null>(null)
-  const [searchParams, setSearchParams] = useSearchParams()
 
-  const { challenges, totalUnlocked, totalChallenges, fetchChallenges } = useChallengeStore()
+  return (
+    <m.div
+      variants={cardReveal}
+      className="profile-player-card relative rounded-2xl p-6 pt-10 sm:p-8 sm:pt-10"
+    >
+      {/* Decorative holographic seal */}
+      <div className="profile-holo-seal" aria-hidden="true">
+        <Gamepad2 className="size-4 relative z-10 text-foreground/25" />
+      </div>
+
+      <div className="relative z-10 flex flex-col items-center text-center">
+        {/* Avatar with prismatic ring */}
+        <m.div variants={avatarReveal} className="profile-avatar-ring mb-5">
+          <Avatar className="size-24 sm:w-28 sm:h-28 ring-2 ring-background">
+            <AvatarImage src={profile.avatarUrl} alt={profile.displayName} />
+            <AvatarFallback className="text-3xl font-heading font-bold">
+              {profile.displayName.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </m.div>
+
+        {/* Display name — holographic gradient */}
+        <m.h1
+          variants={nameReveal}
+          className="profile-holo-name text-2xl sm:text-3xl font-heading font-bold tracking-tight mb-1.5"
+        >
+          {profile.displayName}
+        </m.h1>
+
+        {/* Member since */}
+        <m.p
+          variants={nameReveal}
+          className="text-sm text-muted-foreground"
+        >
+          {t('profile.memberSince', {
+            date: new Date(profile.createdAt).toLocaleDateString('fr-FR', {
+              day: 'numeric', month: 'long', year: 'numeric',
+            }),
+          })}
+        </m.p>
+
+        {/* Steam profile link */}
+        {profile.profileUrl && (
+          <m.a
+            variants={nameReveal}
+            href={profile.profileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-primary hover:text-primary/80 inline-flex items-center gap-1.5 transition-colors mt-1.5"
+          >
+            {t('profile.steamProfile')}
+            <ExternalLink className="size-3.5" />
+          </m.a>
+        )}
+
+        {/* Gradient divider */}
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-border to-transparent my-6" />
+
+        {/* Stats */}
+        <m.div variants={statStagger} className="grid grid-cols-3 gap-4 sm:gap-8 w-full">
+          {[
+            { raw: animGames, label: t('profile.statsGames'), accent: 'var(--neon)', icon: Gamepad2 },
+            { raw: animHours, label: t('profile.statsHours'), accent: 'var(--ember)', icon: Timer },
+            { raw: animPlatforms, label: t('profile.statsPlatforms'), accent: 'var(--primary)', icon: Link },
+          ].map((stat) => (
+            <m.div
+              key={stat.label}
+              variants={statItem}
+              className="flex flex-col items-center"
+            >
+              <stat.icon className="size-4 mb-2 text-muted-foreground/50" />
+              <span className="text-2xl sm:text-3xl font-heading font-bold tracking-tight">
+                {formatStatValue(stat.raw)}
+              </span>
+              <span className="text-[11px] text-muted-foreground mt-1">{stat.label}</span>
+              <div
+                className="h-0.5 w-8 rounded-full mt-2.5 opacity-50"
+                style={{ background: stat.accent }}
+              />
+            </m.div>
+          ))}
+        </m.div>
+      </div>
+    </m.div>
+  )
+}
+
+/* ── Platforms ── */
+
+function PlatformsSection({
+  platforms,
+  syncingPlatform,
+  unlinking,
+  onSync,
+  onUnlink,
+}: {
+  platforms: Platform[]
+  syncingPlatform: string | null
+  unlinking: string | null
+  onSync: (platformId: string) => void
+  onUnlink: (platformId: string) => void
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <m.section variants={fadeUp}>
+      <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+        <Gamepad2 className="size-4 shrink-0" />
+        {t('profile.platforms')}
+      </h3>
+      <m.div variants={stagger} className="space-y-2.5">
+        {platforms.map((platform) => (
+          <m.div
+            key={platform.id}
+            variants={fadeUp}
+            className="flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm border-l-[3px] transition-all duration-300 hover:bg-card/80 hover:border-border/70"
+            style={{ borderLeftColor: PLATFORM_ACCENT[platform.id] || 'var(--border)' }}
+          >
+            <PlatformIcon
+              platformId={platform.id}
+              className="size-5 shrink-0 text-muted-foreground"
+              aria-label={platform.name}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-sm">{platform.name}</span>
+                {platform.connected && platform.needsRelink ? (
+                  <Badge variant="destructive" className="text-[10px] gap-1 py-0 h-5">
+                    <AlertTriangle className="size-3" />
+                    {t('profile.needsRelink')}
+                  </Badge>
+                ) : platform.connected ? (
+                  <span className="flex items-center gap-1 text-[10px] text-success font-medium">
+                    <Check className="size-3" />
+                    {t('profile.connected')}
+                  </span>
+                ) : platform.comingSoon ? (
+                  <Badge variant="secondary" className="text-[10px] py-0 h-5">
+                    {t('profile.comingSoon')}
+                  </Badge>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">
+                    {t('profile.notConnected')}
+                  </span>
+                )}
+              </div>
+              {platform.connected && !platform.needsRelink && (
+                <div className="flex items-center gap-2.5 mt-1 text-xs text-muted-foreground">
+                  {platform.syncable === false ? (
+                    <span className="italic text-[11px]">{t('profile.noLibraryApi')}</span>
+                  ) : (
+                    <>
+                      {platform.gameCount !== undefined && (
+                        <span>{t('profile.gameCount', { count: platform.gameCount })}</span>
+                      )}
+                      {platform.totalPlaytimeMinutes != null && platform.totalPlaytimeMinutes > 0 && (
+                        <span className="flex items-center gap-0.5">
+                          <Timer className="size-3" />
+                          {formatPlaytime(platform.totalPlaytimeMinutes)}
+                        </span>
+                      )}
+                      {platform.lastSyncedAt ? (
+                        <span className="flex items-center gap-0.5">
+                          <Clock className="size-3" />
+                          {t('profile.lastSync', {
+                            date: new Date(platform.lastSyncedAt).toLocaleDateString('fr-FR', {
+                              day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                            }),
+                          })}
+                        </span>
+                      ) : (
+                        <span>{t('profile.neverSynced')}</span>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            {platform.connected && platform.needsRelink && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleConnect(platform.id)}
+                className="shrink-0 h-8 text-xs"
+              >
+                <Link className="size-3.5 mr-1" />
+                {t('profile.reconnect')}
+              </Button>
+            )}
+            {platform.connected && !platform.needsRelink && platform.syncable !== false && (platform.id === 'steam' || platform.linkable) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onSync(platform.id)}
+                disabled={syncingPlatform === platform.id}
+                className="shrink-0 h-8 text-xs"
+              >
+                <RefreshCw className={`size-3.5 mr-1 ${syncingPlatform === platform.id ? 'animate-spin' : ''}`} />
+                {syncingPlatform === platform.id ? t('profile.syncing') : t('profile.syncNow')}
+              </Button>
+            )}
+            {platform.connected && !platform.needsRelink && platform.id !== 'steam' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onUnlink(platform.id)}
+                disabled={unlinking === platform.id}
+                className="shrink-0 h-8 text-xs text-destructive hover:text-destructive"
+              >
+                <Unlink className="size-3.5 mr-1" />
+                {t('profile.disconnect')}
+              </Button>
+            )}
+            {!platform.connected && !platform.comingSoon && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleConnect(platform.id)}
+                className="shrink-0 h-8 text-xs"
+              >
+                <Link className="size-3.5 mr-1" />
+                {t('profile.connect')}
+              </Button>
+            )}
+          </m.div>
+        ))}
+      </m.div>
+    </m.section>
+  )
+}
+
+/* ── Discord link ── */
+
+function DiscordSection({
+  discord,
+  unlinking,
+  onUnlinkDiscord,
+}: {
+  discord?: DiscordState
+  unlinking: string | null
+  onUnlinkDiscord: () => void
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <m.section variants={fadeUp}>
+      <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+        <MessageCircle className="size-4 shrink-0" />
+        Discord
+      </h3>
+      <div
+        className="flex items-start gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm border-l-[3px] transition-all duration-300 hover:bg-card/80"
+        style={{ borderLeftColor: 'oklch(0.55 0.18 270)' }}
+      >
+        <MessageCircle className="size-5 shrink-0 text-muted-foreground mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-sm">Discord</span>
+            {discord?.linked ? (
+              <span className="flex items-center gap-1 text-[10px] text-success font-medium">
+                <Check className="size-3" />
+                {t('profile.connected')}
+              </span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground">
+                {t('profile.notConnected')}
+              </span>
+            )}
+          </div>
+          {discord?.linked ? (
+            <p className="text-xs text-muted-foreground mt-1">
+              {t('profile.discordLinkedAs', { username: discord.discordUsername })}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {t('profile.discordLinkInstructions')}
+            </p>
+          )}
+        </div>
+        {discord?.linked && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onUnlinkDiscord}
+            disabled={unlinking === 'discord'}
+            className="shrink-0 h-8 text-xs text-destructive hover:text-destructive"
+          >
+            <Unlink className="size-3.5 mr-1" />
+            {t('profile.disconnect')}
+          </Button>
+        )}
+      </div>
+    </m.section>
+  )
+}
+
+/* ── Visibility settings (issue #142) ── */
+
+function VisibilitySection() {
+  const { t } = useTranslation()
   const [visibility, setVisibility] = useState<ProfileVisibilitySettings | null>(null)
   const [visibilitySaving, setVisibilitySaving] = useState<keyof ProfileVisibilitySettings | null>(null)
-  const [exporting, setExporting] = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [confirmText, setConfirmText] = useState('')
-  const [deleting, setDeleting] = useState(false)
 
-  const deleteConfirmWord = t('profile.deleteAccountConfirmWord')
+  useEffect(() => {
+    api.getVisibility().then(setVisibility).catch(() => { /* silent — section just won't render */ })
+  }, [])
+
+  const updateVisibility = async (key: keyof ProfileVisibilitySettings, value: boolean) => {
+    setVisibilitySaving(key)
+    try {
+      const next = await api.updateVisibility({ [key]: value })
+      setVisibility(next)
+    } catch {
+      toast.error(t('error.description'))
+    } finally {
+      setVisibilitySaving(null)
+    }
+  }
+
+  if (!visibility) return null
+
+  return (
+    <m.section variants={fadeUp}>
+      <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+        <Eye className="size-4 shrink-0" />
+        Confidentialité
+      </h3>
+      <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+        Les jeux que vous avez en commun avec un autre membre sont toujours
+        visibles pour lui. Vous choisissez ci-dessous ce qui est partagé au-delà.
+      </p>
+      <div className="space-y-2">
+        <label
+          htmlFor="visibility-full-library"
+          className="flex items-start gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm cursor-pointer hover:bg-card/80 transition-colors"
+        >
+          <Checkbox
+            id="visibility-full-library"
+            checked={visibility.visibilityFullLibrary}
+            disabled={visibilitySaving === 'visibilityFullLibrary'}
+            onCheckedChange={(checked) => updateVisibility('visibilityFullLibrary', checked === true)}
+            className="mt-0.5"
+          />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Partager ma bibliothèque complète</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Les membres de vos groupes pourront voir vos top jeux et votre temps de jeu total.
+            </p>
+          </div>
+        </label>
+        <label
+          htmlFor="visibility-last-played"
+          className="flex items-start gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm cursor-pointer hover:bg-card/80 transition-colors"
+        >
+          <Checkbox
+            id="visibility-last-played"
+            checked={visibility.visibilityLastPlayed}
+            disabled={visibilitySaving === 'visibilityLastPlayed'}
+            onCheckedChange={(checked) => updateVisibility('visibilityLastPlayed', checked === true)}
+            className="mt-0.5"
+          />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Partager mes heures par jeu</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Affiche votre temps de jeu sur chaque titre commun avec un autre membre.
+            </p>
+          </div>
+        </label>
+      </div>
+    </m.section>
+  )
+}
+
+/* ── Top games showcase ── */
+
+function TopGamesSection({ topGames }: { topGames: TopGame[] }) {
+  const { t } = useTranslation()
+  const crownGame = topGames[0]
+  const otherGames = topGames.slice(1)
+
+  return (
+    <m.section variants={fadeUp}>
+      <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+        <Trophy className="size-4 shrink-0" />
+        {t('profile.topGames')}
+      </h3>
+      <m.div variants={stagger} className="space-y-3">
+        {/* Crown game: #1 */}
+        {crownGame && (
+          <m.div variants={scaleIn} className="profile-game-crown rounded-xl overflow-hidden">
+            <div className="relative">
+              {crownGame.headerImageUrl ? (
+                <img
+                  src={crownGame.headerImageUrl}
+                  alt={crownGame.gameName}
+                  width={460}
+                  height={215}
+                  decoding="async"
+                  className="w-full aspect-[460/215] object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="w-full aspect-[460/215] bg-card/60" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-reward/90 text-reward-foreground rounded-lg px-2.5 py-1 text-xs font-bold backdrop-blur-sm shadow-lg">
+                <Trophy className="size-3.5" />
+                #1
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 px-4 py-3 flex items-center justify-between">
+                <span className="font-heading font-semibold truncate text-foreground drop-shadow-md">
+                  {crownGame.gameName}
+                </span>
+                <Badge variant="secondary" className="shrink-0 font-mono text-xs bg-black/40 border-foreground/10 text-foreground/90 backdrop-blur-sm">
+                  {formatPlaytime(crownGame.playtimeForever)}
+                </Badge>
+              </div>
+            </div>
+          </m.div>
+        )}
+
+        {/* Remaining games: 2-column grid */}
+        {otherGames.length > 0 && (
+          <div className="grid grid-cols-2 gap-2.5">
+            {otherGames.map((game, i) => (
+              <m.div
+                key={game.steamAppId}
+                variants={scaleIn}
+                className="rounded-xl overflow-hidden border border-border/50 bg-card/40 backdrop-blur-sm transition-all duration-300 hover:bg-card/70 hover:border-border/80 hover:-translate-y-0.5"
+              >
+                {game.headerImageUrl && (
+                  <div className="relative">
+                    <img
+                      src={game.headerImageUrl}
+                      alt={game.gameName}
+                      width={460}
+                      height={215}
+                      decoding="async"
+                      className="w-full aspect-[460/215] object-cover"
+                      loading="lazy"
+                    />
+                    <div className={`
+                      absolute top-1.5 left-1.5 size-6 rounded-md flex items-center justify-center
+                      text-[11px] font-bold backdrop-blur-sm
+                      ${i === 0 ? 'bg-foreground/15 text-foreground/70' : i === 1 ? 'bg-ember/20 text-ember' : 'bg-muted/50 text-muted-foreground'}
+                    `}>
+                      {i + 2}
+                    </div>
+                  </div>
+                )}
+                <div className="px-3 py-2">
+                  <p className="text-xs font-medium truncate">{game.gameName}</p>
+                  <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                    {formatPlaytime(game.playtimeForever)}
+                  </p>
+                </div>
+              </m.div>
+            ))}
+          </div>
+        )}
+      </m.div>
+    </m.section>
+  )
+}
+
+/* ── Challenges ── */
+
+function ChallengesSection() {
+  const { t } = useTranslation()
+  const { challenges, totalUnlocked, totalChallenges } = useChallengeStore()
+
+  if (challenges.length === 0) return null
+
+  return (
+    <m.section variants={fadeUp}>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <Target className="size-4 shrink-0" />
+          {t('challenges.title')}
+        </h3>
+        <Badge variant="secondary" className="text-[10px] py-0 h-5 font-mono">
+          {totalUnlocked}/{totalChallenges}
+        </Badge>
+      </div>
+      <m.div variants={stagger} className="space-y-2.5">
+        {challenges.map((challenge) => (
+          <ChallengeCard key={challenge.id} challenge={challenge} />
+        ))}
+      </m.div>
+    </m.section>
+  )
+}
+
+/* ── Danger zone (RGPD) ── */
+
+function DangerZoneSection({ onRequestDelete }: { onRequestDelete: () => void }) {
+  const { t } = useTranslation()
+  const [exporting, setExporting] = useState(false)
 
   async function handleExportData() {
     setExporting(true)
@@ -220,8 +746,99 @@ export function ProfilePage() {
     }
   }
 
+  return (
+    <m.section variants={fadeUp}>
+      <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+        <AlertTriangle className="size-4 shrink-0" />
+        {t('profile.dangerZone')}
+      </h3>
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm">
+          <Download className="size-5 shrink-0 text-muted-foreground" />
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm">{t('profile.exportData')}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              {t('profile.exportDataDescription')}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportData}
+            disabled={exporting}
+            className="shrink-0 h-8 text-xs"
+          >
+            {exporting ? t('profile.exporting') : t('profile.exportButton')}
+          </Button>
+        </div>
+        <div className="flex items-center gap-3 p-3.5 rounded-xl border border-destructive/30 bg-destructive/5 backdrop-blur-sm">
+          <Trash2 className="size-5 shrink-0 text-destructive" />
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm text-destructive">{t('profile.deleteAccount')}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              {t('profile.deleteAccountDescription')}
+            </p>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onRequestDelete}
+            className="shrink-0 h-8 text-xs"
+          >
+            {t('profile.deleteAccountButton')}
+          </Button>
+        </div>
+      </div>
+    </m.section>
+  )
+}
+
+/* ── Delete-account dialog ── */
+
+interface DeleteDialogState {
+  open: boolean
+  confirmText: string
+  deleting: boolean
+}
+
+type DeleteDialogAction =
+  | { type: 'open' }
+  | { type: 'setOpen'; open: boolean }
+  | { type: 'setConfirmText'; value: string }
+  | { type: 'deleting' }
+  | { type: 'deleteFailed' }
+
+function deleteDialogReducer(state: DeleteDialogState, action: DeleteDialogAction): DeleteDialogState {
+  switch (action.type) {
+    case 'open':
+      return { ...state, open: true }
+    case 'setOpen':
+      return action.open
+        ? { ...state, open: true }
+        : { ...state, open: false, confirmText: '' }
+    case 'setConfirmText':
+      return { ...state, confirmText: action.value }
+    case 'deleting':
+      return { ...state, deleting: true }
+    case 'deleteFailed':
+      return { ...state, deleting: false }
+    default:
+      return state
+  }
+}
+
+function DeleteAccountDialog({
+  state,
+  dispatch,
+}: {
+  state: DeleteDialogState
+  dispatch: React.Dispatch<DeleteDialogAction>
+}) {
+  const { t } = useTranslation()
+  const deleteConfirmWord = t('profile.deleteAccountConfirmWord')
+
   async function handleDeleteAccount() {
-    setDeleting(true)
+    dispatch({ type: 'deleting' })
     try {
       await api.deleteAccount()
       toast.success(t('profile.deleteAccountSuccess'))
@@ -229,25 +846,67 @@ export function ProfilePage() {
       window.location.href = '/'
     } catch {
       toast.error(t('profile.deleteAccountError'))
-      setDeleting(false)
+      dispatch({ type: 'deleteFailed' })
     }
   }
 
-  useEffect(() => {
-    api.getVisibility().then(setVisibility).catch(() => { /* silent — section just won't render */ })
-  }, [])
+  return (
+    <Dialog
+      open={state.open}
+      onOpenChange={(open) => dispatch({ type: 'setOpen', open })}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('profile.deleteAccountConfirmTitle')}</DialogTitle>
+          <DialogDescription>{t('profile.deleteAccountConfirmBody')}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <p className="text-sm">
+            {t('profile.deleteAccountConfirmPrompt', { word: deleteConfirmWord })}
+          </p>
+          <Input
+            value={state.confirmText}
+            onChange={(e) => dispatch({ type: 'setConfirmText', value: e.target.value })}
+            placeholder={deleteConfirmWord}
+            autoComplete="off"
+            aria-label={t('profile.deleteAccountConfirmTitle')}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => dispatch({ type: 'setOpen', open: false })} disabled={state.deleting}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDeleteAccount}
+            disabled={state.deleting || state.confirmText.trim().toUpperCase() !== deleteConfirmWord}
+          >
+            {state.deleting ? t('profile.deleting') : t('profile.deleteAccountConfirm')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
-  const updateVisibility = async (key: keyof ProfileVisibilitySettings, value: boolean) => {
-    setVisibilitySaving(key)
-    try {
-      const next = await api.updateVisibility({ [key]: value })
-      setVisibility(next)
-    } catch {
-      toast.error(t('error.description'))
-    } finally {
-      setVisibilitySaving(null)
-    }
-  }
+/* ── Component ── */
+
+export function ProfilePage() {
+  const { t } = useTranslation()
+  useDocumentTitle(t('profile.title'))
+  const navigate = useNavigate()
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [syncingPlatform, setSyncingPlatform] = useState<string | null>(null)
+  const [unlinking, setUnlinking] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const { fetchChallenges } = useChallengeStore()
+  const [deleteDialog, dispatchDeleteDialog] = useReducer(deleteDialogReducer, {
+    open: false,
+    confirmText: '',
+    deleting: false,
+  })
 
   const loadProfile = useCallback(async () => {
     try {
@@ -325,10 +984,6 @@ export function ProfilePage() {
   const animHours = useAnimatedValue(stats.hours)
   const animPlatforms = useAnimatedValue(stats.platforms, 800)
 
-  function handleConnect(platformId: string) {
-    window.location.href = `/api/auth/${platformId}/link`
-  }
-
   async function handleUnlink(platformId: string) {
     setUnlinking(platformId)
     try {
@@ -372,37 +1027,11 @@ export function ProfilePage() {
     }
   }
 
-  /* ── Loading skeleton ── */
   if (loading) {
-    return (
-      <>
-        <PageHeader>
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-            <ArrowLeft className="size-5" />
-          </Button>
-        </PageHeader>
-        <main
-          id="main-content"
-          className="max-w-2xl mx-auto p-4 space-y-6"
-          role="status"
-          aria-busy="true"
-          aria-live="polite"
-          aria-label={t('common.loading', 'Chargement…')}
-        >
-          <Skeleton className="h-80 rounded-2xl" />
-          <div className="space-y-3 pt-2">
-            <Skeleton className="h-4 w-48" />
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-[4.5rem] rounded-xl" />)}
-          </div>
-        </main>
-      </>
-    )
+    return <ProfileSkeleton onBack={() => navigate('/')} label={t('common.loading', 'Chargement…')} />
   }
 
   if (!profile) return null
-
-  const crownGame = profile.topGames?.[0]
-  const otherGames = profile.topGames?.slice(1)
 
   return (
     <>
@@ -412,7 +1041,7 @@ export function ProfilePage() {
         </Button>
       </PageHeader>
 
-      <motion.main
+      <m.main
         id="main-content"
         className="max-w-2xl mx-auto p-4 space-y-8 pb-12"
         initial="hidden"
@@ -420,498 +1049,39 @@ export function ProfilePage() {
         variants={orchestrator}
         style={{ perspective: '1200px' }}
       >
-        {/* ── Holographic Player Card ── */}
-        <motion.div
-          variants={cardReveal}
-          className="profile-player-card relative rounded-2xl p-6 pt-10 sm:p-8 sm:pt-10"
-        >
-          {/* Decorative holographic seal */}
-          <div className="profile-holo-seal" aria-hidden="true">
-            <Gamepad2 className="size-4 relative z-10 text-foreground/25" />
-          </div>
+        <PlayerCard
+          profile={profile}
+          animGames={animGames}
+          animHours={animHours}
+          animPlatforms={animPlatforms}
+        />
 
-          <div className="relative z-10 flex flex-col items-center text-center">
-            {/* Avatar with prismatic ring */}
-            <motion.div variants={avatarReveal} className="profile-avatar-ring mb-5">
-              <Avatar className="size-24 sm:w-28 sm:h-28 ring-2 ring-background">
-                <AvatarImage src={profile.avatarUrl} alt={profile.displayName} />
-                <AvatarFallback className="text-3xl font-heading font-bold">
-                  {profile.displayName.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </motion.div>
+        <PlatformsSection
+          platforms={profile.platforms}
+          syncingPlatform={syncingPlatform}
+          unlinking={unlinking}
+          onSync={handleSync}
+          onUnlink={handleUnlink}
+        />
 
-            {/* Display name — holographic gradient */}
-            <motion.h1
-              variants={nameReveal}
-              className="profile-holo-name text-2xl sm:text-3xl font-heading font-bold tracking-tight mb-1.5"
-            >
-              {profile.displayName}
-            </motion.h1>
+        <DiscordSection
+          discord={profile.discord}
+          unlinking={unlinking}
+          onUnlinkDiscord={handleUnlinkDiscord}
+        />
 
-            {/* Member since */}
-            <motion.p
-              variants={nameReveal}
-              className="text-sm text-muted-foreground"
-            >
-              {t('profile.memberSince', {
-                date: new Date(profile.createdAt).toLocaleDateString('fr-FR', {
-                  day: 'numeric', month: 'long', year: 'numeric',
-                }),
-              })}
-            </motion.p>
+        <VisibilitySection />
 
-            {/* Steam profile link */}
-            {profile.profileUrl && (
-              <motion.a
-                variants={nameReveal}
-                href={profile.profileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-primary hover:text-primary/80 inline-flex items-center gap-1.5 transition-colors mt-1.5"
-              >
-                {t('profile.steamProfile')}
-                <ExternalLink className="size-3.5" />
-              </motion.a>
-            )}
-
-            {/* Gradient divider */}
-            <div className="w-full h-px bg-gradient-to-r from-transparent via-border to-transparent my-6" />
-
-            {/* Stats */}
-            <motion.div variants={statStagger} className="grid grid-cols-3 gap-4 sm:gap-8 w-full">
-              {[
-                { raw: animGames, label: t('profile.statsGames'), accent: 'var(--neon)', icon: Gamepad2 },
-                { raw: animHours, label: t('profile.statsHours'), accent: 'var(--ember)', icon: Timer },
-                { raw: animPlatforms, label: t('profile.statsPlatforms'), accent: 'var(--primary)', icon: Link },
-              ].map((stat) => (
-                <motion.div
-                  key={stat.label}
-                  variants={statItem}
-                  className="flex flex-col items-center"
-                >
-                  <stat.icon className="size-4 mb-2 text-muted-foreground/50" />
-                  <span className="text-2xl sm:text-3xl font-heading font-bold tracking-tight">
-                    {formatStatValue(stat.raw)}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground mt-1">{stat.label}</span>
-                  <div
-                    className="h-0.5 w-8 rounded-full mt-2.5 opacity-50"
-                    style={{ background: stat.accent }}
-                  />
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-        </motion.div>
-
-        {/* ── Platforms ── */}
-        <motion.section variants={fadeUp}>
-          <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
-            <Gamepad2 className="size-4 shrink-0" />
-            {t('profile.platforms')}
-          </h3>
-          <motion.div variants={stagger} className="space-y-2.5">
-            {profile.platforms.map((platform) => (
-              <motion.div
-                key={platform.id}
-                variants={fadeUp}
-                className="flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm border-l-[3px] transition-all duration-300 hover:bg-card/80 hover:border-border/70"
-                style={{ borderLeftColor: PLATFORM_ACCENT[platform.id] || 'var(--border)' }}
-              >
-                <PlatformIcon
-                  platformId={platform.id}
-                  className="size-5 shrink-0 text-muted-foreground"
-                  aria-label={platform.name}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{platform.name}</span>
-                    {platform.connected && platform.needsRelink ? (
-                      <Badge variant="destructive" className="text-[10px] gap-1 py-0 h-5">
-                        <AlertTriangle className="size-3" />
-                        {t('profile.needsRelink')}
-                      </Badge>
-                    ) : platform.connected ? (
-                      <span className="flex items-center gap-1 text-[10px] text-success font-medium">
-                        <Check className="size-3" />
-                        {t('profile.connected')}
-                      </span>
-                    ) : platform.comingSoon ? (
-                      <Badge variant="secondary" className="text-[10px] py-0 h-5">
-                        {t('profile.comingSoon')}
-                      </Badge>
-                    ) : (
-                      <span className="text-[10px] text-muted-foreground">
-                        {t('profile.notConnected')}
-                      </span>
-                    )}
-                  </div>
-                  {platform.connected && !platform.needsRelink && (
-                    <div className="flex items-center gap-2.5 mt-1 text-xs text-muted-foreground">
-                      {platform.syncable === false ? (
-                        <span className="italic text-[11px]">{t('profile.noLibraryApi')}</span>
-                      ) : (
-                        <>
-                          {platform.gameCount !== undefined && (
-                            <span>{t('profile.gameCount', { count: platform.gameCount })}</span>
-                          )}
-                          {platform.totalPlaytimeMinutes != null && platform.totalPlaytimeMinutes > 0 && (
-                            <span className="flex items-center gap-0.5">
-                              <Timer className="size-3" />
-                              {formatPlaytime(platform.totalPlaytimeMinutes)}
-                            </span>
-                          )}
-                          {platform.lastSyncedAt ? (
-                            <span className="flex items-center gap-0.5">
-                              <Clock className="size-3" />
-                              {t('profile.lastSync', {
-                                date: new Date(platform.lastSyncedAt).toLocaleDateString('fr-FR', {
-                                  day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-                                }),
-                              })}
-                            </span>
-                          ) : (
-                            <span>{t('profile.neverSynced')}</span>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {platform.connected && platform.needsRelink && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleConnect(platform.id)}
-                    className="shrink-0 h-8 text-xs"
-                  >
-                    <Link className="size-3.5 mr-1" />
-                    {t('profile.reconnect')}
-                  </Button>
-                )}
-                {platform.connected && !platform.needsRelink && platform.syncable !== false && (platform.id === 'steam' || platform.linkable) && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSync(platform.id)}
-                    disabled={syncingPlatform === platform.id}
-                    className="shrink-0 h-8 text-xs"
-                  >
-                    <RefreshCw className={`size-3.5 mr-1 ${syncingPlatform === platform.id ? 'animate-spin' : ''}`} />
-                    {syncingPlatform === platform.id ? t('profile.syncing') : t('profile.syncNow')}
-                  </Button>
-                )}
-                {platform.connected && !platform.needsRelink && platform.id !== 'steam' && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleUnlink(platform.id)}
-                    disabled={unlinking === platform.id}
-                    className="shrink-0 h-8 text-xs text-destructive hover:text-destructive"
-                  >
-                    <Unlink className="size-3.5 mr-1" />
-                    {t('profile.disconnect')}
-                  </Button>
-                )}
-                {!platform.connected && !platform.comingSoon && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleConnect(platform.id)}
-                    className="shrink-0 h-8 text-xs"
-                  >
-                    <Link className="size-3.5 mr-1" />
-                    {t('profile.connect')}
-                  </Button>
-                )}
-              </motion.div>
-            ))}
-          </motion.div>
-        </motion.section>
-
-        {/* ── Discord Link ── */}
-        <motion.section variants={fadeUp}>
-          <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
-            <MessageCircle className="size-4 shrink-0" />
-            Discord
-          </h3>
-          <div
-            className="flex items-start gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm border-l-[3px] transition-all duration-300 hover:bg-card/80"
-            style={{ borderLeftColor: 'oklch(0.55 0.18 270)' }}
-          >
-            <MessageCircle className="size-5 shrink-0 text-muted-foreground mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium text-sm">Discord</span>
-                {profile.discord?.linked ? (
-                  <span className="flex items-center gap-1 text-[10px] text-success font-medium">
-                    <Check className="size-3" />
-                    {t('profile.connected')}
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-muted-foreground">
-                    {t('profile.notConnected')}
-                  </span>
-                )}
-              </div>
-              {profile.discord?.linked ? (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t('profile.discordLinkedAs', { username: profile.discord.discordUsername })}
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  {t('profile.discordLinkInstructions')}
-                </p>
-              )}
-            </div>
-            {profile.discord?.linked && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleUnlinkDiscord}
-                disabled={unlinking === 'discord'}
-                className="shrink-0 h-8 text-xs text-destructive hover:text-destructive"
-              >
-                <Unlink className="size-3.5 mr-1" />
-                {t('profile.disconnect')}
-              </Button>
-            )}
-          </div>
-        </motion.section>
-
-        {/* ── Visibility settings (issue #142) ── */}
-        {visibility && (
-          <motion.section variants={fadeUp}>
-            <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
-              <Eye className="size-4 shrink-0" />
-              Confidentialité
-            </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-              Les jeux que vous avez en commun avec un autre membre sont toujours
-              visibles pour lui. Vous choisissez ci-dessous ce qui est partagé au-delà.
-            </p>
-            <div className="space-y-2">
-              <label className="flex items-start gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm cursor-pointer hover:bg-card/80 transition-colors">
-                <Checkbox
-                  checked={visibility.visibilityFullLibrary}
-                  disabled={visibilitySaving === 'visibilityFullLibrary'}
-                  onCheckedChange={(checked) => updateVisibility('visibilityFullLibrary', checked === true)}
-                  className="mt-0.5"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Partager ma bibliothèque complète</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Les membres de vos groupes pourront voir vos top jeux et votre temps de jeu total.
-                  </p>
-                </div>
-              </label>
-              <label className="flex items-start gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm cursor-pointer hover:bg-card/80 transition-colors">
-                <Checkbox
-                  checked={visibility.visibilityLastPlayed}
-                  disabled={visibilitySaving === 'visibilityLastPlayed'}
-                  onCheckedChange={(checked) => updateVisibility('visibilityLastPlayed', checked === true)}
-                  className="mt-0.5"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Partager mes heures par jeu</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Affiche votre temps de jeu sur chaque titre commun avec un autre membre.
-                  </p>
-                </div>
-              </label>
-            </div>
-          </motion.section>
-        )}
-
-        {/* ── Top Games Showcase ── */}
         {profile.topGames && profile.topGames.length > 0 && (
-          <motion.section variants={fadeUp}>
-            <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
-              <Trophy className="size-4 shrink-0" />
-              {t('profile.topGames')}
-            </h3>
-            <motion.div variants={stagger} className="space-y-3">
-              {/* Crown game: #1 */}
-              {crownGame && (
-                <motion.div variants={scaleIn} className="profile-game-crown rounded-xl overflow-hidden">
-                  <div className="relative">
-                    {crownGame.headerImageUrl ? (
-                      <img
-                        src={crownGame.headerImageUrl}
-                        alt={crownGame.gameName}
-                        width={460}
-                        height={215}
-                        decoding="async"
-                        className="w-full aspect-[460/215] object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full aspect-[460/215] bg-card/60" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-reward/90 text-reward-foreground rounded-lg px-2.5 py-1 text-xs font-bold backdrop-blur-sm shadow-lg">
-                      <Trophy className="size-3.5" />
-                      #1
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 px-4 py-3 flex items-center justify-between">
-                      <span className="font-heading font-semibold truncate text-foreground drop-shadow-md">
-                        {crownGame.gameName}
-                      </span>
-                      <Badge variant="secondary" className="shrink-0 font-mono text-xs bg-black/40 border-foreground/10 text-foreground/90 backdrop-blur-sm">
-                        {formatPlaytime(crownGame.playtimeForever)}
-                      </Badge>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Remaining games: 2-column grid */}
-              {otherGames && otherGames.length > 0 && (
-                <div className="grid grid-cols-2 gap-2.5">
-                  {otherGames.map((game, i) => (
-                    <motion.div
-                      key={game.steamAppId}
-                      variants={scaleIn}
-                      className="rounded-xl overflow-hidden border border-border/50 bg-card/40 backdrop-blur-sm transition-all duration-300 hover:bg-card/70 hover:border-border/80 hover:-translate-y-0.5"
-                    >
-                      {game.headerImageUrl && (
-                        <div className="relative">
-                          <img
-                            src={game.headerImageUrl}
-                            alt={game.gameName}
-                            width={460}
-                            height={215}
-                            decoding="async"
-                            className="w-full aspect-[460/215] object-cover"
-                            loading="lazy"
-                          />
-                          <div className={`
-                            absolute top-1.5 left-1.5 size-6 rounded-md flex items-center justify-center
-                            text-[11px] font-bold backdrop-blur-sm
-                            ${i === 0 ? 'bg-foreground/15 text-foreground/70' : i === 1 ? 'bg-ember/20 text-ember' : 'bg-muted/50 text-muted-foreground'}
-                          `}>
-                            {i + 2}
-                          </div>
-                        </div>
-                      )}
-                      <div className="px-3 py-2">
-                        <p className="text-xs font-medium truncate">{game.gameName}</p>
-                        <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                          {formatPlaytime(game.playtimeForever)}
-                        </p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          </motion.section>
+          <TopGamesSection topGames={profile.topGames} />
         )}
 
-        {/* ── Challenges ── */}
-        {challenges.length > 0 && (
-          <motion.section variants={fadeUp}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                <Target className="size-4 shrink-0" />
-                {t('challenges.title')}
-              </h3>
-              <Badge variant="secondary" className="text-[10px] py-0 h-5 font-mono">
-                {totalUnlocked}/{totalChallenges}
-              </Badge>
-            </div>
-            <motion.div variants={stagger} className="space-y-2.5">
-              {challenges.map((challenge) => (
-                <ChallengeCard key={challenge.id} challenge={challenge} />
-              ))}
-            </motion.div>
-          </motion.section>
-        )}
-        {/* ── Danger zone (RGPD) ── */}
-        <motion.section variants={fadeUp}>
-          <h3 className="profile-section-line text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
-            <AlertTriangle className="size-4 shrink-0" />
-            {t('profile.dangerZone')}
-          </h3>
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm">
-              <Download className="size-5 shrink-0 text-muted-foreground" />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">{t('profile.exportData')}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  {t('profile.exportDataDescription')}
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportData}
-                disabled={exporting}
-                className="shrink-0 h-8 text-xs"
-              >
-                {exporting ? t('profile.exporting') : t('profile.exportButton')}
-              </Button>
-            </div>
-            <div className="flex items-center gap-3 p-3.5 rounded-xl border border-destructive/30 bg-destructive/5 backdrop-blur-sm">
-              <Trash2 className="size-5 shrink-0 text-destructive" />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm text-destructive">{t('profile.deleteAccount')}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  {t('profile.deleteAccountDescription')}
-                </p>
-              </div>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteOpen(true)}
-                className="shrink-0 h-8 text-xs"
-              >
-                {t('profile.deleteAccountButton')}
-              </Button>
-            </div>
-          </div>
-        </motion.section>
-      </motion.main>
+        <ChallengesSection />
 
-      <Dialog
-        open={deleteOpen}
-        onOpenChange={(open) => {
-          setDeleteOpen(open)
-          if (!open) setConfirmText('')
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('profile.deleteAccountConfirmTitle')}</DialogTitle>
-            <DialogDescription>{t('profile.deleteAccountConfirmBody')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <p className="text-sm">
-              {t('profile.deleteAccountConfirmPrompt', { word: deleteConfirmWord })}
-            </p>
-            <Input
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-              placeholder={deleteConfirmWord}
-              autoComplete="off"
-              aria-label={t('profile.deleteAccountConfirmTitle')}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleting}>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteAccount}
-              disabled={deleting || confirmText.trim().toUpperCase() !== deleteConfirmWord}
-            >
-              {deleting ? t('profile.deleting') : t('profile.deleteAccountConfirm')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <DangerZoneSection onRequestDelete={() => dispatchDeleteDialog({ type: 'open' })} />
+      </m.main>
+
+      <DeleteAccountDialog state={deleteDialog} dispatch={dispatchDeleteDialog} />
     </>
   )
 }

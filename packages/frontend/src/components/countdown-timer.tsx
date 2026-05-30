@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useEffectEvent } from 'react'
 
 interface TimeRemaining {
   days: number
@@ -6,6 +6,10 @@ interface TimeRemaining {
   minutes: number
   seconds: number
   total: number
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, '0')
 }
 
 function calcRemaining(target: Date): TimeRemaining {
@@ -28,23 +32,25 @@ interface CountdownTimerProps {
 export function CountdownTimer({ targetDate, onComplete, compact = false }: CountdownTimerProps) {
   const [remaining, setRemaining] = useState(() => calcRemaining(targetDate))
 
+  const handleComplete = useEffectEvent(() => {
+    onComplete?.()
+  })
+
   useEffect(() => {
     const interval = setInterval(() => {
       const r = calcRemaining(targetDate)
       setRemaining(r)
       if (r.total <= 0) {
         clearInterval(interval)
-        onComplete?.()
+        handleComplete()
       }
     }, 1000)
     return () => clearInterval(interval)
-  }, [targetDate, onComplete])
+  }, [targetDate])
 
   if (remaining.total <= 0) {
     return null
   }
-
-  const pad = (n: number) => String(n).padStart(2, '0')
 
   if (compact) {
     const parts: string[] = []

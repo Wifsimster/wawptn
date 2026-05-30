@@ -114,7 +114,7 @@ export function TonightPickHero({
               {t('group.joinActiveVote')}
             </Button>
             {members.length > 0 && (
-              <div className="flex -space-x-2 self-center sm:self-end">
+              <div className="flex [&>*:not(:first-child)]:-ml-2 self-center sm:self-end">
                 {avatars.map((member) => (
                   <Avatar key={member.id} className="size-6 ring-2 ring-background">
                     <AvatarImage src={member.avatarUrl} alt={member.displayName} />
@@ -278,7 +278,7 @@ export function TonightPickHero({
             </Tooltip>
 
             <div className="flex items-center gap-2 min-w-0 ml-auto">
-              <div className="flex -space-x-2">
+              <div className="flex [&>*:not(:first-child)]:-ml-2">
                 {avatars.map((member) => (
                   <Avatar key={member.id} className="size-7 ring-2 ring-background">
                     <AvatarImage src={member.avatarUrl} alt={member.displayName} />

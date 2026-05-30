@@ -41,8 +41,10 @@ export function StatDiffChip({ value, unit = '', neutralLabel = '=', className }
   )
 }
 
+const valueFormatter = new Intl.NumberFormat('fr-FR')
+
 function formatValue(value: number): string {
   const abs = Math.abs(value)
   if (abs >= 10000) return `${(value / 1000).toFixed(1)}k`
-  return new Intl.NumberFormat('fr-FR').format(value)
+  return valueFormatter.format(value)
 }

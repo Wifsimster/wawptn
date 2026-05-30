@@ -15,6 +15,25 @@ type Cadence = 'monthly' | 'yearly'
 type CatalogEntry = { cadence: Cadence; priceId: string; unitAmount: number | null; currency: string | null; default: boolean }
 type Catalog = { entries: CatalogEntry[]; annualAvailable: boolean }
 
+// Currency-keyed formatter cache. The currency varies per catalog entry, so a
+// single hoisted formatter won't do — but constructing a fresh
+// `Intl.NumberFormat` on every render is wasteful. Memoise one per currency.
+const currencyFormatters = new Map<string, Intl.NumberFormat>()
+
+function getCurrencyFormatter(currency: string): Intl.NumberFormat {
+  let formatter = currencyFormatters.get(currency)
+  if (!formatter) {
+    formatter = new Intl.NumberFormat('fr-FR', { style: 'currency', currency })
+    currencyFormatters.set(currency, formatter)
+  }
+  return formatter
+}
+
+function formatAmount(entry: CatalogEntry | null): string {
+  if (!entry || entry.unitAmount === null || !entry.currency) return ''
+  return getCurrencyFormatter(entry.currency.toUpperCase()).format(entry.unitAmount / 100)
+}
+
 export function SubscriptionPage() {
   const { t } = useTranslation()
   useDocumentTitle(t('subscription.title'))
@@ -53,15 +72,9 @@ export function SubscriptionPage() {
   const yearlyEntry = useMemo(() => catalog?.entries.find((e) => e.cadence === 'yearly') ?? null, [catalog])
   const showToggle = !!catalog?.annualAvailable && !!monthlyEntry && !!yearlyEntry
 
-  const formatAmount = (entry: CatalogEntry | null): string => {
-    if (!entry || entry.unitAmount === null || !entry.currency) return ''
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: entry.currency.toUpperCase() })
-      .format(entry.unitAmount / 100)
-  }
-
   const yearlyPerMonth = useMemo((): string => {
     if (!yearlyEntry || yearlyEntry.unitAmount === null || !yearlyEntry.currency) return ''
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: yearlyEntry.currency.toUpperCase() })
+    return getCurrencyFormatter(yearlyEntry.currency.toUpperCase())
       .format(yearlyEntry.unitAmount / 12 / 100)
   }, [yearlyEntry])
 
@@ -181,13 +194,12 @@ export function SubscriptionPage() {
         <h1 className="text-2xl font-heading font-bold mb-6">{t('subscription.title')}</h1>
 
         {!isPremium && fromKey && (
-          <div
-            className="mb-4 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground"
-            role="status"
+          <output
+            className="block mb-4 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground"
             aria-live="polite"
           >
             {t(`subscription.fromContext.${fromKey}`, t('subscription.fromContext.feature'))}
-          </div>
+          </output>
         )}
 
         <Card>

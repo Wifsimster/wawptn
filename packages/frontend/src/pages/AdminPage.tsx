@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useReducer, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Bot, Users, BarChart3, Save, RefreshCw, ShieldCheck,
@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
-import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import { m, AnimatePresence, type Variants } from 'framer-motion'
 import { PageHeader } from '@/components/app-layout'
 import { AdminHealthCard } from '@/components/admin-health-card'
 import { Button } from '@/components/ui/button'
@@ -117,6 +117,67 @@ const EMPTY_FORM: PersonaFormData = {
   embedColor: '#5865F2',
 }
 
+/* ─── Persona dialog reducer ────────────────────────── */
+
+interface PersonaDialogState {
+  dialogOpen: boolean
+  dialogMode: 'create' | 'edit'
+  editingPersonaId: string | null
+  formData: PersonaFormData
+  formSaving: boolean
+  deleteDialogOpen: boolean
+  deletingPersonaId: string | null
+}
+
+const initialPersonaDialogState: PersonaDialogState = {
+  dialogOpen: false,
+  dialogMode: 'create',
+  editingPersonaId: null,
+  formData: EMPTY_FORM,
+  formSaving: false,
+  deleteDialogOpen: false,
+  deletingPersonaId: null,
+}
+
+type PersonaDialogAction =
+  | { type: 'openCreate' }
+  | { type: 'openEdit'; id: string; formData: PersonaFormData }
+  | { type: 'setForm'; formData: PersonaFormData }
+  | { type: 'setDialogOpen'; open: boolean }
+  | { type: 'setFormSaving'; saving: boolean }
+  | { type: 'closeForm' }
+  | { type: 'openDelete'; id: string }
+  | { type: 'setDeleteDialogOpen'; open: boolean }
+  | { type: 'closeDelete' }
+
+function personaDialogReducer(
+  state: PersonaDialogState,
+  action: PersonaDialogAction,
+): PersonaDialogState {
+  switch (action.type) {
+    case 'openCreate':
+      return { ...state, dialogMode: 'create', editingPersonaId: null, formData: EMPTY_FORM, dialogOpen: true }
+    case 'openEdit':
+      return { ...state, dialogMode: 'edit', editingPersonaId: action.id, formData: action.formData, dialogOpen: true }
+    case 'setForm':
+      return { ...state, formData: action.formData }
+    case 'setDialogOpen':
+      return { ...state, dialogOpen: action.open }
+    case 'setFormSaving':
+      return { ...state, formSaving: action.saving }
+    case 'closeForm':
+      return { ...state, dialogOpen: false }
+    case 'openDelete':
+      return { ...state, deletingPersonaId: action.id, deleteDialogOpen: true }
+    case 'setDeleteDialogOpen':
+      return { ...state, deleteDialogOpen: action.open }
+    case 'closeDelete':
+      return { ...state, deleteDialogOpen: false, deletingPersonaId: null }
+    default:
+      return state
+  }
+}
+
 type AdminTab = 'overview' | 'bot' | 'personas' | 'users' | 'notifications' | 'email'
 
 const TABS: { id: AdminTab; label: string; icon: typeof BarChart3 }[] = [
@@ -144,6 +205,24 @@ function linesToArray(text: string): string[] {
 
 function arrayToLines(arr: string[]): string {
   return arr.join('\n')
+}
+
+function personaToForm(persona: AdminPersona): PersonaFormData {
+  return {
+    id: persona.id,
+    name: persona.name,
+    systemPromptOverlay: persona.systemPromptOverlay,
+    fridayMessages: arrayToLines(persona.fridayMessages),
+    weekdayMessages: arrayToLines(persona.weekdayMessages),
+    backOnlineMessages: arrayToLines(persona.backOnlineMessages),
+    idleBanter: arrayToLines(persona.idleBanter ?? []),
+    morningGreetings: arrayToLines(persona.morningGreetings ?? []),
+    weekendVibes: arrayToLines(persona.weekendVibes ?? []),
+    offTopicInjectionRate: persona.offTopicInjectionRate ?? 0.3,
+    emptyMentionReply: persona.emptyMentionReply,
+    introMessage: persona.introMessage,
+    embedColor: colorIntToHex(persona.embedColor),
+  }
 }
 
 /* ─── Animated counter ──────────────────────────────── */
@@ -233,33 +312,29 @@ export function AdminPage() {
 
   // Users pagination + search
   const [userSearch, setUserSearch] = useState('')
-  const [debouncedUserSearch, setDebouncedUserSearch] = useState('')
+  // Holds the latest debounced query. It's only ever read inside handlers/effects
+  // (pagination + refresh), never in render, so a ref avoids needless re-renders.
+  const debouncedUserSearchRef = useRef('')
   const [usersOffset, setUsersOffset] = useState(0)
   const [usersTotal, setUsersTotal] = useState(0)
   const [usersLoading, setUsersLoading] = useState(false)
   const usersRequestId = useRef(0)
 
-  // Dialog state
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
-  const [editingPersonaId, setEditingPersonaId] = useState<string | null>(null)
-  const [formData, setFormData] = useState<PersonaFormData>(EMPTY_FORM)
-  const [formSaving, setFormSaving] = useState(false)
-
-  // Delete confirmation
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [deletingPersonaId, setDeletingPersonaId] = useState<string | null>(null)
+  // Persona create/edit + delete dialog state (consolidated)
+  const [dialog, dispatchDialog] = useReducer(personaDialogReducer, initialPersonaDialogState)
+  const { dialogOpen, dialogMode, editingPersonaId, formData, formSaving, deleteDialogOpen, deletingPersonaId } = dialog
 
   const loadUsers = useCallback(async (offset: number, q: string) => {
     const requestId = ++usersRequestId.current
     setUsersLoading(true)
     try {
       const res = await api.getAdminUsers({ limit: USERS_PAGE_SIZE, offset, q: q || undefined })
-      // Drop stale responses if a newer request has fired
-      if (requestId !== usersRequestId.current) return
-      setUsers(res.data)
-      setUsersTotal(res.total)
-      setUsersOffset(res.offset)
+      // Apply only if this is still the most recent request (drop stale responses)
+      if (requestId === usersRequestId.current) {
+        setUsers(res.data)
+        setUsersTotal(res.total)
+        setUsersOffset(res.offset)
+      }
     } catch {
       if (requestId === usersRequestId.current) {
         toast.error('Erreur lors du chargement des utilisateurs')
@@ -296,25 +371,26 @@ export function AdminPage() {
 
   const handleRefresh = useCallback(() => {
     void loadData()
-    void loadUsers(usersOffset, debouncedUserSearch)
-  }, [loadData, loadUsers, usersOffset, debouncedUserSearch])
+    void loadUsers(usersOffset, debouncedUserSearchRef.current)
+  }, [loadData, loadUsers, usersOffset])
 
-  // Debounce user search input
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedUserSearch(userSearch.trim()), 250)
-    return () => clearTimeout(timer)
-  }, [userSearch])
-
-  // Re-fetch first page whenever the debounced search changes (skip initial mount —
-  // the user-load effect below already fetches page 0 with an empty query).
+  // Debounce user search input, then re-fetch the first page. The trimmed query
+  // is stored in a ref (never read during render) so pagination/refresh handlers
+  // can reach the latest value without it being a render-driving state. The
+  // initial mount is skipped because the auth effect below already fetches
+  // page 0 with an empty query.
   const isFirstSearch = useRef(true)
   useEffect(() => {
-    if (isFirstSearch.current) {
-      isFirstSearch.current = false
-      return
-    }
-    void loadUsers(0, debouncedUserSearch)
-  }, [debouncedUserSearch, loadUsers])
+    const timer = setTimeout(() => {
+      debouncedUserSearchRef.current = userSearch.trim()
+      if (isFirstSearch.current) {
+        isFirstSearch.current = false
+        return
+      }
+      void loadUsers(0, debouncedUserSearchRef.current)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [userSearch, loadUsers])
 
   useEffect(() => {
     if (user && !user.isAdmin) {
@@ -377,14 +453,14 @@ export function AdminPage() {
 
   const handleUsersPrev = useCallback(() => {
     const next = Math.max(0, usersOffset - USERS_PAGE_SIZE)
-    void loadUsers(next, debouncedUserSearch)
-  }, [usersOffset, debouncedUserSearch, loadUsers])
+    void loadUsers(next, debouncedUserSearchRef.current)
+  }, [usersOffset, loadUsers])
 
   const handleUsersNext = useCallback(() => {
     const next = usersOffset + USERS_PAGE_SIZE
     if (next >= usersTotal) return
-    void loadUsers(next, debouncedUserSearch)
-  }, [usersOffset, usersTotal, debouncedUserSearch, loadUsers])
+    void loadUsers(next, debouncedUserSearchRef.current)
+  }, [usersOffset, usersTotal, loadUsers])
 
   async function handleTogglePersona(personaId: string) {
     try {
@@ -397,31 +473,11 @@ export function AdminPage() {
   }
 
   function openCreateDialog() {
-    setDialogMode('create')
-    setEditingPersonaId(null)
-    setFormData(EMPTY_FORM)
-    setDialogOpen(true)
+    dispatchDialog({ type: 'openCreate' })
   }
 
   function openEditDialog(persona: AdminPersona) {
-    setDialogMode('edit')
-    setEditingPersonaId(persona.id)
-    setFormData({
-      id: persona.id,
-      name: persona.name,
-      systemPromptOverlay: persona.systemPromptOverlay,
-      fridayMessages: arrayToLines(persona.fridayMessages),
-      weekdayMessages: arrayToLines(persona.weekdayMessages),
-      backOnlineMessages: arrayToLines(persona.backOnlineMessages),
-      idleBanter: arrayToLines(persona.idleBanter ?? []),
-      morningGreetings: arrayToLines(persona.morningGreetings ?? []),
-      weekendVibes: arrayToLines(persona.weekendVibes ?? []),
-      offTopicInjectionRate: persona.offTopicInjectionRate ?? 0.3,
-      emptyMentionReply: persona.emptyMentionReply,
-      introMessage: persona.introMessage,
-      embedColor: colorIntToHex(persona.embedColor),
-    })
-    setDialogOpen(true)
+    dispatchDialog({ type: 'openEdit', id: persona.id, formData: personaToForm(persona) })
   }
 
   async function handleFormSubmit() {
@@ -451,7 +507,7 @@ export function AdminPage() {
     // the zod schema would reject it with a non-actionable error.
     const offTopicInjectionRate = Math.max(0, Math.min(1, Number(formData.offTopicInjectionRate) || 0))
 
-    setFormSaving(true)
+    dispatchDialog({ type: 'setFormSaving', saving: true })
     try {
       if (dialogMode === 'create') {
         await api.createAdminPersona({
@@ -487,12 +543,12 @@ export function AdminPage() {
         })
         toast.success('Persona mis à jour')
       }
-      setDialogOpen(false)
+      dispatchDialog({ type: 'closeForm' })
       await loadData()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde')
     } finally {
-      setFormSaving(false)
+      dispatchDialog({ type: 'setFormSaving', saving: false })
     }
   }
 
@@ -505,8 +561,7 @@ export function AdminPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression')
     } finally {
-      setDeleteDialogOpen(false)
-      setDeletingPersonaId(null)
+      dispatchDialog({ type: 'closeDelete' })
     }
   }
 
@@ -531,7 +586,7 @@ export function AdminPage() {
         }}
       >
         {/* ── Header ─────────────────────────────────── */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -561,10 +616,10 @@ export function AdminPage() {
             <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} />
             Actualiser
           </Button>
-        </motion.div>
+        </m.div>
 
         {/* ── Tab navigation ─────────────────────────── */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.4 }}
@@ -586,7 +641,7 @@ export function AdminPage() {
                   )}
                 >
                   {isActive && (
-                    <motion.div
+                    <m.div
                       layoutId="admin-tab-bg"
                       className="absolute inset-0 rounded-lg bg-primary/[0.08] border border-primary/15"
                       style={{ boxShadow: '0 0 20px oklch(0.55 0.27 270 / 0.06)' }}
@@ -609,12 +664,12 @@ export function AdminPage() {
               )
             })}
           </div>
-        </motion.div>
+        </m.div>
 
         {/* ── Tab content ────────────────────────────── */}
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && (
-            <motion.div
+            <m.div
               key="overview"
               variants={tabContent}
               initial="enter"
@@ -628,11 +683,11 @@ export function AdminPage() {
                 personas={personas}
                 users={users}
               />
-            </motion.div>
+            </m.div>
           )}
 
           {activeTab === 'notifications' && (
-            <motion.div
+            <m.div
               key="notifications"
               variants={tabContent}
               initial="enter"
@@ -640,11 +695,11 @@ export function AdminPage() {
               exit="exit"
             >
               <NotificationsTab />
-            </motion.div>
+            </m.div>
           )}
 
           {activeTab === 'email' && (
-            <motion.div
+            <m.div
               key="email"
               variants={tabContent}
               initial="enter"
@@ -652,11 +707,11 @@ export function AdminPage() {
               exit="exit"
             >
               <EmailTab />
-            </motion.div>
+            </m.div>
           )}
 
           {activeTab === 'bot' && (
-            <motion.div
+            <m.div
               key="bot"
               variants={tabContent}
               initial="enter"
@@ -671,11 +726,11 @@ export function AdminPage() {
                 onSettingsChange={setSettings}
                 onSave={handleSave}
               />
-            </motion.div>
+            </m.div>
           )}
 
           {activeTab === 'personas' && (
-            <motion.div
+            <m.div
               key="personas"
               variants={tabContent}
               initial="enter"
@@ -687,17 +742,14 @@ export function AdminPage() {
                 loading={loading}
                 onToggle={handleTogglePersona}
                 onEdit={openEditDialog}
-                onDelete={(id) => {
-                  setDeletingPersonaId(id)
-                  setDeleteDialogOpen(true)
-                }}
+                onDelete={(id) => dispatchDialog({ type: 'openDelete', id })}
                 onCreate={openCreateDialog}
               />
-            </motion.div>
+            </m.div>
           )}
 
           {activeTab === 'users' && (
-            <motion.div
+            <m.div
               key="users"
               variants={tabContent}
               initial="enter"
@@ -718,7 +770,7 @@ export function AdminPage() {
                 onToggleAdmin={handleToggleAdmin}
                 onTogglePremium={handleTogglePremium}
               />
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </main>
@@ -1287,7 +1339,7 @@ function OverviewTab({
   return (
     <div className="space-y-8">
       {/* ── Stat cards grid ── */}
-      <motion.div
+      <m.div
         variants={stagger}
         initial="hidden"
         animate="visible"
@@ -1332,7 +1384,7 @@ function OverviewTab({
             const c = colorMap[card.accent]
 
             return (
-              <motion.div key={card.label} variants={fadeUp}>
+              <m.div key={card.label} variants={fadeUp}>
                 <div
                   className={cn(
                     'group relative overflow-hidden rounded-xl border bg-card/60 backdrop-blur-sm p-5 transition-all duration-500',
@@ -1369,23 +1421,23 @@ function OverviewTab({
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </m.div>
             )
           })}
-      </motion.div>
+      </m.div>
 
       {/* ── Health card ── */}
       <AdminHealthCard />
 
       {/* ── Recent activity grid ── */}
-      <motion.div
+      <m.div
         variants={stagger}
         initial="hidden"
         animate="visible"
         className="grid gap-4 lg:grid-cols-2"
       >
         {/* Personas overview */}
-        <motion.div variants={fadeUp}>
+        <m.div variants={fadeUp}>
           <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04]">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -1438,10 +1490,10 @@ function OverviewTab({
               )}
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Recent users */}
-        <motion.div variants={fadeUp}>
+        <m.div variants={fadeUp}>
           <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04]">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -1480,8 +1532,8 @@ function OverviewTab({
               )}
             </CardContent>
           </Card>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
     </div>
   )
 }
@@ -1507,14 +1559,14 @@ function BotSettingsTab({
 }) {
   const activePersonas = personas.filter(p => p.isActive)
   return (
-    <motion.div
+    <m.div
       variants={stagger}
       initial="hidden"
       animate="visible"
       className="max-w-2xl space-y-6"
     >
       {/* Persona rotation */}
-      <motion.div variants={fadeUp}>
+      <m.div variants={fadeUp}>
         <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04] overflow-hidden">
           <div className="h-[2px] bg-gradient-to-r from-primary/40 via-neon/30 to-transparent" />
           <CardHeader>
@@ -1613,10 +1665,10 @@ function BotSettingsTab({
             )}
           </CardContent>
         </Card>
-      </motion.div>
+      </m.div>
 
       {/* Schedules */}
-      <motion.div variants={fadeUp}>
+      <m.div variants={fadeUp}>
         <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04] overflow-hidden">
           <div className="h-[2px] bg-gradient-to-r from-ember/40 via-reward/30 to-transparent" />
           <CardHeader>
@@ -1681,16 +1733,16 @@ function BotSettingsTab({
             )}
           </CardContent>
         </Card>
-      </motion.div>
+      </m.div>
 
       {/* Save bar */}
-      <motion.div variants={fadeUp} className="flex gap-3 pt-2">
+      <m.div variants={fadeUp} className="flex gap-3 pt-2">
         <Button onClick={onSave} disabled={saving || loading} className="gap-2">
           <Save className="size-4" />
           {saving ? 'Sauvegarde...' : 'Sauvegarder les paramètres'}
         </Button>
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   )
 }
 
@@ -1730,14 +1782,14 @@ function PersonasTab({
           {[1, 2, 3].map(i => <Skeleton key={i} className="h-48 rounded-xl" />)}
         </div>
       ) : (
-        <motion.div
+        <m.div
           variants={stagger}
           initial="hidden"
           animate="visible"
           className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
         >
           {personas.map((persona) => (
-            <motion.div key={persona.id} variants={scaleIn}>
+            <m.div key={persona.id} variants={scaleIn}>
               <div
                 className={cn(
                   'group relative rounded-xl border bg-card/60 backdrop-blur-sm overflow-hidden transition-all duration-300',
@@ -1828,9 +1880,9 @@ function PersonasTab({
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           ))}
-        </motion.div>
+        </m.div>
       )}
 
       <p className="text-xs text-muted-foreground/40 pt-2">
@@ -1913,14 +1965,14 @@ function UsersTab({
           {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
         </div>
       ) : (
-        <motion.div
+        <m.div
           variants={stagger}
           initial="hidden"
           animate="visible"
           className="space-y-2"
         >
           {users.map((u) => (
-            <motion.div key={u.id} variants={fadeUp}>
+            <m.div key={u.id} variants={fadeUp}>
               <div className={cn(
                 'flex items-center gap-4 rounded-xl border bg-card/60 backdrop-blur-sm p-4 transition-all duration-300',
                 u.isAdmin
@@ -2028,7 +2080,7 @@ function UsersTab({
                   )}
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           ))}
 
           {users.length === 0 && searchQuery && (
@@ -2041,7 +2093,7 @@ function UsersTab({
               Aucun utilisateur
             </div>
           )}
-        </motion.div>
+        </m.div>
       )}
 
       {/* Pagination */}

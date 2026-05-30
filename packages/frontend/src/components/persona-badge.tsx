@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
 import { api } from '@/lib/api'
 import { clampPersonaColor } from '@/lib/persona-color'
@@ -97,7 +97,7 @@ export function PersonaBadge({ groupId, persona: initialPersona, variant = 'hero
   }
 
   return (
-    <motion.section
+    <m.section
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -131,6 +131,6 @@ export function PersonaBadge({ groupId, persona: initialPersona, variant = 'hero
           </p>
         </div>
       </div>
-    </motion.section>
+    </m.section>
   )
 }

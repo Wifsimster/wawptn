@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { ExternalLink, RotateCcw } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import {
   ResponsiveDialog,
@@ -73,7 +73,7 @@ function RandomPickContent({ games }: { games: Game[] }) {
 
   return (
     <AnimatePresence mode="wait">
-      <motion.div
+      <m.div
         key={`${currentGame.steamAppId}-${pickCount}`}
         initial={{ rotateY: 90, opacity: 0, scale: 0.9 }}
         animate={{ rotateY: 0, opacity: 1, scale: 1 }}
@@ -84,7 +84,7 @@ function RandomPickContent({ games }: { games: Game[] }) {
         <CelebrationParticles />
         <Card className="border-0 rounded-none shadow-none">
           {currentGame.headerImageUrl && (
-            <motion.img
+            <m.img
               src={currentGame.headerImageUrl}
               alt={currentGame.gameName}
               className="w-full aspect-[460/215] object-cover sm:rounded-t-lg"
@@ -94,7 +94,7 @@ function RandomPickContent({ games }: { games: Game[] }) {
             />
           )}
           <div className="p-4 sm:p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-4">
-            <motion.div
+            <m.div
               className="text-center"
               initial={{ y: 8, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -104,7 +104,7 @@ function RandomPickContent({ games }: { games: Game[] }) {
                 {t('randomPick.pickNumber', { number: pickCount })}
               </p>
               <h2 className="text-2xl sm:text-xl font-bold">{currentGame.gameName}</h2>
-            </motion.div>
+            </m.div>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
@@ -140,7 +140,7 @@ function RandomPickContent({ games }: { games: Game[] }) {
             )}
           </div>
         </Card>
-      </motion.div>
+      </m.div>
     </AnimatePresence>
   )
 }

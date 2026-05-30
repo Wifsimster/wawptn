@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, m } from 'framer-motion'
 import { RefreshCw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -45,7 +45,7 @@ export function PwaUpdatePanel() {
   return (
     <AnimatePresence>
       {needRefresh && (
-        <motion.div
+        <m.div
           role="status"
           aria-live="polite"
           initial={{ y: 80, opacity: 0 }}
@@ -85,7 +85,7 @@ export function PwaUpdatePanel() {
               </button>
             </div>
           </div>
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   )

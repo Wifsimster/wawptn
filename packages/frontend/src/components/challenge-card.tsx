@@ -1,4 +1,4 @@
-import { motion, type Variants } from 'framer-motion'
+import { m, type Variants } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
@@ -38,7 +38,7 @@ export function ChallengeCard({ challenge }: { challenge: ChallengeProgress }) {
   const isUnlocked = challenge.unlockedAt !== null
 
   return (
-    <motion.div
+    <m.div
       variants={unlockPop}
       className={`
         flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm
@@ -71,7 +71,7 @@ export function ChallengeCard({ challenge }: { challenge: ChallengeProgress }) {
             </span>
             {challenge.unlockedAt && (
               <span className="text-[10px] text-muted-foreground">
-                — {new Date(challenge.unlockedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                · {new Date(challenge.unlockedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
               </span>
             )}
           </div>
@@ -84,6 +84,6 @@ export function ChallengeCard({ challenge }: { challenge: ChallengeProgress }) {
           </div>
         )}
       </div>
-    </motion.div>
+    </m.div>
   )
 }

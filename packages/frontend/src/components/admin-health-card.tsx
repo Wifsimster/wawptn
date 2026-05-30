@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Activity, Database, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -76,34 +76,9 @@ export function AdminHealthCard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
-
-    const fetchHealth = async () => {
-      try {
-        const data = await api.getAdminHealth()
-        if (cancelled) return
-        setSnapshot(data)
-        setError(false)
-      } catch {
-        if (cancelled) return
-        setError(true)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    fetchHealth()
-    const interval = setInterval(fetchHealth, 30 * 1000)
-
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [])
-
-  const handleRefresh = async () => {
-    setLoading(true)
+  // Single fetcher shared by the manual refresh button and the polling
+  // effect. Returns nothing; updates state directly.
+  const loadHealth = useCallback(async () => {
     try {
       const data = await api.getAdminHealth()
       setSnapshot(data)
@@ -113,10 +88,24 @@ export function AdminHealthCard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  // Poll the health endpoint every 30s while mounted. This is a periodic
+  // subscription, not a one-time state initializer: the manual refresh
+  // button (handleRefresh) drives the same fetcher independently.
+  useEffect(() => {
+    void loadHealth()
+    const interval = setInterval(() => { void loadHealth() }, 30 * 1000)
+    return () => clearInterval(interval)
+  }, [loadHealth])
+
+  const handleRefresh = useCallback(() => {
+    setLoading(true)
+    void loadHealth()
+  }, [loadHealth])
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+    <m.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
       <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04]">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -186,6 +175,6 @@ export function AdminHealthCard() {
           ) : null}
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   )
 }

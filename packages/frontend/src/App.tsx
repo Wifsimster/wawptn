@@ -110,16 +110,15 @@ function App() {
 
   if (loading) {
     return (
-      <div
+      <output
         className="min-h-dvh flex flex-col items-center justify-center gap-4"
-        role="status"
         aria-busy="true"
         aria-live="polite"
         aria-label="Chargement de l'application"
       >
         <Skeleton className="size-12 rounded-full" />
         <Skeleton className="h-4 w-32" />
-      </div>
+      </output>
     )
   }
 
@@ -172,16 +171,15 @@ function App() {
 
 function RouteFallback() {
   return (
-    <div
+    <output
       className="min-h-dvh flex flex-col items-center justify-center gap-4"
-      role="status"
       aria-busy="true"
       aria-live="polite"
       aria-label="Chargement de la page"
     >
       <Skeleton className="size-12 rounded-full" />
       <Skeleton className="h-4 w-32" />
-    </div>
+    </output>
   )
 }
 

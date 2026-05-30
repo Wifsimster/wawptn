@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Lightbulb } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
@@ -19,31 +19,39 @@ interface GameRecommendationsProps {
   groupId: string
 }
 
+interface RecommendationsState {
+  recommendations: Recommendation[]
+  loaded: boolean
+}
+
+const INITIAL_STATE: RecommendationsState = { recommendations: [], loaded: false }
+
 export function GameRecommendations({ groupId }: GameRecommendationsProps) {
   const { t } = useTranslation()
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-  const [loaded, setLoaded] = useState(false)
-  const [trackedGroup, setTrackedGroup] = useState(groupId)
+  const [state, setState] = useState<RecommendationsState>(INITIAL_STATE)
+  // Guards the "group changed" reset; never read in render, so a ref keeps it
+  // out of the render cycle.
+  const trackedGroup = useRef(groupId)
 
   // Reset to the loading state when the group changes (see GroupStats).
-  if (groupId !== trackedGroup) {
-    setTrackedGroup(groupId)
-    setRecommendations([])
-    setLoaded(false)
+  if (groupId !== trackedGroup.current) {
+    trackedGroup.current = groupId
+    setState(INITIAL_STATE)
   }
+
+  const { recommendations, loaded } = state
 
   useEffect(() => {
     let cancelled = false
     api.getRecommendations(groupId)
       .then((data) => {
         if (cancelled) return
-        setRecommendations(data.recommendations)
-        setLoaded(true)
+        setState({ recommendations: data.recommendations, loaded: true })
       })
       .catch(() => {
         // Non-critical (includes premium_required 403). Mark loaded so the
         // empty state shows instead of an endless skeleton.
-        if (!cancelled) setLoaded(true)
+        if (!cancelled) setState({ recommendations: [], loaded: true })
       })
     return () => { cancelled = true }
   }, [groupId])

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, m } from 'framer-motion'
 import { Link2, Share2, Twitter } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -158,7 +158,7 @@ export function ShareButton({
 
       <AnimatePresence>
         {open && (
-          <motion.div
+          <m.div
             key="share-popover"
             role="menu"
             aria-label={t('share.button')}
@@ -199,7 +199,7 @@ export function ShareButton({
                 onClick={handleWebShare}
               />
             )}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

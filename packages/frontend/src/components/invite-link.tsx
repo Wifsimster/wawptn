@@ -17,6 +17,22 @@ interface InviteLinkProps {
   continueLabel?: string
 }
 
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    // Fallback for non-secure contexts
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+  }
+}
+
 function DiscordIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

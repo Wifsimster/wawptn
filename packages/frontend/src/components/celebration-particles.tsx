@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 
 interface Particle {
   id: number
@@ -43,11 +43,11 @@ export function CelebrationParticles({ count = 18 }: CelebrationParticlesProps =
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden motion-reduce:hidden" aria-hidden="true">
       {particles.map(p => (
-        <motion.div
+        <m.div
           key={p.id}
           className={`absolute rounded-full ${p.color}`}
           style={{ left: `${p.x}%`, width: p.size, height: p.size }}
-          initial={{ y: '50%', opacity: 1, scale: 0 }}
+          initial={{ y: '50%', opacity: 1, scale: 0.95 }}
           animate={{ y: '-120%', opacity: 0, scale: 1.2 }}
           transition={{ delay: p.delay, duration: p.duration, ease: 'easeOut' }}
         />

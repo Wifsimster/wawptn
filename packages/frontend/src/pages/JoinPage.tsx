@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { AlertTriangle, Copy, Gamepad2, Loader2, Trophy, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
-import { motion, type Variants } from 'framer-motion'
+import { m, type Variants } from 'framer-motion'
 import type { InvitePreview } from '@wawptn/types'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/lib/api'
@@ -93,29 +93,29 @@ export function JoinPage() {
   if (!user) {
     return (
       <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-4">
-        <motion.div
+        <m.div
           className="flex flex-col items-center w-full max-w-md"
           variants={stagger}
           initial="hidden"
           animate="visible"
         >
-          <motion.div variants={fadeUp}>
+          <m.div variants={fadeUp}>
             <Gamepad2 className="size-12 text-primary mb-4" />
-          </motion.div>
+          </m.div>
 
-          <motion.h1 variants={fadeUp} className="text-2xl font-bold mb-2">
+          <m.h1 variants={fadeUp} className="text-2xl font-bold mb-2">
             {t('join.invited')}
-          </motion.h1>
+          </m.h1>
 
           {/* Group name & member info from preview */}
           {!previewLoading && preview?.isValid && (
-            <motion.div variants={fadeUp} className="flex flex-col items-center mb-6 w-full">
+            <m.div variants={fadeUp} className="flex flex-col items-center mb-6 w-full">
               <p className="text-lg font-semibold text-foreground mb-2">{preview.groupName}</p>
 
               {/* Member avatars & count */}
               <div className="flex items-center gap-2 mb-4">
                 {preview.memberAvatars.length > 0 && (
-                  <div className="flex -space-x-2">
+                  <div className="flex [&>*:not(:first-child)]:-ml-2">
                     {preview.memberAvatars.map((url, i) => (
                       <img
                         key={i}
@@ -190,32 +190,32 @@ export function JoinPage() {
                   </div>
                 </div>
               )}
-            </motion.div>
+            </m.div>
           )}
 
           {/* Fallback prompt when no preview or invalid */}
           {!previewLoading && (!preview || !preview.isValid) && (
-            <motion.p variants={fadeUp} className="text-muted-foreground mb-6">
+            <m.p variants={fadeUp} className="text-muted-foreground mb-6">
               {t('join.loginPrompt')}
-            </motion.p>
+            </m.p>
           )}
 
           {/* Simple prompt when preview is valid but no rich data */}
           {!previewLoading && preview?.isValid && !preview.recentWinner && preview.topGames.length === 0 && preview.memberAvatars.length === 0 && (
-            <motion.p variants={fadeUp} className="text-muted-foreground mb-2">
+            <m.p variants={fadeUp} className="text-muted-foreground mb-2">
               {t('join.loginPrompt')}
-            </motion.p>
+            </m.p>
           )}
 
           {/* Loading state for preview */}
           {previewLoading && (
-            <motion.p variants={fadeUp} className="text-muted-foreground mb-6">
+            <m.p variants={fadeUp} className="text-muted-foreground mb-6">
               {t('join.loginPrompt')}
-            </motion.p>
+            </m.p>
           )}
 
           {inAppBrowser && !overrideInAppBrowser ? (
-            <motion.div variants={fadeUp} className="w-full">
+            <m.div variants={fadeUp} className="w-full">
               <Card className="p-4 mb-4 border-warning/40 bg-warning/5">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="size-5 text-warning shrink-0 mt-0.5" aria-hidden="true" />
@@ -258,15 +258,15 @@ export function JoinPage() {
                   {t('join.openAnyway')}
                 </Button>
               </div>
-            </motion.div>
+            </m.div>
           ) : (
-            <motion.div variants={fadeUp}>
+            <m.div variants={fadeUp}>
               <Button variant="steam" size="lg" asChild>
                 <a href={`/api/auth/steam/login?returnTo=/join/${token}`}>{t('login.signIn')}</a>
               </Button>
-            </motion.div>
+            </m.div>
           )}
-        </motion.div>
+        </m.div>
       </main>
     )
   }

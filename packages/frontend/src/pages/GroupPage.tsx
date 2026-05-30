@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { useEffect, useState, useCallback, useMemo, useReducer, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Link2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import type { CommonGame } from '@wawptn/types'
 import { useGroupStore } from '@/stores/group.store'
 import { useAuthStore } from '@/stores/auth.store'
@@ -35,6 +35,83 @@ function isGroupTab(value: string | null): value is GroupTab {
   return value === 'tonight' || value === 'members' || value === 'history' || value === 'stats' || value === 'settings'
 }
 
+type VoteHistoryEntry = {
+  id: string
+  winningGameAppId: number
+  winningGameId?: string
+  winningGameName: string
+  closedAt: string
+  createdBy: string
+}
+
+type ActiveVoteSession = { id: string; scheduledAt: string | null }
+
+type TodayPersona = { id: string; name: string; embedColor: number; introMessage: string }
+
+// Server-driven group data that the mount effect and the live socket events
+// keep in sync. Bundling it behind one reducer means a single dispatch can
+// update several related fields at once (e.g. a finished vote both clears the
+// active session and refreshes history) instead of firing a cascade of
+// independent setState calls inside the effect.
+interface GroupDataState {
+  games: CommonGame[]
+  gamesLoading: boolean
+  voteHistory: VoteHistoryEntry[]
+  voteHistoryTruncated: boolean
+  activeVoteSession: ActiveVoteSession | null
+  todayPersona: TodayPersona | null
+  onlineUserIds: string[]
+}
+
+const initialGroupData: GroupDataState = {
+  games: [],
+  gamesLoading: true,
+  voteHistory: [],
+  voteHistoryTruncated: false,
+  activeVoteSession: null,
+  todayPersona: null,
+  onlineUserIds: [],
+}
+
+type GroupDataAction =
+  | { type: 'gamesLoading' }
+  | { type: 'gamesLoaded'; games: CommonGame[] }
+  | { type: 'gamesLoadFailed' }
+  | { type: 'voteHistory'; entries: VoteHistoryEntry[]; truncated: boolean }
+  | { type: 'removeHistoryEntry'; sessionId: string }
+  | { type: 'activeVoteSession'; session: ActiveVoteSession | null }
+  | { type: 'todayPersona'; persona: TodayPersona | null }
+  | { type: 'presence'; onlineUserIds: string[] }
+  | { type: 'memberOnline'; userId: string }
+  | { type: 'memberOffline'; userId: string }
+
+function groupDataReducer(state: GroupDataState, action: GroupDataAction): GroupDataState {
+  switch (action.type) {
+    case 'gamesLoading':
+      return { ...state, gamesLoading: true }
+    case 'gamesLoaded':
+      return { ...state, games: action.games, gamesLoading: false }
+    case 'gamesLoadFailed':
+      return { ...state, gamesLoading: false }
+    case 'voteHistory':
+      return { ...state, voteHistory: action.entries, voteHistoryTruncated: action.truncated }
+    case 'removeHistoryEntry':
+      return { ...state, voteHistory: state.voteHistory.filter((h) => h.id !== action.sessionId) }
+    case 'activeVoteSession':
+      return { ...state, activeVoteSession: action.session }
+    case 'todayPersona':
+      return { ...state, todayPersona: action.persona }
+    case 'presence':
+      return { ...state, onlineUserIds: action.onlineUserIds }
+    case 'memberOnline':
+      return state.onlineUserIds.includes(action.userId)
+        ? state
+        : { ...state, onlineUserIds: [...state.onlineUserIds, action.userId] }
+    case 'memberOffline':
+      return { ...state, onlineUserIds: state.onlineUserIds.filter((uid) => uid !== action.userId) }
+  }
+}
+
 export function GroupPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
@@ -43,12 +120,16 @@ export function GroupPage() {
   const { currentGroup, fetchGroup, leaveGroup, deleteGroup, renameGroup } = useGroupStore()
   useDocumentTitle(currentGroup?.name ?? t('groups.title'))
   const { user } = useAuthStore()
-  const [commonGames, setCommonGames] = useState<CommonGame[]>([])
+  // Server-driven data (games, vote history, active session, persona,
+  // presence). Mirrors the backend's "one open session per group" guard so
+  // the page can surface a "join existing vote" CTA instead of walking users
+  // through the setup dialog only to bounce off a 409 on the vote page.
+  // Populated on mount and kept fresh via socket events.
+  const [data, dispatch] = useReducer(groupDataReducer, initialGroupData)
+  const { games: commonGames, voteHistory, voteHistoryTruncated, activeVoteSession, todayPersona, onlineUserIds } = data
+  const loadingGames = data.gamesLoading
   const [syncing, setSyncing] = useState(false)
-  const [voteHistory, setVoteHistory] = useState<{ id: string; winningGameAppId: number; winningGameId?: string; winningGameName: string; closedAt: string; createdBy: string }[]>([])
-  const [voteHistoryTruncated, setVoteHistoryTruncated] = useState(false)
   const [inviteToken, setInviteToken] = useState<string | null>(null)
-  const [loadingGames, setLoadingGames] = useState(true)
   const [gameFilters, setGameFilters] = useState<GameFilters>({
     multiplayerOnly: true,
     coopOnly: false,
@@ -60,26 +141,18 @@ export function GroupPage() {
   })
   const [voteSetupOpen, setVoteSetupOpen] = useState(false)
   const [randomPickOpen, setRandomPickOpen] = useState(false)
-  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([])
-  const [todayPersona, setTodayPersona] = useState<{ id: string; name: string; embedColor: number; introMessage: string } | null>(null)
   const [discordDialogOpen, setDiscordDialogOpen] = useState(false)
-  // Mirrors the backend's "one open session per group" guard so the group
-  // detail page can surface a "join existing vote" CTA instead of walking
-  // users through the setup dialog only to bounce off a 409 on the vote
-  // page. Populated on mount via GET /groups/:id/vote and kept fresh via
-  // the `session:created` and `vote:closed` socket events.
-  const [activeVoteSession, setActiveVoteSession] = useState<{ id: string; scheduledAt: string | null } | null>(null)
-  const lastSeenMapRef = useRef<Map<string, number>>(new Map())
+  const lastSeenMapRef = useRef<Map<string, number> | null>(null)
+  if (lastSeenMapRef.current === null) lastSeenMapRef.current = new Map()
 
   const loadCommonGames = useCallback(async (groupId: string, filter?: string) => {
-    setLoadingGames(true)
+    dispatch({ type: 'gamesLoading' })
     try {
       const result = await api.getCommonGames(groupId, filter)
-      setCommonGames(result.games)
+      dispatch({ type: 'gamesLoaded', games: result.games })
     } catch {
       toast.error(t('group.loadGamesError'))
-    } finally {
-      setLoadingGames(false)
+      dispatch({ type: 'gamesLoadFailed' })
     }
   }, [t])
 
@@ -90,8 +163,11 @@ export function GroupPage() {
       // `freeLimitApplied` tells us whether to show an upgrade CTA beneath
       // the list.
       const history = await api.getVoteHistory(groupId)
-      setVoteHistory(history.data.filter((h) => h.winningGameName))
-      setVoteHistoryTruncated(history.freeLimitApplied)
+      dispatch({
+        type: 'voteHistory',
+        entries: history.data.filter((h) => h.winningGameName),
+        truncated: history.freeLimitApplied,
+      })
     } catch {
       // Non-critical, fail silently
     }
@@ -99,12 +175,13 @@ export function GroupPage() {
 
   const loadActiveVoteSession = async (groupId: string) => {
     try {
-      const data = await api.getVoteSession(groupId)
-      if (data.session) {
-        setActiveVoteSession({ id: data.session.id, scheduledAt: data.session.scheduledAt })
-      } else {
-        setActiveVoteSession(null)
-      }
+      const result = await api.getVoteSession(groupId)
+      dispatch({
+        type: 'activeVoteSession',
+        session: result.session
+          ? { id: result.session.id, scheduledAt: result.session.scheduledAt }
+          : null,
+      })
     } catch {
       // Non-critical: if we can't tell, fall back to the normal start-vote
       // flow and let the backend's 409 handler catch any race.
@@ -137,13 +214,13 @@ export function GroupPage() {
     socket.emit('group:join', id)
 
     socket.on('persona:changed', (data) => {
-      if (data.groupId === id) setTodayPersona(data.persona)
+      if (data.groupId === id) dispatch({ type: 'todayPersona', persona: data.persona })
     })
-    socket.on('group:presence', (data) => setOnlineUserIds(data.onlineUserIds))
-    socket.on('member:online', (data) => setOnlineUserIds((prev) => prev.includes(data.userId) ? prev : [...prev, data.userId]))
+    socket.on('group:presence', (data) => dispatch({ type: 'presence', onlineUserIds: data.onlineUserIds }))
+    socket.on('member:online', (data) => dispatch({ type: 'memberOnline', userId: data.userId }))
     socket.on('member:offline', (data) => {
-      lastSeenMapRef.current.set(data.userId, Date.now())
-      setOnlineUserIds((prev) => prev.filter((id) => id !== data.userId))
+      lastSeenMapRef.current?.set(data.userId, Date.now())
+      dispatch({ type: 'memberOffline', userId: data.userId })
     })
     socket.on('member:joined', () => fetchGroup(id))
     socket.on('member:left', () => fetchGroup(id))
@@ -170,7 +247,7 @@ export function GroupPage() {
       // covers the user who started the vote — their local state was
       // already updated in handleStartVote, but keeping this listener
       // authoritative avoids subtle drift if two tabs are open.
-      setActiveVoteSession({ id: data.sessionId, scheduledAt: data.scheduledAt ?? null })
+      dispatch({ type: 'activeVoteSession', session: { id: data.sessionId, scheduledAt: data.scheduledAt ?? null } })
       // If the user had the setup dialog open (e.g. a teammate beat them
       // to the punch), close it — otherwise they'd walk through the form
       // just to hit the 409 conflict handler on submit.
@@ -200,7 +277,7 @@ export function GroupPage() {
       // Vote finished — clear the in-progress flag so the hero flips back
       // to the normal "start a vote" CTA and the next vote can be created
       // without bouncing off the 409 guard.
-      setActiveVoteSession(null)
+      dispatch({ type: 'activeVoteSession', session: null })
       loadVoteHistory(id)
     })
 
@@ -248,7 +325,7 @@ export function GroupPage() {
       const result = await api.createVoteSession(id, participantIds, activeFilter, scheduledAt, hasActiveFilters ? filters : undefined)
       // Record the new session locally so the hero flips immediately even
       // if the socket event loses the race with the navigation.
-      setActiveVoteSession({ id: result.session.id, scheduledAt: result.session.scheduledAt })
+      dispatch({ type: 'activeVoteSession', session: { id: result.session.id, scheduledAt: result.session.scheduledAt } })
       track('vote.started', {
         participantCount: participantIds.length,
         scheduled: !!scheduledAt,
@@ -345,7 +422,7 @@ export function GroupPage() {
     if (!id) return
     try {
       await api.deleteVoteSession(id, sessionId)
-      setVoteHistory((prev) => prev.filter((h) => h.id !== sessionId))
+      dispatch({ type: 'removeHistoryEntry', sessionId })
       toast.success(t('group.deleteHistorySuccess'))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('group.deleteHistoryError'))
@@ -405,7 +482,7 @@ export function GroupPage() {
   // socket listener above applies live midnight/override flips on top.
   useEffect(() => {
     if (currentGroup?.todayPersona) {
-      setTodayPersona(currentGroup.todayPersona)
+      dispatch({ type: 'todayPersona', persona: currentGroup.todayPersona })
     }
   }, [currentGroup?.todayPersona])
 
@@ -430,7 +507,7 @@ export function GroupPage() {
   }, [searchParams, currentGroup, activeVoteSession, navigate, setSearchParams])
 
   const onlineMembers = useMemo(() => new Set(onlineUserIds), [onlineUserIds])
-  const lastSeenMap = lastSeenMapRef.current
+  const lastSeenMap = lastSeenMapRef.current ?? new Map<string, number>()
   const currentUserRole = currentGroup?.members.find(m => m.id === user?.id)?.role || 'member'
 
   // Active group-detail tab, mirrored in the URL (`?tab=`) so a section is
@@ -454,16 +531,15 @@ export function GroupPage() {
           <Skeleton className="size-5 rounded" />
         </PageHeader>
         <main id="main-content" className="max-w-5xl mx-auto p-4 w-full">
-          <div
-            role="status"
+          <output
             aria-busy="true"
             aria-live="polite"
             aria-label={t('common.loading', 'Chargement…')}
-            className="space-y-4"
+            className="block space-y-4"
           >
             <Skeleton className="h-10 w-full rounded-lg" />
             <Skeleton className="h-[400px] w-full rounded-lg" />
-          </div>
+          </output>
         </main>
       </>
     )
@@ -538,7 +614,7 @@ export function GroupPage() {
                 post-creation). Hidden for non-owners and for already-
                 bound groups. */}
             {currentUserRole === 'owner' && !currentGroup.discordChannelId && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -553,7 +629,7 @@ export function GroupPage() {
                     {t('group.discordBannerCta')}
                   </Button>
                 </div>
-              </motion.div>
+              </m.div>
             )}
 
             {/* Persistent "linked to X" chip — visible to all members once

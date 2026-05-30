@@ -134,7 +134,7 @@ export function GroupPanel({ members, groupId, groupName, syncing, inviteToken, 
   const isOwner = currentUserRole === 'owner'
 
   // Sort: owner first, then online, then alphabetical
-  const sortedMembers = [...members].sort((a, b) => {
+  const sortedMembers = members.toSorted((a, b) => {
     if (a.role !== b.role) return a.role === 'owner' ? -1 : 1
     const aOnline = onlineMembers.has(a.id)
     const bOnline = onlineMembers.has(b.id)
@@ -164,7 +164,7 @@ export function GroupPanel({ members, groupId, groupName, syncing, inviteToken, 
               </TooltipContent>
             </Tooltip>
             <p className="text-xs text-muted-foreground">
-              {new Intl.DateTimeFormat(i18n.language, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(session.closedAt))}
+              {historyDateFormat.format(new Date(session.closedAt))}
             </p>
           </div>
           {session.createdBy === currentUserId || currentUserRole === 'owner' ? (

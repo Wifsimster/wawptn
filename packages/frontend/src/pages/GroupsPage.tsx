@@ -1,26 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Plus, LogIn, Crown, Search, X, RefreshCw, Vote, ClipboardPaste } from 'lucide-react'
-import { toast } from 'sonner'
+import { Plus, LogIn, Crown, Search, X, RefreshCw, Vote } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { motion, type Variants } from 'framer-motion'
+import { m, type Variants } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useGroupStore } from '@/stores/group.store'
-import { ApiError } from '@/lib/api'
 import { track } from '@/lib/analytics'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  ResponsiveDialog,
-  ResponsiveDialogContent,
-  ResponsiveDialogHeader,
-  ResponsiveDialogTitle,
-  ResponsiveDialogDescription,
-} from '@/components/ui/responsive-dialog'
-import { InviteLink } from '@/components/invite-link'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+import { CreateGroupDialog } from './CreateGroupDialog'
+import { JoinGroupDialog } from './JoinGroupDialog'
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 16 },
@@ -38,13 +30,16 @@ const stagger: Variants = {
 
 type GroupListItem = ReturnType<typeof useGroupStore.getState>['groups'][number]
 
+const normalize = (s: string) =>
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
 // Hero pick: the group most likely to be acted on right now. Active vote
 // always wins; otherwise we fall back to the most-recently-finished session,
 // then to creation date. Stable enough that returning users land on the
 // same group every time.
 function pickHeroGroup(groups: GroupListItem[]): GroupListItem | null {
   if (groups.length === 0) return null
-  const sorted = [...groups].sort((a, b) => {
+  const sorted = groups.toSorted((a, b) => {
     if (a.activeVoteSession && !b.activeVoteSession) return -1
     if (!a.activeVoteSession && b.activeVoteSession) return 1
     const aTime = a.lastSession?.closedAt ?? a.createdAt
@@ -54,35 +49,44 @@ function pickHeroGroup(groups: GroupListItem[]): GroupListItem | null {
   return sorted[0] ?? null
 }
 
+// Pull-to-refresh state lives as one unit: the spinner flag and the drag
+// distance always change together (a drag sets the distance; a release either
+// refreshes or resets both). A reducer keeps the two in lockstep.
+interface PullState {
+  refreshing: boolean
+  distance: number
+}
+
+type PullAction =
+  | { type: 'drag'; distance: number }
+  | { type: 'refreshStart' }
+  | { type: 'refreshEnd' }
+  | { type: 'reset' }
+
+function pullReducer(state: PullState, action: PullAction): PullState {
+  switch (action.type) {
+    case 'drag':
+      return { ...state, distance: action.distance }
+    case 'refreshStart':
+      return { refreshing: true, distance: state.distance }
+    case 'refreshEnd':
+      return { refreshing: false, distance: 0 }
+    case 'reset':
+      return { ...state, distance: 0 }
+  }
+}
+
 export function GroupsPage() {
   const { t } = useTranslation()
   useDocumentTitle(t('groups.title'))
-  const { groups, loading, fetchGroups, createGroup, joinGroup } = useGroupStore()
-  const navigate = useNavigate()
-  const [refreshing, setRefreshing] = useState(false)
-  const [pullDistance, setPullDistance] = useState(0)
+  const { groups, loading, fetchGroups } = useGroupStore()
+  const [pull, dispatchPull] = useReducer(pullReducer, { refreshing: false, distance: 0 })
+  const { refreshing, distance: pullDistance } = pull
   const touchStartY = useRef(0)
   const mainRef = useRef<HTMLElement>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [showJoin, setShowJoin] = useState(false)
-  const [groupName, setGroupName] = useState('')
-  const [inviteToken, setInviteToken] = useState('')
-  const [inviteResult, setInviteResult] = useState<string | null>(null)
-  const [createdGroupId, setCreatedGroupId] = useState<string | null>(null)
-  const [createError, setCreateError] = useState<string | null>(null)
-  const [joinError, setJoinError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-
-  const extractInviteToken = (raw: string): string => {
-    const input = raw.trim()
-    if (!input) return input
-    const urlMatch = input.match(/\/invite\/([A-Za-z0-9_-]+)/)
-    if (urlMatch && urlMatch[1]) return urlMatch[1]
-    return input
-  }
-
-  const normalize = (s: string) =>
-    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
   const heroGroup = useMemo(() => pickHeroGroup(groups), [groups])
   const otherGroups = useMemo(
@@ -111,10 +115,9 @@ export function GroupsPage() {
   }, [fetchGroups])
 
   const handlePullRefresh = useCallback(async () => {
-    setRefreshing(true)
+    dispatchPull({ type: 'refreshStart' })
     await fetchGroups()
-    setRefreshing(false)
-    setPullDistance(0)
+    dispatchPull({ type: 'refreshEnd' })
   }, [fetchGroups])
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
@@ -127,7 +130,7 @@ export function GroupsPage() {
     if (refreshing || window.scrollY > 0) return
     const delta = e.touches[0]!.clientY - touchStartY.current
     if (delta > 0) {
-      setPullDistance(Math.min(delta * 0.4, 80))
+      dispatchPull({ type: 'drag', distance: Math.min(delta * 0.4, 80) })
     }
   }, [refreshing])
 
@@ -135,96 +138,9 @@ export function GroupsPage() {
     if (pullDistance > 60) {
       handlePullRefresh()
     } else {
-      setPullDistance(0)
+      dispatchPull({ type: 'reset' })
     }
   }, [pullDistance, handlePullRefresh])
-
-  const handleCreate = async () => {
-    if (!groupName.trim()) {
-      setCreateError(t('createGroup.required'))
-      return
-    }
-    setCreateError(null)
-    try {
-      const result = await createGroup({ name: groupName.trim() })
-      setGroupName('')
-      setInviteResult(result.inviteToken)
-      setCreatedGroupId(result.id)
-      fetchGroups()
-      toast.success(t('createGroup.success'))
-      track('group.created', { fromEmptyState: groups.length === 0 })
-    } catch (err) {
-      if (err instanceof ApiError && err.code === 'premium_required') {
-        track('group.create_failed', { reason: 'premium_required' })
-        track('premium.upgrade_clicked', { from: 'group_limit' })
-        toast.error(t('premium.groupLimitReached', { max: 2 }))
-        navigate('/subscription?from=group_limit')
-        return
-      }
-      const msg = err instanceof Error ? err.message : t('createGroup.error')
-      setCreateError(msg)
-      track('group.create_failed', { reason: 'error' })
-      toast.error(msg, {
-        action: {
-          label: t('common.retry'),
-          onClick: () => handleCreate(),
-        },
-      })
-    }
-  }
-
-  const handleFinishCreate = () => {
-    const id = createdGroupId
-    setShowCreate(false)
-    setInviteResult(null)
-    setCreatedGroupId(null)
-    if (id) navigate(`/groups/${id}`)
-  }
-
-  const handleJoin = async () => {
-    const token = extractInviteToken(inviteToken)
-    if (!token) {
-      setJoinError(t('joinGroup.required'))
-      return
-    }
-    setJoinError(null)
-    try {
-      const result = await joinGroup(token)
-      setInviteToken('')
-      setShowJoin(false)
-      fetchGroups()
-      navigate(result.activeVoteSession ? `/groups/${result.id}/vote` : `/groups/${result.id}`)
-      toast.success(t('joinGroup.success'))
-      track('group.joined')
-    } catch (err) {
-      if (err instanceof ApiError && err.code === 'premium_required') {
-        track('group.join_failed', { reason: 'premium_required' })
-        toast.error(t('premium.memberLimitReached', { max: 8 }))
-        return
-      }
-      const msg = err instanceof Error ? err.message : t('joinGroup.error')
-      setJoinError(msg)
-      track('group.join_failed', { reason: 'error' })
-      toast.error(msg, {
-        action: {
-          label: t('common.retry'),
-          onClick: () => handleJoin(),
-        },
-      })
-    }
-  }
-
-  const handlePasteInvite = async () => {
-    try {
-      const text = await navigator.clipboard.readText()
-      if (text) {
-        setInviteToken(text)
-        setJoinError(null)
-      }
-    } catch {
-      toast.error(t('joinGroup.pasteError'))
-    }
-  }
 
   const goToHeroVote = useCallback(() => {
     if (!heroGroup) return
@@ -239,6 +155,8 @@ export function GroupsPage() {
       navigate(`/groups/${heroGroup.id}?startVote=1`)
     }
   }, [heroGroup, navigate])
+
+  const navigate = useNavigate()
 
   return (
     <>
@@ -283,7 +201,7 @@ export function GroupsPage() {
 
         {/* Search — only useful past a handful of groups. */}
         {otherGroups.length > 7 && (
-          <div className="relative mb-4" role="search">
+          <search className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
             <Input
               type="search"
@@ -309,131 +227,18 @@ export function GroupsPage() {
                 <X className="size-4" />
               </button>
             )}
-          </div>
+          </search>
         )}
 
-        {/* Create Group Dialog */}
-        <ResponsiveDialog
-          open={showCreate}
-          onOpenChange={(open) => {
-            setShowCreate(open)
-            if (!open) {
-              setInviteResult(null)
-              setCreatedGroupId(null)
-              setGroupName('')
-              setCreateError(null)
-            }
-          }}
-        >
-          <ResponsiveDialogContent>
-            <ResponsiveDialogHeader>
-              <ResponsiveDialogTitle>
-                {inviteResult ? t('createGroup.inviteReadyTitle') : t('createGroup.title')}
-              </ResponsiveDialogTitle>
-              <ResponsiveDialogDescription>
-                {inviteResult ? t('createGroup.inviteReadyHint') : t('createGroup.description')}
-              </ResponsiveDialogDescription>
-            </ResponsiveDialogHeader>
-            {!inviteResult && (
-              <div className="mt-4 space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="group-name" className="text-sm font-medium">
-                    {t('createGroup.label')}
-                  </label>
-                  <Input
-                    id="group-name"
-                    value={groupName}
-                    onChange={(e) => { setGroupName(e.target.value); setCreateError(null) }}
-                    placeholder={t('createGroup.placeholder')}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-                    maxLength={100}
-                    autoFocus
-                    autoComplete="off"
-                    enterKeyHint="done"
-                    aria-invalid={!!createError}
-                    aria-describedby={createError ? 'group-name-error' : undefined}
-                  />
-                  {createError && (
-                    <p id="group-name-error" role="alert" className="text-sm text-destructive">
-                      {createError}
-                    </p>
-                  )}
-                </div>
+        <CreateGroupDialog open={showCreate} onOpenChange={setShowCreate} groupCount={groups.length} />
 
-                <div className="flex items-center justify-end gap-2">
-                  <Button variant="ghost" onClick={() => setShowCreate(false)}>
-                    {t('common.cancel', 'Annuler')}
-                  </Button>
-                  <Button onClick={handleCreate}>{t('createGroup.submit')}</Button>
-                </div>
-              </div>
-            )}
-            {inviteResult && (
-              <InviteLink
-                token={inviteResult}
-                prominent
-                onContinue={handleFinishCreate}
-                continueLabel={t('createGroup.goToGroup')}
-              />
-            )}
-          </ResponsiveDialogContent>
-        </ResponsiveDialog>
-
-        {/* Join Group Dialog */}
-        <ResponsiveDialog open={showJoin} onOpenChange={(open) => { setShowJoin(open); if (!open) { setInviteToken(''); setJoinError(null) } }}>
-          <ResponsiveDialogContent>
-            <ResponsiveDialogHeader>
-              <ResponsiveDialogTitle>{t('joinGroup.title')}</ResponsiveDialogTitle>
-              <ResponsiveDialogDescription>{t('joinGroup.description')}</ResponsiveDialogDescription>
-            </ResponsiveDialogHeader>
-            <div className="mt-4 space-y-2">
-              <label htmlFor="invite-token" className="text-sm font-medium">
-                {t('joinGroup.label')}
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  id="invite-token"
-                  value={inviteToken}
-                  onChange={(e) => { setInviteToken(e.target.value); setJoinError(null) }}
-                  placeholder={t('joinGroup.placeholder')}
-                  onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-                  maxLength={512}
-                  autoFocus
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  inputMode="text"
-                  enterKeyHint="go"
-                  aria-invalid={!!joinError}
-                  aria-describedby={joinError ? 'invite-token-error' : undefined}
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handlePasteInvite}
-                  aria-label={t('joinGroup.paste')}
-                  title={t('joinGroup.paste')}
-                >
-                  <ClipboardPaste className="size-4" />
-                </Button>
-                <Button onClick={handleJoin}>{t('joinGroup.submit')}</Button>
-              </div>
-              {joinError && (
-                <p id="invite-token-error" role="alert" className="text-sm text-destructive">
-                  {joinError}
-                </p>
-              )}
-            </div>
-          </ResponsiveDialogContent>
-        </ResponsiveDialog>
+        <JoinGroupDialog open={showJoin} onOpenChange={setShowJoin} />
 
         {/* Loading skeleton — only on the first load. A background refetch
             (e.g. the global vote-banner sync) keeps the list on screen. */}
         {loading && groups.length === 0 ? (
-          <div
-            className="space-y-3"
-            role="status"
+          <output
+            className="block space-y-3"
             aria-busy="true"
             aria-live="polite"
             aria-label={t('common.loading', 'Chargement…')}
@@ -441,14 +246,14 @@ export function GroupsPage() {
             <Skeleton className="h-32 w-full rounded-lg" />
             <Skeleton className="h-14 w-full rounded-lg" style={{ animationDelay: '150ms' }} />
             <Skeleton className="h-14 w-full rounded-lg" style={{ animationDelay: '300ms' }} />
-          </div>
+          </output>
         ) : groups.length === 0 ? (
           <EmptyState
             onCreate={() => setShowCreate(true)}
             onJoin={() => setShowJoin(true)}
           />
         ) : (
-          <motion.div
+          <m.div
             className="space-y-6"
             initial="hidden"
             animate="visible"
@@ -458,16 +263,16 @@ export function GroupsPage() {
                 to be played tonight. Inline CTA collapses two taps (open
                 group → start vote) into one. */}
             {heroGroup && (
-              <motion.div variants={fadeUp}>
+              <m.div variants={fadeUp}>
                 <HeroGroupCard group={heroGroup} onAction={goToHeroVote} />
-              </motion.div>
+              </m.div>
             )}
 
             {/* Other groups — compact rows. No icons, no badges, no chevron.
                 The only signal worth surfacing is "vote en cours" because it
                 still beats the hero pick when the user has multiple groups. */}
             {filteredOtherGroups.length > 0 && (
-              <motion.div variants={fadeUp} className="space-y-2">
+              <m.div variants={fadeUp} className="space-y-2">
                 <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground px-1">
                   {t('groups.otherGroups')}
                 </h2>
@@ -476,7 +281,7 @@ export function GroupsPage() {
                     <CompactGroupRow key={group.id} group={group} />
                   ))}
                 </div>
-              </motion.div>
+              </m.div>
             )}
 
             {filteredOtherGroups.length === 0 && otherGroups.length > 0 && searchQuery && (
@@ -494,7 +299,7 @@ export function GroupsPage() {
 
             {/* Demoted Join — present but quiet. Most users open this page
                 to act inside an existing group, not to join a new one. */}
-            <motion.div variants={fadeUp} className="text-center pt-2">
+            <m.div variants={fadeUp} className="text-center pt-2">
               <button
                 type="button"
                 onClick={() => setShowJoin(true)}
@@ -503,8 +308,8 @@ export function GroupsPage() {
                 <LogIn className="size-3.5" />
                 {t('groups.joinWithCode')}
               </button>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
 
         {/* Spacer so the last row isn't covered by the mobile bottom bar. */}
@@ -674,7 +479,7 @@ interface EmptyStateProps {
 function EmptyState({ onCreate, onJoin }: EmptyStateProps) {
   const { t } = useTranslation()
   return (
-    <motion.div
+    <m.div
       className="py-12 sm:py-20 text-center max-w-md mx-auto"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -702,6 +507,6 @@ function EmptyState({ onCreate, onJoin }: EmptyStateProps) {
           {t('groups.joinWithCode')}
         </button>
       </div>
-    </motion.div>
+    </m.div>
   )
 }

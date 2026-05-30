@@ -1,4 +1,4 @@
-import { Suspense, createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Suspense, createContext, use, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Outlet } from 'react-router-dom'
 import { AppHeader } from '@/components/app-header'
@@ -21,7 +21,7 @@ const HeaderSlotContext = createContext<HeaderSlot | null>(null)
  * the layout's slot element has mounted.
  */
 export function PageHeader({ children }: { children: ReactNode }) {
-  const slot = useContext(HeaderSlotContext)
+  const slot = use(HeaderSlotContext)
   const setHasContent = slot?.setHasContent
 
   useEffect(() => {
@@ -34,15 +34,14 @@ export function PageHeader({ children }: { children: ReactNode }) {
 
 function RouteFallback() {
   return (
-    <div
+    <output
       className="flex-1 flex flex-col items-center justify-center gap-4 py-20"
-      role="status"
       aria-busy="true"
       aria-live="polite"
     >
       <Skeleton className="size-12 rounded-full" />
       <Skeleton className="h-4 w-32" />
-    </div>
+    </output>
   )
 }
 

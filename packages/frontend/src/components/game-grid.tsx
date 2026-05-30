@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Search, X, Users, Handshake, Star, ChevronDown, Gamepad2, Monitor, TrendingUp, SearchX, RefreshCw, ShieldAlert, EyeOff, SlidersHorizontal, Sparkles, Sofa, Trophy, Zap } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -125,12 +125,51 @@ function matchActivePreset(filters: GameFilters): string | null {
 const normalize = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
+/**
+ * Transient view state for the grid. Bundled into one reducer because these
+ * fields are all "what is the user currently looking at" UI concerns that
+ * change together in response to interactions (search, expand, drawer).
+ */
+interface UiState {
+  searchQuery: string
+  showAll: boolean
+  genreExpanded: boolean
+  filtersDrawerOpen: boolean
+}
+
+const initialUiState: UiState = {
+  searchQuery: '',
+  showAll: false,
+  genreExpanded: false,
+  filtersDrawerOpen: false,
+}
+
+type UiAction =
+  | { type: 'setSearchQuery'; value: string }
+  | { type: 'showAll' }
+  | { type: 'toggleGenreExpanded' }
+  | { type: 'setFiltersDrawerOpen'; value: boolean }
+
+function uiReducer(state: UiState, action: UiAction): UiState {
+  switch (action.type) {
+    case 'setSearchQuery':
+      return { ...state, searchQuery: action.value }
+    case 'showAll':
+      return { ...state, showAll: true }
+    case 'toggleGenreExpanded':
+      return { ...state, genreExpanded: !state.genreExpanded }
+    case 'setFiltersDrawerOpen':
+      return { ...state, filtersDrawerOpen: action.value }
+  }
+}
+
 export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggleCoop, onToggleGenre, onSetMinMetacritic, onToggleGamesOnly, onToggleControllerOnly, onSetSortBy, onResetFilters, onApplyPreset, onSyncLibraries, syncing }: GameGridProps) {
   const { t } = useTranslation()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showAll, setShowAll] = useState(false)
-  const [genreExpanded, setGenreExpanded] = useState(false)
-  const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false)
+  // Local view state (search box, "show all" expansion, genre section
+  // collapse, filters drawer) all live together in one reducer — they're the
+  // component's transient UI concern and change in response to user actions.
+  const [ui, dispatch] = useReducer(uiReducer, initialUiState)
+  const { searchQuery, showAll, genreExpanded, filtersDrawerOpen } = ui
 
   // Count how many "advanced" filter knobs are active. Drives the small
   // badge on the "Plus de filtres" button so users can see at a glance
@@ -143,6 +182,11 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
     (filters.sortBy !== 'popularity' ? 1 : 0)
 
   const activePresetId = matchActivePreset(filters)
+
+  // The "no common games" empty state hint is a static list of tips that only
+  // depends on the active locale (via `t`). Memoise the element so it isn't
+  // re-created every render and doesn't trip jsx-no-jsx-as-prop on EmptyState.
+  const noCommonGamesHint = useMemo(() => <NoCommonGamesHint t={t} />, [t])
 
   // Collect all unique genres from games
   const availableGenres = useMemo(() => {
@@ -207,9 +251,9 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
 
     // Sorting (length-preserving — safe to derive hidden count from this)
     if (filters.sortBy === 'popularity') {
-      result = [...result].sort((a, b) => (b.recommendationsTotal ?? 0) - (a.recommendationsTotal ?? 0))
+      result = result.toSorted((a, b) => (b.recommendationsTotal ?? 0) - (a.recommendationsTotal ?? 0))
     } else if (filters.sortBy === 'name') {
-      result = [...result].sort((a, b) => a.gameName.localeCompare(b.gameName))
+      result = result.toSorted((a, b) => a.gameName.localeCompare(b.gameName))
     }
     // 'owners' is the default sort from the API
 
@@ -230,24 +274,31 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
   const hasMore = !isFiltering && !showAll && filteredGames.length > DISPLAY_CAP
 
   // Virtualization for large lists
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLMenuElement>(null)
   const [columnCount, setColumnCount] = useState(2)
   const shouldVirtualize = displayedGames.length >= VIRTUALIZE_THRESHOLD
 
-  const updateColumnCount = useCallback(() => {
-    const w = scrollContainerRef.current?.offsetWidth ?? window.innerWidth
-    if (w >= 1024) setColumnCount(4)
-    else if (w >= 640) setColumnCount(3)
+  // Measure the scroll container and pick a column count from its width.
+  // This reads layout (offsetWidth) so it can only run after paint — hence
+  // it lives in the ResizeObserver callback rather than render. The observer
+  // fires once synchronously on observe(), which covers the initial mount
+  // measurement too (no separate setState in the effect body needed).
+  const measureColumnCount = useCallback((width: number) => {
+    if (width >= 1024) setColumnCount(4)
+    else if (width >= 640) setColumnCount(3)
     else setColumnCount(2)
   }, [])
 
   useEffect(() => {
     if (!shouldVirtualize) return
-    updateColumnCount()
-    const observer = new ResizeObserver(updateColumnCount)
-    if (scrollContainerRef.current) observer.observe(scrollContainerRef.current)
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? window.innerWidth
+      measureColumnCount(width)
+    })
+    const el = scrollContainerRef.current
+    if (el) observer.observe(el)
     return () => observer.disconnect()
-  }, [shouldVirtualize, updateColumnCount])
+  }, [shouldVirtualize, measureColumnCount])
 
   const rowCount = shouldVirtualize ? Math.ceil(displayedGames.length / columnCount) : 0
 
@@ -281,7 +332,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
               primary surface compact and pushes advanced knobs (metacritic,
               sort, genres, gamesOnly, controllerOnly) into a drawer. */}
           <div className="flex items-center gap-2">
-            <div className="relative flex-1 min-w-0" role="search">
+            <search className="relative flex-1 min-w-0 block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               <Input
                 type="search"
@@ -292,7 +343,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                 autoCapitalize="none"
                 spellCheck={false}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => dispatch({ type: 'setSearchQuery', value: e.target.value })}
                 placeholder={t('group.searchGames')}
                 aria-label={t('group.searchGames')}
                 className="pl-9 pr-9 w-full"
@@ -300,18 +351,18 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => dispatch({ type: 'setSearchQuery', value: '' })}
                   className="absolute right-0.5 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
                   aria-label={t('group.clearSearch')}
                 >
                   <X className="size-4" />
                 </button>
               )}
-            </div>
+            </search>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setFiltersDrawerOpen(true)}
+              onClick={() => dispatch({ type: 'setFiltersDrawerOpen', value: true })}
               className="gap-1.5 shrink-0 h-10"
               aria-haspopup="dialog"
               aria-expanded={filtersDrawerOpen}
@@ -454,7 +505,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
       {/* Advanced filters drawer — holds everything that used to shout
           from the main panel: metacritic, sort, genres, and the less-used
           "gamesOnly / controller" toggles. Keeps the main surface calm. */}
-      <ResponsiveDialog open={filtersDrawerOpen} onOpenChange={setFiltersDrawerOpen}>
+      <ResponsiveDialog open={filtersDrawerOpen} onOpenChange={(value) => dispatch({ type: 'setFiltersDrawerOpen', value })}>
         <ResponsiveDialogContent>
           <ResponsiveDialogHeader>
             <ResponsiveDialogTitle>{t('group.moreFilters')}</ResponsiveDialogTitle>
@@ -545,7 +596,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                 <button
                   type="button"
                   className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors mb-2"
-                  onClick={() => setGenreExpanded(!genreExpanded)}
+                  onClick={() => dispatch({ type: 'toggleGenreExpanded' })}
                   aria-expanded={genreExpanded}
                 >
                   <ChevronDown className={`size-3 transition-transform ${genreExpanded ? 'rotate-180' : ''}`} />
@@ -586,13 +637,13 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
               variant="ghost"
               onClick={() => {
                 onResetFilters()
-                setFiltersDrawerOpen(false)
+                dispatch({ type: 'setFiltersDrawerOpen', value: false })
               }}
               disabled={advancedFilterCount === 0 && !filters.multiplayerOnly && !filters.coopOnly}
             >
               {t('group.clearFilters')}
             </Button>
-            <Button onClick={() => setFiltersDrawerOpen(false)}>
+            <Button onClick={() => dispatch({ type: 'setFiltersDrawerOpen', value: false })}>
               {t('group.done')}
             </Button>
           </ResponsiveDialogFooter>
@@ -636,22 +687,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
             loading: syncing,
             icon: RefreshCw,
           } : undefined}
-          hint={(
-            <ul className="space-y-2 text-xs text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <ShieldAlert className="size-3.5 text-warning mt-0.5 shrink-0" />
-                <span>{t('group.noCommonGamesHint1')}</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <EyeOff className="size-3.5 text-warning mt-0.5 shrink-0" />
-                <span>{t('group.noCommonGamesHint2')}</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Users className="size-3.5 text-warning mt-0.5 shrink-0" />
-                <span>{t('group.noCommonGamesHint3')}</span>
-              </li>
-            </ul>
-          )}
+          hint={noCommonGamesHint}
         />
       ) : filteredGames.length === 0 ? (
         <EmptyState
@@ -661,7 +697,7 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
           action={{
             label: t('group.clearFilters'),
             onClick: () => {
-              setSearchQuery('')
+              dispatch({ type: 'setSearchQuery', value: '' })
               onResetFilters()
             },
           }}
@@ -669,10 +705,9 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
       ) : (
         <>
           {shouldVirtualize ? (
-            <div
+            <menu
               ref={scrollContainerRef}
-              className="overflow-y-auto"
-              role="list"
+              className="overflow-y-auto m-0 p-0 list-none"
               style={{ maxHeight: '70dvh' }}
             >
               <div
@@ -702,19 +737,19 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
                   )
                 })}
               </div>
-            </div>
+            </menu>
           ) : (
-            <div role="list" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            <menu className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 m-0 p-0 list-none">
               {displayedGames.map((game) => (
                 <GameCard key={game.steamAppId} game={game} t={t} />
               ))}
-            </div>
+            </menu>
           )}
           {hasMore && (
             <Button
               variant="ghost"
               className="w-full mt-2"
-              onClick={() => setShowAll(true)}
+              onClick={() => dispatch({ type: 'showAll' })}
             >
               {t('group.showAll', { count: filteredGames.length })}
             </Button>
@@ -746,7 +781,7 @@ const GameCard = memo(function GameCard({ game, t }: { game: Game; t: (key: stri
   }
 
   return (
-    <div role="listitem" className="relative group rounded-lg overflow-hidden ring-1 ring-white/[0.06] hover:ring-primary/20 transition-all duration-300" style={{ transition: 'opacity 150ms ease, box-shadow 0.3s, ring-color 0.3s' }}>
+    <li className="relative group list-none rounded-lg overflow-hidden ring-1 ring-white/[0.06] hover:ring-primary/20 transition-all duration-300" style={{ transition: 'opacity 150ms ease, box-shadow 0.3s, ring-color 0.3s' }}>
       <Tooltip>
         <TooltipTrigger asChild>
           <div>
@@ -841,6 +876,6 @@ const GameCard = memo(function GameCard({ game, t }: { game: Game; t: (key: stri
           </Tooltip>
         )}
       </div>
-    </div>
+    </li>
   )
 })

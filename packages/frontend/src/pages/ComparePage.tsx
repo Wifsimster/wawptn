@@ -56,7 +56,7 @@ export function ComparePage() {
 
   const sortedCommon = useMemo(() => {
     if (!result) return []
-    return [...result.commonGames].sort((x, y) => {
+    return result.commonGames.toSorted((x, y) => {
       const xx = (x.playtimeA ?? 0) + (x.playtimeB ?? 0)
       const yy = (y.playtimeA ?? 0) + (y.playtimeB ?? 0)
       return yy - xx

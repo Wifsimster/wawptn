@@ -441,11 +441,13 @@ function AdminTabNav({
 
 /* ─── Main component ────────────────────────────────── */
 
-export function AdminPage() {
-  useDocumentTitle('Administration')
+/**
+ * All admin-dashboard state, data loading and mutation handlers. Lives in a hook
+ * so the AdminPage component stays a thin shell that just wires state to the UI.
+ */
+function useAdminDashboard() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const [activeTab, setActiveTab] = useState<AdminTab>('overview')
   const [saving, setSaving] = useState(false)
 
   // Admin dashboard data (settings, stats, personas) loaded together via loadData
@@ -465,7 +467,7 @@ export function AdminPage() {
 
   // Persona create/edit + delete dialog state (consolidated)
   const [dialog, dispatchDialog] = useReducer(personaDialogReducer, initialPersonaDialogState)
-  const { dialogOpen, dialogMode, editingPersonaId, formData, formSaving, deleteDialogOpen, deletingPersonaId } = dialog
+  const { dialogMode, editingPersonaId, deletingPersonaId } = dialog
 
   const loadUsers = useCallback(async (offset: number, q: string) => {
     const requestId = ++usersRequestId.current
@@ -706,6 +708,63 @@ export function AdminPage() {
     }
   }
 
+  return {
+    user,
+    navigate,
+    data,
+    dispatchData,
+    dialog,
+    dispatchDialog,
+    settings,
+    stats,
+    personas,
+    loading,
+    saving,
+    users,
+    usersOffset,
+    usersTotal,
+    usersLoading,
+    userSearch,
+    setUserSearch,
+    handleRefresh,
+    handleSave,
+    handleToggleAdmin,
+    handleTogglePremium,
+    handleUsersPrev,
+    handleUsersNext,
+    handleTogglePersona,
+    openCreateDialog,
+    openEditDialog,
+    handleFormSubmit,
+    handleDeletePersona,
+  }
+}
+
+/* ─── Main component ────────────────────────────────── */
+
+export function AdminPage() {
+  useDocumentTitle('Administration')
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview')
+  const dash = useAdminDashboard()
+  const {
+    user,
+    navigate,
+    dispatchData,
+    dialog,
+    dispatchDialog,
+    settings,
+    stats,
+    personas,
+    loading,
+    saving,
+    users,
+    usersOffset,
+    usersTotal,
+    usersLoading,
+    userSearch,
+    setUserSearch,
+  } = dash
+
   const activePersonas = personas.filter(p => p.isActive).length
 
   if (!user?.isAdmin) return null
@@ -750,7 +809,7 @@ export function AdminPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleRefresh}
+            onClick={dash.handleRefresh}
             disabled={loading}
             className="gap-2 shrink-0"
           >
@@ -769,127 +828,173 @@ export function AdminPage() {
         />
 
         {/* ── Tab content ────────────────────────────── */}
-        <AnimatePresence mode="wait">
-          {activeTab === 'overview' && (
-            <m.div
-              key="overview"
-              variants={tabContent}
-              initial="enter"
-              animate="center"
-              exit="exit"
-            >
-              <OverviewTab
-                stats={stats}
-                loading={loading}
-                usersLoading={usersLoading}
-                personas={personas}
-                users={users}
-              />
-            </m.div>
-          )}
-
-          {activeTab === 'notifications' && (
-            <m.div
-              key="notifications"
-              variants={tabContent}
-              initial="enter"
-              animate="center"
-              exit="exit"
-            >
-              <NotificationsTab />
-            </m.div>
-          )}
-
-          {activeTab === 'email' && (
-            <m.div
-              key="email"
-              variants={tabContent}
-              initial="enter"
-              animate="center"
-              exit="exit"
-            >
-              <EmailTab />
-            </m.div>
-          )}
-
-          {activeTab === 'bot' && (
-            <m.div
-              key="bot"
-              variants={tabContent}
-              initial="enter"
-              animate="center"
-              exit="exit"
-            >
-              <BotSettingsTab
-                settings={settings}
-                loading={loading}
-                saving={saving}
-                personas={personas}
-                onSettingsChange={(s) => dispatchData({ type: 'setSettings', settings: s })}
-                onSave={handleSave}
-              />
-            </m.div>
-          )}
-
-          {activeTab === 'personas' && (
-            <m.div
-              key="personas"
-              variants={tabContent}
-              initial="enter"
-              animate="center"
-              exit="exit"
-            >
-              <PersonasTab
-                personas={personas}
-                loading={loading}
-                onToggle={handleTogglePersona}
-                onEdit={openEditDialog}
-                onDelete={(id) => dispatchDialog({ type: 'openDelete', id })}
-                onCreate={openCreateDialog}
-              />
-            </m.div>
-          )}
-
-          {activeTab === 'users' && (
-            <m.div
-              key="users"
-              variants={tabContent}
-              initial="enter"
-              animate="center"
-              exit="exit"
-            >
-              <UsersTab
-                users={users}
-                totalUsers={usersTotal}
-                offset={usersOffset}
-                pageSize={USERS_PAGE_SIZE}
-                loading={usersLoading}
-                currentUserId={user?.id}
-                searchQuery={userSearch}
-                onSearchChange={setUserSearch}
-                onPrev={handleUsersPrev}
-                onNext={handleUsersNext}
-                onToggleAdmin={handleToggleAdmin}
-                onTogglePremium={handleTogglePremium}
-              />
-            </m.div>
-          )}
-        </AnimatePresence>
+        <AdminTabContent
+          activeTab={activeTab}
+          settings={settings}
+          stats={stats}
+          users={users}
+          personas={personas}
+          loading={loading}
+          saving={saving}
+          usersLoading={usersLoading}
+          usersTotal={usersTotal}
+          usersOffset={usersOffset}
+          userSearch={userSearch}
+          currentUserId={user?.id}
+          onSettingsChange={(s) => dispatchData({ type: 'setSettings', settings: s })}
+          onSave={dash.handleSave}
+          onTogglePersona={dash.handleTogglePersona}
+          onEditPersona={dash.openEditDialog}
+          onDeletePersona={(id) => dispatchDialog({ type: 'openDelete', id })}
+          onCreatePersona={dash.openCreateDialog}
+          onSearchChange={setUserSearch}
+          onUsersPrev={dash.handleUsersPrev}
+          onUsersNext={dash.handleUsersNext}
+          onToggleAdmin={dash.handleToggleAdmin}
+          onTogglePremium={dash.handleTogglePremium}
+        />
       </main>
 
       <PersonaDialogs
-        dialogOpen={dialogOpen}
-        dialogMode={dialogMode}
-        formData={formData}
-        formSaving={formSaving}
-        deleteDialogOpen={deleteDialogOpen}
+        dialogOpen={dialog.dialogOpen}
+        dialogMode={dialog.dialogMode}
+        formData={dialog.formData}
+        formSaving={dialog.formSaving}
+        deleteDialogOpen={dialog.deleteDialogOpen}
         onDialogOpenChange={(open) => dispatchDialog({ type: 'setDialogOpen', open })}
         onFormChange={(formData) => dispatchDialog({ type: 'setForm', formData })}
-        onSubmit={handleFormSubmit}
+        onSubmit={dash.handleFormSubmit}
         onDeleteDialogOpenChange={(open) => dispatchDialog({ type: 'setDeleteDialogOpen', open })}
-        onConfirmDelete={handleDeletePersona}
+        onConfirmDelete={dash.handleDeletePersona}
       />
     </>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════
+   Tab content router
+   ═══════════════════════════════════════════════════════ */
+
+function AdminTabContent({
+  activeTab,
+  settings,
+  stats,
+  users,
+  personas,
+  loading,
+  saving,
+  usersLoading,
+  usersTotal,
+  usersOffset,
+  userSearch,
+  currentUserId,
+  onSettingsChange,
+  onSave,
+  onTogglePersona,
+  onEditPersona,
+  onDeletePersona,
+  onCreatePersona,
+  onSearchChange,
+  onUsersPrev,
+  onUsersNext,
+  onToggleAdmin,
+  onTogglePremium,
+}: {
+  activeTab: AdminTab
+  settings: BotSettings | null
+  stats: AdminStats | null
+  users: AdminUser[]
+  personas: AdminPersona[]
+  loading: boolean
+  saving: boolean
+  usersLoading: boolean
+  usersTotal: number
+  usersOffset: number
+  userSearch: string
+  currentUserId: string | undefined
+  onSettingsChange: (s: BotSettings) => void
+  onSave: () => void
+  onTogglePersona: (id: string) => void
+  onEditPersona: (persona: AdminPersona) => void
+  onDeletePersona: (id: string) => void
+  onCreatePersona: () => void
+  onSearchChange: (q: string) => void
+  onUsersPrev: () => void
+  onUsersNext: () => void
+  onToggleAdmin: (user: AdminUser) => void
+  onTogglePremium: (user: AdminUser) => void
+}) {
+  return (
+    <AnimatePresence mode="wait">
+      {activeTab === 'overview' && (
+        <m.div key="overview" variants={tabContent} initial="enter" animate="center" exit="exit">
+          <OverviewTab
+            stats={stats}
+            loading={loading}
+            usersLoading={usersLoading}
+            personas={personas}
+            users={users}
+          />
+        </m.div>
+      )}
+
+      {activeTab === 'notifications' && (
+        <m.div key="notifications" variants={tabContent} initial="enter" animate="center" exit="exit">
+          <NotificationsTab />
+        </m.div>
+      )}
+
+      {activeTab === 'email' && (
+        <m.div key="email" variants={tabContent} initial="enter" animate="center" exit="exit">
+          <EmailTab />
+        </m.div>
+      )}
+
+      {activeTab === 'bot' && (
+        <m.div key="bot" variants={tabContent} initial="enter" animate="center" exit="exit">
+          <BotSettingsTab
+            settings={settings}
+            loading={loading}
+            saving={saving}
+            personas={personas}
+            onSettingsChange={onSettingsChange}
+            onSave={onSave}
+          />
+        </m.div>
+      )}
+
+      {activeTab === 'personas' && (
+        <m.div key="personas" variants={tabContent} initial="enter" animate="center" exit="exit">
+          <PersonasTab
+            personas={personas}
+            loading={loading}
+            onToggle={onTogglePersona}
+            onEdit={onEditPersona}
+            onDelete={onDeletePersona}
+            onCreate={onCreatePersona}
+          />
+        </m.div>
+      )}
+
+      {activeTab === 'users' && (
+        <m.div key="users" variants={tabContent} initial="enter" animate="center" exit="exit">
+          <UsersTab
+            users={users}
+            totalUsers={usersTotal}
+            offset={usersOffset}
+            pageSize={USERS_PAGE_SIZE}
+            loading={usersLoading}
+            currentUserId={currentUserId}
+            searchQuery={userSearch}
+            onSearchChange={onSearchChange}
+            onPrev={onUsersPrev}
+            onNext={onUsersNext}
+            onToggleAdmin={onToggleAdmin}
+            onTogglePremium={onTogglePremium}
+          />
+        </m.div>
+      )}
+    </AnimatePresence>
   )
 }
 

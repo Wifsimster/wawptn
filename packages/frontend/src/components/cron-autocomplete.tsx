@@ -187,6 +187,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
                     id={id ? `${id}-option-${index}` : undefined}
                     data-index={index}
                     role="option"
+                    tabIndex={-1}
                     aria-selected={isSelected}
                     onMouseDown={(e) => {
                       e.preventDefault()

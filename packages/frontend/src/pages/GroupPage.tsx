@@ -7,8 +7,7 @@ import { m } from 'framer-motion'
 import type { CommonGame } from '@wawptn/types'
 import { useGroupStore } from '@/stores/group.store'
 import { useAuthStore } from '@/stores/auth.store'
-import { api, ApiError } from '@/lib/api'
-import { track } from '@/lib/analytics'
+import { api } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -30,6 +29,7 @@ import { TonightPickHero } from '@/components/tonight-pick-hero'
 import { PersonaBadge } from '@/components/persona-badge'
 import { DiscordSetupInstructions } from '@/components/discord-setup-instructions'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+import { useGroupActions } from './useGroupActions'
 
 function isGroupTab(value: string | null): value is GroupTab {
   return value === 'tonight' || value === 'members' || value === 'history' || value === 'stats' || value === 'settings'
@@ -135,7 +135,7 @@ export function GroupPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { currentGroup, fetchGroup, leaveGroup, deleteGroup, renameGroup } = useGroupStore()
+  const { currentGroup, fetchGroup } = useGroupStore()
   useDocumentTitle(currentGroup?.name ?? t('groups.title'))
   const { user } = useAuthStore()
   // Server-driven data (games, vote history, active session, persona,
@@ -146,8 +146,6 @@ export function GroupPage() {
   const [data, dispatch] = useReducer(groupDataReducer, initialGroupData)
   const { games: commonGames, voteHistory, voteHistoryTruncated, activeVoteSession, todayPersona, onlineUserIds } = data
   const loadingGames = data.gamesLoading
-  const [syncing, setSyncing] = useState(false)
-  const [inviteToken, setInviteToken] = useState<string | null>(null)
   const [gameFilters, setGameFilters] = useState<GameFilters>({
     multiplayerOnly: true,
     coopOnly: false,
@@ -209,6 +207,32 @@ export function GroupPage() {
   }
 
   const activeFilter = gameFilters.multiplayerOnly ? 'multiplayer' : gameFilters.coopOnly ? 'coop' : undefined
+
+  const {
+    syncing,
+    inviteToken,
+    handleSync,
+    handleStartVote,
+    openVoteFlow,
+    handleGenerateInvite,
+    handleLeaveGroup,
+    handleKickMember,
+    handleDeleteGroup,
+    handleRenameGroup,
+    handleDeleteHistory,
+    handleToggleNotifications,
+    handleUpdateAutoVote,
+    handleUpdateReleasesDigest,
+    handleTestReleasesDigest,
+  } = useGroupActions({
+    id,
+    activeFilter,
+    activeVoteSession,
+    onActiveVoteSession: (session) => dispatch({ type: 'activeVoteSession', session }),
+    onRemoveHistoryEntry: (sessionId) => dispatch({ type: 'removeHistoryEntry', sessionId }),
+    reloadActiveVoteSession: loadActiveVoteSession,
+    openVoteSetup: () => setVoteSetupOpen(true),
+  })
 
   // Ref mirror of activeFilter so socket listeners always see the latest
   // value without needing to tear down and re-subscribe on every toggle.
@@ -317,186 +341,6 @@ export function GroupPage() {
       socket.off('vote:closed')
     }
   }, [id, fetchGroup, navigate, loadCommonGames, t, user?.id, setVoteSetupOpen])
-
-  const handleSync = async () => {
-    if (!id) return
-    setSyncing(true)
-    track('sync.triggered')
-    try {
-      await api.syncLibraries(id)
-      toast.success(t('group.syncSuccess'))
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : t('group.syncError')
-      toast.error(msg, {
-        action: {
-          label: t('common.retry'),
-          onClick: () => handleSync(),
-        },
-      })
-    } finally {
-      setTimeout(() => setSyncing(false), 3000)
-    }
-  }
-
-  const handleStartVote = async (participantIds: string[], scheduledAt?: string, filters?: { multiplayer: boolean; coop: boolean; free: boolean }) => {
-    if (!id) return
-    try {
-      const hasActiveFilters = filters && (filters.multiplayer || filters.coop || filters.free)
-      const result = await api.createVoteSession(id, participantIds, activeFilter, scheduledAt, hasActiveFilters ? filters : undefined)
-      // Record the new session locally so the hero flips immediately even
-      // if the socket event loses the race with the navigation.
-      dispatch({ type: 'activeVoteSession', session: { id: result.session.id, scheduledAt: result.session.scheduledAt } })
-      track('vote.started', {
-        participantCount: participantIds.length,
-        scheduled: !!scheduledAt,
-        hasFilters: !!hasActiveFilters,
-      })
-      navigate(`/groups/${id}/vote`)
-    } catch (err) {
-      // 409 conflict = another vote is already open for this group. The
-      // backend enforces "one open session per group" via a partial
-      // unique index. We normally prevent reaching this path by
-      // short-circuiting the CTA when `activeVoteSession` is populated,
-      // but a race (two clients clicking "start vote" at once) can still
-      // land here. Refresh the local state so future clicks route to the
-      // join variant, then redirect the user to the existing vote.
-      if (err instanceof ApiError && err.status === 409) {
-        toast.info(t('group.voteAlreadyOpen'))
-        loadActiveVoteSession(id)
-        navigate(`/groups/${id}/vote`)
-      } else {
-        toast.error(err instanceof Error ? err.message : t('group.startVoteError'))
-      }
-    }
-  }
-
-  // Unified CTA entry point for the "start vote" buttons scattered across
-  // the hero, the mobile bottom bar, and the sidebar. When a vote is
-  // already open we skip the setup dialog entirely and drop the user on
-  // the existing vote page. This is the fix for the UX bug where users
-  // would walk through the dialog only to be told a vote is already in
-  // progress on the next page.
-  const openVoteFlow = useCallback(() => {
-    if (!id) return
-    if (activeVoteSession) {
-      navigate(`/groups/${id}/vote`)
-    } else {
-      setVoteSetupOpen(true)
-    }
-  }, [id, activeVoteSession, navigate, setVoteSetupOpen])
-
-  const handleGenerateInvite = async () => {
-    if (!id) return
-    try {
-      const result = await api.generateInvite(id)
-      setInviteToken(result.inviteToken)
-      track('invite.generated')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('group.generateInviteError'))
-    }
-  }
-
-  const handleLeaveGroup = async () => {
-    if (!id || !user?.id) return
-    try {
-      await leaveGroup(id, user.id)
-      toast.success(t('group.leftGroup'))
-      navigate('/')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('group.leaveError'))
-    }
-  }
-
-  const handleKickMember = async (userId: string) => {
-    if (!id) return
-    try {
-      await api.leaveGroup(id, userId)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('group.kickError'))
-    }
-  }
-
-  const handleDeleteGroup = async () => {
-    if (!id) return
-    try {
-      await deleteGroup(id)
-      toast.success(t('group.groupDeletedSuccess'))
-      navigate('/')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('group.deleteError'))
-    }
-  }
-
-  const handleRenameGroup = async (name: string) => {
-    if (!id) return
-    try {
-      await renameGroup(id, name)
-      toast.success(t('group.renameSuccess'))
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('group.renameError'))
-      throw err
-    }
-  }
-
-  const handleDeleteHistory = async (sessionId: string) => {
-    if (!id) return
-    try {
-      await api.deleteVoteSession(id, sessionId)
-      dispatch({ type: 'removeHistoryEntry', sessionId })
-      toast.success(t('group.deleteHistorySuccess'))
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('group.deleteHistoryError'))
-    }
-  }
-
-  const handleToggleNotifications = async (enabled: boolean) => {
-    if (!id) return
-    try {
-      await api.toggleNotifications(id, enabled)
-      // Re-fetch group to update the member's notificationsEnabled state
-      fetchGroup(id)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('group.notificationsError'))
-    }
-  }
-
-  const handleUpdateAutoVote = async (schedule: string | null, durationMinutes: number) => {
-    if (!id) return
-    try {
-      await api.updateAutoVote(id, schedule, durationMinutes)
-      toast.success(t('group.autoVoteSuccess'))
-      fetchGroup(id)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('group.autoVoteError'))
-      throw err
-    }
-  }
-
-  const handleUpdateReleasesDigest = async (input: { enabled: boolean; schedule: string; coopOnly: boolean }) => {
-    if (!id) return
-    try {
-      await api.updateReleasesDigest(id, input)
-      toast.success(t('group.releasesDigestSuccess'))
-      fetchGroup(id)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('group.releasesDigestError'))
-      throw err
-    }
-  }
-
-  const handleTestReleasesDigest = async () => {
-    if (!id) return
-    try {
-      const { delivered } = await api.testReleasesDigest(id)
-      if (delivered) {
-        toast.success(t('group.releasesDigestTestSuccess'))
-      } else {
-        toast.error(t('group.releasesDigestTestNotDelivered'))
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('group.releasesDigestTestError'))
-    }
-  }
 
   // Keep the hero persona in sync with the group detail response. The
   // socket listener above applies live midnight/override flips on top.
@@ -677,6 +521,136 @@ export function GroupPage() {
 }
 
 type GroupDetail = NonNullable<ReturnType<typeof useGroupStore.getState>['currentGroup']>
+type GroupMember = GroupDetail['members'][number]
+
+interface GroupPageHeaderProps {
+  groupName: string
+  onlineCount: number
+  onBack: () => void
+}
+
+function GroupPageHeader({ groupName, onlineCount, onBack }: GroupPageHeaderProps) {
+  const { t } = useTranslation()
+  return (
+    <PageHeader>
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <Button variant="ghost" size="icon" onClick={onBack} aria-label={t('group.back')} className="shrink-0">
+          <ArrowLeft className="size-5" />
+        </Button>
+        <h1 className="text-base sm:text-lg font-heading font-bold truncate min-w-0 flex-1">{groupName}</h1>
+        {onlineCount > 0 && (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal shrink-0 hidden sm:inline-flex">
+            <span className="size-1.5 rounded-full bg-online animate-pulse" />
+            {t('group.onlineCount', { count: onlineCount })}
+          </Badge>
+        )}
+      </div>
+    </PageHeader>
+  )
+}
+
+interface GroupMobileActionBarProps {
+  activeVoteSession: ActiveVoteSession | null
+  commonGamesCount: number
+  onVote: () => void
+}
+
+// Mobile: persistent bottom action bar — keeps the vote CTA one tap away from
+// every tab on small screens. Flips to "join vote" when a session is already
+// open so the user isn't walked through the setup dialog for nothing.
+function GroupMobileActionBar({ activeVoteSession, commonGamesCount, onVote }: GroupMobileActionBarProps) {
+  const { t } = useTranslation()
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <Button
+        onClick={onVote}
+        className="w-full h-12 gap-2 active:scale-[0.98] transition-transform"
+      >
+        {activeVoteSession ? (
+          <span className="font-heading font-bold">{t('group.joinActiveVote')}</span>
+        ) : (
+          <>
+            <span className="font-heading font-bold">{t('group.startVote')}</span>
+            <span className="opacity-80 text-sm">· {t('group.commonGamesCount', { count: commonGamesCount })}</span>
+          </>
+        )}
+      </Button>
+    </div>
+  )
+}
+
+interface GroupDialogsProps {
+  members: GroupMember[]
+  groupId: string
+  commonGames: CommonGame[]
+  onlineMembers: Set<string>
+  activeFilter: string | undefined
+  onStartVote: (participantIds: string[], scheduledAt?: string, filters?: { multiplayer: boolean; coop: boolean; free: boolean }) => void
+  randomPickOpen: boolean
+  onRandomPickOpenChange: (open: boolean) => void
+  voteSetupOpen: boolean
+  onVoteSetupOpenChange: (open: boolean) => void
+  discordDialogOpen: boolean
+  onDiscordDialogOpenChange: (open: boolean) => void
+}
+
+// Dialogs — mounted regardless of the active tab so the vote / random pick /
+// Discord flows can be triggered from anywhere (incl. the `?startVote=1` deep
+// link from the dashboard).
+function GroupDialogs({
+  members,
+  groupId,
+  commonGames,
+  onlineMembers,
+  activeFilter,
+  onStartVote,
+  randomPickOpen,
+  onRandomPickOpenChange,
+  voteSetupOpen,
+  onVoteSetupOpenChange,
+  discordDialogOpen,
+  onDiscordDialogOpenChange,
+}: GroupDialogsProps) {
+  const { t } = useTranslation()
+  return (
+    <>
+      <RandomPickModal
+        open={randomPickOpen}
+        onOpenChange={onRandomPickOpenChange}
+        games={commonGames}
+      />
+
+      <VoteSetupDialog
+        open={voteSetupOpen}
+        onOpenChange={onVoteSetupOpenChange}
+        members={members}
+        groupId={groupId}
+        onlineMembers={onlineMembers}
+        activeFilter={activeFilter}
+        onStartVote={onStartVote}
+      />
+
+      <ResponsiveDialog open={discordDialogOpen} onOpenChange={onDiscordDialogOpenChange}>
+        <ResponsiveDialogContent>
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>{t('group.discordBannerDialogTitle')}</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>
+              {t('group.discordBannerHint')}
+            </ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <div className="mt-4 space-y-4">
+            <DiscordSetupInstructions />
+            <div className="flex items-center justify-end">
+              <Button variant="secondary" onClick={() => onDiscordDialogOpenChange(false)}>
+                {t('common.close', 'Fermer')}
+              </Button>
+            </div>
+          </div>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+    </>
+  )
+}
 
 interface TonightTabProps {
   group: GroupDetail

@@ -112,6 +112,24 @@ function groupDataReducer(state: GroupDataState, action: GroupDataAction): Group
   }
 }
 
+// The three modal flags are independent booleans (each can be toggled on its
+// own) but they form one cohesive "which overlays are open" concern, so a tiny
+// reducer keeps them together without changing the open/close semantics.
+interface DialogsState {
+  voteSetup: boolean
+  randomPick: boolean
+  discord: boolean
+}
+
+const initialDialogs: DialogsState = { voteSetup: false, randomPick: false, discord: false }
+
+type DialogsAction = { dialog: keyof DialogsState; open: boolean }
+
+function dialogsReducer(state: DialogsState, action: DialogsAction): DialogsState {
+  if (state[action.dialog] === action.open) return state
+  return { ...state, [action.dialog]: action.open }
+}
+
 export function GroupPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
@@ -139,9 +157,11 @@ export function GroupPage() {
     controllerOnly: false,
     sortBy: 'popularity',
   })
-  const [voteSetupOpen, setVoteSetupOpen] = useState(false)
-  const [randomPickOpen, setRandomPickOpen] = useState(false)
-  const [discordDialogOpen, setDiscordDialogOpen] = useState(false)
+  const [dialogs, dispatchDialog] = useReducer(dialogsReducer, initialDialogs)
+  const { voteSetup: voteSetupOpen, randomPick: randomPickOpen, discord: discordDialogOpen } = dialogs
+  const setVoteSetupOpen = useCallback((open: boolean) => dispatchDialog({ dialog: 'voteSetup', open }), [])
+  const setRandomPickOpen = useCallback((open: boolean) => dispatchDialog({ dialog: 'randomPick', open }), [])
+  const setDiscordDialogOpen = useCallback((open: boolean) => dispatchDialog({ dialog: 'discord', open }), [])
   const lastSeenMapRef = useRef<Map<string, number> | null>(null)
   if (lastSeenMapRef.current === null) lastSeenMapRef.current = new Map()
 
@@ -296,7 +316,7 @@ export function GroupPage() {
       socket.off('session:created')
       socket.off('vote:closed')
     }
-  }, [id, fetchGroup, navigate, loadCommonGames, t, user?.id])
+  }, [id, fetchGroup, navigate, loadCommonGames, t, user?.id, setVoteSetupOpen])
 
   const handleSync = async () => {
     if (!id) return
@@ -363,7 +383,7 @@ export function GroupPage() {
     } else {
       setVoteSetupOpen(true)
     }
-  }, [id, activeVoteSession, navigate])
+  }, [id, activeVoteSession, navigate, setVoteSetupOpen])
 
   const handleGenerateInvite = async () => {
     if (!id) return
@@ -514,7 +534,7 @@ export function GroupPage() {
     } else {
       setVoteSetupOpen(true)
     }
-  }, [currentGroup, activeVoteSession, navigate])
+  }, [currentGroup, activeVoteSession, navigate, setVoteSetupOpen])
 
   const onlineMembers = useMemo(() => new Set(onlineUserIds), [onlineUserIds])
   const lastSeenMap = lastSeenMapRef.current ?? new Map<string, number>()
@@ -699,5 +719,180 @@ export function GroupPage() {
         </ResponsiveDialogContent>
       </ResponsiveDialog>
     </>
+  )
+}
+
+type GroupDetail = NonNullable<ReturnType<typeof useGroupStore.getState>['currentGroup']>
+
+interface TonightTabProps {
+  group: GroupDetail
+  currentUserRole: string
+  commonGames: CommonGame[]
+  loadingGames: boolean
+  voteHistory: VoteHistoryEntry[]
+  gameFilters: GameFilters
+  setGameFilters: React.Dispatch<React.SetStateAction<GameFilters>>
+  syncing: boolean
+  activeVoteSession: ActiveVoteSession | null
+  todayPersona: TodayPersona | null
+  groupId: string | undefined
+  onStartVote: () => void
+  onRandomPick: () => void
+  onJoinActiveVote: () => void
+  onSync: () => void
+  onOpenDiscord: () => void
+}
+
+// "Tonight" tab — the play-a-game-now surface: Discord linkage banner/chip,
+// the persona-du-jour badge, the recommendation hero, and the filterable
+// common-games grid. Extracted from GroupPage to keep that component focused
+// on data orchestration.
+function TonightTab({
+  group,
+  currentUserRole,
+  commonGames,
+  loadingGames,
+  voteHistory,
+  gameFilters,
+  setGameFilters,
+  syncing,
+  activeVoteSession,
+  todayPersona,
+  groupId,
+  onStartVote,
+  onRandomPick,
+  onJoinActiveVote,
+  onSync,
+  onOpenDiscord,
+}: TonightTabProps) {
+  const { t } = useTranslation()
+
+  return (
+    <div className="space-y-4 min-w-0">
+      {/* Owner-only prompt: if the group has no Discord channel
+          bound yet, surface a persistent banner inviting the owner
+          to link one. The banner stays visible until a channel is
+          bound (no dismiss — Discord binding is core, not optional
+          post-creation). Hidden for non-owners and for already-
+          bound groups. */}
+      {currentUserRole === 'owner' && !group.discordChannelId && (
+        <m.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 sm:p-4 flex items-start gap-3">
+            <Link2 className="size-5 mt-0.5 shrink-0 text-primary" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">{t('group.discordBannerTitle')}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('group.discordBannerHint')}</p>
+            </div>
+            <Button size="sm" onClick={onOpenDiscord} className="shrink-0">
+              {t('group.discordBannerCta')}
+            </Button>
+          </div>
+        </m.div>
+      )}
+
+      {/* Persistent "linked to X" chip — visible to all members once
+          a Discord channel is bound, so everyone knows where vote
+          announcements will land. Falls back to a generic label for
+          groups bound before the name-snapshot migration. */}
+      {group.discordChannelId && (
+        <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border border-border/60 bg-muted/20 rounded-full px-2.5 py-1">
+          <Link2 className="size-3 text-primary shrink-0" />
+          {group.discordChannelName || group.discordGuildName ? (
+            <span className="truncate">
+              {group.discordChannelName && (
+                <span className="font-medium">#{group.discordChannelName}</span>
+              )}
+              {group.discordChannelName && group.discordGuildName && (
+                <span className="text-muted-foreground/60"> · </span>
+              )}
+              {group.discordGuildName && <span>{group.discordGuildName}</span>}
+            </span>
+          ) : (
+            <span>{t('group.discordLinkedFallback')}</span>
+          )}
+        </div>
+      )}
+
+      {/* Per-group "persona du jour" — hero variant. Pre-fetched via
+          the enriched group detail response, refreshed live via the
+          `persona:changed` socket event (midnight flip or owner
+          override). */}
+      {todayPersona && (
+        <PersonaBadge
+          groupId={groupId}
+          persona={todayPersona}
+          variant="hero"
+        />
+      )}
+
+      {/* Hero: "Tonight's Pick" — dominant CTA at the top of the page.
+          Replaces the old 2-button grid (Start vote / Random pick) and
+          surfaces a client-scored recommendation so a first-time user
+          can start a vote in one tap without touching any filter. */}
+      <TonightPickHero
+        games={commonGames}
+        loading={loadingGames}
+        voteHistory={voteHistory}
+        members={group.members}
+        onStartVote={onStartVote}
+        onRandomPick={onRandomPick}
+        activeVoteSession={activeVoteSession}
+        onJoinActiveVote={onJoinActiveVote}
+      />
+
+      <GameGrid
+        games={commonGames}
+        loading={loadingGames}
+        filters={gameFilters}
+        onSyncLibraries={onSync}
+        syncing={syncing}
+        onToggleMultiplayer={(value) => setGameFilters(prev => ({
+          ...prev,
+          multiplayerOnly: value,
+          coopOnly: value ? false : prev.coopOnly,
+        }))}
+        onToggleCoop={(value) => setGameFilters(prev => ({
+          ...prev,
+          coopOnly: value,
+          multiplayerOnly: value ? false : prev.multiplayerOnly,
+        }))}
+        onToggleGenre={(genreId) => setGameFilters(prev => ({
+          ...prev,
+          selectedGenres: prev.selectedGenres.includes(genreId)
+            ? prev.selectedGenres.filter(id => id !== genreId)
+            : [...prev.selectedGenres, genreId],
+        }))}
+        onSetMinMetacritic={(value) => setGameFilters(prev => ({
+          ...prev,
+          minMetacritic: value,
+        }))}
+        onToggleGamesOnly={(value) => setGameFilters(prev => ({
+          ...prev,
+          gamesOnly: value,
+        }))}
+        onToggleControllerOnly={(value) => setGameFilters(prev => ({
+          ...prev,
+          controllerOnly: value,
+        }))}
+        onSetSortBy={(value) => setGameFilters(prev => ({
+          ...prev,
+          sortBy: value,
+        }))}
+        onResetFilters={() => setGameFilters({
+          multiplayerOnly: true,
+          coopOnly: false,
+          selectedGenres: [],
+          minMetacritic: null,
+          gamesOnly: true,
+          controllerOnly: false,
+          sortBy: 'popularity',
+        })}
+        onApplyPreset={(patch) => setGameFilters(prev => ({ ...prev, ...patch }))}
+      />
+    </div>
   )
 }

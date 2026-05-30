@@ -127,6 +127,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
         <input
           id={id}
           type="text"
+          role="combobox"
           aria-label={t('group.autoVoteScheduleLabel', { defaultValue: 'Expression cron de la planification' })}
           aria-expanded={open}
           aria-autocomplete="list"

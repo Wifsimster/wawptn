@@ -15,23 +15,17 @@ type Cadence = 'monthly' | 'yearly'
 type CatalogEntry = { cadence: Cadence; priceId: string; unitAmount: number | null; currency: string | null; default: boolean }
 type Catalog = { entries: CatalogEntry[]; annualAvailable: boolean }
 
-// Currency-keyed formatter cache. The currency varies per catalog entry, so a
-// single hoisted formatter won't do — but constructing a fresh
-// `Intl.NumberFormat` on every render is wasteful. Memoise one per currency.
-const currencyFormatters = new Map<string, Intl.NumberFormat>()
-
-function getCurrencyFormatter(currency: string): Intl.NumberFormat {
-  let formatter = currencyFormatters.get(currency)
-  if (!formatter) {
-    formatter = new Intl.NumberFormat('fr-FR', { style: 'currency', currency })
-    currencyFormatters.set(currency, formatter)
-  }
-  return formatter
+// The currency varies per catalog entry, so a single hoisted
+// `Intl.NumberFormat` won't do. `Number.prototype.toLocaleString` formats
+// against the runtime's shared (engine-cached) formatter without
+// constructing a new instance on each call.
+function formatCurrency(amount: number, currency: string): string {
+  return amount.toLocaleString('fr-FR', { style: 'currency', currency })
 }
 
 function formatAmount(entry: CatalogEntry | null): string {
   if (!entry || entry.unitAmount === null || !entry.currency) return ''
-  return getCurrencyFormatter(entry.currency.toUpperCase()).format(entry.unitAmount / 100)
+  return formatCurrency(entry.unitAmount / 100, entry.currency.toUpperCase())
 }
 
 export function SubscriptionPage() {
@@ -74,8 +68,7 @@ export function SubscriptionPage() {
 
   const yearlyPerMonth = useMemo((): string => {
     if (!yearlyEntry || yearlyEntry.unitAmount === null || !yearlyEntry.currency) return ''
-    return getCurrencyFormatter(yearlyEntry.currency.toUpperCase())
-      .format(yearlyEntry.unitAmount / 12 / 100)
+    return formatCurrency(yearlyEntry.unitAmount / 12 / 100, yearlyEntry.currency.toUpperCase())
   }, [yearlyEntry])
 
   const selectCadence = (next: Cadence) => {

@@ -296,6 +296,83 @@ const tabContent: Variants = {
   },
 }
 
+/* ─── Admin data reducer (loaded together) ──────────── */
+
+interface AdminDataState {
+  settings: BotSettings | null
+  stats: AdminStats | null
+  personas: AdminPersona[]
+  loading: boolean
+}
+
+const initialAdminDataState: AdminDataState = {
+  settings: null,
+  stats: null,
+  personas: [],
+  loading: true,
+}
+
+type AdminDataAction =
+  | { type: 'loaded'; settings: BotSettings; stats: AdminStats; personas: AdminPersona[] }
+  | { type: 'loadFailed' }
+  | { type: 'setSettings'; settings: BotSettings }
+  | { type: 'setStats'; stats: AdminStats }
+  | { type: 'setPersonas'; personas: AdminPersona[] }
+
+function adminDataReducer(state: AdminDataState, action: AdminDataAction): AdminDataState {
+  switch (action.type) {
+    case 'loaded':
+      return { settings: action.settings, stats: action.stats, personas: action.personas, loading: false }
+    case 'loadFailed':
+      return { ...state, loading: false }
+    case 'setSettings':
+      return { ...state, settings: action.settings }
+    case 'setStats':
+      return { ...state, stats: action.stats }
+    case 'setPersonas':
+      return { ...state, personas: action.personas }
+    default:
+      return state
+  }
+}
+
+/* ─── Users list reducer (paginated, loaded together) ── */
+
+interface UsersState {
+  items: AdminUser[]
+  offset: number
+  total: number
+  loading: boolean
+}
+
+const initialUsersState: UsersState = {
+  items: [],
+  offset: 0,
+  total: 0,
+  loading: false,
+}
+
+type UsersAction =
+  | { type: 'loadStart' }
+  | { type: 'loaded'; items: AdminUser[]; offset: number; total: number }
+  | { type: 'loadEnd' }
+  | { type: 'setItems'; items: AdminUser[] }
+
+function usersReducer(state: UsersState, action: UsersAction): UsersState {
+  switch (action.type) {
+    case 'loadStart':
+      return { ...state, loading: true }
+    case 'loaded':
+      return { ...state, items: action.items, offset: action.offset, total: action.total }
+    case 'loadEnd':
+      return { ...state, loading: false }
+    case 'setItems':
+      return { ...state, items: action.items }
+    default:
+      return state
+  }
+}
+
 /* ─── Main component ────────────────────────────────── */
 
 export function AdminPage() {
@@ -303,21 +380,21 @@ export function AdminPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const [activeTab, setActiveTab] = useState<AdminTab>('overview')
-  const [settings, setSettings] = useState<BotSettings | null>(null)
-  const [stats, setStats] = useState<AdminStats | null>(null)
-  const [users, setUsers] = useState<AdminUser[]>([])
-  const [personas, setPersonas] = useState<AdminPersona[]>([])
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  // Users pagination + search
+  // Admin dashboard data (settings, stats, personas) loaded together via loadData
+  const [data, dispatchData] = useReducer(adminDataReducer, initialAdminDataState)
+  const { settings, stats, personas, loading } = data
+
+  // Paginated users list (items + offset + total + loading) loaded together
+  const [usersState, dispatchUsers] = useReducer(usersReducer, initialUsersState)
+  const { items: users, offset: usersOffset, total: usersTotal, loading: usersLoading } = usersState
+
+  // Users search input
   const [userSearch, setUserSearch] = useState('')
   // Holds the latest debounced query. It's only ever read inside handlers/effects
   // (pagination + refresh), never in render, so a ref avoids needless re-renders.
   const debouncedUserSearchRef = useRef('')
-  const [usersOffset, setUsersOffset] = useState(0)
-  const [usersTotal, setUsersTotal] = useState(0)
-  const [usersLoading, setUsersLoading] = useState(false)
   const usersRequestId = useRef(0)
 
   // Persona create/edit + delete dialog state (consolidated)
@@ -326,14 +403,12 @@ export function AdminPage() {
 
   const loadUsers = useCallback(async (offset: number, q: string) => {
     const requestId = ++usersRequestId.current
-    setUsersLoading(true)
+    dispatchUsers({ type: 'loadStart' })
     try {
       const res = await api.getAdminUsers({ limit: USERS_PAGE_SIZE, offset, q: q || undefined })
       // Apply only if this is still the most recent request (drop stale responses)
       if (requestId === usersRequestId.current) {
-        setUsers(res.data)
-        setUsersTotal(res.total)
-        setUsersOffset(res.offset)
+        dispatchUsers({ type: 'loaded', items: res.data, total: res.total, offset: res.offset })
       }
     } catch {
       if (requestId === usersRequestId.current) {
@@ -341,7 +416,7 @@ export function AdminPage() {
       }
     } finally {
       if (requestId === usersRequestId.current) {
-        setUsersLoading(false)
+        dispatchUsers({ type: 'loadEnd' })
       }
     }
   }, [])
@@ -359,13 +434,10 @@ export function AdminPage() {
       // Default to true so the daily-pulse UI reflects the migration default
       // instead of blanking the checkbox for admins on existing installs.
       if (typeof s.daily_pulse_enabled !== 'boolean') s.daily_pulse_enabled = true
-      setSettings(s)
-      setStats(statsData)
-      setPersonas(personasData)
+      dispatchData({ type: 'loaded', settings: s, stats: statsData, personas: personasData })
     } catch {
       toast.error('Erreur lors du chargement des données admin')
-    } finally {
-      setLoading(false)
+      dispatchData({ type: 'loadFailed' })
     }
   }, [])
 
@@ -420,14 +492,16 @@ export function AdminPage() {
     const newIsAdmin = !targetUser.isAdmin
     try {
       await api.setAdminUserRole(targetUser.id, newIsAdmin)
-      setUsers(users.map(u => u.id === targetUser.id ? {
+      dispatchUsers({ type: 'setItems', items: users.map(u => u.id === targetUser.id ? {
         ...u,
         isAdmin: newIsAdmin,
         // Admins implicitly have premium access
         isPremium: newIsAdmin ? true : u.adminGrantedPremium,
-      } : u))
+      } : u) })
       // Keep the overview admin count in sync without refetching the full page
-      setStats(prev => prev ? { ...prev, admins: prev.admins + (newIsAdmin ? 1 : -1) } : prev)
+      if (stats) {
+        dispatchData({ type: 'setStats', stats: { ...stats, admins: stats.admins + (newIsAdmin ? 1 : -1) } })
+      }
       toast.success(newIsAdmin ? `${targetUser.displayName} promu admin` : `${targetUser.displayName} n'est plus admin`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur lors du changement de rôle')
@@ -438,12 +512,12 @@ export function AdminPage() {
     const newGranted = !targetUser.adminGrantedPremium
     try {
       await api.setAdminUserPremium(targetUser.id, newGranted)
-      setUsers(users.map(u => u.id === targetUser.id ? {
+      dispatchUsers({ type: 'setItems', items: users.map(u => u.id === targetUser.id ? {
         ...u,
         adminGrantedPremium: newGranted,
         // Admins keep premium regardless; otherwise reflect the grant
         isPremium: u.isAdmin ? true : newGranted,
-      } : u))
+      } : u) })
       toast.success(newGranted
         ? `${targetUser.displayName} a reçu l'accès premium`
         : `Accès premium retiré à ${targetUser.displayName}`)
@@ -466,7 +540,7 @@ export function AdminPage() {
   async function handleTogglePersona(personaId: string) {
     try {
       const result = await api.toggleAdminPersona(personaId)
-      setPersonas(personas.map(p => p.id === personaId ? { ...p, isActive: result.isActive } : p))
+      dispatchData({ type: 'setPersonas', personas: personas.map(p => p.id === personaId ? { ...p, isActive: result.isActive } : p) })
       toast.success(result.isActive ? 'Persona activé' : 'Persona désactivé')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur lors du basculement')

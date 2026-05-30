@@ -258,153 +258,21 @@ export function GameGrid({ games, loading, filters, onToggleMultiplayer, onToggl
         />
       )}
 
-      {/* Advanced filters drawer — holds everything that used to shout
-          from the main panel: metacritic, sort, genres, and the less-used
-          "gamesOnly / controller" toggles. Keeps the main surface calm. */}
-      <ResponsiveDialog open={filtersDrawerOpen} onOpenChange={(value) => dispatch({ type: 'setFiltersDrawerOpen', value })}>
-        <ResponsiveDialogContent>
-          <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>{t('group.moreFilters')}</ResponsiveDialogTitle>
-            <ResponsiveDialogDescription>{t('group.moreFiltersDescription')}</ResponsiveDialogDescription>
-          </ResponsiveDialogHeader>
-          {/* No nested scroll container — `ResponsiveDialogContent`
-              already caps at 96dvh and scrolls. Adding our own
-              overflow-y here created a swipe-trap on iOS where the
-              outer drawer-handle pull-down gesture got captured by
-              the inner scroller (mobile review §C4 follow-up). */}
-          <div className="px-4 pb-4 space-y-5">
-            {/* Metacritic */}
-            <section>
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-2">
-                <Star className="size-3" />
-                {t('group.metacritic')}
-              </h3>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {METACRITIC_THRESHOLDS.map((threshold) => (
-                  <Button
-                    key={threshold ?? 'all'}
-                    variant={filters.minMetacritic === threshold ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-8 px-2.5 text-xs"
-                    onClick={() => onSetMinMetacritic(threshold)}
-                    aria-pressed={filters.minMetacritic === threshold}
-                  >
-                    {threshold === null ? t('group.allScores') : `${threshold}+`}
-                  </Button>
-                ))}
-              </div>
-            </section>
-
-            {/* Sort */}
-            <section>
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-2">
-                <TrendingUp className="size-3" />
-                {t('group.sortBy')}
-              </h3>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {(['owners', 'popularity', 'name'] as const).map((s) => (
-                  <Button
-                    key={s}
-                    variant={filters.sortBy === s ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-8 px-2.5 text-xs"
-                    onClick={() => onSetSortBy(s)}
-                    aria-pressed={filters.sortBy === s}
-                  >
-                    {t(`group.sort_${s}`)}
-                  </Button>
-                ))}
-              </div>
-            </section>
-
-            {/* Secondary toggles */}
-            <section>
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                {t('group.secondaryFilters')}
-              </h3>
-              <div className="flex flex-wrap gap-1.5">
-                <Button
-                  variant={filters.gamesOnly ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => onToggleGamesOnly(!filters.gamesOnly)}
-                  className="gap-1.5"
-                  aria-pressed={filters.gamesOnly}
-                >
-                  <Monitor className="size-3.5" />
-                  {t('group.gamesOnly')}
-                </Button>
-                <Button
-                  variant={filters.controllerOnly ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => onToggleControllerOnly(!filters.controllerOnly)}
-                  className="gap-1.5"
-                  aria-pressed={filters.controllerOnly}
-                >
-                  <Gamepad2 className="size-3.5" />
-                  {t('group.controllerSupport')}
-                </Button>
-              </div>
-            </section>
-
-            {/* Genres */}
-            {availableGenres.length > 0 && (
-              <section>
-                <button
-                  type="button"
-                  className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors mb-2"
-                  onClick={() => dispatch({ type: 'toggleGenreExpanded' })}
-                  aria-expanded={genreExpanded}
-                >
-                  <ChevronDown className={`size-3 transition-transform ${genreExpanded ? 'rotate-180' : ''}`} />
-                  {t('group.genres')}
-                  {filters.selectedGenres.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-xs">
-                      {filters.selectedGenres.length}
-                    </Badge>
-                  )}
-                </button>
-                {genreExpanded && (
-                  <div className="flex flex-wrap gap-2">
-                    {availableGenres.map((genre) => {
-                      const isSelected = filters.selectedGenres.includes(genre.id)
-                      return (
-                        <button
-                          key={genre.id}
-                          type="button"
-                          onClick={() => onToggleGenre(genre.id)}
-                          aria-pressed={isSelected}
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
-                            isSelected
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                          }`}
-                        >
-                          {genre.description}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </section>
-            )}
-          </div>
-          <ResponsiveDialogFooter>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                onResetFilters()
-                dispatch({ type: 'setFiltersDrawerOpen', value: false })
-              }}
-              disabled={advancedFilterCount === 0 && !filters.multiplayerOnly && !filters.coopOnly}
-            >
-              {t('group.clearFilters')}
-            </Button>
-            <Button onClick={() => dispatch({ type: 'setFiltersDrawerOpen', value: false })}>
-              {t('group.done')}
-            </Button>
-          </ResponsiveDialogFooter>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
+      <GameFiltersDrawer
+        open={filtersDrawerOpen}
+        onOpenChange={(value) => dispatch({ type: 'setFiltersDrawerOpen', value })}
+        filters={filters}
+        availableGenres={availableGenres}
+        genreExpanded={genreExpanded}
+        onToggleGenreExpanded={() => dispatch({ type: 'toggleGenreExpanded' })}
+        advancedFilterCount={advancedFilterCount}
+        onToggleGenre={onToggleGenre}
+        onSetMinMetacritic={onSetMinMetacritic}
+        onToggleGamesOnly={onToggleGamesOnly}
+        onToggleControllerOnly={onToggleControllerOnly}
+        onSetSortBy={onSetSortBy}
+        onResetFilters={onResetFilters}
+      />
 
       {/* Metacritic-hidden banner: explains *why* games disappeared and gives
           a one-tap path back to the full list. Only mounts when the filter

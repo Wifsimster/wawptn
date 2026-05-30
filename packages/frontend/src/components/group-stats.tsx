@@ -34,11 +34,26 @@ interface StatsState {
 
 const LOADING_STATE: StatsState = { stats: null, status: 'loading' }
 
+/** Fetches stats for a group and pushes the outcome into the passed setter.
+ *  Returns a cancel handle so an in-flight request can be discarded when the
+ *  group changes or the component unmounts. Module-scope (not reactive) so
+ *  both the load effect and the retry handler can call it without re-running. */
+function fetchGroupStats(groupId: string, setState: (next: StatsState | ((prev: StatsState) => StatsState)) => void) {
+  let cancelled = false
+  api.getGroupStats(groupId)
+    .then((data) => {
+      if (cancelled) return
+      setState({ stats: data, status: 'ready' })
+    })
+    .catch(() => {
+      if (!cancelled) setState((prev) => ({ ...prev, status: 'error' }))
+    })
+  return () => { cancelled = true }
+}
+
 export function GroupStats({ groupId }: GroupStatsProps) {
   const { t, i18n } = useTranslation()
   const [state, setState] = useState<StatsState>(LOADING_STATE)
-  // Bumped by retry to re-run the fetch effect; never read in render.
-  const [reloadToken, setReloadToken] = useState(0)
   // Guards the "group changed" reset; never read in render.
   const trackedGroup = useRef(groupId)
 
@@ -51,22 +66,11 @@ export function GroupStats({ groupId }: GroupStatsProps) {
 
   const { stats, status } = state
 
-  useEffect(() => {
-    let cancelled = false
-    api.getGroupStats(groupId)
-      .then((data) => {
-        if (cancelled) return
-        setState({ stats: data, status: 'ready' })
-      })
-      .catch(() => {
-        if (!cancelled) setState((prev) => ({ ...prev, status: 'error' }))
-      })
-    return () => { cancelled = true }
-  }, [groupId, reloadToken])
+  useEffect(() => fetchGroupStats(groupId, setState), [groupId])
 
   const retry = () => {
     setState(LOADING_STATE)
-    setReloadToken((n) => n + 1)
+    fetchGroupStats(groupId, setState)
   }
 
   return (

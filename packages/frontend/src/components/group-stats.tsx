@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BarChart3, Trophy, Users, Vote, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
@@ -53,17 +53,10 @@ function fetchGroupStats(groupId: string, setState: (next: StatsState | ((prev: 
 
 export function GroupStats({ groupId }: GroupStatsProps) {
   const { t, i18n } = useTranslation()
+  // State resets per group via a `key={groupId}` remount at the parent
+  // (see GroupPanel), so a stale group's stats never flash before the new
+  // fetch resolves — no in-render reset needed.
   const [state, setState] = useState<StatsState>(LOADING_STATE)
-  // Guards the "group changed" reset; never read in render.
-  const trackedGroup = useRef(groupId)
-
-  // Reset to the loading state when the group changes, so a stale group's
-  // stats never flash before the new fetch resolves.
-  if (groupId !== trackedGroup.current) {
-    trackedGroup.current = groupId
-    setState(LOADING_STATE)
-  }
-
   const { stats, status } = state
 
   useEffect(() => fetchGroupStats(groupId, setState), [groupId])

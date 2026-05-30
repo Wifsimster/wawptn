@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Check, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -32,8 +33,12 @@ export function WaitingScreen({
   onBack,
 }: WaitingScreenProps) {
   const { t } = useTranslation()
+  // Snapshot "now" once at mount rather than reading the impure Date.now()
+  // during render. The CountdownTimer below handles the live ticking; this
+  // only decides whether the scheduled start is still in the future.
+  const [mountedAt] = useState(() => Date.now())
   const scheduledDate = session?.scheduledAt ? new Date(session.scheduledAt) : null
-  const isScheduledSession = scheduledDate && scheduledDate.getTime() > Date.now()
+  const isScheduledSession = scheduledDate !== null && scheduledDate.getTime() > mountedAt
 
   return (
     <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-3 sm:px-4 py-4">

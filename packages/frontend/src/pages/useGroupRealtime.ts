@@ -1,41 +1,44 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
 import { api } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
-import type { GroupDataAction } from './groupDataReducer'
+import { groupDataReducer, initialGroupData } from './groupDataReducer'
 
 interface UseGroupRealtimeParams {
   id: string | undefined
   activeFilter: string | undefined
   currentUserId: string | undefined
-  dispatch: React.Dispatch<GroupDataAction>
   onVoteSetupOpenChange: (open: boolean) => void
 }
 
-// Owns the group detail page's data loading and live socket subscription.
-// On mount it fetches the group, vote history and any open vote session, then
-// keeps everything in sync via socket events (presence, membership, persona,
-// vote lifecycle). Extracted from GroupPage to keep that component focused on
-// rendering.
+// Owns the group detail page's server-driven data (games, vote history, active
+// session, persona, presence) together with the data loading and live socket
+// subscription that keeps it fresh. Bundling the reducer here keeps the socket
+// effect's writes local to this hook (no pushing data up to the parent) — the
+// parent simply reads the returned `data`. Extracted from GroupPage to keep
+// that component focused on rendering.
 export function useGroupRealtime({
   id,
   activeFilter,
   currentUserId,
-  dispatch,
   onVoteSetupOpenChange,
 }: UseGroupRealtimeParams) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { fetchGroup } = useGroupStore()
+  const [data, dispatch] = useReducer(groupDataReducer, initialGroupData)
 
-  // Tracks the moment each member last went offline so the members panel can
-  // show "last seen" without an extra round-trip. Lazily initialised so we
-  // don't allocate a new Map on every render.
-  const lastSeenMapRef = useRef<Map<string, number> | null>(null)
-  if (lastSeenMapRef.current === null) lastSeenMapRef.current = new Map()
+  // "Last seen" timestamps live in the reducer state (keyed by user id) so the
+  // members panel can read them safely during render. Exposed as a Map for the
+  // existing consumer interface, memoised so the reference is stable between
+  // unrelated re-renders.
+  const lastSeenMap = useMemo(
+    () => new Map<string, number>(Object.entries(data.lastSeen).map(([id, at]) => [id, at])),
+    [data.lastSeen],
+  )
 
   const loadCommonGames = useCallback(async (groupId: string, filter?: string) => {
     dispatch({ type: 'gamesLoading' })
@@ -109,8 +112,7 @@ export function useGroupRealtime({
     socket.on('group:presence', (data) => dispatch({ type: 'presence', onlineUserIds: data.onlineUserIds }))
     socket.on('member:online', (data) => dispatch({ type: 'memberOnline', userId: data.userId }))
     socket.on('member:offline', (data) => {
-      lastSeenMapRef.current?.set(data.userId, Date.now())
-      dispatch({ type: 'memberOffline', userId: data.userId })
+      dispatch({ type: 'memberOffline', userId: data.userId, at: Date.now() })
     })
     socket.on('member:joined', () => fetchGroup(id))
     socket.on('member:left', () => fetchGroup(id))
@@ -189,7 +191,9 @@ export function useGroupRealtime({
   }, [id, fetchGroup, navigate, loadCommonGames, loadVoteHistory, loadActiveVoteSession, t, currentUserId, dispatch, onVoteSetupOpenChange])
 
   return {
+    data,
+    dispatch,
     loadActiveVoteSession,
-    lastSeenMap: lastSeenMapRef.current,
+    lastSeenMap,
   }
 }

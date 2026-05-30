@@ -26,6 +26,9 @@ export interface GroupDataState {
   activeVoteSession: ActiveVoteSession | null
   todayPersona: TodayPersona | null
   onlineUserIds: string[]
+  /** Timestamp (ms) each member was last seen going offline, so the members
+   *  panel can render a "last seen" label without an extra round-trip. */
+  lastSeen: Record<string, number>
 }
 
 export const initialGroupData: GroupDataState = {
@@ -36,6 +39,7 @@ export const initialGroupData: GroupDataState = {
   activeVoteSession: null,
   todayPersona: null,
   onlineUserIds: [],
+  lastSeen: {},
 }
 
 export type GroupDataAction =
@@ -48,7 +52,7 @@ export type GroupDataAction =
   | { type: 'todayPersona'; persona: TodayPersona | null }
   | { type: 'presence'; onlineUserIds: string[] }
   | { type: 'memberOnline'; userId: string }
-  | { type: 'memberOffline'; userId: string }
+  | { type: 'memberOffline'; userId: string; at: number }
 
 export function groupDataReducer(state: GroupDataState, action: GroupDataAction): GroupDataState {
   switch (action.type) {
@@ -73,6 +77,10 @@ export function groupDataReducer(state: GroupDataState, action: GroupDataAction)
         ? state
         : { ...state, onlineUserIds: [...state.onlineUserIds, action.userId] }
     case 'memberOffline':
-      return { ...state, onlineUserIds: state.onlineUserIds.filter((uid) => uid !== action.userId) }
+      return {
+        ...state,
+        onlineUserIds: state.onlineUserIds.filter((uid) => uid !== action.userId),
+        lastSeen: { ...state.lastSeen, [action.userId]: action.at },
+      }
   }
 }

@@ -1,14 +1,11 @@
 import { useEffect, useState, useCallback, useMemo, useReducer, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Link2 } from 'lucide-react'
-import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { m } from 'framer-motion'
 import type { CommonGame } from '@wawptn/types'
 import { useGroupStore } from '@/stores/group.store'
 import { useAuthStore } from '@/stores/auth.store'
-import { api } from '@/lib/api'
-import { getSocket } from '@/lib/socket'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -31,13 +28,7 @@ import { DiscordSetupInstructions } from '@/components/discord-setup-instruction
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { useGroupActions } from './useGroupActions'
 import { useGroupRealtime } from './useGroupRealtime'
-import {
-  groupDataReducer,
-  initialGroupData,
-  type ActiveVoteSession,
-  type TodayPersona,
-  type VoteHistoryEntry,
-} from './groupDataReducer'
+import type { ActiveVoteSession, TodayPersona, VoteHistoryEntry } from './groupDataReducer'
 
 function isGroupTab(value: string | null): value is GroupTab {
   return value === 'tonight' || value === 'members' || value === 'history' || value === 'stats' || value === 'settings'
@@ -66,17 +57,9 @@ export function GroupPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { currentGroup, fetchGroup } = useGroupStore()
+  const { currentGroup } = useGroupStore()
   useDocumentTitle(currentGroup?.name ?? t('groups.title'))
   const { user } = useAuthStore()
-  // Server-driven data (games, vote history, active session, persona,
-  // presence). Mirrors the backend's "one open session per group" guard so
-  // the page can surface a "join existing vote" CTA instead of walking users
-  // through the setup dialog only to bounce off a 409 on the vote page.
-  // Populated on mount and kept fresh via socket events.
-  const [data, dispatch] = useReducer(groupDataReducer, initialGroupData)
-  const { games: commonGames, voteHistory, voteHistoryTruncated, activeVoteSession, todayPersona, onlineUserIds } = data
-  const loadingGames = data.gamesLoading
   const [gameFilters, setGameFilters] = useState<GameFilters>({
     multiplayerOnly: true,
     coopOnly: false,
@@ -91,53 +74,21 @@ export function GroupPage() {
   const setVoteSetupOpen = useCallback((open: boolean) => dispatchDialog({ dialog: 'voteSetup', open }), [])
   const setRandomPickOpen = useCallback((open: boolean) => dispatchDialog({ dialog: 'randomPick', open }), [])
   const setDiscordDialogOpen = useCallback((open: boolean) => dispatchDialog({ dialog: 'discord', open }), [])
-  const lastSeenMapRef = useRef<Map<string, number> | null>(null)
-  if (lastSeenMapRef.current === null) lastSeenMapRef.current = new Map()
-
-  const loadCommonGames = useCallback(async (groupId: string, filter?: string) => {
-    dispatch({ type: 'gamesLoading' })
-    try {
-      const result = await api.getCommonGames(groupId, filter)
-      dispatch({ type: 'gamesLoaded', games: result.games })
-    } catch {
-      toast.error(t('group.loadGamesError'))
-      dispatch({ type: 'gamesLoadFailed' })
-    }
-  }, [t])
-
-  const loadVoteHistory = async (groupId: string) => {
-    try {
-      // The endpoint returns { data, total, limit, offset, freeLimitApplied, freeLimit }.
-      // Free users are capped server-side to the 10 most recent sessions;
-      // `freeLimitApplied` tells us whether to show an upgrade CTA beneath
-      // the list.
-      const history = await api.getVoteHistory(groupId)
-      dispatch({
-        type: 'voteHistory',
-        entries: history.data.filter((h) => h.winningGameName),
-        truncated: history.freeLimitApplied,
-      })
-    } catch {
-      // Non-critical, fail silently
-    }
-  }
-
-  const loadActiveVoteSession = async (groupId: string) => {
-    try {
-      const result = await api.getVoteSession(groupId)
-      dispatch({
-        type: 'activeVoteSession',
-        session: result.session
-          ? { id: result.session.id, scheduledAt: result.session.scheduledAt }
-          : null,
-      })
-    } catch {
-      // Non-critical: if we can't tell, fall back to the normal start-vote
-      // flow and let the backend's 409 handler catch any race.
-    }
-  }
-
   const activeFilter = gameFilters.multiplayerOnly ? 'multiplayer' : gameFilters.coopOnly ? 'coop' : undefined
+
+  // Server-driven data (games, vote history, active session, persona,
+  // presence) plus its loading + live socket subscription. Mirrors the
+  // backend's "one open session per group" guard so the page can surface a
+  // "join existing vote" CTA instead of walking users through the setup dialog
+  // only to bounce off a 409 on the vote page.
+  const { data, dispatch, loadActiveVoteSession, lastSeenMap } = useGroupRealtime({
+    id,
+    activeFilter,
+    currentUserId: user?.id,
+    onVoteSetupOpenChange: setVoteSetupOpen,
+  })
+  const { games: commonGames, voteHistory, voteHistoryTruncated, activeVoteSession, todayPersona, onlineUserIds } = data
+  const loadingGames = data.gamesLoading
 
   const {
     syncing,
@@ -165,121 +116,13 @@ export function GroupPage() {
     openVoteSetup: () => setVoteSetupOpen(true),
   })
 
-  // Ref mirror of activeFilter so socket listeners always see the latest
-  // value without needing to tear down and re-subscribe on every toggle.
-  // Previously `activeFilter` was in the effect deps which caused all socket
-  // listeners to churn (and risked missing events during re-subscription).
-  const activeFilterRef = useRef(activeFilter)
-  useEffect(() => { activeFilterRef.current = activeFilter }, [activeFilter])
-
-  // Refetch common games when the server-side filter changes. Separate from
-  // the socket effect so it doesn't cause re-subscription churn.
-  useEffect(() => {
-    if (!id) return
-    loadCommonGames(id, activeFilter)
-  }, [id, activeFilter, loadCommonGames])
-
-  useEffect(() => {
-    if (!id) return
-    fetchGroup(id)
-    loadVoteHistory(id)
-    loadActiveVoteSession(id)
-
-    const socket = getSocket()
-    socket.emit('group:join', id)
-
-    socket.on('persona:changed', (data) => {
-      if (data.groupId === id) dispatch({ type: 'todayPersona', persona: data.persona })
-    })
-    socket.on('group:presence', (data) => dispatch({ type: 'presence', onlineUserIds: data.onlineUserIds }))
-    socket.on('member:online', (data) => dispatch({ type: 'memberOnline', userId: data.userId }))
-    socket.on('member:offline', (data) => {
-      lastSeenMapRef.current?.set(data.userId, Date.now())
-      dispatch({ type: 'memberOffline', userId: data.userId })
-    })
-    socket.on('member:joined', () => fetchGroup(id))
-    socket.on('member:left', () => fetchGroup(id))
-    socket.on('member:kicked', (data) => {
-      if (data.userId === user?.id) {
-        toast.error(t('group.youWereKicked'))
-        navigate('/')
-      } else {
-        fetchGroup(id)
-      }
-    })
-    socket.on('group:deleted', (data) => {
-      toast(t('group.groupDeleted', { name: data.groupName }))
-      navigate('/')
-    })
-    socket.on('group:renamed', (data) => {
-      fetchGroup(id)
-      toast(t('group.groupRenamed', { name: data.newName }))
-    })
-    socket.on('library:synced', () => loadCommonGames(id, activeFilterRef.current))
-    socket.on('session:created', (data) => {
-      // Track the new session locally so the hero flips to the "join vote"
-      // variant and any in-flight setup dialog is short-circuited. Also
-      // covers the user who started the vote — their local state was
-      // already updated in handleStartVote, but keeping this listener
-      // authoritative avoids subtle drift if two tabs are open.
-      dispatch({ type: 'activeVoteSession', session: { id: data.sessionId, scheduledAt: data.scheduledAt ?? null } })
-      // If the user had the setup dialog open (e.g. a teammate beat them
-      // to the punch), close it — otherwise they'd walk through the form
-      // just to hit the 409 conflict handler on submit.
-      setVoteSetupOpen(false)
-
-      // Don't notify the user who started the vote
-      if (data.createdBy === user?.id) return
-
-      // Only show join prompt to participants (or all if no participantIds — legacy)
-      const isParticipant = !data.participantIds || !user?.id || data.participantIds.includes(user.id)
-      const toastMessage = data.scheduledAt
-        ? t('group.voteScheduled', { date: new Date(data.scheduledAt).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })
-        : t('group.voteStarted')
-      if (isParticipant) {
-        toast(toastMessage, {
-          action: {
-            label: t('group.joinVote'),
-            onClick: () => navigate(`/groups/${id}/vote`),
-          },
-          duration: 10000,
-        })
-      } else {
-        toast(t('group.voteStartedOthers'))
-      }
-    })
-    socket.on('vote:closed', () => {
-      // Vote finished — clear the in-progress flag so the hero flips back
-      // to the normal "start a vote" CTA and the next vote can be created
-      // without bouncing off the 409 guard.
-      dispatch({ type: 'activeVoteSession', session: null })
-      loadVoteHistory(id)
-    })
-
-    return () => {
-      socket.emit('group:leave', id)
-      socket.off('persona:changed')
-      socket.off('group:presence')
-      socket.off('member:online')
-      socket.off('member:offline')
-      socket.off('member:joined')
-      socket.off('member:left')
-      socket.off('member:kicked')
-      socket.off('group:deleted')
-      socket.off('group:renamed')
-      socket.off('library:synced')
-      socket.off('session:created')
-      socket.off('vote:closed')
-    }
-  }, [id, fetchGroup, navigate, loadCommonGames, t, user?.id, setVoteSetupOpen])
-
   // Keep the hero persona in sync with the group detail response. The
   // socket listener above applies live midnight/override flips on top.
   useEffect(() => {
     if (currentGroup?.todayPersona) {
       dispatch({ type: 'todayPersona', persona: currentGroup.todayPersona })
     }
-  }, [currentGroup?.todayPersona])
+  }, [currentGroup?.todayPersona, dispatch])
 
   // Action-first launch from GroupsPage: ?startVote=1 means the user clicked
   // the hero CTA on the dashboard. The dialog needs the member list, so we
@@ -312,7 +155,6 @@ export function GroupPage() {
   }, [currentGroup, activeVoteSession, navigate, setVoteSetupOpen])
 
   const onlineMembers = useMemo(() => new Set(onlineUserIds), [onlineUserIds])
-  const lastSeenMap = lastSeenMapRef.current ?? new Map<string, number>()
   const currentUserRole = currentGroup?.members.find(m => m.id === user?.id)?.role || 'member'
 
   // Active group-detail tab, mirrored in the URL (`?tab=`) so a section is

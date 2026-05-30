@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Lightbulb } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
@@ -28,17 +28,9 @@ const INITIAL_STATE: RecommendationsState = { recommendations: [], loaded: false
 
 export function GameRecommendations({ groupId }: GameRecommendationsProps) {
   const { t } = useTranslation()
+  // State resets per group via a `key={groupId}` remount at the parent
+  // (see GroupPanel), so stale recommendations never flash on group change.
   const [state, setState] = useState<RecommendationsState>(INITIAL_STATE)
-  // Guards the "group changed" reset; never read in render, so a ref keeps it
-  // out of the render cycle.
-  const trackedGroup = useRef(groupId)
-
-  // Reset to the loading state when the group changes (see GroupStats).
-  if (groupId !== trackedGroup.current) {
-    trackedGroup.current = groupId
-    setState(INITIAL_STATE)
-  }
-
   const { recommendations, loaded } = state
 
   useEffect(() => {

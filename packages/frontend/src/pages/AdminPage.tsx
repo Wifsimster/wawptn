@@ -467,7 +467,7 @@ function useAdminDashboard() {
 
   // Persona create/edit + delete dialog state (consolidated)
   const [dialog, dispatchDialog] = useReducer(personaDialogReducer, initialPersonaDialogState)
-  const { dialogMode, editingPersonaId, deletingPersonaId } = dialog
+  const { dialogMode, editingPersonaId, deletingPersonaId, formData } = dialog
 
   const loadUsers = useCallback(async (offset: number, q: string) => {
     const requestId = ++usersRequestId.current

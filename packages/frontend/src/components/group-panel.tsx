@@ -132,8 +132,8 @@ export function GroupPanel({ members, groupId, groupName, syncing, inviteToken, 
 
       {section === 'stats' && (
         <div className="space-y-3">
-          <GameRecommendations groupId={groupId} />
-          <GroupStats groupId={groupId} />
+          <GameRecommendations key={groupId} groupId={groupId} />
+          <GroupStats key={groupId} groupId={groupId} />
         </div>
       )}
 

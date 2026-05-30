@@ -124,6 +124,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
   return (
     <div ref={containerRef} className="relative">
       <div className="relative">
+        {/* oxlint-disable react-doctor/no-redundant-roles -- This is a custom ARIA 1.2 combobox (the input has no `list` attribute), so role="combobox" is required, not redundant. react-doctor's element→role table assumes every <input> is implicitly a combobox, which only holds for inputs wired to a <datalist> via `list`. */}
         <input
           id={id}
           type="text"
@@ -147,6 +148,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
           autoComplete="off"
           className="flex h-10 w-full rounded-lg border border-input bg-card/50 pl-3 pr-9 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:border-primary/30 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
         />
+        {/* oxlint-enable react-doctor/no-redundant-roles */}
         <button
           type="button"
           tabIndex={-1}
@@ -172,6 +174,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
               {t('group.autoVotePresetsEmpty')}
             </div>
           ) : (
+            /* oxlint-disable react-doctor/prefer-tag-over-role -- WAI-ARIA custom listbox: div[role=listbox] + div[role=option] is the spec's authoring pattern. The suggested native <datalist>/<option> cannot render the custom rows (selected-check icon + two-line humanized label and cron expression) nor support filtering by both label and expression. */
             <div
               ref={listRef}
               id={listboxId}
@@ -208,6 +211,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
                 )
               })}
             </div>
+            /* oxlint-enable react-doctor/prefer-tag-over-role */
           )}
         </div>
       )}

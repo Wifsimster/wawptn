@@ -116,7 +116,6 @@ function formReducer(state: FormState, action: FormAction): FormState {
 }
 
 export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMembers, activeFilter, onStartVote }: VoteSetupDialogProps) {
-  const { t } = useTranslation()
   const { tier, status } = useSubscriptionStore()
   const isPremium = tier === 'premium' && status === 'active'
 

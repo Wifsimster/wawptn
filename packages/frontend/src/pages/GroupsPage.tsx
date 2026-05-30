@@ -78,6 +78,7 @@ function pullReducer(state: PullState, action: PullAction): PullState {
 
 export function GroupsPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   useDocumentTitle(t('groups.title'))
   const { groups, loading, fetchGroups } = useGroupStore()
   const [pull, dispatchPull] = useReducer(pullReducer, { refreshing: false, distance: 0 })
@@ -155,8 +156,6 @@ export function GroupsPage() {
       navigate(`/groups/${heroGroup.id}?startVote=1`)
     }
   }, [heroGroup, navigate])
-
-  const navigate = useNavigate()
 
   return (
     <>

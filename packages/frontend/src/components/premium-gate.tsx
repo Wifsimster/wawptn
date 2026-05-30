@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useSubscriptionStore, selectIsPremium } from '@/stores/subscription.store'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { track } from '@/lib/analytics'
 
 /** Identifier for which feature/limit triggered the gate. Used both for
@@ -85,18 +84,5 @@ function PremiumGateFallback({ from, feature }: { from: PremiumFromKey; feature?
         {t('premium.unlock')}
       </Button>
     </div>
-  )
-}
-
-export function PremiumLockIcon() {
-  const { t } = useTranslation()
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Lock className="size-3.5 text-muted-foreground inline ml-1" />
-      </TooltipTrigger>
-      <TooltipContent>{t('premium.featureLocked')}</TooltipContent>
-    </Tooltip>
   )
 }

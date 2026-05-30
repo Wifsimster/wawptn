@@ -711,7 +711,6 @@ function useAdminDashboard() {
   return {
     user,
     navigate,
-    data,
     dispatchData,
     dialog,
     dispatchDialog,

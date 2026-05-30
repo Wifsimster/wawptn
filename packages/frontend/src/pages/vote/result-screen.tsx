@@ -367,7 +367,7 @@ function WinnerResult({
               type="button"
               onClick={onRematch}
               disabled={rematching}
-              className="mt-1 inline-flex items-center gap-1.5 px-2 py-2 min-h-[44px] text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 decoration-dotted rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-1 inline-flex items-center gap-1.5 p-2 min-h-[44px] text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 decoration-dotted rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {rematching ? (
                 <Loader2 className="size-3 animate-spin" />

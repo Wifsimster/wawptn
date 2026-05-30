@@ -47,22 +47,6 @@ export function InviteLink({ token, prominent = false, onContinue, continueLabel
   const url = `${window.location.origin}/invite/${token}`
   const canShare = typeof navigator.share === 'function'
 
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text)
-    } catch {
-      // Fallback for non-secure contexts
-      const textarea = document.createElement('textarea')
-      textarea.value = text
-      textarea.style.position = 'fixed'
-      textarea.style.opacity = '0'
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textarea)
-    }
-  }
-
   const handleCopy = async () => {
     await copyToClipboard(url)
     toast.success(t('invite.copied'))

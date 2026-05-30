@@ -51,7 +51,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
   const [open, setOpen] = useState(false)
   const [highlight, setHighlight] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
-  const listRef = useRef<HTMLUListElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   const filtered = useMemo(() => {
     const query = value.trim().toLowerCase()
@@ -81,7 +81,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
   // Keep the highlighted item visible when navigating with the keyboard.
   useEffect(() => {
     if (!open || !listRef.current || activeIndex < 0) return
-    const el = listRef.current.querySelector<HTMLLIElement>(`[data-index="${activeIndex}"]`)
+    const el = listRef.current.querySelector<HTMLDivElement>(`[data-index="${activeIndex}"]`)
     el?.scrollIntoView({ block: 'nearest' })
   }, [activeIndex, open])
 
@@ -127,7 +127,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
         <input
           id={id}
           type="text"
-          role="combobox"
+          aria-label={t('group.autoVoteScheduleLabel', { defaultValue: 'Expression cron de la planification' })}
           aria-expanded={open}
           aria-autocomplete="list"
           aria-controls={listboxId}
@@ -171,7 +171,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
               {t('group.autoVotePresetsEmpty')}
             </div>
           ) : (
-            <ul
+            <div
               ref={listRef}
               id={listboxId}
               role="listbox"
@@ -181,7 +181,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
                 const isActive = index === activeIndex
                 const isSelected = preset.expression === value.trim()
                 return (
-                  <li
+                  <div
                     key={preset.expression}
                     id={id ? `${id}-option-${index}` : undefined}
                     data-index={index}
@@ -202,10 +202,10 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
                       <div className="truncate">{t(preset.labelKey)}</div>
                       <div className="text-xs text-muted-foreground font-mono truncate">{preset.expression}</div>
                     </div>
-                  </li>
+                  </div>
                 )
               })}
-            </ul>
+            </div>
           )}
         </div>
       )}

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useReducer, useRef } from 'react'
+import { useEffect, useState, useCallback, useReducer, useRef, useEffectEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Bot, Users, BarChart3, Save, RefreshCw, ShieldCheck,
@@ -380,17 +380,19 @@ export function AdminPage() {
   // initial mount is skipped because the auth effect below already fetches
   // page 0 with an empty query.
   const isFirstSearch = useRef(true)
+  const applyDebouncedSearch = useEffectEvent((query: string) => {
+    debouncedUserSearchRef.current = query
+    if (isFirstSearch.current) {
+      isFirstSearch.current = false
+      return
+    }
+    void loadUsers(0, query)
+  })
   useEffect(() => {
-    const timer = setTimeout(() => {
-      debouncedUserSearchRef.current = userSearch.trim()
-      if (isFirstSearch.current) {
-        isFirstSearch.current = false
-        return
-      }
-      void loadUsers(0, debouncedUserSearchRef.current)
-    }, 250)
+    const query = userSearch.trim()
+    const timer = setTimeout(() => applyDebouncedSearch(query), 250)
     return () => clearTimeout(timer)
-  }, [userSearch, loadUsers])
+  }, [userSearch])
 
   useEffect(() => {
     if (user && !user.isAdmin) {
@@ -399,8 +401,7 @@ export function AdminPage() {
     }
     void loadData()
     void loadUsers(0, '')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, navigate])
+  }, [user, navigate, loadData, loadUsers])
 
   async function handleSave() {
     if (!settings) return
@@ -631,6 +632,7 @@ export function AdminPage() {
               const isActive = activeTab === tab.id
               return (
                 <button
+                  type="button"
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
@@ -775,8 +777,53 @@ export function AdminPage() {
         </AnimatePresence>
       </main>
 
+      <PersonaDialogs
+        dialogOpen={dialogOpen}
+        dialogMode={dialogMode}
+        formData={formData}
+        formSaving={formSaving}
+        deleteDialogOpen={deleteDialogOpen}
+        onDialogOpenChange={(open) => dispatchDialog({ type: 'setDialogOpen', open })}
+        onFormChange={(formData) => dispatchDialog({ type: 'setForm', formData })}
+        onSubmit={handleFormSubmit}
+        onDeleteDialogOpenChange={(open) => dispatchDialog({ type: 'setDeleteDialogOpen', open })}
+        onConfirmDelete={handleDeletePersona}
+      />
+    </>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════
+   Persona create/edit + delete dialogs
+   ═══════════════════════════════════════════════════════ */
+
+function PersonaDialogs({
+  dialogOpen,
+  dialogMode,
+  formData,
+  formSaving,
+  deleteDialogOpen,
+  onDialogOpenChange,
+  onFormChange,
+  onSubmit,
+  onDeleteDialogOpenChange,
+  onConfirmDelete,
+}: {
+  dialogOpen: boolean
+  dialogMode: 'create' | 'edit'
+  formData: PersonaFormData
+  formSaving: boolean
+  deleteDialogOpen: boolean
+  onDialogOpenChange: (open: boolean) => void
+  onFormChange: (formData: PersonaFormData) => void
+  onSubmit: () => void
+  onDeleteDialogOpenChange: (open: boolean) => void
+  onConfirmDelete: () => void
+}) {
+  return (
+    <>
       {/* ── Create/Edit Persona Dialog ──────────────── */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={onDialogOpenChange}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
@@ -796,7 +843,7 @@ export function AdminPage() {
                 <Input
                   id="persona-id"
                   value={formData.id}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                  onChange={(e) => onFormChange({ ...formData, id: e.target.value })}
                   placeholder="mon-persona (kebab-case)"
                 />
                 <p className="text-xs text-muted-foreground">Identifiant unique en kebab-case, non modifiable</p>
@@ -808,7 +855,7 @@ export function AdminPage() {
               <Input
                 id="persona-name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => onFormChange({ ...formData, name: e.target.value })}
                 placeholder="Le Nouveau Persona"
               />
             </div>
@@ -820,12 +867,12 @@ export function AdminPage() {
                   type="color"
                   id="persona-color"
                   value={formData.embedColor}
-                  onChange={(e) => setFormData({ ...formData, embedColor: e.target.value })}
+                  onChange={(e) => onFormChange({ ...formData, embedColor: e.target.value })}
                   className="size-10 rounded border border-input cursor-pointer"
                 />
                 <Input
                   value={formData.embedColor}
-                  onChange={(e) => setFormData({ ...formData, embedColor: e.target.value })}
+                  onChange={(e) => onFormChange({ ...formData, embedColor: e.target.value })}
                   placeholder="#5865F2"
                   className="flex-1"
                 />
@@ -837,7 +884,7 @@ export function AdminPage() {
               <Textarea
                 id="persona-system-prompt"
                 value={formData.systemPromptOverlay}
-                onChange={(e) => setFormData({ ...formData, systemPromptOverlay: e.target.value })}
+                onChange={(e) => onFormChange({ ...formData, systemPromptOverlay: e.target.value })}
                 placeholder="Ta personnalité :&#10;- Tu es..."
                 rows={5}
               />
@@ -849,7 +896,7 @@ export function AdminPage() {
               <Input
                 id="persona-intro"
                 value={formData.introMessage}
-                onChange={(e) => setFormData({ ...formData, introMessage: e.target.value })}
+                onChange={(e) => onFormChange({ ...formData, introMessage: e.target.value })}
                 placeholder="Message envoyé à minuit lors du changement de persona"
               />
             </div>
@@ -859,7 +906,7 @@ export function AdminPage() {
               <Input
                 id="persona-empty-mention"
                 value={formData.emptyMentionReply}
-                onChange={(e) => setFormData({ ...formData, emptyMentionReply: e.target.value })}
+                onChange={(e) => onFormChange({ ...formData, emptyMentionReply: e.target.value })}
                 placeholder="Réponse quand quelqu'un mentionne le bot sans message"
               />
             </div>
@@ -869,7 +916,7 @@ export function AdminPage() {
               <Textarea
                 id="persona-friday"
                 value={formData.fridayMessages}
-                onChange={(e) => setFormData({ ...formData, fridayMessages: e.target.value })}
+                onChange={(e) => onFormChange({ ...formData, fridayMessages: e.target.value })}
                 placeholder="Un message par ligne"
                 rows={4}
               />
@@ -881,7 +928,7 @@ export function AdminPage() {
               <Textarea
                 id="persona-weekday"
                 value={formData.weekdayMessages}
-                onChange={(e) => setFormData({ ...formData, weekdayMessages: e.target.value })}
+                onChange={(e) => onFormChange({ ...formData, weekdayMessages: e.target.value })}
                 placeholder="Un message par ligne"
                 rows={4}
               />
@@ -893,7 +940,7 @@ export function AdminPage() {
               <Textarea
                 id="persona-backonline"
                 value={formData.backOnlineMessages}
-                onChange={(e) => setFormData({ ...formData, backOnlineMessages: e.target.value })}
+                onChange={(e) => onFormChange({ ...formData, backOnlineMessages: e.target.value })}
                 placeholder="Un message par ligne"
                 rows={3}
               />
@@ -905,7 +952,7 @@ export function AdminPage() {
               <Textarea
                 id="persona-idle-banter"
                 value={formData.idleBanter}
-                onChange={(e) => setFormData({ ...formData, idleBanter: e.target.value })}
+                onChange={(e) => onFormChange({ ...formData, idleBanter: e.target.value })}
                 placeholder="Un message par ligne — pas de /wawptn-*"
                 rows={4}
               />
@@ -919,7 +966,7 @@ export function AdminPage() {
               <Textarea
                 id="persona-morning"
                 value={formData.morningGreetings}
-                onChange={(e) => setFormData({ ...formData, morningGreetings: e.target.value })}
+                onChange={(e) => onFormChange({ ...formData, morningGreetings: e.target.value })}
                 placeholder="Un message par ligne"
                 rows={3}
               />
@@ -931,7 +978,7 @@ export function AdminPage() {
               <Textarea
                 id="persona-weekend"
                 value={formData.weekendVibes}
-                onChange={(e) => setFormData({ ...formData, weekendVibes: e.target.value })}
+                onChange={(e) => onFormChange({ ...formData, weekendVibes: e.target.value })}
                 placeholder="Un message par ligne"
                 rows={3}
               />
@@ -954,7 +1001,7 @@ export function AdminPage() {
                 max={1}
                 step={0.05}
                 value={formData.offTopicInjectionRate}
-                onChange={(e) => setFormData({ ...formData, offTopicInjectionRate: Number(e.target.value) })}
+                onChange={(e) => onFormChange({ ...formData, offTopicInjectionRate: Number(e.target.value) })}
                 className="w-full accent-primary"
               />
               <p className="text-xs text-muted-foreground">
@@ -964,10 +1011,10 @@ export function AdminPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => onDialogOpenChange(false)}>
               Annuler
             </Button>
-            <Button onClick={handleFormSubmit} disabled={formSaving}>
+            <Button type="button" onClick={onSubmit} disabled={formSaving}>
               {formSaving ? 'Sauvegarde...' : dialogMode === 'create' ? 'Créer' : 'Sauvegarder'}
             </Button>
           </DialogFooter>
@@ -975,7 +1022,7 @@ export function AdminPage() {
       </Dialog>
 
       {/* ── Delete Confirmation Dialog ──────────────── */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog open={deleteDialogOpen} onOpenChange={onDeleteDialogOpenChange}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Supprimer le persona</DialogTitle>
@@ -984,10 +1031,10 @@ export function AdminPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => onDeleteDialogOpenChange(false)}>
               Annuler
             </Button>
-            <Button variant="destructive" onClick={handleDeletePersona}>
+            <Button type="button" variant="destructive" onClick={onConfirmDelete}>
               Supprimer
             </Button>
           </DialogFooter>
@@ -1086,14 +1133,48 @@ interface EmailTestResult {
   at: string
 }
 
+interface EmailSendState {
+  to: string
+  subject: string
+  message: string
+  sending: boolean
+  lastResult: EmailTestResult | null
+}
+
+const initialEmailSendState: EmailSendState = {
+  to: '',
+  subject: '',
+  message: '',
+  sending: false,
+  lastResult: null,
+}
+
+type EmailSendAction =
+  | { type: 'setField'; field: 'to' | 'subject' | 'message'; value: string }
+  | { type: 'setSending'; sending: boolean }
+  | { type: 'setResult'; result: EmailTestResult }
+
+function emailSendReducer(state: EmailSendState, action: EmailSendAction): EmailSendState {
+  switch (action.type) {
+    case 'setField':
+      return { ...state, [action.field]: action.value }
+    case 'setSending':
+      return { ...state, sending: action.sending }
+    case 'setResult':
+      return { ...state, lastResult: action.result }
+    default:
+      return state
+  }
+}
+
 function EmailTab() {
   const [status, setStatus] = useState<EmailStatus | null>(null)
   const [statusLoading, setStatusLoading] = useState(true)
-  const [to, setTo] = useState('')
-  const [subject, setSubject] = useState('')
-  const [message, setMessage] = useState('')
-  const [sending, setSending] = useState(false)
-  const [lastResult, setLastResult] = useState<EmailTestResult | null>(null)
+  // The test-email form fields, in-flight flag and last result all change
+  // together as part of a single "send a test email" flow, so they live in
+  // one reducer rather than separate useState slots.
+  const [send, dispatchSend] = useReducer(emailSendReducer, initialEmailSendState)
+  const { to, subject, message, sending, lastResult } = send
 
   const loadStatus = useCallback(async () => {
     setStatusLoading(true)
@@ -1118,21 +1199,21 @@ function EmailTab() {
       toast.error('Adresse email invalide')
       return
     }
-    setSending(true)
+    dispatchSend({ type: 'setSending', sending: true })
     try {
       const res = await api.sendAdminTestEmail({
         to: to.trim(),
         subject: subject.trim() || undefined,
         message: message.trim() || undefined,
       })
-      setLastResult({ ok: true, to: res.to, subject: res.subject, at: new Date().toISOString() })
+      dispatchSend({ type: 'setResult', result: { ok: true, to: res.to, subject: res.subject, at: new Date().toISOString() } })
       toast.success(`Email de test envoyé à ${res.to}`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erreur lors de l\'envoi'
-      setLastResult({ ok: false, to: to.trim(), subject: subject.trim() || '(défaut)', at: new Date().toISOString() })
+      dispatchSend({ type: 'setResult', result: { ok: false, to: to.trim(), subject: subject.trim() || '(défaut)', at: new Date().toISOString() } })
       toast.error(msg)
     } finally {
-      setSending(false)
+      dispatchSend({ type: 'setSending', sending: false })
     }
   }
 
@@ -1202,7 +1283,7 @@ function EmailTab() {
               type="email"
               autoComplete="email"
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={(e) => dispatchSend({ type: 'setField', field: 'to', value: e.target.value })}
               placeholder="admin@example.com"
               maxLength={254}
             />
@@ -1217,7 +1298,7 @@ function EmailTab() {
             <Input
               id="email-test-subject"
               value={subject}
-              onChange={(e) => setSubject(e.target.value)}
+              onChange={(e) => dispatchSend({ type: 'setField', field: 'subject', value: e.target.value })}
               placeholder="WAWPTN — Test d'intégration email"
               maxLength={200}
             />
@@ -1229,7 +1310,7 @@ function EmailTab() {
             <Textarea
               id="email-test-message"
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => dispatchSend({ type: 'setField', field: 'message', value: e.target.value })}
               placeholder="Contenu de l'email de test…"
               rows={4}
               maxLength={2000}
@@ -1943,6 +2024,7 @@ function UsersTab({
           />
           {searchQuery && (
             <button
+              type="button"
               onClick={() => onSearchChange('')}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
             >

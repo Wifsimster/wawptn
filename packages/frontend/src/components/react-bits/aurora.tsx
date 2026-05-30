@@ -126,8 +126,9 @@ interface AuroraProps {
   speed?: number;
 }
 
+const DEFAULT_COLOR_STOPS = ['#5227FF', '#7cff67', '#5227FF'];
+
 export default function Aurora(props: AuroraProps) {
-  const { colorStops = ['#5227FF', '#7cff67', '#5227FF'], amplitude = 1.0, blend = 0.5 } = props;
   const propsRef = useRef<AuroraProps>(props);
   propsRef.current = props;
 
@@ -136,6 +137,15 @@ export default function Aurora(props: AuroraProps) {
   useEffect(() => {
     const ctn = ctnDom.current;
     if (!ctn) return;
+
+    // Seed the initial uniforms from the latest props (read via the ref so
+    // they aren't effect dependencies). The rAF loop below keeps every
+    // uniform in sync with live prop changes, so we deliberately set up the
+    // GL context once on mount and never tear it down on prop updates —
+    // re-initialising would drop and rebuild the WebGL context needlessly.
+    const colorStops = propsRef.current.colorStops ?? DEFAULT_COLOR_STOPS;
+    const amplitude = propsRef.current.amplitude ?? 1.0;
+    const blend = propsRef.current.blend ?? 0.5;
 
     const renderer = new Renderer({
       alpha: true,
@@ -215,8 +225,7 @@ export default function Aurora(props: AuroraProps) {
       }
       gl.getExtension('WEBGL_lose_context')?.loseContext();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amplitude]);
+  }, []);
 
   return <div ref={ctnDom} className="w-full h-full" />;
 }

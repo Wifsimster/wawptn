@@ -373,6 +373,72 @@ function usersReducer(state: UsersState, action: UsersAction): UsersState {
   }
 }
 
+/* ─── Tab navigation ────────────────────────────────── */
+
+function AdminTabNav({
+  activeTab,
+  onTabChange,
+  personaCount,
+  activePersonas,
+  userCount,
+}: {
+  activeTab: AdminTab
+  onTabChange: (tab: AdminTab) => void
+  personaCount: number
+  activePersonas: number
+  userCount: number
+}) {
+  return (
+    <m.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.1, duration: 0.4 }}
+      className="admin-tabs relative"
+    >
+      <div className="flex gap-1 p-1 rounded-xl bg-card/50 border border-white/[0.04] backdrop-blur-sm">
+        {TABS.map((tab) => {
+          const Icon = tab.icon
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              type="button"
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={cn(
+                'relative flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 flex-1 justify-center',
+                isActive
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground/70',
+              )}
+            >
+              {isActive && (
+                <m.div
+                  layoutId="admin-tab-bg"
+                  className="absolute inset-0 rounded-lg bg-primary/[0.08] border border-primary/15"
+                  style={{ boxShadow: '0 0 20px oklch(0.55 0.27 270 / 0.06)' }}
+                  transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                />
+              )}
+              <Icon className="relative z-10 size-4" />
+              <span className="relative z-10 hidden sm:inline">{tab.label}</span>
+              {tab.id === 'personas' && personaCount > 0 && (
+                <span className="relative z-10 hidden sm:inline text-[10px] font-mono text-muted-foreground">
+                  {activePersonas}/{personaCount}
+                </span>
+              )}
+              {tab.id === 'users' && userCount > 0 && (
+                <span className="relative z-10 hidden sm:inline text-[10px] font-mono text-muted-foreground">
+                  {userCount}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </m.div>
+  )
+}
+
 /* ─── Main component ────────────────────────────────── */
 
 export function AdminPage() {
@@ -694,53 +760,13 @@ export function AdminPage() {
         </m.div>
 
         {/* ── Tab navigation ─────────────────────────── */}
-        <m.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.1, duration: 0.4 }}
-          className="admin-tabs relative"
-        >
-          <div className="flex gap-1 p-1 rounded-xl bg-card/50 border border-white/[0.04] backdrop-blur-sm">
-            {TABS.map((tab) => {
-              const Icon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  type="button"
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    'relative flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 flex-1 justify-center',
-                    isActive
-                      ? 'text-foreground'
-                      : 'text-muted-foreground hover:text-foreground/70',
-                  )}
-                >
-                  {isActive && (
-                    <m.div
-                      layoutId="admin-tab-bg"
-                      className="absolute inset-0 rounded-lg bg-primary/[0.08] border border-primary/15"
-                      style={{ boxShadow: '0 0 20px oklch(0.55 0.27 270 / 0.06)' }}
-                      transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
-                    />
-                  )}
-                  <Icon className="relative z-10 size-4" />
-                  <span className="relative z-10 hidden sm:inline">{tab.label}</span>
-                  {tab.id === 'personas' && personas.length > 0 && (
-                    <span className="relative z-10 hidden sm:inline text-[10px] font-mono text-muted-foreground">
-                      {activePersonas}/{personas.length}
-                    </span>
-                  )}
-                  {tab.id === 'users' && stats && stats.users > 0 && (
-                    <span className="relative z-10 hidden sm:inline text-[10px] font-mono text-muted-foreground">
-                      {stats.users}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </m.div>
+        <AdminTabNav
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          personaCount={personas.length}
+          activePersonas={activePersonas}
+          userCount={stats?.users ?? 0}
+        />
 
         {/* ── Tab content ────────────────────────────── */}
         <AnimatePresence mode="wait">

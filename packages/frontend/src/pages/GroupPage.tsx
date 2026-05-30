@@ -652,63 +652,26 @@ export function GroupPage() {
         <div className="h-20 sm:hidden" />
       </main>
 
-      {/* Mobile: persistent bottom action bar — keeps the vote CTA one tap
-          away from every tab on small screens. Flips to "join vote" when a
-          session is already open so the user isn't walked through the setup
-          dialog for nothing. */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <Button
-          onClick={openVoteFlow}
-          className="w-full h-12 gap-2 active:scale-[0.98] transition-transform"
-        >
-          {activeVoteSession ? (
-            <span className="font-heading font-bold">{t('group.joinActiveVote')}</span>
-          ) : (
-            <>
-              <span className="font-heading font-bold">{t('group.startVote')}</span>
-              <span className="opacity-80 text-sm">· {t('group.commonGamesCount', { count: commonGames.length })}</span>
-            </>
-          )}
-        </Button>
-      </div>
-
-      {/* Dialogs — mounted regardless of the active tab so the vote / random
-          pick / Discord flows can be triggered from anywhere (incl. the
-          `?startVote=1` deep link from the dashboard). */}
-      <RandomPickModal
-        open={randomPickOpen}
-        onOpenChange={setRandomPickOpen}
-        games={commonGames}
+      <GroupMobileActionBar
+        activeVoteSession={activeVoteSession}
+        commonGamesCount={commonGames.length}
+        onVote={openVoteFlow}
       />
 
-      <VoteSetupDialog
-        open={voteSetupOpen}
-        onOpenChange={setVoteSetupOpen}
+      <GroupDialogs
         members={currentGroup.members}
         groupId={id!}
+        commonGames={commonGames}
         onlineMembers={onlineMembers}
         activeFilter={activeFilter}
         onStartVote={handleStartVote}
+        randomPickOpen={randomPickOpen}
+        onRandomPickOpenChange={setRandomPickOpen}
+        voteSetupOpen={voteSetupOpen}
+        onVoteSetupOpenChange={setVoteSetupOpen}
+        discordDialogOpen={discordDialogOpen}
+        onDiscordDialogOpenChange={setDiscordDialogOpen}
       />
-
-      <ResponsiveDialog open={discordDialogOpen} onOpenChange={setDiscordDialogOpen}>
-        <ResponsiveDialogContent>
-          <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>{t('group.discordBannerDialogTitle')}</ResponsiveDialogTitle>
-            <ResponsiveDialogDescription>
-              {t('group.discordBannerHint')}
-            </ResponsiveDialogDescription>
-          </ResponsiveDialogHeader>
-          <div className="mt-4 space-y-4">
-            <DiscordSetupInstructions />
-            <div className="flex items-center justify-end">
-              <Button variant="secondary" onClick={() => setDiscordDialogOpen(false)}>
-                {t('common.close', 'Fermer')}
-              </Button>
-            </div>
-          </div>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
     </>
   )
 }

@@ -610,20 +610,11 @@ export function GroupPage() {
 
   return (
     <>
-      <PageHeader>
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label={t('group.back')} className="shrink-0">
-            <ArrowLeft className="size-5" />
-          </Button>
-          <h1 className="text-base sm:text-lg font-heading font-bold truncate min-w-0 flex-1">{currentGroup.name}</h1>
-          {onlineUserIds.length > 0 && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal shrink-0 hidden sm:inline-flex">
-              <span className="size-1.5 rounded-full bg-online animate-pulse" />
-              {t('group.onlineCount', { count: onlineUserIds.length })}
-            </Badge>
-          )}
-        </div>
-      </PageHeader>
+      <GroupPageHeader
+        groupName={currentGroup.name}
+        onlineCount={onlineUserIds.length}
+        onBack={() => navigate('/')}
+      />
 
       <main id="main-content" className="w-full max-w-5xl mx-auto px-3 sm:px-4 py-4 min-w-0">
         <GroupTabs active={activeTab} onChange={setActiveTab} voteLive={!!activeVoteSession} />

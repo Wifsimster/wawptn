@@ -1,20 +1,12 @@
 import { useMemo, useReducer } from 'react'
-import { Star, ChevronDown, Gamepad2, Monitor, TrendingUp, SearchX, RefreshCw, ShieldAlert, EyeOff, Users } from 'lucide-react'
+import { Star, Gamepad2, SearchX, RefreshCw, ShieldAlert, EyeOff, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  ResponsiveDialog,
-  ResponsiveDialogContent,
-  ResponsiveDialogHeader,
-  ResponsiveDialogTitle,
-  ResponsiveDialogDescription,
-  ResponsiveDialogFooter,
-} from '@/components/ui/responsive-dialog'
 import type { CommonGame } from '@wawptn/types'
 import { EmptyState } from '@/components/empty-state'
 import { GameFilterBar } from '@/components/game-filter-bar'
+import { GameFiltersDrawer } from '@/components/game-filters-drawer'
 import { GameList } from '@/components/game-list'
 
 // Reuse the shared wire type so we don't drift from the API shape. The
@@ -53,8 +45,6 @@ interface GameGridProps {
 }
 
 const DISPLAY_CAP = 50
-
-const METACRITIC_THRESHOLDS = [null, 60, 70, 75, 80, 85, 90] as const
 
 const normalize = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()

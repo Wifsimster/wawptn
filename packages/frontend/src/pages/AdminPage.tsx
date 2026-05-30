@@ -631,7 +631,7 @@ export function AdminPage() {
     if (!deletingPersonaId) return
     try {
       await api.deleteAdminPersona(deletingPersonaId)
-      setPersonas(personas.filter(p => p.id !== deletingPersonaId))
+      dispatchData({ type: 'setPersonas', personas: personas.filter(p => p.id !== deletingPersonaId) })
       toast.success('Persona supprimé')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression')
@@ -799,7 +799,7 @@ export function AdminPage() {
                 loading={loading}
                 saving={saving}
                 personas={personas}
-                onSettingsChange={setSettings}
+                onSettingsChange={(s) => dispatchData({ type: 'setSettings', settings: s })}
                 onSave={handleSave}
               />
             </m.div>

@@ -60,7 +60,16 @@ function getPersona() {
  */
 function getPersonaForChannel(channel: LinkedChannel) {
   const globalOverride = currentSettings?.persona_override || null
-  const groupOverride = channel.personaSettings.personaOverride || null
+  // A group override may be time-boxed via `overrideExpiresAt`. Once it has
+  // elapsed the backend drops it and resumes daily rotation, so we must do
+  // the same here — otherwise an expired override would stick forever on the
+  // bot side and the two ends would pick different personas for the group.
+  const expiresAt = channel.personaSettings.overrideExpiresAt
+  const groupOverrideExpired =
+    expiresAt != null && new Date(expiresAt).getTime() < Date.now()
+  const groupOverride = groupOverrideExpired
+    ? null
+    : channel.personaSettings.personaOverride || null
   const effectiveOverride = groupOverride ?? globalOverride
   if (effectiveOverride) {
     const forced = getPersonaById(effectiveOverride)

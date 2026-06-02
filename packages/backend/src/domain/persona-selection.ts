@@ -70,6 +70,13 @@ export function parisDate(now: Date = new Date()): string {
 interface CacheEntry {
   date: string
   persona: DailyPersona
+  /**
+   * Epoch ms after which this entry must be recomputed, even though the
+   * Paris day hasn't rolled over yet. Set when the pick came from a
+   * time-boxed group override so the cache stops serving the override the
+   * moment it expires instead of holding it stale until midnight.
+   */
+  validUntil?: number
 }
 
 const personaCache = new Map<string, CacheEntry>()
@@ -172,7 +179,11 @@ export async function selectPersonaForGroup(
   const cacheKey = selectionKey(dateStr, groupId)
 
   const cached = personaCache.get(cacheKey)
-  if (cached && cached.date === dateStr) {
+  if (
+    cached &&
+    cached.date === dateStr &&
+    (cached.validUntil == null || now.getTime() < cached.validUntil)
+  ) {
     return cached.persona
   }
   pruneStale(dateStr)
@@ -225,8 +236,15 @@ export async function selectPersonaForGroup(
 
   if (!selected) return null
 
+  // If the pick came from a time-boxed group override, cap the cache TTL at
+  // the override's expiry so rotation resumes the instant it elapses.
+  const validUntil =
+    groupOverride && selected.id === groupOverride && groupSettings?.override_expires_at
+      ? groupSettings.override_expires_at.getTime()
+      : undefined
+
   const persona = toDailyPersona(selected)
-  personaCache.set(cacheKey, { date: dateStr, persona })
+  personaCache.set(cacheKey, { date: dateStr, persona, validUntil })
   return persona
 }
 
@@ -247,7 +265,11 @@ export async function selectPersonasForGroups(
   const uncached: string[] = []
   for (const gid of groupIds) {
     const hit = personaCache.get(selectionKey(dateStr, gid))
-    if (hit && hit.date === dateStr) {
+    if (
+      hit &&
+      hit.date === dateStr &&
+      (hit.validUntil == null || now.getTime() < hit.validUntil)
+    ) {
       result.set(gid, hit.persona)
     } else {
       uncached.push(gid)
@@ -307,8 +329,13 @@ export async function selectPersonasForGroups(
     }
     if (!selected) continue
 
+    const validUntil =
+      groupOverride && selected.id === groupOverride && gs?.override_expires_at
+        ? gs.override_expires_at.getTime()
+        : undefined
+
     const persona = toDailyPersona(selected)
-    personaCache.set(selectionKey(dateStr, gid), { date: dateStr, persona })
+    personaCache.set(selectionKey(dateStr, gid), { date: dateStr, persona, validUntil })
     result.set(gid, persona)
   }
 

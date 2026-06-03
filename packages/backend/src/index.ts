@@ -51,6 +51,13 @@ async function main() {
   const app = express()
   const httpServer = createServer(app)
 
+  // Trust the first reverse proxy (Traefik in the reference deploy). Without
+  // this, `req.ip` returns the proxy's container address, which collapses
+  // every anonymous client onto a single rate-limit bucket and writes the
+  // wrong IP into the admin audit log. One hop matches the production
+  // topology (client → Traefik → app); add more if a CDN is stacked in front.
+  app.set('trust proxy', 1)
+
   // Security headers
   app.use(helmet({
     contentSecurityPolicy: {

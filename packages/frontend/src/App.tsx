@@ -23,6 +23,7 @@ const GroupPage = lazy(() => import('@/pages/GroupPage').then((m) => ({ default:
 const VotePage = lazy(() => import('@/pages/VotePage').then((m) => ({ default: m.VotePage })))
 const JoinPage = lazy(() => import('@/pages/JoinPage').then((m) => ({ default: m.JoinPage })))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })))
+const MyLibraryPage = lazy(() => import('@/pages/MyLibraryPage').then((m) => ({ default: m.MyLibraryPage })))
 const UserProfilePage = lazy(() => import('@/pages/UserProfilePage').then((m) => ({ default: m.UserProfilePage })))
 const ComparePage = lazy(() => import('@/pages/ComparePage').then((m) => ({ default: m.ComparePage })))
 const DiscordLinkPage = lazy(() => import('@/pages/DiscordLinkPage').then((m) => ({ default: m.DiscordLinkPage })))
@@ -149,6 +150,7 @@ function App() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<GroupsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/library" element={<MyLibraryPage />} />
             <Route path="/u/:userId" element={<UserProfilePage />} />
             <Route path="/compare" element={<ComparePage />} />
             <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />

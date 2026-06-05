@@ -20,6 +20,7 @@ import { logger } from './infrastructure/logger/logger.js'
 import { sendFatalAlert } from './infrastructure/alerting/alerter.js'
 import { authRoutes } from './presentation/routes/auth.routes.js'
 import { groupRoutes } from './presentation/routes/group.routes.js'
+import { libraryRoutes } from './presentation/routes/library.routes.js'
 import { voteRoutes } from './presentation/routes/vote.routes.js'
 import { inviteRoutes } from './presentation/routes/invite.routes.js'
 import { ogRoutes } from './presentation/routes/og.routes.js'
@@ -176,6 +177,11 @@ async function main() {
   app.use('/api/auth', authRoutes)
   app.use('/api/groups', requireAuth, groupRoutes)
   app.use('/api/groups', requireAuth, voteLimiter, voteRoutes)
+
+  // "Ma bibliothèque" — the user's own Steam library + promote-to-Discord.
+  // requireSameOrigin guards the promote POST (an outbound Discord side
+  // effect) against CSRF; it exempts the GET reads.
+  app.use('/api/library', requireAuth, requireSameOrigin, libraryRoutes)
 
   // Persona route (public, read-only — shows today's bot personality)
   app.use('/api/persona', personaRoutes)

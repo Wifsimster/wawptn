@@ -295,6 +295,24 @@ export const api = {
   removeFromWishlist: (steamAppId: number) =>
     request<{ ok: true }>(`/auth/me/wishlist/${steamAppId}`, { method: 'DELETE' }),
 
+  // Ma bibliothèque — the user's own Steam library + promote-to-Discord.
+  getLibrary: (params?: { q?: string; sort?: 'playtime' | 'name' | 'recent' }) => {
+    const search = new URLSearchParams()
+    if (params?.q) search.set('q', params.q)
+    if (params?.sort) search.set('sort', params.sort)
+    const qs = search.toString()
+    return request<{ games: import('@wawptn/types').LibraryGame[]; total: number }>(
+      `/library${qs ? `?${qs}` : ''}`,
+    )
+  },
+  getPromoteTargets: () =>
+    request<{ groups: import('@wawptn/types').PromoteTarget[] }>('/library/promote-targets'),
+  promoteGame: (steamAppId: number, groupId: string, message?: string) =>
+    request<{ ok: true; delivered: boolean }>('/library/promote', {
+      method: 'POST',
+      body: JSON.stringify({ steamAppId, groupId, ...(message ? { message } : {}) }),
+    }),
+
   getAdminStats: () => request<{ users: number; admins: number; groups: number; votingSessions: number }>('/admin/stats'),
   getAdminHealth: () => request<{
     timestamp: string;

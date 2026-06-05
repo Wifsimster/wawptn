@@ -87,6 +87,7 @@ export const api = {
     id: string; name: string; createdBy: string; commonGameThreshold: number | null; createdAt: string;
     autoVoteSchedule: string | null; autoVoteDurationMinutes: number;
     releasesDigestEnabled: boolean; releasesDigestSchedule: string; releasesDigestCoopOnly: boolean;
+    newGameSpotlightEnabled: boolean;
     discordGuildId: string | null; discordChannelId: string | null;
     discordGuildName: string | null; discordChannelName: string | null;
     members: { id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; role: string; joinedAt: string; notificationsEnabled: boolean }[];
@@ -155,6 +156,11 @@ export const api = {
   testReleasesDigest: (groupId: string) =>
     request<{ ok: boolean; delivered: boolean }>(`/groups/${groupId}/releases-digest/test`, {
       method: 'POST',
+    }),
+  updateNewGameSpotlight: (groupId: string, enabled: boolean) =>
+    request<{ ok: boolean; newGameSpotlightEnabled: boolean }>(`/groups/${groupId}/new-game-spotlight`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled }),
     }),
   syncLibraries: (groupId: string) => request(`/groups/${groupId}/sync`, { method: 'POST' }),
   getRecommendations: (groupId: string) => request<{

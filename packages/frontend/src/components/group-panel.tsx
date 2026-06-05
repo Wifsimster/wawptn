@@ -44,6 +44,7 @@ interface GroupPanelProps {
   releasesDigestEnabled: boolean
   releasesDigestSchedule: string
   releasesDigestCoopOnly: boolean
+  newGameSpotlightEnabled: boolean
   /** Null when the group has no linked Discord channel — the digest has
    *  nowhere to post, so the config entry point is shown disabled. */
   discordChannelId: string | null
@@ -60,6 +61,9 @@ interface GroupPanelProps {
   /** Sends a one-off test message to the linked Discord channel so the
    *  owner can confirm the digest will land before relying on the schedule. */
   onTestReleasesDigest: () => Promise<void>
+  /** Toggles the new-game spotlight (announces freshly acquired games into the
+   *  group's Discord with an interactive vote). */
+  onToggleNewGameSpotlight: (enabled: boolean) => void
   /** Which secondary section this panel instance renders. */
   section: GroupPanelSection
 }
@@ -82,7 +86,7 @@ function dialogReducer(_state: DialogState, action: DialogState): DialogState {
   return action
 }
 
-export function GroupPanel({ members, groupId, groupName, syncing, inviteToken, voteHistory, voteHistoryTruncated, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, releasesDigestEnabled, releasesDigestSchedule, releasesDigestCoopOnly, discordChannelId, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onUpdateReleasesDigest, onTestReleasesDigest, section }: GroupPanelProps) {
+export function GroupPanel({ members, groupId, groupName, syncing, inviteToken, voteHistory, voteHistoryTruncated, onlineMembers, lastSeenMap, currentUserId, currentUserRole, autoVoteSchedule, autoVoteDurationMinutes, releasesDigestEnabled, releasesDigestSchedule, releasesDigestCoopOnly, newGameSpotlightEnabled, discordChannelId, onSync, onGenerateInvite, onLeaveGroup, onKickMember, onDeleteGroup, onRenameGroup, onDeleteHistory, onToggleNotifications, onUpdateAutoVote, onUpdateReleasesDigest, onTestReleasesDigest, onToggleNewGameSpotlight, section }: GroupPanelProps) {
   const { i18n } = useTranslation()
   const [dialog, dispatch] = useReducer(dialogReducer, CLOSED)
   const close = () => dispatch(CLOSED)
@@ -145,9 +149,11 @@ export function GroupPanel({ members, groupId, groupName, syncing, inviteToken, 
           notificationsEnabled={notificationsEnabled}
           autoVoteSchedule={autoVoteSchedule}
           releasesDigestEnabled={releasesDigestEnabled}
+          newGameSpotlightEnabled={newGameSpotlightEnabled}
           discordChannelId={discordChannelId}
           onSync={onSync}
           onToggleNotifications={onToggleNotifications}
+          onToggleNewGameSpotlight={onToggleNewGameSpotlight}
           onOpenRename={() => dispatch({ type: 'rename' })}
           onOpenAutoVote={() => dispatch({ type: 'autoVote' })}
           onOpenDigest={() => dispatch({ type: 'digest' })}

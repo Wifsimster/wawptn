@@ -12,6 +12,15 @@ export interface CreateSessionParams {
   filters?: GameFilters
   scheduledAt?: Date | null
   excludeAppIds?: number[]
+  /**
+   * Explicit game list. When provided, the common-games computation is
+   * bypassed and these exact games are put up for the vote. Used by the
+   * new-game spotlight to open a vote on a member's freshly acquired games
+   * (which are deliberately NOT required to be owned by everyone — the whole
+   * point is "who wants to play this?"). When omitted, the session falls back
+   * to the usual common-games selection.
+   */
+  games?: SessionGame[]
 }
 
 export interface SessionGame {
@@ -62,7 +71,7 @@ function isUniqueViolation(err: unknown): boolean {
  * Throws on validation errors (with a `statusCode` property on the error).
  */
 export async function createVotingSession(params: CreateSessionParams): Promise<CreateSessionResult> {
-  const { groupId, createdBy, participantIds, filter, filters, scheduledAt, excludeAppIds } = params
+  const { groupId, createdBy, participantIds, filter, filters, scheduledAt, excludeAppIds, games: explicitGames } = params
 
   // Validate participantIds
   if (participantIds.length < 2) {
@@ -87,48 +96,65 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
     throw err
   }
 
-  // Get common games for the selected participants
-  const group = await db('groups').where({ id: groupId }).first()
-  const threshold = group?.common_game_threshold
-    ? Math.min(group.common_game_threshold, validMembers.length)
-    : validMembers.length
+  // The set of games put up for the vote. Either the caller's explicit list
+  // (spotlight path) or the group's common games (the usual path).
+  let selectedGames: Array<{
+    steamAppId: number
+    gameId?: string | null
+    gameName: string
+    headerImageUrl: string | null
+    totalPlaytime?: number | null
+  }>
 
-  const commonGames = await computeCommonGames(validMembers, { filter, filters, threshold })
+  if (explicitGames && explicitGames.length > 0) {
+    // Explicit-games path: the caller already decided what to vote on (e.g. a
+    // member's freshly acquired games), so skip the common-games computation
+    // and ordering entirely.
+    selectedGames = explicitGames
+  } else {
+    // Get common games for the selected participants
+    const group = await db('groups').where({ id: groupId }).first()
+    const threshold = group?.common_game_threshold
+      ? Math.min(group.common_game_threshold, validMembers.length)
+      : validMembers.length
 
-  // Exclude specific games (e.g. the winning game from a previous session for rematch)
-  const filteredCommonGames = excludeAppIds && excludeAppIds.length > 0
-    ? commonGames.filter(g => !excludeAppIds.includes(g.steamAppId))
-    : commonGames
+    const commonGames = await computeCommonGames(validMembers, { filter, filters, threshold })
 
-  if (filteredCommonGames.length === 0) {
-    const err = new Error('No common games found. Make sure all members have synced their Steam libraries and they are public.') as Error & { statusCode: number; errorCode: string }
-    err.statusCode = 422
-    err.errorCode = 'no_common_games'
-    throw err
+    // Exclude specific games (e.g. the winning game from a previous session for rematch)
+    const filteredCommonGames = excludeAppIds && excludeAppIds.length > 0
+      ? commonGames.filter(g => !excludeAppIds.includes(g.steamAppId))
+      : commonGames
+
+    if (filteredCommonGames.length === 0) {
+      const err = new Error('No common games found. Make sure all members have synced their Steam libraries and they are public.') as Error & { statusCode: number; errorCode: string }
+      err.statusCode = 422
+      err.errorCode = 'no_common_games'
+      throw err
+    }
+
+    // Order common games by popularity in previous sessions (most voted-for first)
+    const previousVoteCounts = await db('votes')
+      .join('voting_sessions', 'votes.session_id', 'voting_sessions.id')
+      .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed', 'votes.vote': true })
+      .groupBy('votes.steam_app_id')
+      .select('votes.steam_app_id', db.raw('COUNT(*) as vote_count'))
+
+    const voteCountMap = new Map<number, number>()
+    for (const row of previousVoteCounts) {
+      voteCountMap.set(row.steam_app_id, Number(row.vote_count))
+    }
+
+    selectedGames = filteredCommonGames.sort((a, b) => {
+      const countA = voteCountMap.get(a.steamAppId) || 0
+      const countB = voteCountMap.get(b.steamAppId) || 0
+      if (countA !== countB) return countB - countA
+      // Tiebreaker: aggregate playtime across group members (most played first)
+      const playtimeA = a.totalPlaytime ?? 0
+      const playtimeB = b.totalPlaytime ?? 0
+      if (playtimeA !== playtimeB) return playtimeB - playtimeA
+      return a.gameName.localeCompare(b.gameName)
+    })
   }
-
-  // Order common games by popularity in previous sessions (most voted-for first)
-  const previousVoteCounts = await db('votes')
-    .join('voting_sessions', 'votes.session_id', 'voting_sessions.id')
-    .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed', 'votes.vote': true })
-    .groupBy('votes.steam_app_id')
-    .select('votes.steam_app_id', db.raw('COUNT(*) as vote_count'))
-
-  const voteCountMap = new Map<number, number>()
-  for (const row of previousVoteCounts) {
-    voteCountMap.set(row.steam_app_id, Number(row.vote_count))
-  }
-
-  const selectedGames = filteredCommonGames.sort((a, b) => {
-    const countA = voteCountMap.get(a.steamAppId) || 0
-    const countB = voteCountMap.get(b.steamAppId) || 0
-    if (countA !== countB) return countB - countA
-    // Tiebreaker: aggregate playtime across group members (most played first)
-    const playtimeA = a.totalPlaytime ?? 0
-    const playtimeB = b.totalPlaytime ?? 0
-    if (playtimeA !== playtimeB) return playtimeB - playtimeA
-    return a.gameName.localeCompare(b.gameName)
-  })
 
   // Atomic check-and-create. Two layers of protection:
   //

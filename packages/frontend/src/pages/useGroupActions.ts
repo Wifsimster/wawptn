@@ -231,6 +231,17 @@ export function useGroupActions({
     }
   }
 
+  const handleToggleNewGameSpotlight = async (enabled: boolean) => {
+    if (!id) return
+    try {
+      await api.updateNewGameSpotlight(id, enabled)
+      toast.success(enabled ? t('group.newGameSpotlightEnabledToast') : t('group.newGameSpotlightDisabledToast'))
+      fetchGroup(id)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('group.newGameSpotlightError'))
+    }
+  }
+
   return {
     syncing,
     inviteToken,
@@ -247,5 +258,6 @@ export function useGroupActions({
     handleUpdateAutoVote,
     handleUpdateReleasesDigest,
     handleTestReleasesDigest,
+    handleToggleNewGameSpotlight,
   }
 }

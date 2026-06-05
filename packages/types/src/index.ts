@@ -126,6 +126,35 @@ export interface CommonGame {
   contentDescriptors: { ids: number[]; notes: string | null } | null
 }
 
+/** A single game from the authenticated user's own Steam library, surfaced
+ *  on the "Ma bibliothèque" page. Scoped to Steam titles (they carry a
+ *  steam_app_id, header image, and store link), enriched with the optional
+ *  metadata join. */
+export interface LibraryGame {
+  steamAppId: number
+  gameId?: string
+  gameName: string
+  headerImageUrl: string | null
+  playtimeForever: number | null
+  playtime2weeks: number | null
+  shortDescription: string | null
+  metacriticScore: number | null
+  isFree: boolean | null
+  controllerSupport: string | null
+}
+
+/** A group the user can promote a game into — i.e. one that has a Discord
+ *  destination configured (linked channel or webhook). */
+export interface PromoteTarget {
+  groupId: string
+  groupName: string
+  discordGuildName: string | null
+  discordChannelName: string | null
+  /** True when the post lands in a bot-linked channel; false for a
+   *  webhook-only destination. Lets the UI label the target. */
+  hasChannel: boolean
+}
+
 export interface GameMetadata {
   steamAppId: number
   gameId?: string

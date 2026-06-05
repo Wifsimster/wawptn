@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, User, Shield, Crown, LifeBuoy } from 'lucide-react'
+import { LogOut, User, Shield, Crown, LifeBuoy, Library } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth.store'
@@ -110,6 +110,12 @@ export function AppHeader({ children, className, maxWidth = 'narrow', hasPageCon
               <User />
               {t('profile.title')}
             </DropdownMenuItem>
+            {user && (
+              <DropdownMenuItem onSelect={() => navigate('/library')}>
+                <Library />
+                {t('library.title')}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onSelect={() => navigate('/subscription')}>
               <Crown className={cn(tier === 'premium' ? 'text-reward' : 'text-muted-foreground')} />
               {tier === 'premium' ? t('subscription.premium') : t('subscription.upgrade')}

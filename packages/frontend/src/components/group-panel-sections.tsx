@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil, Bell, BellOff, CalendarClock, Lock, Newspaper } from 'lucide-react'
+import { RefreshCw, UserPlus, Users, Trophy, History, Crown, UserMinus, Trash2, LogOut, Pencil, Bell, BellOff, CalendarClock, Lock, Newspaper, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -280,9 +280,11 @@ interface SettingsActionsProps {
   notificationsEnabled: boolean
   autoVoteSchedule: string | null
   releasesDigestEnabled: boolean
+  newGameSpotlightEnabled: boolean
   discordChannelId: string | null
   onSync: () => void
   onToggleNotifications: (enabled: boolean) => void
+  onToggleNewGameSpotlight: (enabled: boolean) => void
   onOpenRename: () => void
   onOpenAutoVote: () => void
   onOpenDigest: () => void
@@ -290,7 +292,7 @@ interface SettingsActionsProps {
   onDelete: () => void
 }
 
-export function SettingsActions({ isOwner, isPremium, syncing, notificationsEnabled, autoVoteSchedule, releasesDigestEnabled, discordChannelId, onSync, onToggleNotifications, onOpenRename, onOpenAutoVote, onOpenDigest, onLeave, onDelete }: SettingsActionsProps) {
+export function SettingsActions({ isOwner, isPremium, syncing, notificationsEnabled, autoVoteSchedule, releasesDigestEnabled, newGameSpotlightEnabled, discordChannelId, onSync, onToggleNotifications, onToggleNewGameSpotlight, onOpenRename, onOpenAutoVote, onOpenDigest, onLeave, onDelete }: SettingsActionsProps) {
   const { t } = useTranslation()
 
   return (
@@ -333,6 +335,34 @@ export function SettingsActions({ isOwner, isPremium, syncing, notificationsEnab
             <Pencil className="size-4 mr-2" />
             {t('group.renameGroup')}
           </Button>
+
+          {/* New-game spotlight (free) — announces a member's freshly acquired
+              games into the linked Discord with an interactive vote. Needs a
+              linked Discord channel; shown disabled otherwise so the
+              prerequisite is discoverable. */}
+          {!discordChannelId ? (
+            <Button
+              variant="outline"
+              className="w-full opacity-60"
+              disabled
+              title={t('group.newGameSpotlightNeedsDiscord')}
+            >
+              <Sparkles className="size-4 mr-2 text-muted-foreground" />
+              {t('group.newGameSpotlight')}
+            </Button>
+          ) : (
+            <Button
+              variant={newGameSpotlightEnabled ? 'outline' : 'ghost'}
+              className={`w-full ${!newGameSpotlightEnabled ? 'text-muted-foreground' : ''}`}
+              onClick={() => onToggleNewGameSpotlight(!newGameSpotlightEnabled)}
+            >
+              <Sparkles className="size-4 mr-2" />
+              {t('group.newGameSpotlight')}
+              {newGameSpotlightEnabled && (
+                <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">{t('group.newGameSpotlightEnabledBadge')}</Badge>
+              )}
+            </Button>
+          )}
         </div>
       )}
 

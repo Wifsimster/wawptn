@@ -63,6 +63,7 @@ router.get('/:id', requireGroupMembership(), async (req: Request, res: Response)
     releasesDigestEnabled: group.releases_digest_enabled ?? false,
     releasesDigestSchedule: group.releases_digest_schedule || '0 21 * * 5',
     releasesDigestCoopOnly: group.releases_digest_coop_only ?? false,
+    newGameSpotlightEnabled: group.new_game_spotlight_enabled ?? false,
     discordGuildId: group.discord_guild_id ?? null,
     discordChannelId: group.discord_channel_id ?? null,
     discordGuildName: group.discord_guild_name ?? null,
@@ -441,6 +442,45 @@ router.post(
 
     logger.info({ userId, groupId, delivered }, 'releases digest test message sent')
     res.json({ ok: true, delivered })
+  },
+)
+
+// Toggle the new-game spotlight (owner only, free). When enabled, a member's
+// freshly acquired Steam games are announced into the group's linked Discord
+// with an interactive "qui veut jouer ?" vote. Default off — auto-posting into
+// a group's Discord is opt-in.
+router.patch(
+  '/:id/new-game-spotlight',
+  requireGroupMembership({ role: 'owner' }),
+  async (req: Request, res: Response) => {
+    const userId = req.userId!
+    const groupId = String(req.params['id'])
+    const { enabled } = req.body as { enabled?: boolean }
+
+    if (typeof enabled !== 'boolean') {
+      res.status(400).json({ error: 'validation', message: 'enabled must be a boolean' })
+      return
+    }
+
+    if (enabled) {
+      const group = await db('groups').where({ id: groupId }).first()
+      if (!group) {
+        res.status(404).json({ error: 'not_found', message: 'Group not found' })
+        return
+      }
+      if (!group.discord_channel_id && !group.discord_webhook_url) {
+        res.status(409).json({ error: 'no_discord', message: 'Group has no linked Discord channel' })
+        return
+      }
+    }
+
+    await db('groups').where({ id: groupId }).update({
+      new_game_spotlight_enabled: enabled,
+      updated_at: db.fn.now(),
+    })
+
+    logger.info({ userId, groupId, enabled }, 'new game spotlight config updated')
+    res.json({ ok: true, newGameSpotlightEnabled: enabled })
   },
 )
 

@@ -106,6 +106,7 @@ export function GroupPage() {
     handleUpdateAutoVote,
     handleUpdateReleasesDigest,
     handleTestReleasesDigest,
+    handleToggleNewGameSpotlight,
   } = useGroupActions({
     id,
     activeFilter,
@@ -211,6 +212,7 @@ export function GroupPage() {
     releasesDigestEnabled: currentGroup.releasesDigestEnabled,
     releasesDigestSchedule: currentGroup.releasesDigestSchedule,
     releasesDigestCoopOnly: currentGroup.releasesDigestCoopOnly,
+    newGameSpotlightEnabled: currentGroup.newGameSpotlightEnabled,
     discordChannelId: currentGroup.discordChannelId,
     onSync: handleSync,
     onGenerateInvite: handleGenerateInvite,
@@ -223,6 +225,7 @@ export function GroupPage() {
     onUpdateAutoVote: handleUpdateAutoVote,
     onUpdateReleasesDigest: handleUpdateReleasesDigest,
     onTestReleasesDigest: handleTestReleasesDigest,
+    onToggleNewGameSpotlight: handleToggleNewGameSpotlight,
   }
 
   return (

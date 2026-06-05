@@ -4,6 +4,7 @@ import { db } from '../../infrastructure/database/connection.js'
 import { getSteamLoginUrl, verifySteamLogin, getPlayerSummary, getOwnedGames, getHeaderImageUrl } from '../../infrastructure/steam/steam-client.js'
 import { isEpicEnabled, getEpicAuthUrl, exchangeCodeForTokens, getOwnedGames as getEpicOwnedGames, normalizeGameName } from '../../infrastructure/epic/epic-client.js'
 import { isGogEnabled, getGogAuthUrl, exchangeCodeForTokens as exchangeGogCode, getOwnedGames as getGogOwnedGames, normalizeGameName as normalizeGogGameName } from '../../infrastructure/gog/gog-client.js'
+import type { NewlyAcquiredGame } from '../../domain/new-game-spotlight.js'
 import { encryptToken } from '../../infrastructure/crypto/token-cipher.js'
 import { authLogger, steamLogger, epicLogger, gogLogger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
@@ -1012,6 +1013,15 @@ async function syncUserLibrary(userId: string, steamId: string): Promise<number>
     return 0
   }
 
+  // Detect freshly acquired games for the new-game spotlight. Snapshot the
+  // library BEFORE the upsert so we can tell which app IDs are genuinely new.
+  // The very first sync seeds the entire library, so we never spotlight on it.
+  const existingAppIds = new Set<number>(
+    await db('user_games').where({ user_id: userId, platform: 'steam' }).pluck('steam_app_id'),
+  )
+  const isFirstSync = existingAppIds.size === 0
+  const newlyAcquired: NewlyAcquiredGame[] = []
+
   // Upsert all games
   const now = new Date()
   for (const game of games) {
@@ -1060,6 +1070,15 @@ async function syncUserLibrary(userId: string, steamId: string): Promise<number>
         playtime_2weeks: game.playtime_2weeks ?? null,
         synced_at: now,
       })
+
+    if (!isFirstSync && gameId && !existingAppIds.has(game.appid)) {
+      newlyAcquired.push({
+        steamAppId: game.appid,
+        gameId,
+        gameName: game.name,
+        headerImageUrl: getHeaderImageUrl(game.appid),
+      })
+    }
   }
 
   await db('users').where({ id: userId }).update({ library_visible: true, updated_at: now })
@@ -1070,6 +1089,17 @@ async function syncUserLibrary(userId: string, steamId: string): Promise<number>
   evaluateChallenges(userId, ['playtime', 'dedication', 'collection']).catch(err =>
     steamLogger.warn({ error: String(err), userId }, 'challenge evaluation after sync failed')
   )
+
+  // Announce freshly acquired games into the member's groups (non-blocking).
+  // Dynamic import keeps this off the module-load critical path and avoids a
+  // require cycle (the spotlight module pulls in create-session, which would
+  // otherwise tangle with the auth routes at load time).
+  if (newlyAcquired.length > 0) {
+    const { processNewGameSpotlights } = await import('../../domain/new-game-spotlight.js')
+    processNewGameSpotlights(userId, newlyAcquired).catch(err =>
+      steamLogger.warn({ error: String(err), userId }, 'new game spotlight processing failed')
+    )
+  }
 
   return games.length
 }

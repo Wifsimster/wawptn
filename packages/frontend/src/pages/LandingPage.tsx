@@ -6,6 +6,7 @@ import {
   Crown,
   Zap,
   ChevronRight,
+  ThumbsUp,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -77,6 +78,54 @@ const PREMIUM_FEATURES = [
   'premiumFeature6',
 ] as const
 
+function SteamCtaButton() {
+  const { t } = useTranslation()
+
+  return (
+    <Button variant="steam" size="lg" asChild>
+      <a
+        href="/api/auth/steam/login"
+        className="gap-3 text-base sm:text-lg px-10 py-7 group"
+      >
+        <svg
+          className="size-6 transition-transform duration-300 group-hover:scale-110"
+          viewBox="0 0 256 259"
+          fill="currentColor"
+        >
+          <path d="M127.779 0C60.21 0 5.2 52.063.553 117.735l68.39 28.273c5.801-3.964 12.8-6.288 20.358-6.288.672 0 1.34.023 2.004.06l30.469-44.148v-.62c0-26.392 21.476-47.868 47.868-47.868 26.393 0 47.869 21.476 47.869 47.869 0 26.392-21.476 47.868-47.869 47.868h-1.108l-43.44 31.026c0 .524.032 1.049.032 1.578 0 19.803-16.096 35.898-35.898 35.898-17.463 0-32.058-12.535-35.263-29.116L3.27 155.962C20.038 213.357 69.68 258.557 127.779 258.557c71.472 0 129.377-57.905 129.377-129.278C257.156 57.905 199.251 0 127.779 0" />
+        </svg>
+        {t('landing.cta')}
+        <ChevronRight className="size-5 transition-transform duration-300 group-hover:translate-x-1.5" />
+      </a>
+    </Button>
+  )
+}
+
+function LandingHeader() {
+  const { t } = useTranslation()
+
+  return (
+    <header className="fixed top-0 inset-x-0 z-40 border-b border-white/[0.04] bg-background/60 backdrop-blur-xl">
+      <div className="max-w-5xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14">
+        <a href="#" className="flex items-center gap-2.5">
+          <WawptnLogo size={18} variant="color" />
+          <span className="font-heading text-sm font-bold tracking-[0.25em] uppercase text-foreground/80">
+            WAWPTN
+          </span>
+        </a>
+        <nav className="flex items-center gap-5 sm:gap-7 text-sm text-muted-foreground">
+          <a href="#pricing" className="hover:text-foreground transition-colors">
+            {t('landing.navPricing')}
+          </a>
+          <a href="#faq" className="hover:text-foreground transition-colors">
+            {t('landing.navFaq')}
+          </a>
+        </nav>
+      </div>
+    </header>
+  )
+}
+
 function HeroSection() {
   const { t } = useTranslation()
 
@@ -128,17 +177,9 @@ function HeroSection() {
         animate="visible"
         variants={stagger}
       >
-        {/* Brand pill */}
-        <m.div variants={fadeUp} className="mb-10 sm:mb-14">
-          <div className="inline-flex items-center gap-3 px-6 py-2.5 rounded-full border border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl shadow-[0_0_30px_oklch(0.55_0.27_270_/_0.04)]">
-            <WawptnLogo size={16} variant="color" />
-            <span className="text-[11px] font-semibold tracking-[0.35em] uppercase text-white/30">
-              WAWPTN
-            </span>
-          </div>
-        </m.div>
-
-        {/* Asymmetric headline: small lead-in + massive punchline */}
+        {/* Asymmetric headline: small lead-in + massive punchline.
+            The brand mark lives in the fixed LandingHeader — the hero
+            spends its attention budget on the hook, not the logo. */}
         <m.h1
           variants={fadeUp}
           className="font-heading font-extrabold tracking-[-0.05em]"
@@ -171,22 +212,7 @@ function HeroSection() {
           variants={fadeUp}
           className="flex flex-col items-center gap-5"
         >
-          <Button variant="steam" size="lg" asChild>
-            <a
-              href="/api/auth/steam/login"
-              className="gap-3 text-base sm:text-lg px-10 py-7 group"
-            >
-              <svg
-                className="size-6 transition-transform duration-300 group-hover:scale-110"
-                viewBox="0 0 256 259"
-                fill="currentColor"
-              >
-                <path d="M127.779 0C60.21 0 5.2 52.063.553 117.735l68.39 28.273c5.801-3.964 12.8-6.288 20.358-6.288.672 0 1.34.023 2.004.06l30.469-44.148v-.62c0-26.392 21.476-47.868 47.868-47.868 26.393 0 47.869 21.476 47.869 47.869 0 26.392-21.476 47.868-47.869 47.868h-1.108l-43.44 31.026c0 .524.032 1.049.032 1.578 0 19.803-16.096 35.898-35.898 35.898-17.463 0-32.058-12.535-35.263-29.116L3.27 155.962C20.038 213.357 69.68 258.557 127.779 258.557c71.472 0 129.377-57.905 129.377-129.278C257.156 57.905 199.251 0 127.779 0" />
-              </svg>
-              {t('landing.cta')}
-              <ChevronRight className="size-5 transition-transform duration-300 group-hover:translate-x-1.5" />
-            </a>
-          </Button>
+          <SteamCtaButton />
           <p className="text-xs text-muted-foreground">
             {t('landing.ctaSubtext')}
           </p>
@@ -217,6 +243,88 @@ function HeroSection() {
           />
         </m.div>
       </m.div>
+    </section>
+  )
+}
+
+// Static snapshot of a live vote — real co-op staples, plausible counts.
+// Shows the product (principle: show, don't tell) before the page explains it.
+const PREVIEW_GAMES = [
+  { name: 'Deep Rock Galactic', votes: 4, share: 100, leader: true },
+  { name: 'Lethal Company', votes: 2, share: 50, leader: false },
+  { name: 'Helldivers 2', votes: 1, share: 25, leader: false },
+] as const
+
+function ProductPreviewSection() {
+  const { t } = useTranslation()
+
+  return (
+    <section className="relative px-4 pt-10 pb-28 sm:pb-36">
+      <div className="max-w-xl mx-auto">
+        <m.div
+          initial={{ opacity: 0, y: 32 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="landing-glass-card rounded-2xl p-6 sm:p-8" aria-hidden="true">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="relative flex size-2 shrink-0">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-neon opacity-60 animate-ping" />
+                  <span className="relative inline-flex size-2 rounded-full bg-neon" />
+                </span>
+                <span className="text-sm font-semibold truncate">
+                  {t('landing.previewLive')}
+                </span>
+                <span className="text-sm text-muted-foreground/60 truncate hidden sm:inline">
+                  · {t('landing.previewGroup')}
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {t('landing.previewProgress')}
+              </span>
+            </div>
+
+            <ul className="space-y-5">
+              {PREVIEW_GAMES.map((game, i) => (
+                <li key={game.name}>
+                  <div className="flex items-center justify-between gap-3 text-sm mb-2">
+                    <span className={game.leader ? 'font-semibold' : 'text-muted-foreground'}>
+                      {game.name}
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1.5 tabular-nums ${
+                        game.leader ? 'text-primary font-semibold' : 'text-muted-foreground/60'
+                      }`}
+                    >
+                      <ThumbsUp className="size-3.5" />
+                      {game.votes}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-white/[0.05] overflow-hidden">
+                    <m.div
+                      className={`h-full rounded-full ${game.leader ? 'bg-primary' : 'bg-white/15'}`}
+                      initial={{ width: 0 }}
+                      whileInView={{ width: `${game.share}%` }}
+                      viewport={{ once: true, margin: '-80px' }}
+                      transition={{
+                        duration: 0.9,
+                        delay: 0.3 + i * 0.15,
+                        ease: [0.22, 1, 0.36, 1],
+                      }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="text-center text-sm text-muted-foreground/70 mt-6">
+            {t('landing.previewCaption')}
+          </p>
+        </m.div>
+      </div>
     </section>
   )
 }
@@ -302,7 +410,7 @@ function PricingSection() {
   const { t } = useTranslation()
 
   return (
-    <section className="px-4 py-28 sm:py-36" id="pricing">
+    <section className="px-4 py-28 sm:py-36 scroll-mt-14" id="pricing">
       {/* Section divider */}
       <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
 
@@ -430,7 +538,7 @@ function FaqSection() {
   })
 
   return (
-    <section className="px-4 py-24 sm:py-28" id="faq" aria-labelledby="faq-title">
+    <section className="px-4 py-24 sm:py-28 scroll-mt-14" id="faq" aria-labelledby="faq-title">
       <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
       <div className="max-w-3xl mx-auto">
         <m.div
@@ -479,6 +587,35 @@ function FaqSection() {
   )
 }
 
+function FinalCtaSection() {
+  const { t } = useTranslation()
+
+  return (
+    <section className="relative px-4 py-28 sm:py-36 text-center overflow-hidden">
+      <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
+      <div className="landing-blur-orb absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] sm:w-[600px] h-[300px] rounded-full bg-primary/15 blur-[140px] pointer-events-none" />
+
+      <m.div
+        className="relative max-w-2xl mx-auto"
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-100px' }}
+        transition={{ duration: 0.7 }}
+      >
+        <h2 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.04em] mb-10">
+          {t('landing.finalCtaTitle')}
+        </h2>
+        <div className="flex flex-col items-center gap-5">
+          <SteamCtaButton />
+          <p className="text-xs text-muted-foreground">
+            {t('landing.ctaSubtext')}
+          </p>
+        </div>
+      </m.div>
+    </section>
+  )
+}
+
 function LandingFooter() {
   const { t } = useTranslation()
 
@@ -492,6 +629,14 @@ function LandingFooter() {
           </span>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-x-4 gap-y-2 sm:text-right">
+          <a
+            href="https://github.com/wifsimster/wawptn"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground transition-colors"
+          >
+            GitHub
+          </a>
           <Link to="/contact" className="hover:text-foreground transition-colors">
             {t('contact.title')}
           </Link>
@@ -504,15 +649,18 @@ function LandingFooter() {
 
 export function LandingPage() {
   const { t } = useTranslation()
-  useDocumentTitle(t('landing.headlineLine2'))
+  useDocumentTitle(t('landing.headline'))
 
   return (
     <div className="min-h-dvh flex flex-col overflow-x-hidden">
+      <LandingHeader />
       <main id="main-content">
         <HeroSection />
+        <ProductPreviewSection />
         <HowItWorksSection />
         <PricingSection />
         <FaqSection />
+        <FinalCtaSection />
       </main>
       <LandingFooter />
     </div>

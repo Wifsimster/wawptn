@@ -51,23 +51,31 @@ const logoInner = svg
   .trim()
 const logoDefs = (logoInner.match(/<defs>([\s\S]*?)<\/defs>/)?.[1] ?? '').trim()
 const logoBody = logoInner.replace(/<defs>[\s\S]*?<\/defs>/, '').trim()
-// 190px tile rendered from the 512-unit logo viewBox.
-const logoScale = 190 / 512
 
+// Thumbnail-style layout: the share card is seen more often than the site
+// itself, so it leads with the hook (the question) like a YouTube thumbnail
+// — huge gradient punchline, brand relegated to a small corner mark.
 const ogCard = `<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="og-glow" cx="0.5" cy="0.3" r="0.62">
-      <stop offset="0" stop-color="#7C5CFF" stop-opacity="0.55"/>
+    <radialGradient id="og-glow" cx="0.5" cy="0.42" r="0.7">
+      <stop offset="0" stop-color="#7C5CFF" stop-opacity="0.45"/>
       <stop offset="1" stop-color="#7C5CFF" stop-opacity="0"/>
     </radialGradient>
+    <linearGradient id="og-headline" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#A98BFF"/>
+      <stop offset="0.55" stop-color="#7FB4FF"/>
+      <stop offset="1" stop-color="#5FE0D4"/>
+    </linearGradient>
     ${logoDefs}
   </defs>
   <rect width="1200" height="630" fill="#0d0b14"/>
   <rect width="1200" height="630" fill="url(#og-glow)"/>
-  <g transform="translate(505, 116) scale(${logoScale})">${logoBody}</g>
-  <text x="600" y="414" text-anchor="middle" font-family="'Bricolage Grotesque', 'DejaVu Sans', sans-serif" font-weight="800" font-size="106" letter-spacing="-3" fill="#ffffff">WAWPTN</text>
-  <text x="600" y="473" text-anchor="middle" font-family="'DejaVu Sans', sans-serif" font-weight="500" font-size="42" fill="#ffffff" fill-opacity="0.88">On joue à quoi ce soir ?</text>
-  <text x="600" y="521" text-anchor="middle" font-family="'DejaVu Sans', sans-serif" font-weight="400" font-size="28" fill="#ffffff" fill-opacity="0.6">Connecte-toi avec Steam et vote pour le jeu de ce soir !</text>
+  <text x="1010" y="600" text-anchor="middle" font-family="'DejaVu Sans', sans-serif" font-weight="800" font-size="640" fill="#7C5CFF" fill-opacity="0.08">?</text>
+  <g transform="translate(48, 42) scale(${56 / 512})">${logoBody}</g>
+  <text x="122" y="82" font-family="'Bricolage Grotesque', 'DejaVu Sans', sans-serif" font-weight="800" font-size="32" letter-spacing="6" fill="#ffffff" fill-opacity="0.85">WAWPTN</text>
+  <text x="600" y="296" text-anchor="middle" font-family="'Bricolage Grotesque', 'DejaVu Sans', sans-serif" font-weight="800" font-size="92" letter-spacing="-2" fill="#ffffff">On joue à quoi</text>
+  <text x="600" y="452" text-anchor="middle" font-family="'Bricolage Grotesque', 'DejaVu Sans', sans-serif" font-weight="800" font-size="172" letter-spacing="-6" fill="url(#og-headline)">ce soir ?</text>
+  <text x="600" y="556" text-anchor="middle" font-family="'DejaVu Sans', sans-serif" font-weight="500" font-size="30" fill="#ffffff" fill-opacity="0.65">Vote en groupe · Jeux Steam en commun · 100% gratuit</text>
 </svg>`
 
 const ogResvg = new Resvg(ogCard, { fitTo: { mode: 'original' } })

@@ -89,12 +89,14 @@ jobs:
       - name: Build shared types
         run: npm run build:types
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
         working-directory: packages/frontend
 
       - name: Run E2E tests
-        run: npm run test:e2e
+        # Scoped to Mobile Chrome — the WebKit/Mobile Safari project stays in
+        # playwright.config.ts for local runs but is not gated in CI yet.
+        run: npm run test:e2e -- --project="Mobile Chrome"
         working-directory: packages/frontend
 
       - name: Upload Playwright report

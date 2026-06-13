@@ -19,28 +19,45 @@ import {
  * presentation-layer dependency.
  */
 
-// ─── Epic ───────────────────────────────────────────────────────────
-export async function syncEpicLibrary(userId: string): Promise<number> {
-  const games = await getEpicOwnedGames(userId)
+/**
+ * Sync a "simple" platform library (Epic, GOG) — storefronts that expose only
+ * an opaque game id and a title, with no playtime or per-app conflict key. Each
+ * game is matched to a canonical `games` row by its platform mapping, falling
+ * back to a normalized-name lookup, then upserted into `user_games`. Steam is
+ * handled separately because it carries playtime + new-game spotlight detection.
+ */
+async function syncSimplePlatformLibrary<TGame>(opts: {
+  userId: string
+  platform: 'epic' | 'gog'
+  label: string
+  logger: { warn: (obj: object, msg: string) => void; info: (obj: object, msg: string) => void }
+  fetch: (userId: string) => Promise<TGame[] | null>
+  platformGameId: (game: TGame) => string
+  gameName: (game: TGame) => string
+}): Promise<number> {
+  const { userId, platform, label, logger, fetch, platformGameId, gameName } = opts
+  const games = await fetch(userId)
   if (!games || games.length === 0) {
-    epicLogger.warn({ userId }, 'no Epic games returned or token issue')
+    logger.warn({ userId }, `no ${label} games returned or token issue`)
     return 0
   }
 
   const now = new Date()
   for (const game of games) {
+    const name = gameName(game)
+    const platformId = platformGameId(game)
     let gameId: string | null = null
-    const normalizedName = normalizeGameName(game.displayName)
 
-    // Check if this Epic game already has a platform mapping
+    // Check if this game already has a platform mapping
     const existingMapping = await db('game_platform_ids')
-      .where({ platform: 'epic', platform_game_id: game.catalogItemId })
+      .where({ platform, platform_game_id: platformId })
       .first()
 
     if (existingMapping) {
       gameId = existingMapping.game_id
     } else {
       // Try to find a canonical game with matching normalized name
+      const normalizedName = normalizeGameName(name)
       const existingGame = await db('games')
         .whereRaw('LOWER(REGEXP_REPLACE(canonical_name, \'[^a-zA-Z0-9\\s]\', \'\', \'g\')) = ?', [normalizedName])
         .first()
@@ -49,15 +66,15 @@ export async function syncEpicLibrary(userId: string): Promise<number> {
         gameId = existingGame.id
       } else {
         const [newGame] = await db('games')
-          .insert({ canonical_name: game.displayName })
+          .insert({ canonical_name: name })
           .returning('id')
         gameId = newGame.id
       }
 
       await db('game_platform_ids').insert({
         game_id: gameId,
-        platform: 'epic',
-        platform_game_id: game.catalogItemId,
+        platform,
+        platform_game_id: platformId,
       })
     }
 
@@ -65,19 +82,32 @@ export async function syncEpicLibrary(userId: string): Promise<number> {
       .insert({
         user_id: userId,
         game_id: gameId,
-        platform: 'epic',
-        game_name: game.displayName,
+        platform,
+        game_name: name,
         synced_at: now,
       })
       .onConflict(['user_id', 'game_id', 'platform'])
       .merge({
-        game_name: game.displayName,
+        game_name: name,
         synced_at: now,
       })
   }
 
-  epicLogger.info({ userId, gameCount: games.length }, 'Epic library synced')
+  logger.info({ userId, gameCount: games.length }, `${label} library synced`)
   return games.length
+}
+
+// ─── Epic ───────────────────────────────────────────────────────────
+export function syncEpicLibrary(userId: string): Promise<number> {
+  return syncSimplePlatformLibrary({
+    userId,
+    platform: 'epic',
+    label: 'Epic',
+    logger: epicLogger,
+    fetch: getEpicOwnedGames,
+    platformGameId: (game) => game.catalogItemId,
+    gameName: (game) => game.displayName,
+  })
 }
 
 // ─── Steam ──────────────────────────────────────────────────────────
@@ -186,62 +216,16 @@ export async function syncUserLibrary(userId: string, steamId: string): Promise<
 }
 
 // ─── GOG ────────────────────────────────────────────────────────────
-export async function syncGogLibrary(userId: string): Promise<number> {
-  const games = await getGogOwnedGames(userId)
-  if (!games || games.length === 0) {
-    gogLogger.warn({ userId }, 'no GOG games returned or token issue')
-    return 0
-  }
-
-  const now = new Date()
-  for (const game of games) {
-    let gameId: string | null = null
-    const normalizedName = normalizeGameName(game.title)
-
-    const existingMapping = await db('game_platform_ids')
-      .where({ platform: 'gog', platform_game_id: String(game.id) })
-      .first()
-
-    if (existingMapping) {
-      gameId = existingMapping.game_id
-    } else {
-      const existingGame = await db('games')
-        .whereRaw('LOWER(REGEXP_REPLACE(canonical_name, \'[^a-zA-Z0-9\\s]\', \'\', \'g\')) = ?', [normalizedName])
-        .first()
-
-      if (existingGame) {
-        gameId = existingGame.id
-      } else {
-        const [newGame] = await db('games')
-          .insert({ canonical_name: game.title })
-          .returning('id')
-        gameId = newGame.id
-      }
-
-      await db('game_platform_ids').insert({
-        game_id: gameId,
-        platform: 'gog',
-        platform_game_id: String(game.id),
-      })
-    }
-
-    await db('user_games')
-      .insert({
-        user_id: userId,
-        game_id: gameId,
-        platform: 'gog',
-        game_name: game.title,
-        synced_at: now,
-      })
-      .onConflict(['user_id', 'game_id', 'platform'])
-      .merge({
-        game_name: game.title,
-        synced_at: now,
-      })
-  }
-
-  gogLogger.info({ userId, gameCount: games.length }, 'GOG library synced')
-  return games.length
+export function syncGogLibrary(userId: string): Promise<number> {
+  return syncSimplePlatformLibrary({
+    userId,
+    platform: 'gog',
+    label: 'GOG',
+    logger: gogLogger,
+    fetch: getGogOwnedGames,
+    platformGameId: (game) => String(game.id),
+    gameName: (game) => game.title,
+  })
 }
 
 /**

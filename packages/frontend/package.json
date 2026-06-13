@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "icons": "node scripts/generate-logo-assets.mjs"
+    "icons": "node scripts/generate-logo-assets.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
@@ -37,6 +39,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.56.1",
     "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "^4.1.18",
     "@types/node": "^25.0.6",

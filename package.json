@@ -11,7 +11,7 @@
     "dev:backend": "npm run dev -w @wawptn/backend",
     "dev:frontend": "npm run dev -w @wawptn/frontend",
     "dev:discord": "npm run dev -w @wawptn/discord",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build:types && npm run build --workspace @wawptn/backend --workspace @wawptn/frontend --workspace @wawptn/discord --if-present",
     "build:types": "npm run build -w @wawptn/types",
     "build:backend": "npm run build -w @wawptn/backend",
     "build:frontend": "npm run build -w @wawptn/frontend",

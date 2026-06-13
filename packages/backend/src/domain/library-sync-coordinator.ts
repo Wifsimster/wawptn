@@ -2,9 +2,10 @@ import { db } from '../infrastructure/database/connection.js'
 import { logger } from '../infrastructure/logger/logger.js'
 
 /**
- * Per-platform sync provider. Implementations live in auth.routes.ts (Steam,
- * Epic, GOG) and are wired into the registry from a single call site so the
- * route handler doesn't have to know which providers exist.
+ * Per-platform sync provider. Implementations live in
+ * infrastructure/library/library-sync.ts (Steam, Epic, GOG) and are wired into
+ * the registry by `createLibrarySyncCoordinator()` so callers don't have to
+ * know which providers exist.
  *
  * `linked(userId)` returns true if this provider should be invoked for the
  * member. Steam is always linked (every WAWPTN user has a Steam ID); Epic

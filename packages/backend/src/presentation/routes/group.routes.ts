@@ -4,6 +4,7 @@ import { db } from '../../infrastructure/database/connection.js'
 import { computeCommonGames } from '../../infrastructure/database/common-games.js'
 import { generateInviteToken, hashInviteToken, getHeaderImageUrl } from '../../infrastructure/steam/steam-client.js'
 import { triggerBackgroundEnrichment } from '../../infrastructure/steam/steam-store-client.js'
+import { syncGroupLibraries } from '../../infrastructure/library/library-sync.js'
 import { getIO, forceLeaveRoom } from '../../infrastructure/socket/socket.js'
 import { updateGroupSchedule } from '../../infrastructure/scheduler/auto-vote-scheduler.js'
 import { updateGroupDigestSchedule } from '../../infrastructure/scheduler/releases-digest-scheduler.js'
@@ -943,28 +944,7 @@ router.get('/:id/stats', requireGroupMembership(), async (req: Request, res: Res
 router.post('/:id/sync', requireGroupMembership({ role: 'owner' }), async (req: Request, res: Response) => {
   const groupId = String(req.params['id'])
 
-  // Import sync functions dynamically to avoid circular deps
-  const { syncUserLibrary, syncEpicLibrary, syncGogLibrary } = await import('./auth.routes.js')
-  const { LibrarySyncCoordinator } = await import('../../domain/library-sync-coordinator.js')
-
-  const coordinator = new LibrarySyncCoordinator()
-    .register({
-      id: 'steam',
-      linked: () => true,
-      sync: (userId, ctx) => syncUserLibrary(userId, ctx.member.steamId),
-    })
-    .register({
-      id: 'epic',
-      linked: (_userId, ctx) => ctx.linkedProviderIds.has('epic'),
-      sync: (userId) => syncEpicLibrary(userId),
-    })
-    .register({
-      id: 'gog',
-      linked: (_userId, ctx) => ctx.linkedProviderIds.has('gog'),
-      sync: (userId) => syncGogLibrary(userId),
-    })
-
-  await coordinator.syncGroup(groupId, (memberId, gameCount) => {
+  await syncGroupLibraries(groupId, (memberId, gameCount) => {
     getIO().to(`group:${groupId}`).emit('library:synced', { groupId, userId: memberId, gameCount })
   })
 

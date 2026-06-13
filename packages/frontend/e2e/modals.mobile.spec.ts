@@ -63,7 +63,7 @@ test.describe('Modals on mobile', () => {
       await expect(dialog).toBeVisible()
       await expect(dialog.getByText('Rejoindre un groupe')).toBeVisible()
 
-      await dialog.getByPlaceholder("Token d'invitation...").fill('valid-token')
+      await dialog.getByPlaceholder('Colle ici le lien reçu...').fill('valid-token')
       await dialog.getByRole('button', { name: 'Rejoindre' }).click()
 
       await page.waitForURL('**/groups/group-1')
@@ -88,8 +88,8 @@ test.describe('Modals on mobile', () => {
       await page.waitForTimeout(500)
 
       await page.getByRole('button', { name: 'Mon Profil' }).click()
-      // The dropdown menu Se déconnecter
-      await page.locator('.absolute.right-0').getByText('Se déconnecter').click()
+      // The dropdown menu Se déconnecter (Radix dropdown → role=menuitem)
+      await page.getByRole('menuitem', { name: 'Se déconnecter' }).click()
 
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
@@ -104,7 +104,7 @@ test.describe('Modals on mobile', () => {
       await page.waitForTimeout(500)
 
       await page.getByRole('button', { name: 'Mon Profil' }).click()
-      await page.locator('.absolute.right-0').getByText('Se déconnecter').click()
+      await page.getByRole('menuitem', { name: 'Se déconnecter' }).click()
 
       const dialog = page.getByRole('dialog')
       await dialog.getByRole('button', { name: 'Annuler' }).click()
@@ -113,53 +113,53 @@ test.describe('Modals on mobile', () => {
     })
   })
 
-  // ── Group page modals ─────────────────────────────────────────
+  // ── Group page panel tabs (members / history / settings) ──────
+  // The mobile members sidebar drawer was replaced by persistent tabs on the
+  // group detail page; members, history and owner actions now live under those
+  // tabs (rendered inline, not in a dialog).
 
-  test.describe('Mobile sidebar drawer', () => {
-    test('opens on tap and shows members + actions', async ({ page }) => {
+  test.describe('Members tab', () => {
+    test('lists members and exposes the invite action', async ({ page }) => {
       await page.goto('/groups/group-1')
-      await page.waitForTimeout(500)
-      // Wait for group page to load
-      await expect(page.getByText('Lancer un vote')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByRole('button', { name: 'Lancer un vote', exact: true })).toBeVisible({ timeout: 10000 })
 
-      // Tap the avatar bar to open mobile sidebar
-      await page.getByRole('button', { name: 'Voir les membres' }).click()
+      await page.getByRole('tab', { name: 'Membres' }).click()
 
-      const dialog = page.getByRole('dialog')
-      await expect(dialog).toBeVisible()
-      await page.waitForTimeout(400) // Wait for drawer animation
-      await expect(dialog.getByText('Les Gamers')).toBeVisible()
-
-      // Members should be listed
-      await expect(dialog.getByText('TestPlayer')).toBeVisible()
-      await expect(dialog.getByText('Alice')).toBeVisible()
-      await expect(dialog.getByText('Bob')).toBeVisible()
-
-      // Action buttons visible in compact mode
-      await expect(dialog.getByText('Synchroniser les bibliothèques')).toBeVisible()
-      await expect(dialog.getByText('Inviter un ami')).toBeVisible()
-      await expect(dialog.getByText('Supprimer le groupe')).toBeVisible()
+      await expect(page.getByText('TestPlayer').first()).toBeVisible()
+      await expect(page.getByText('Alice').first()).toBeVisible()
+      await expect(page.getByText('Bob').first()).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Inviter un ami' })).toBeVisible()
     })
+  })
 
-    test('shows vote history in sidebar', async ({ page }) => {
+  test.describe('History tab', () => {
+    test('shows past vote winners', async ({ page }) => {
       await page.goto('/groups/group-1')
-      await page.waitForTimeout(500)
-      await expect(page.getByText('Lancer un vote')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByRole('button', { name: 'Lancer un vote', exact: true })).toBeVisible({ timeout: 10000 })
 
-      await page.getByRole('button', { name: 'Voir les membres' }).click()
+      await page.getByRole('tab', { name: 'Historique' }).click()
 
-      const dialog = page.getByRole('dialog')
-      await expect(dialog).toBeVisible()
-      await page.waitForTimeout(400)
-      await expect(dialog.getByText('Historique des soirées')).toBeVisible()
-      await expect(dialog.getByText('Counter-Strike 2')).toBeVisible()
-      await expect(dialog.getByText('Dota 2')).toBeVisible()
+      await expect(page.getByText('Counter-Strike 2').first()).toBeVisible()
+      await expect(page.getByText('Dota 2').first()).toBeVisible()
+    })
+  })
+
+  test.describe('Settings tab', () => {
+    test('exposes sync and delete actions to the owner', async ({ page }) => {
+      await page.goto('/groups/group-1')
+      await expect(page.getByRole('button', { name: 'Lancer un vote', exact: true })).toBeVisible({ timeout: 10000 })
+
+      await page.getByRole('tab', { name: 'Réglages' }).click()
+
+      await expect(page.getByRole('button', { name: 'Synchroniser les bibliothèques' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Supprimer le groupe' })).toBeVisible()
     })
   })
 
   test.describe('Leave Group confirmation', () => {
-    test('opens from sidebar and confirms', async ({ page }) => {
-      // Override the group detail to make user a member (not owner) so leave button appears
+    test('member can leave from the settings tab', async ({ page }) => {
+      // Override the group detail to make the user a member (not owner) so the
+      // leave button appears.
       await page.route(/\/api\/groups\/group-2$/, (route) => {
         if (route.request().method() !== 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) })
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
@@ -172,70 +172,46 @@ test.describe('Modals on mobile', () => {
       })
 
       await page.goto('/groups/group-2')
-      await page.waitForTimeout(500)
-      await expect(page.getByText('Lancer un vote')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByRole('button', { name: 'Lancer un vote', exact: true })).toBeVisible({ timeout: 10000 })
 
-      await page.getByRole('button', { name: 'Voir les membres' }).click()
-      const sidebar = page.getByRole('dialog')
-      await expect(sidebar).toBeVisible()
-      await page.waitForTimeout(400)
+      await page.getByRole('tab', { name: 'Réglages' }).click()
+      await page.getByRole('button', { name: 'Quitter le groupe' }).click()
 
-      // Scroll to "Quitter le groupe" button in sidebar
-      await sidebar.getByText('Quitter le groupe').scrollIntoViewIfNeeded()
-      await sidebar.getByText('Quitter le groupe').click({ force: true })
-
-      // Confirmation dialog
       await expect(page.getByText('Quitter le groupe ?')).toBeVisible()
-      const confirmBtn = page.getByRole('button', { name: 'Quitter le groupe' }).last()
-      await confirmBtn.scrollIntoViewIfNeeded()
-      await confirmBtn.click({ force: true })
+      await page.getByRole('button', { name: 'Quitter le groupe' }).last().click()
 
       await page.waitForURL('**/')
     })
   })
 
   test.describe('Delete Group confirmation', () => {
-    test('opens from sidebar and confirms deletion', async ({ page }) => {
+    test('owner can delete from the settings tab', async ({ page }) => {
       await page.goto('/groups/group-1')
-      await page.waitForTimeout(500)
-      await expect(page.getByText('Lancer un vote')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByRole('button', { name: 'Lancer un vote', exact: true })).toBeVisible({ timeout: 10000 })
 
-      await page.getByRole('button', { name: 'Voir les membres' }).click()
-      const sidebar = page.getByRole('dialog')
-      await expect(sidebar).toBeVisible()
-      await page.waitForTimeout(400)
-
-      await sidebar.getByText('Supprimer le groupe').scrollIntoViewIfNeeded()
-      await sidebar.getByText('Supprimer le groupe').click({ force: true })
+      await page.getByRole('tab', { name: 'Réglages' }).click()
+      await page.getByRole('button', { name: 'Supprimer le groupe' }).click()
 
       await expect(page.getByText('Supprimer le groupe ?')).toBeVisible()
       await expect(page.getByText('irréversible')).toBeVisible()
 
-      const confirmDeleteBtn = page.getByRole('button', { name: 'Supprimer le groupe' }).last()
-      await confirmDeleteBtn.scrollIntoViewIfNeeded()
-      await confirmDeleteBtn.click({ force: true })
+      await page.getByRole('button', { name: 'Supprimer le groupe' }).last().click()
       await page.waitForURL('**/')
     })
   })
 
   test.describe('Kick Member confirmation', () => {
-    test('shows kick dialog for non-self members (owner view)', async ({ page }) => {
+    test('owner can kick a member from the members tab', async ({ page }) => {
       await page.goto('/groups/group-1')
-      await page.waitForTimeout(500)
-      await expect(page.getByText('Lancer un vote')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByRole('button', { name: 'Lancer un vote', exact: true })).toBeVisible({ timeout: 10000 })
 
-      await page.getByRole('button', { name: 'Voir les membres' }).click()
-      const sidebar = page.getByRole('dialog')
-      await expect(sidebar).toBeVisible()
-      await page.waitForTimeout(400)
-
-      // Kick button should be visible in compact mode (always visible)
-      await sidebar.getByRole('button', { name: 'Exclure Alice' }).click({ force: true })
+      await page.getByRole('tab', { name: 'Membres' }).click()
+      await page.getByRole('button', { name: 'Exclure Alice' }).click()
 
       await expect(page.getByText('Exclure ce membre ?')).toBeVisible()
       await expect(page.getByText('Alice sera retiré')).toBeVisible()
 
-      await page.getByRole('button', { name: 'Exclure' }).click({ force: true })
+      await page.getByRole('button', { name: 'Exclure', exact: true }).click()
     })
   })
 
@@ -245,11 +221,11 @@ test.describe('Modals on mobile', () => {
     test.beforeEach(async ({ page }) => {
       await page.goto('/groups/group-1')
       await page.waitForTimeout(500)
-      await expect(page.getByText('Lancer un vote')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByRole('button', { name: 'Lancer un vote', exact: true })).toBeVisible({ timeout: 10000 })
     })
 
     test('opens with all members selected by default', async ({ page }) => {
-      await page.getByText('Lancer un vote').click()
+      await page.getByRole('button', { name: 'Lancer un vote', exact: true }).click()
 
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
@@ -258,7 +234,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('toggles individual member selection via checkbox', async ({ page }) => {
-      await page.getByText('Lancer un vote').click()
+      await page.getByRole('button', { name: 'Lancer un vote', exact: true }).click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400) // Wait for drawer animation to settle
@@ -273,7 +249,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('select all / deselect all toggle', async ({ page }) => {
-      await page.getByText('Lancer un vote').click()
+      await page.getByRole('button', { name: 'Lancer un vote', exact: true }).click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400)
@@ -287,17 +263,11 @@ test.describe('Modals on mobile', () => {
       await expect(dialog.getByText('3 joueur(s) sélectionné(s)')).toBeVisible()
     })
 
-    test('proceeds to confirmation step and starts vote', async ({ page }) => {
-      await page.getByText('Lancer un vote').click()
+    test('quick-starts the vote from the member step', async ({ page }) => {
+      await page.getByRole('button', { name: 'Lancer un vote', exact: true }).click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400)
-
-      const suivantBtn = dialog.getByRole('button', { name: 'Suivant' })
-      await suivantBtn.scrollIntoViewIfNeeded()
-      await suivantBtn.click({ force: true })
-      await expect(dialog.getByText('Lancer le vote ?')).toBeVisible()
-      await expect(dialog.getByText('42 jeux en commun disponibles')).toBeVisible()
 
       const lancerBtn = dialog.getByRole('button', { name: 'Lancer le vote' })
       await lancerBtn.scrollIntoViewIfNeeded()
@@ -305,51 +275,70 @@ test.describe('Modals on mobile', () => {
       await page.waitForURL('**/groups/group-1/vote')
     })
 
-    test('schedule vote option shows date picker', async ({ page }) => {
-      await page.getByText('Lancer un vote').click()
+    test('"Plus d\'options" opens the confirm step and starts the vote', async ({ page }) => {
+      await page.getByRole('button', { name: 'Lancer un vote', exact: true }).click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400)
 
-      const suivantBtn = dialog.getByRole('button', { name: 'Suivant' })
-      await suivantBtn.scrollIntoViewIfNeeded()
-      await suivantBtn.click({ force: true })
+      const moreBtn = dialog.getByRole('button', { name: "Plus d'options" })
+      await moreBtn.scrollIntoViewIfNeeded()
+      await moreBtn.click({ force: true })
+      await expect(dialog.getByText('Lancer le vote ?')).toBeVisible()
+
+      const lancerBtn = dialog.getByRole('button', { name: 'Lancer le vote' })
+      await lancerBtn.scrollIntoViewIfNeeded()
+      await lancerBtn.click({ force: true })
+      await page.waitForURL('**/groups/group-1/vote')
+    })
+
+    test('schedule option (premium) reveals the date picker', async ({ page }) => {
+      // Scheduling is premium-gated; grant premium then reload so the
+      // subscription store picks it up before the dialog opens.
+      await page.route('**/api/subscription/me', (route) =>
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tier: 'premium', status: 'active', currentPeriodEnd: '2026-12-31', cancelAtPeriodEnd: false, source: 'stripe' }) })
+      )
+      await page.reload()
+      await expect(page.getByRole('button', { name: 'Lancer un vote', exact: true })).toBeVisible({ timeout: 10000 })
+
+      await page.getByRole('button', { name: 'Lancer un vote', exact: true }).click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
+      await page.waitForTimeout(400)
+
+      await dialog.getByRole('button', { name: "Plus d'options" }).click({ force: true })
 
       // Toggle schedule
       await dialog.locator('#schedule-toggle').click({ force: true })
       await expect(dialog.locator('#scheduled-date')).toBeVisible()
-
-      // Button label should change
       await expect(dialog.getByRole('button', { name: 'Planifier la soirée' })).toBeVisible()
     })
 
     test('back button returns to member selection', async ({ page }) => {
-      await page.getByText('Lancer un vote').click()
+      await page.getByRole('button', { name: 'Lancer un vote', exact: true }).click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400)
 
-      const suivantBtn = dialog.getByRole('button', { name: 'Suivant' })
-      await suivantBtn.scrollIntoViewIfNeeded()
-      await suivantBtn.click({ force: true })
+      await dialog.getByRole('button', { name: "Plus d'options" }).click({ force: true })
       await expect(dialog.getByText('Lancer le vote ?')).toBeVisible()
 
       await dialog.getByRole('button', { name: 'Retour' }).click({ force: true })
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
     })
 
-    test('disables Suivant when fewer than 2 members selected', async ({ page }) => {
-      await page.getByText('Lancer un vote').click()
+    test('start buttons are disabled when fewer than 2 members selected', async ({ page }) => {
+      await page.getByRole('button', { name: 'Lancer un vote', exact: true }).click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400)
 
-      // Deselect all
+      // Deselect all, then select only one
       await dialog.locator('#select-all').click({ force: true })
-      // Select only one
       await dialog.locator('#member-user-1').click({ force: true })
 
-      await expect(dialog.getByRole('button', { name: 'Suivant' })).toBeDisabled()
+      await expect(dialog.getByRole('button', { name: 'Lancer le vote' })).toBeDisabled()
+      await expect(dialog.getByRole('button', { name: "Plus d'options" })).toBeDisabled()
     })
   })
 
@@ -359,11 +348,11 @@ test.describe('Modals on mobile', () => {
     test.beforeEach(async ({ page }) => {
       await page.goto('/groups/group-1')
       await page.waitForTimeout(500)
-      await expect(page.getByText('Au hasard')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByRole('button', { name: 'Au hasard' })).toBeVisible({ timeout: 10000 })
     })
 
     test('opens with a random game displayed', async ({ page }) => {
-      await page.getByText('Au hasard').click({ force: true })
+      await page.getByRole('button', { name: 'Au hasard' }).click({ force: true })
 
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
@@ -379,7 +368,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('reroll changes pick number', async ({ page }) => {
-      await page.getByText('Au hasard').click({ force: true })
+      await page.getByRole('button', { name: 'Au hasard' }).click({ force: true })
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
       await page.waitForTimeout(400)
@@ -393,7 +382,7 @@ test.describe('Modals on mobile', () => {
     })
 
     test('closes with Escape', async ({ page }) => {
-      await page.getByText('Au hasard').click({ force: true })
+      await page.getByRole('button', { name: 'Au hasard' }).click({ force: true })
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
 

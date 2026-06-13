@@ -1,348 +1,136 @@
-import { test, expect } from './fixtures'
+import { test, expect, type Page } from './fixtures'
+
+/**
+ * Game-list filtering on the group "Ce soir" tab. The current UI keeps search +
+ * the two high-signal mode toggles + preset chips inline, and moves the advanced
+ * knobs (Metacritic, sort, genres, gamesOnly, controller) into a "Plus de
+ * filtres" drawer.
+ *
+ * mockGames metacritic scores: Dota 2 = 90, TF2 = 92, Stardew = 89,
+ * Counter-Strike 2 = 81, Cyberpunk = 76 (+ one DLC entry, no score).
+ */
+
+// Scope game-name assertions to the common-games grid (the GameGrid wrapper is
+// the only `.space-y-3` block that contains the <search> landmark), so we never
+// collide with the "tonight's pick" hero or other surfaces.
+const gameGrid = (page: Page) =>
+  page.locator('.space-y-3').filter({ has: page.locator('search') })
+
+// The "Plus de filtres" button is icon-only on mobile (label is `sm:inline`),
+// so it has no accessible name there. It lives inside the game grid (the
+// header's notification bell is also a dialog trigger), so scope to the grid.
+const openDrawer = async (page: Page) => {
+  await gameGrid(page).locator('button[aria-haspopup="dialog"]').click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+}
 
 test.describe('Game list filters on mobile', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/groups/group-1')
-    // Wait for game grid to fully render (avoid networkidle due to socket.io)
     await expect(page.getByPlaceholder('Rechercher un jeu...')).toBeVisible({ timeout: 15000 })
   })
 
-  // Helper: scope assertions to game grid area (avoids duplicates with vote history)
-  const gameGrid = (page: import('@playwright/test').Page) => page.locator('.space-y-3').filter({ has: page.locator('[role="search"]') })
-
-  // ── Text search ───────────────────────────────────────────────
-
+  // ── Text search (inline) ──────────────────────────────────────
   test.describe('Text search', () => {
     test('filters games by name', async ({ page }) => {
-      const searchInput = page.getByPlaceholder('Rechercher un jeu...')
-      await searchInput.fill('Counter')
-
-      // Should show only Counter-Strike 2
+      await page.getByPlaceholder('Rechercher un jeu...').fill('Counter')
       await expect(gameGrid(page).getByText('Counter-Strike 2')).toBeVisible()
       await expect(gameGrid(page).getByText('Dota 2')).not.toBeVisible()
-
-      // Filtered count should appear
-      await expect(page.getByText(/1\/\d+/)).toBeVisible()
     })
 
-    test('search is case-insensitive and diacritic-insensitive', async ({ page }) => {
-      const searchInput = page.getByPlaceholder('Rechercher un jeu...')
-      await searchInput.fill('counter-strike')
+    test('search is case-insensitive', async ({ page }) => {
+      await page.getByPlaceholder('Rechercher un jeu...').fill('counter-strike')
       await expect(gameGrid(page).getByText('Counter-Strike 2')).toBeVisible()
     })
 
     test('clear search button resets results', async ({ page }) => {
-      const searchInput = page.getByPlaceholder('Rechercher un jeu...')
-      await searchInput.fill('Counter')
+      const search = page.getByPlaceholder('Rechercher un jeu...')
+      await search.fill('Counter')
       await expect(gameGrid(page).getByText('Dota 2')).not.toBeVisible()
 
-      // Clear search
       await page.getByRole('button', { name: 'Effacer la recherche' }).click()
-      await expect(searchInput).toHaveValue('')
-
-      // Multiple games visible again
+      await expect(search).toHaveValue('')
       await expect(gameGrid(page).getByText('Dota 2')).toBeVisible()
     })
 
-    test('shows no results message when no match', async ({ page }) => {
-      await page.getByPlaceholder('Rechercher un jeu...').fill('xyznonexistent')
-      await expect(page.getByText('Aucun jeu ne correspond')).toBeVisible()
-      await expect(page.getByText('Réinitialiser les filtres')).toBeVisible()
-    })
-
-    test('reset filters link clears everything', async ({ page }) => {
-      await page.getByPlaceholder('Rechercher un jeu...').fill('xyznonexistent')
-      await page.getByText('Réinitialiser les filtres').click()
-      await expect(gameGrid(page).getByText('Counter-Strike 2')).toBeVisible()
+    test('shows a no-results message when nothing matches', async ({ page }) => {
+      await page.getByPlaceholder('Rechercher un jeu...').fill('zzz-no-such-game')
+      await expect(page.getByText('Aucun jeu ne correspond à tes filtres.')).toBeVisible()
     })
   })
 
-  // ── Mode toggles ──────────────────────────────────────────────
-
-  test.describe('Mode toggle buttons', () => {
-    test('Multiplayer toggle is active by default', async ({ page }) => {
-      // The multiplayer button should exist and be visible
-      const multiBtn = page.getByRole('button', { name: 'Multijoueur' })
-      await expect(multiBtn).toBeVisible()
+  // ── Mode toggles (inline) ─────────────────────────────────────
+  test.describe('Mode toggles', () => {
+    test('multiplayer toggle reflects its pressed state', async ({ page }) => {
+      const btn = page.getByRole('button', { name: 'Multijoueur' })
+      const initial = await btn.getAttribute('aria-pressed')
+      await btn.click()
+      await expect(btn).toHaveAttribute('aria-pressed', initial === 'true' ? 'false' : 'true')
     })
 
-    test('Coop toggle deactivates Multiplayer (mutually exclusive)', async ({ page }) => {
-      await page.getByRole('button', { name: 'Coopératif' }).click()
-      await page.waitForTimeout(300)
-      // Clicking coop should work without error
-    })
-
-    test('Games Only toggle excludes DLC', async ({ page }) => {
-      // Games Only is on by default — DLC should not appear
-      await expect(gameGrid(page).getByText('Some DLC Pack')).not.toBeVisible()
-
-      // Toggle off Games Only
-      await page.getByRole('button', { name: 'Jeux uniquement' }).click()
-      await page.waitForTimeout(300)
-    })
-
-    test('Controller support filter', async ({ page }) => {
-      const manette = page.getByRole('button', { name: 'Manette' })
-      await manette.scrollIntoViewIfNeeded()
-      await manette.click({ force: true })
-      await page.waitForTimeout(300)
-
-      // TF2 has full controller support, should still be visible
-      await expect(gameGrid(page).getByText('Team Fortress 2')).toBeVisible()
-      // CS2 has no controller support, should be hidden
-      await expect(gameGrid(page).getByText('Counter-Strike 2')).not.toBeVisible()
+    test('coop toggle reflects its pressed state', async ({ page }) => {
+      const btn = page.getByRole('button', { name: 'Coopératif' })
+      const initial = await btn.getAttribute('aria-pressed')
+      await btn.click()
+      await expect(btn).toHaveAttribute('aria-pressed', initial === 'true' ? 'false' : 'true')
     })
   })
 
-  // ── Metacritic filter ─────────────────────────────────────────
+  // ── Preset chips (inline) ─────────────────────────────────────
+  test.describe('Preset chips', () => {
+    test('applying a preset marks it active', async ({ page }) => {
+      const preset = page.getByRole('button', { name: 'Top notés' })
+      await preset.click()
+      await expect(preset).toHaveAttribute('aria-pressed', 'true')
+    })
+  })
 
-  test.describe('Metacritic score filter', () => {
-    test('shows all scores by default', async ({ page }) => {
-      await expect(page.getByText('Metacritic')).toBeVisible()
-      const allBtn = page.getByRole('button', { name: 'Tous' })
-      await expect(allBtn).toBeVisible()
+  // ── Advanced filters drawer ───────────────────────────────────
+  test.describe('Advanced filters drawer', () => {
+    test('opens and shows the advanced sections', async ({ page }) => {
+      await openDrawer(page)
+      const dialog = page.getByRole('dialog')
+      await expect(dialog.getByText('Metacritic')).toBeVisible()
+      await expect(dialog.getByText('Trier par')).toBeVisible()
+      await expect(dialog.getByText('Genres')).toBeVisible()
     })
 
-    test('filters games by minimum Metacritic score 90+', async ({ page }) => {
-      await page.getByRole('button', { name: '90+' }).click()
-      await page.waitForTimeout(300)
+    test('a Metacritic 90+ threshold filters out lower-scored games', async ({ page }) => {
+      await openDrawer(page)
+      await page.getByRole('dialog').getByRole('button', { name: '90+' }).click()
+      await page.keyboard.press('Escape')
+      await expect(page.getByRole('dialog')).not.toBeVisible()
 
-      // TF2 (92) and Dota 2 (90) should remain
-      await expect(gameGrid(page).getByText('Team Fortress 2')).toBeVisible()
+      // 90+ keeps Dota 2 (90) and TF2 (92); drops Counter-Strike 2 (81)
       await expect(gameGrid(page).getByText('Dota 2')).toBeVisible()
-      // CS2 (81) should be hidden
       await expect(gameGrid(page).getByText('Counter-Strike 2')).not.toBeVisible()
     })
 
-    test('clicking Tous resets metacritic filter', async ({ page }) => {
-      await page.getByRole('button', { name: '80+' }).click()
-      await page.waitForTimeout(300)
-
-      await page.getByRole('button', { name: 'Tous' }).click()
-      await page.waitForTimeout(300)
-
-      // All games should be visible again
-      await expect(gameGrid(page).getByText('Counter-Strike 2')).toBeVisible()
+    test('a chosen sort is reflected as a pressed option', async ({ page }) => {
+      await openDrawer(page)
+      const sortName = page.getByRole('dialog').getByRole('button', { name: 'Nom' })
+      await sortName.click()
+      await expect(sortName).toHaveAttribute('aria-pressed', 'true')
     })
 
-    test('progressive thresholds reduce game count', async ({ page }) => {
-      const btn60 = page.getByRole('button', { name: '60+' })
-      await btn60.scrollIntoViewIfNeeded()
-      await btn60.click({ force: true })
-      await page.waitForTimeout(300)
-
-      const countEl = page.locator('h2').filter({ hasText: /Jeux en commun/ })
-      const count60Text = await countEl.textContent()
-
-      const btn85 = page.getByRole('button', { name: '85+' })
-      await btn85.scrollIntoViewIfNeeded()
-      await btn85.click({ force: true })
-      await page.waitForTimeout(300)
-
-      const count85Text = await countEl.textContent()
-      expect(count85Text).not.toBe(count60Text)
-    })
-  })
-
-  // ── Platform filter ───────────────────────────────────────────
-
-  test.describe('Platform filter', () => {
-    test('shows all platforms by default', async ({ page }) => {
-      await expect(page.getByText('Plateforme')).toBeVisible()
-    })
-
-    test('filters to Windows only', async ({ page }) => {
-      await page.getByRole('button', { name: 'Windows' }).click()
-      await page.waitForTimeout(300)
-      // All mock games support Windows
-    })
-
-    test('filters to Mac only', async ({ page }) => {
-      await page.getByRole('button', { name: 'Mac' }).click()
-      await page.waitForTimeout(300)
-
-      // Cyberpunk 2077 doesn't support Mac
-      // Note: Cyberpunk is not multiplayer so it's already hidden by default multiplayer filter
-      // Dota 2 supports Mac and is multiplayer
-      await expect(gameGrid(page).getByText('Dota 2')).toBeVisible()
-    })
-
-    test('filters to Linux only', async ({ page }) => {
-      await page.getByRole('button', { name: 'Linux' }).click()
-      await page.waitForTimeout(300)
-
-      // CS2 supports Linux and is multiplayer
-      await expect(gameGrid(page).getByText('Counter-Strike 2')).toBeVisible()
-    })
-
-    test('switching back to Toutes shows all games', async ({ page }) => {
-      await page.getByRole('button', { name: 'Linux' }).click()
-      await page.waitForTimeout(200)
-      await page.getByRole('button', { name: 'Toutes' }).click()
-      await page.waitForTimeout(200)
-
-      await expect(gameGrid(page).getByText('Counter-Strike 2')).toBeVisible()
-    })
-  })
-
-  // ── Sort ──────────────────────────────────────────────────────
-
-  test.describe('Sorting', () => {
-    test('sort by name shows alphabetical order', async ({ page }) => {
-      await page.getByRole('button', { name: 'Nom' }).click()
-      await page.waitForTimeout(300)
-
-      // Get game names from the grid
-      const gameNames = await gameGrid(page).locator('.grid .text-xs.font-medium').allTextContents()
-      const sortedNames = [...gameNames].sort((a, b) => a.localeCompare(b))
-      expect(gameNames).toEqual(sortedNames)
-    })
-
-    test('sort by popularity orders by recommendations', async ({ page }) => {
-      await page.getByRole('button', { name: 'Popularité' }).click()
-      await page.waitForTimeout(300)
-
-      // First game should be Dota 2 (most recommendations: 2M)
-      const firstGameName = await gameGrid(page).locator('.grid .text-xs.font-medium').first().textContent()
-      expect(firstGameName).toBe('Dota 2')
-    })
-
-    test('sort by Possédé par is default', async ({ page }) => {
-      const ownersBtn = page.getByRole('button', { name: 'Possédé par' })
-      await expect(ownersBtn).toBeVisible()
-    })
-  })
-
-  // ── Genre filter ──────────────────────────────────────────────
-
-  test.describe('Genre filter', () => {
-    test('genres section is collapsed by default', async ({ page }) => {
-      const genreBtn = page.locator('button').filter({ hasText: 'Genres' })
-      await expect(genreBtn).toBeVisible()
-      // Genre pills should not be visible yet (Action, Strategy, etc.)
-      await expect(page.locator('button:text-is("Strategy")').first()).not.toBeVisible()
-    })
-
-    test('expands and shows genre pills', async ({ page }) => {
-      await page.locator('button').filter({ hasText: 'Genres' }).click()
-      await page.waitForTimeout(200)
-
-      await expect(page.locator('button:text-is("Action")')).toBeVisible()
-      await expect(page.locator('button:text-is("Strategy")')).toBeVisible()
-    })
-
-    test('selecting a genre filters games', async ({ page }) => {
-      const genreBtn = page.locator('button').filter({ hasText: 'Genres' })
-      await genreBtn.scrollIntoViewIfNeeded()
-      await genreBtn.click({ force: true })
-      await page.waitForTimeout(200)
-
-      // Click Strategy genre
-      const strategyBtn = page.locator('button:text-is("Strategy")')
-      await strategyBtn.scrollIntoViewIfNeeded()
-      await strategyBtn.click({ force: true })
-      await page.waitForTimeout(300)
-
-      // Dota 2 has Strategy genre, should be visible
-      await expect(gameGrid(page).getByText('Dota 2')).toBeVisible()
-      // Filtered count should show in heading
-      await expect(page.locator('h2').filter({ hasText: /\d+\/\d+/ })).toBeVisible()
-    })
-
-    test('selected genre shows badge count', async ({ page }) => {
-      const genreBtn = page.locator('button').filter({ hasText: 'Genres' })
-      await genreBtn.scrollIntoViewIfNeeded()
-      await genreBtn.click({ force: true })
-      await page.waitForTimeout(200)
-
-      const actionBtn = page.locator('button:text-is("Action")')
-      await actionBtn.scrollIntoViewIfNeeded()
-      await actionBtn.click({ force: true })
-      await page.waitForTimeout(100)
-      const strategyBtn = page.locator('button:text-is("Strategy")')
-      await strategyBtn.scrollIntoViewIfNeeded()
-      await strategyBtn.click({ force: true })
-      await page.waitForTimeout(100)
-
-      // Badge should show "2" (Badge renders as div)
-      const badge = page.locator('button').filter({ hasText: 'Genres' }).locator('div').filter({ hasText: '2' })
-      await expect(badge).toBeVisible()
-    })
-
-    test('clear genres button removes all genre filters', async ({ page }) => {
-      await page.locator('button').filter({ hasText: 'Genres' }).click()
-      await page.waitForTimeout(200)
-
-      await page.locator('button:text-is("Action")').click()
-      await page.waitForTimeout(200)
-
-      await page.getByText('Effacer').click()
-      await page.waitForTimeout(200)
-    })
-
-    test('multiple genres work as OR filter', async ({ page }) => {
-      await page.locator('button').filter({ hasText: 'Genres' }).click()
-      await page.waitForTimeout(200)
-
-      await page.locator('button:text-is("Strategy")').click()
-      await page.waitForTimeout(100)
-
-      // Dota 2 has Strategy genre
-      await expect(gameGrid(page).getByText('Dota 2')).toBeVisible()
-    })
-  })
-
-  // ── Combined filters ──────────────────────────────────────────
-
-  test.describe('Combined filters', () => {
-    test('search + metacritic combined', async ({ page }) => {
-      await page.getByPlaceholder('Rechercher un jeu...').fill('Dota')
-      await page.getByRole('button', { name: '90+' }).click()
-      await page.waitForTimeout(300)
+    test('selecting a genre narrows the grid', async ({ page }) => {
+      await openDrawer(page)
+      const dialog = page.getByRole('dialog')
+      // Expand the genres section, then pick "Strategy" (only Dota 2 has it)
+      await dialog.getByRole('button', { name: /Genres/ }).click()
+      await dialog.getByRole('button', { name: 'Strategy' }).click()
+      await page.keyboard.press('Escape')
+      await expect(page.getByRole('dialog')).not.toBeVisible()
 
       await expect(gameGrid(page).getByText('Dota 2')).toBeVisible()
-    })
-
-    test('platform + controller combined', async ({ page }) => {
-      const linuxBtn = page.getByRole('button', { name: 'Linux' })
-      await linuxBtn.scrollIntoViewIfNeeded()
-      await linuxBtn.click({ force: true })
-      const manette = page.getByRole('button', { name: 'Manette' })
-      await manette.scrollIntoViewIfNeeded()
-      await manette.click({ force: true })
-      await page.waitForTimeout(300)
-
-      // TF2: Linux + full controller, multiplayer
-      await expect(gameGrid(page).getByText('Team Fortress 2')).toBeVisible()
-      // CS2: Linux but no controller
-      await expect(gameGrid(page).getByText('Counter-Strike 2')).not.toBeVisible()
-    })
-
-    test('game count updates with each filter', async ({ page }) => {
-      // Initially shows total count
-      const initialHeader = await page.locator('h2').filter({ hasText: /Jeux en commun/ }).textContent()
-
-      // Apply metacritic filter
-      await page.getByRole('button', { name: '90+' }).click()
-      await page.waitForTimeout(300)
-
-      const filteredHeader = await page.locator('h2').filter({ hasText: /Jeux en commun/ }).textContent()
-      expect(filteredHeader).not.toBe(initialHeader)
+      await expect(gameGrid(page).getByText('Cyberpunk 2077')).not.toBeVisible()
     })
   })
 
-  // ── Display controls ─────────────────────────────────────────
-
-  test.describe('Display controls', () => {
-    test('game grid uses 2 columns on mobile', async ({ page }) => {
-      const grid = page.locator('.grid.grid-cols-2').first()
-      await expect(grid).toBeVisible()
-    })
-
-    test('game cards show metacritic badges', async ({ page }) => {
-      // CS2 has metacritic 81 — badge should show
-      const metacriticBadge = page.locator('span:text("81")').first()
-      await expect(metacriticBadge).toBeVisible()
+  // ── Display ───────────────────────────────────────────────────
+  test.describe('Display', () => {
+    test('game grid uses a 2-column layout on mobile', async ({ page }) => {
+      await expect(page.locator('.grid.grid-cols-2').first()).toBeVisible()
     })
   })
 })

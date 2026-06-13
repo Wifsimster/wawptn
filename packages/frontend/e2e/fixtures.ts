@@ -31,9 +31,72 @@ export const mockGames = [
 ]
 
 export const mockVoteHistory = [
-  { id: 'vs-1', winningGameAppId: 730, winningGameName: 'Counter-Strike 2', closedAt: '2025-03-01T20:00:00Z' },
-  { id: 'vs-2', winningGameAppId: 570, winningGameName: 'Dota 2', closedAt: '2025-02-25T20:00:00Z' },
+  { id: 'vs-1', winningGameAppId: 730, winningGameName: 'Counter-Strike 2', closedAt: '2025-03-01T20:00:00Z', createdBy: 'user-1' },
+  { id: 'vs-2', winningGameAppId: 570, winningGameName: 'Dota 2', closedAt: '2025-02-25T20:00:00Z', createdBy: 'user-1' },
 ]
+
+// Library games (Ma bibliothèque) — shape: LibraryGame
+export const mockLibraryGames = [
+  { steamAppId: 730, gameName: 'Counter-Strike 2', headerImageUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/730/header.jpg', playtimeForever: 12000, playtime2weeks: 300, shortDescription: 'FPS compétitif', metacriticScore: 81, isFree: true, controllerSupport: null },
+  { steamAppId: 1091500, gameName: 'Cyberpunk 2077', headerImageUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/1091500/header.jpg', playtimeForever: 4200, playtime2weeks: 0, shortDescription: 'RPG open world', metacriticScore: 76, isFree: false, controllerSupport: 'full' },
+  { steamAppId: 413150, gameName: 'Stardew Valley', headerImageUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/413150/header.jpg', playtimeForever: 9000, playtime2weeks: 120, shortDescription: 'Farming sim', metacriticScore: 89, isFree: false, controllerSupport: 'partial' },
+]
+
+// Public profile (UserProfilePage) — shape: PublicUserProfile
+export const mockPublicProfile = {
+  id: 'user-2',
+  displayName: 'Alice',
+  avatarUrl: 'https://avatars.steamstatic.com/p2.jpg',
+  gameCount: 120,
+  totalPlaytimeMinutes: 24000,
+  commonGamesWithViewer: [
+    { steamAppId: 730, gameName: 'Counter-Strike 2', headerImageUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/730/header.jpg', playtimeForever: 6000 },
+    { steamAppId: 570, gameName: 'Dota 2', headerImageUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/570/header.jpg', playtimeForever: 3000 },
+  ],
+  topGames: [
+    { steamAppId: 730, gameName: 'Counter-Strike 2', headerImageUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/730/header.jpg', playtimeForever: 6000 },
+  ],
+  lastSyncedAt: '2025-03-01T20:00:00Z',
+  visibilityFullLibrary: true,
+  visibilityLastPlayed: true,
+}
+
+// Compare result (ComparePage) — shape: UserCompareResult
+export const mockCompareResult = {
+  a: mockPublicProfile,
+  b: { ...mockPublicProfile, id: 'user-3', displayName: 'Bob' },
+  commonGames: [
+    { steamAppId: 730, gameName: 'Counter-Strike 2', headerImageUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/730/header.jpg', playtimeA: 6000, playtimeB: 4000 },
+  ],
+  onlyAGames: [{ steamAppId: 1091500, gameName: 'Cyberpunk 2077', headerImageUrl: null, playtimeForever: 4200 }],
+  onlyBGames: [{ steamAppId: 413150, gameName: 'Stardew Valley', headerImageUrl: null, playtimeForever: 9000 }],
+  overlapRatio: 0.5,
+}
+
+// Invite preview (JoinPage) — shape: InvitePreview
+export const mockInvitePreview = {
+  isValid: true,
+  groupName: 'Les Gamers',
+  memberCount: 3,
+  memberAvatars: ['https://avatars.steamstatic.com/p1.jpg', 'https://avatars.steamstatic.com/p2.jpg'],
+  topGames: [
+    { gameName: 'Counter-Strike 2', headerImageUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/730/header.jpg' },
+    { gameName: 'Dota 2', headerImageUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/570/header.jpg' },
+  ],
+  recentWinner: { gameName: 'Counter-Strike 2', headerImageUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/730/header.jpg' },
+}
+
+// Subscription catalog (SubscriptionPage)
+export const mockSubscriptionCatalog = {
+  entries: [
+    { cadence: 'monthly', priceId: 'price_monthly', unitAmount: 300, currency: 'eur', default: true },
+    { cadence: 'yearly', priceId: 'price_yearly', unitAmount: 3000, currency: 'eur', default: false },
+  ],
+  annualAvailable: true,
+}
+
+// Public stats (LandingPage social-proof strip)
+export const mockPublicStats = { users: 1280, groups: 340, votesClosed: 5600, votesClosed7d: 210, generatedAt: '2025-03-08T12:00:00Z' }
 
 // ── API mocking helper ─────────────────────────────────────────────
 
@@ -53,6 +116,7 @@ export async function mockAllApiRoutes(page: Page) {
       profileUrl: 'https://steamcommunity.com/id/testplayer',
       createdAt: '2025-01-01',
       platforms: [{ id: 'steam', name: 'Steam', connected: true, gameCount: 200, lastSyncedAt: '2025-03-01' }],
+      discord: { linked: false },
     }) })
   })
 
@@ -97,9 +161,17 @@ export async function mockAllApiRoutes(page: Page) {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ games: mockGames, totalMembers: 3, threshold: 1 }) })
     }
 
-    // /api/groups/:id/vote/history
+    // /api/groups/:id/vote/history — the API returns a paginated envelope, not
+    // a bare array; getVoteHistory reads `.data` / `.freeLimitApplied`.
     if (path.includes('/vote/history')) {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockVoteHistory) })
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        data: mockVoteHistory,
+        total: mockVoteHistory.length,
+        limit: 10,
+        offset: 0,
+        freeLimitApplied: false,
+        freeLimit: 10,
+      }) })
     }
 
     // POST /api/groups/:id/vote/:sessionId/close
@@ -109,11 +181,14 @@ export async function mockAllApiRoutes(page: Page) {
       }) })
     }
 
-    // GET /api/groups/:id/vote (get vote session)
+    // GET /api/groups/:id/vote (get vote session). Default: NO active session,
+    // so the group page shows the "Lancer un vote" CTA. Tests that need an open
+    // ballot (the vote-page specs) register their own override, which takes
+    // precedence over this catch-all.
     if (path.match(/\/vote$/) && method === 'GET') {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-        session: { id: 'session-1', groupId: 'group-1', status: 'open', createdBy: 'user-1', scheduledAt: null, createdAt: '2025-03-08' },
-        games: mockGames.filter(g => g.type === 'game').slice(0, 5),
+        session: null,
+        games: [],
         myVotes: [],
         voterCount: 0,
         totalMembers: 3,
@@ -162,6 +237,49 @@ export async function mockAllApiRoutes(page: Page) {
     }) })
   })
 
+  const json = (route: Parameters<Parameters<Page['route']>[1]>[0], body: unknown) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+
+  // Invite preview (public, mounted at /invite not /api) — JoinPage
+  await page.route('**/invite/*/preview', (route) => json(route, mockInvitePreview))
+
+  // Ma bibliothèque — GET /api/library (+ query string)
+  await page.route(/\/api\/library(\?|$)/, (route) =>
+    json(route, { games: mockLibraryGames, total: mockLibraryGames.length })
+  )
+  await page.route('**/api/library/promote-targets', (route) => json(route, { groups: mockGroups }))
+  await page.route('**/api/library/promote', (route) => json(route, { ok: true, delivered: true }))
+
+  // Subscription — current plan (defaults to free; premium-gated tests override)
+  await page.route('**/api/subscription/me', (route) =>
+    json(route, { tier: 'free', status: 'inactive', currentPeriodEnd: null, cancelAtPeriodEnd: false, source: 'none' })
+  )
+  // Subscription — SubscriptionPage
+  await page.route('**/api/subscription/catalog', (route) => json(route, mockSubscriptionCatalog))
+  await page.route('**/api/subscription/checkout', (route) => json(route, { url: 'https://checkout.stripe.com/mock' }))
+  await page.route('**/api/subscription/portal', (route) => json(route, { url: 'https://billing.stripe.com/mock' }))
+
+  // Public stats — LandingPage social-proof strip
+  await page.route('**/api/stats/public', (route) => json(route, mockPublicStats))
+
+  // Discord bot invite URL (ProfilePage / GroupPage)
+  await page.route('**/api/discord/bot-invite-url', (route) => json(route, { enabled: false, url: null }))
+
+  // Wishlist (ProfilePage / library)
+  await page.route('**/api/auth/me/wishlist', (route) => json(route, { data: [] }))
+
+  // Users: compare, public profile, visibility, streaks — must come before
+  // narrower handlers are unnecessary since paths are distinct.
+  await page.route(/\/api\/users\/compare/, (route) => json(route, mockCompareResult))
+  await page.route('**/api/users/me/visibility', (route) => {
+    if (route.request().method() === 'PATCH') {
+      return json(route, { visibilityFullLibrary: true, visibilityLastPlayed: true })
+    }
+    return json(route, { visibilityFullLibrary: true, visibilityLastPlayed: true })
+  })
+  await page.route('**/api/users/me/streaks', (route) => json(route, { bestCurrent: 3, bestEver: 7, activeStreakGroups: 1 }))
+  await page.route(/\/api\/users\/[^/]+\/profile/, (route) => json(route, mockPublicProfile))
+
   // Mock Socket.io — fulfill with valid open packet to prevent reconnect loops
   await page.route('**/socket.io/**', (route) => {
     const url = route.request().url()
@@ -185,4 +303,30 @@ export const test = base.extend<{ setupMocks: void }>({
   }, { auto: true }],
 })
 
+/**
+ * Register an OPEN vote session for `groupId` so the vote-page (ballot) UI
+ * renders. Registered after the base mocks, so it takes precedence over the
+ * "no active session" default in mockAllApiRoutes. Tests needing a more
+ * specific session shape can register their own override afterwards.
+ */
+export async function mockOpenVoteSession(page: Page, groupId = 'group-1') {
+  await page.route(`**/api/groups/${groupId}/vote`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback()
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        session: { id: 'session-1', groupId, status: 'open', createdBy: 'user-1', scheduledAt: null, createdAt: '2025-03-08' },
+        games: mockGames.filter((g) => g.type === 'game').slice(0, 5),
+        myVotes: [],
+        voterCount: 0,
+        totalMembers: 3,
+        isParticipant: true,
+        participantIds: ['user-1', 'user-2', 'user-3'],
+      }),
+    })
+  })
+}
+
 export { expect } from '@playwright/test'
+export type { Page } from '@playwright/test'

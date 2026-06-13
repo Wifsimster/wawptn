@@ -89,14 +89,21 @@ jobs:
       - name: Build shared types
         run: npm run build:types
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-        working-directory: packages/frontend
-
       - name: Run E2E tests
         # Scoped to Mobile Chrome — the WebKit/Mobile Safari project stays in
         # playwright.config.ts for local runs but is not gated in CI yet.
-        run: npm run test:e2e -- --project="Mobile Chrome"
+        #
+        # The managed runner ships Playwright browsers at /opt/pw-browsers and
+        # has no apt access, so we reuse them and skip `--with-deps` (which
+        # hangs on apt). On a standard runner we download the browser instead.
+        run: |
+          if [ -d /opt/pw-browsers ]; then
+            export PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
+            echo "Using preinstalled Playwright browsers at /opt/pw-browsers"
+          else
+            npx playwright install chromium
+          fi
+          npm run test:e2e -- --project="Mobile Chrome"
         working-directory: packages/frontend
 
       - name: Upload Playwright report

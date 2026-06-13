@@ -1,10 +1,8 @@
 import { db } from '../database/connection.js'
 import { getOwnedGames, getHeaderImageUrl } from '../steam/steam-client.js'
-import { getOwnedGames as getEpicOwnedGames, normalizeGameName } from '../epic/epic-client.js'
-import {
-  getOwnedGames as getGogOwnedGames,
-  normalizeGameName as normalizeGogGameName,
-} from '../gog/gog-client.js'
+import { getOwnedGames as getEpicOwnedGames } from '../epic/epic-client.js'
+import { getOwnedGames as getGogOwnedGames } from '../gog/gog-client.js'
+import { normalizeGameName } from '../../domain/game-name.js'
 import { steamLogger, epicLogger, gogLogger } from '../logger/logger.js'
 import type { NewlyAcquiredGame } from '../../domain/new-game-spotlight.js'
 import {
@@ -198,7 +196,7 @@ export async function syncGogLibrary(userId: string): Promise<number> {
   const now = new Date()
   for (const game of games) {
     let gameId: string | null = null
-    const normalizedName = normalizeGogGameName(game.title)
+    const normalizedName = normalizeGameName(game.title)
 
     const existingMapping = await db('game_platform_ids')
       .where({ platform: 'gog', platform_game_id: String(game.id) })

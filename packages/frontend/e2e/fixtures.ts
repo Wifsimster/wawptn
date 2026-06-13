@@ -31,8 +31,8 @@ export const mockGames = [
 ]
 
 export const mockVoteHistory = [
-  { id: 'vs-1', winningGameAppId: 730, winningGameName: 'Counter-Strike 2', closedAt: '2025-03-01T20:00:00Z' },
-  { id: 'vs-2', winningGameAppId: 570, winningGameName: 'Dota 2', closedAt: '2025-02-25T20:00:00Z' },
+  { id: 'vs-1', winningGameAppId: 730, winningGameName: 'Counter-Strike 2', closedAt: '2025-03-01T20:00:00Z', createdBy: 'user-1' },
+  { id: 'vs-2', winningGameAppId: 570, winningGameName: 'Dota 2', closedAt: '2025-02-25T20:00:00Z', createdBy: 'user-1' },
 ]
 
 // Library games (Ma bibliothèque) — shape: LibraryGame
@@ -161,9 +161,17 @@ export async function mockAllApiRoutes(page: Page) {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ games: mockGames, totalMembers: 3, threshold: 1 }) })
     }
 
-    // /api/groups/:id/vote/history
+    // /api/groups/:id/vote/history — the API returns a paginated envelope, not
+    // a bare array; getVoteHistory reads `.data` / `.freeLimitApplied`.
     if (path.includes('/vote/history')) {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockVoteHistory) })
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        data: mockVoteHistory,
+        total: mockVoteHistory.length,
+        limit: 10,
+        offset: 0,
+        freeLimitApplied: false,
+        freeLimit: 10,
+      }) })
     }
 
     // POST /api/groups/:id/vote/:sessionId/close

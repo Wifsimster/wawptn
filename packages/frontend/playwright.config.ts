@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   timeout: 60000,
@@ -13,6 +13,11 @@ export default defineConfig({
     locale: 'fr-FR',
     trace: 'on-first-retry',
     actionTimeout: 10000,
+    // The production build (served via `vite preview`) registers a PWA service
+    // worker that would intercept API calls and serve the SPA fallback, racing
+    // with — and bypassing — Playwright's request mocks. Block it so every
+    // request goes through page.route, matching dev-server behaviour.
+    serviceWorkers: 'block',
   },
   projects: [
     {
@@ -25,9 +30,14 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    // Serve a production build via `vite preview` instead of the dev server.
+    // The on-demand dev compiler is pathologically slow on the CPU-limited CI
+    // runner (single worker); a prebuilt static app loads instantly and makes
+    // runs fast and deterministic. Locally, reuseExistingServer means an
+    // already-running dev server (`npm run dev`) is reused, so no build occurs.
+    command: 'npm run build && npm run preview -- --port 5173 --strictPort',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
-    timeout: 30000,
+    timeout: 180000,
   },
 })

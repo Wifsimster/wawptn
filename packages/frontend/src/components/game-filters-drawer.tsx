@@ -149,7 +149,7 @@ export function GameFiltersDrawer({
             <section>
               <button
                 type="button"
-                className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors mb-2"
+                className="flex min-h-[44px] w-full items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors mb-1"
                 onClick={onToggleGenreExpanded}
                 aria-expanded={genreExpanded}
               >
@@ -171,7 +171,7 @@ export function GameFiltersDrawer({
                         type="button"
                         onClick={() => onToggleGenre(genre.id)}
                         aria-pressed={isSelected}
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                        className={`inline-flex min-h-[36px] items-center rounded-full px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
                           isSelected
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'

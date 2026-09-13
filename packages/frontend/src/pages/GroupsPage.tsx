@@ -220,7 +220,7 @@ export function GroupsPage() {
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-0.5 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
                 aria-label={t('groups.clearSearch')}
               >
                 <X className="size-4" />
@@ -302,7 +302,7 @@ export function GroupsPage() {
               <button
                 type="button"
                 onClick={() => setShowJoin(true)}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex min-h-[44px] items-center justify-center gap-1.5 px-3"
               >
                 <LogIn className="size-3.5" />
                 {t('groups.joinWithCode')}
@@ -320,7 +320,7 @@ export function GroupsPage() {
           Create/Join pair lived here and stole the prime real estate from
           the action returning users actually want. */}
       {heroGroup && !loading && groups.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="flex max-w-2xl mx-auto">
             <Button
               onClick={goToHeroVote}
@@ -366,13 +366,19 @@ function HeroGroupCard({ group, onAction }: HeroGroupCardProps) {
         />
       )}
 
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div className="min-w-0 flex-1">
+      {/* Phones stack the status pill under the name: side by side, the
+          `shrink-0` pill ate ~190px of a 320px card and truncated the group
+          name down to a few characters. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3 mb-4">
+        <div className="min-w-0 sm:flex-1">
+          {/* `flex min-w-0`, not `inline-flex`: an inline-flex link sizes to
+              its content, so a long group name grew past the card and shoved
+              the crown off-screen instead of letting the h2 truncate. */}
           <Link
             to={`/groups/${group.id}`}
-            className="inline-flex items-center gap-2 hover:opacity-90 transition-opacity"
+            className="flex min-w-0 max-w-full items-center gap-2 py-1 hover:opacity-90 transition-opacity"
           >
-            <h2 className="text-xl sm:text-2xl font-heading font-bold tracking-[-0.02em] truncate">
+            <h2 className="min-w-0 text-xl sm:text-2xl font-heading font-bold tracking-[-0.02em] truncate">
               {group.name}
             </h2>
             {group.role === 'owner' && (
@@ -385,7 +391,7 @@ function HeroGroupCard({ group, onAction }: HeroGroupCardProps) {
         </div>
 
         {isActive && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-neon/40 bg-neon/10 px-2.5 py-1 text-xs font-semibold text-neon shrink-0">
+          <span className="inline-flex self-start items-center gap-1.5 rounded-full border border-neon/40 bg-neon/10 px-2.5 py-1 text-xs font-semibold text-neon shrink-0">
             <span className="size-1.5 rounded-full bg-neon animate-pulse" aria-hidden="true" />
             {t('groups.voteOngoing')}
           </span>

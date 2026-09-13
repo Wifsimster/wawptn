@@ -198,7 +198,7 @@ export function GameSelection({
         />
 
         {/* Floating submit button */}
-        <div className="fixed bottom-0 left-0 right-0 p-2.5 sm:p-4 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))] bg-background/80 backdrop-blur-sm shadow-[0_-4px_12px_rgba(0,0,0,0.1)]">
+        <div className="fixed bottom-0 left-0 right-0 p-2.5 sm:p-4 pl-[max(0.625rem,env(safe-area-inset-left))] pr-[max(0.625rem,env(safe-area-inset-right))] pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))] bg-background/80 backdrop-blur-sm shadow-[0_-4px_12px_rgba(0,0,0,0.1)]">
           <div className="max-w-2xl mx-auto flex items-center justify-between">
             <output aria-live="polite" className="text-sm text-muted-foreground">
               {t('vote.gamesSelected', { count: selectedGames.size })}

@@ -146,7 +146,7 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
           autoFocus={autoFocus}
           spellCheck={false}
           autoComplete="off"
-          className="flex h-10 w-full rounded-lg border border-input bg-card/50 pl-3 pr-9 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:border-primary/30 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-11 sm:h-10 w-full rounded-lg border border-input bg-card/50 pl-3 pr-9 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:border-primary/30 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
         />
         {/* oxlint-enable react-doctor/no-redundant-roles */}
         <button

@@ -14,6 +14,10 @@ import { useSocketStore } from '@/stores/socket.store'
  *   - transition from reconnecting → connected  ("back online")
  *   - state == 'error' with a lastError          ("connection error")
  *
+ * `unauthorized` is explicitly silent: the socket handshake needs a session
+ * cookie, so a logged-out visitor (or one whose session just expired) is an
+ * expected rejection, not a failure worth reporting.
+ *
  * Toasts are identified by a stable id so a flapping connection only
  * updates the existing toast instead of stacking new ones.
  */
@@ -63,6 +67,14 @@ export function useSocketConnectionStatus() {
         description: lastError,
         duration: Number.POSITIVE_INFINITY,
       })
+      return
+    }
+
+    // Session-less socket: stay quiet and clear any toast still on screen
+    // (a session expiring mid-reconnect leaves the "lost connection" warning
+    // up otherwise, since it never times out on its own).
+    if (state === 'unauthorized') {
+      toast.dismiss('socket-status')
       return
     }
 

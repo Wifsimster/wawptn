@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { getSocket } from '@/lib/socket'
+import { getSocket, isSocketConnectionWanted } from '@/lib/socket'
 
 /**
  * Connection state machine mirrored from socket.io-client's internal
@@ -13,7 +13,15 @@ export type SocketConnectionState =
   | 'connected'
   | 'reconnecting'
   | 'disconnected'
+  | 'unauthorized'
   | 'error'
+
+/**
+ * Handshake rejections raised by the server's socket auth middleware. These
+ * are an expected outcome for a visitor without a session — not a transport
+ * failure — so they must never surface as a connection-error toast.
+ */
+const AUTH_ERROR_MESSAGES = new Set(['unauthorized', 'Unauthorized'])
 
 interface SocketStoreState {
   state: SocketConnectionState
@@ -94,6 +102,22 @@ export const useSocketStore = create<SocketStoreState & SocketStoreActions>((set
       set({ state: 'reconnecting', isConnected: false })
     }
     const onConnectError = (error: Error) => {
+      // The server rejected the handshake because there's no valid session.
+      // socket.io does not retry after a middleware error, and the app will
+      // reconnect on its own once the user logs in, so record the state
+      // quietly rather than alarming the user.
+      if (AUTH_ERROR_MESSAGES.has(error.message)) {
+        set({ state: 'unauthorized', isConnected: false, lastError: null })
+        return
+      }
+
+      // A transport error raised while we're logged out (a late-landing
+      // attempt from before logout, say) is equally uninteresting.
+      if (!isSocketConnectionWanted()) {
+        set({ state: 'disconnected', isConnected: false, lastError: null })
+        return
+      }
+
       set({
         state: 'error',
         isConnected: false,
@@ -113,9 +137,14 @@ export const useSocketStore = create<SocketStoreState & SocketStoreActions>((set
     // socket.io's Manager exposes these through the `io` attribute.
     socket.io.on('reconnect_attempt', onReconnectAttempt)
     socket.io.on('reconnect_error', onReconnectError)
-    socket.io.on('reconnect_failed', () =>
-      set({ state: 'error', lastError: 'Reconnection failed after max attempts' }),
-    )
+    socket.io.on('reconnect_failed', () => {
+      // Giving up on a socket nobody asked for isn't worth a toast.
+      if (!isSocketConnectionWanted()) {
+        set({ state: 'disconnected', isConnected: false, lastError: null })
+        return
+      }
+      set({ state: 'error', lastError: 'Reconnection failed after max attempts' })
+    })
 
     // Seed the state from the current socket status in case bind() runs
     // after the connection has already been established (rare but

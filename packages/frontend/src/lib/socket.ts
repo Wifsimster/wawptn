@@ -7,6 +7,20 @@ let socket: TypedSocket | null = null
 let networkListenersAttached = false
 
 /**
+ * Whether the app *wants* a live socket right now. Only ever true while an
+ * authenticated session is mounted (App flips it via connectSocket /
+ * disconnectSocket).
+ *
+ * The handshake is authenticated server-side from the session cookie, so a
+ * connect attempt made while logged out is always rejected with
+ * `unauthorized`. The wake handlers below must therefore respect this
+ * intent instead of reconnecting blindly, otherwise a logged-out visitor
+ * tabbing back to the landing page triggers a doomed handshake — and a
+ * "Erreur de connexion / unauthorized" toast.
+ */
+let connectionWanted = false
+
+/**
  * Wake-up handler for the three signals that correlate with "mobile user just
  * came back to the tab or the network came back":
  *
@@ -27,6 +41,9 @@ function attachNetworkListeners(target: TypedSocket): void {
   networkListenersAttached = true
 
   const wake = () => {
+    // No authenticated session → nothing to reconnect to. Bailing here keeps
+    // the landing page free of rejected handshakes.
+    if (!connectionWanted) return
     if (!target.connected && !target.active) {
       target.connect()
     } else if (!target.connected) {
@@ -68,6 +85,7 @@ export function getSocket(): TypedSocket {
 }
 
 export function connectSocket(): void {
+  connectionWanted = true
   const s = getSocket()
   if (!s.connected) {
     s.connect()
@@ -75,7 +93,17 @@ export function connectSocket(): void {
 }
 
 export function disconnectSocket(): void {
-  if (socket?.connected) {
+  connectionWanted = false
+  // `connected` is false while a handshake or the internal reconnect loop is
+  // still in flight; `active` covers that window. Disconnecting in both cases
+  // makes sure logging out actually tears the attempt down instead of letting
+  // a pending unauthorized handshake land later.
+  if (socket && (socket.connected || socket.active)) {
     socket.disconnect()
   }
+}
+
+/** True while an authenticated session wants the socket up. */
+export function isSocketConnectionWanted(): boolean {
+  return connectionWanted
 }

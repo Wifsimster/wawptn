@@ -274,7 +274,7 @@ function PlayerCard({
             href={profile.profileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-primary hover:text-primary/80 inline-flex items-center gap-1.5 transition-colors mt-1.5"
+            className="text-sm text-primary hover:text-primary/80 inline-flex min-h-[44px] items-center justify-center gap-1.5 px-3 transition-colors mt-1.5"
           >
             {t('profile.steamProfile')}
             <ExternalLink className="size-3.5" />
@@ -350,7 +350,7 @@ function PlatformsSection({
               aria-label={platform.name}
             />
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                 <span className="font-medium text-sm">{platform.name}</span>
                 {platform.connected && platform.needsRelink ? (
                   <Badge variant="destructive" className="text-[10px] gap-1 py-0 h-5">
@@ -373,7 +373,7 @@ function PlatformsSection({
                 )}
               </div>
               {platform.connected && !platform.needsRelink && (
-                <div className="flex items-center gap-2.5 mt-1 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-1 text-xs text-muted-foreground">
                   {platform.syncable === false ? (
                     <span className="italic text-[11px]">{t('profile.noLibraryApi')}</span>
                   ) : (
@@ -496,11 +496,11 @@ function DiscordSection({
             )}
           </div>
           {discord?.linked ? (
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1 [overflow-wrap:anywhere]">
               {t('profile.discordLinkedAs', { username: discord.discordUsername })}
             </p>
           ) : (
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed [overflow-wrap:anywhere]">
               {t('profile.discordLinkInstructions')}
             </p>
           )}

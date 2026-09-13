@@ -68,7 +68,7 @@ export function GameFilterBar({
             <button
               type="button"
               onClick={() => onSearchChange('')}
-              className="absolute right-0.5 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+              className="absolute right-0.5 top-1/2 -translate-y-1/2 flex size-10 sm:size-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
               aria-label={t('group.clearSearch')}
             >
               <X className="size-4" />
@@ -79,7 +79,8 @@ export function GameFilterBar({
           variant="outline"
           size="sm"
           onClick={onOpenFiltersDrawer}
-          className="gap-1.5 shrink-0 h-10"
+          className="gap-1.5 shrink-0 h-11 sm:h-10"
+          aria-label={t('group.moreFilters')}
           aria-haspopup="dialog"
           aria-expanded={filtersDrawerOpen}
         >
@@ -137,7 +138,7 @@ export function GameFilterBar({
               type="button"
               onClick={() => onApplyPreset(preset.patch)}
               aria-pressed={isActive}
-              className={`inline-flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 shrink-0 rounded-full px-3 py-2 min-h-[36px] text-xs font-medium transition-colors cursor-pointer ${
                 isActive
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary/60 text-secondary-foreground hover:bg-secondary'
@@ -158,7 +159,7 @@ export function GameFilterBar({
             <button
               type="button"
               onClick={() => onSetMinMetacritic(null)}
-              className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+              className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
               aria-label={t('group.clearFilter', { name: `Metacritic ${filters.minMetacritic}+` })}
             >
               <Star className="size-3" />
@@ -170,7 +171,7 @@ export function GameFilterBar({
             <button
               type="button"
               onClick={() => onToggleControllerOnly(false)}
-              className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+              className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
               aria-label={t('group.clearFilter', { name: t('group.controllerSupport') })}
             >
               <Gamepad2 className="size-3" />
@@ -182,7 +183,7 @@ export function GameFilterBar({
             <button
               type="button"
               onClick={() => onToggleGamesOnly(true)}
-              className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+              className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
               aria-label={t('group.clearFilter', { name: t('group.gamesOnly') })}
             >
               <Monitor className="size-3" />
@@ -194,7 +195,7 @@ export function GameFilterBar({
             <button
               type="button"
               onClick={() => onSetSortBy('popularity')}
-              className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+              className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
               aria-label={t('group.clearFilter', { name: t('group.sortBy') })}
             >
               <TrendingUp className="size-3" />
@@ -206,7 +207,7 @@ export function GameFilterBar({
             <button
               type="button"
               onClick={() => filters.selectedGenres.forEach((id) => onToggleGenre(id))}
-              className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+              className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
               aria-label={t('group.clearGenres')}
             >
               {t('group.genres')} · {filters.selectedGenres.length}

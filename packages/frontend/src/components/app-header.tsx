@@ -65,7 +65,7 @@ export function AppHeader({ children, className, maxWidth = 'narrow', hasPageCon
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0"
+          className="flex min-h-[44px] items-center gap-2 px-1 hover:opacity-80 transition-opacity shrink-0"
           aria-label={t('app.name') + ' — ' + t('app.tagline')}
         >
           <WawptnLogo size={28} className="text-primary" aria-hidden="true" />

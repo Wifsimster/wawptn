@@ -337,7 +337,7 @@ interface GroupMobileActionBarProps {
 function GroupMobileActionBar({ activeVoteSession, commonGamesCount, onVote }: GroupMobileActionBarProps) {
   const { t } = useTranslation()
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <Button
         onClick={onVote}
         className="w-full h-12 gap-2 active:scale-[0.98] transition-transform"

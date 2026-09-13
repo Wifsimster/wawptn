@@ -95,7 +95,9 @@ export const GameCard = memo(function GameCard({ game, t }: { game: Game; t: (ke
             onClick={handleWishlistClick}
             aria-label={isWishlisted ? t('wishlist.removeLabel') : t('wishlist.addLabel')}
             aria-pressed={isWishlisted}
-            className={`absolute ${game.ownerCount < game.totalMembers ? 'top-8' : 'top-1'} right-1 flex size-7 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition-all hover:bg-black/80 ${
+            /* The visible pill stays 28px so it doesn't swallow the capsule
+               art; `before:` grows the *hit* area to 44px for thumbs. */
+            className={`absolute ${game.ownerCount < game.totalMembers ? 'top-8' : 'top-1'} right-1 z-10 flex size-7 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition-all hover:bg-black/80 before:absolute before:-inset-2 before:content-[''] ${
               isWishlisted ? 'text-reward' : 'text-white/60 hover:text-white'
             }`}
           >

@@ -30,12 +30,12 @@ export function AppFooter() {
           </span>
         </div>
         <nav
-          className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1"
+          className="flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5"
           aria-label={t('footer.legalNav')}
         >
           <Link
             to="/contact"
-            className="underline-offset-2 hover:text-foreground hover:underline transition-colors"
+            className="inline-flex min-h-[28px] items-center underline-offset-2 hover:text-foreground hover:underline transition-colors"
           >
             {t('contact.title')}
           </Link>
@@ -46,7 +46,7 @@ export function AppFooter() {
                 href={link.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline-offset-2 hover:text-foreground hover:underline transition-colors"
+                className="inline-flex min-h-[28px] items-center underline-offset-2 hover:text-foreground hover:underline transition-colors"
               >
                 {link.label}
               </a>

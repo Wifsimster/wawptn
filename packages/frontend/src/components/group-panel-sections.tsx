@@ -97,7 +97,7 @@ export function MembersSection({ members, sortedMembers, onlineMembers, lastSeen
                 type="button"
                 onClick={() => !isSelf && navigate(`/u/${member.id}`)}
                 disabled={isSelf}
-                className={`relative shrink-0 rounded-full ${isSelf ? 'cursor-default' : 'hover:ring-2 hover:ring-primary/40 transition-shadow cursor-pointer'}`}
+                className={`relative shrink-0 rounded-full ${isSelf ? 'cursor-default' : "z-10 hover:ring-2 hover:ring-primary/40 transition-shadow cursor-pointer before:absolute before:-inset-1.5 before:content-['']"}`}
                 aria-label={isSelf ? member.displayName : `Voir le profil de ${member.displayName}`}
               >
                 <Avatar className="size-8">
@@ -119,9 +119,16 @@ export function MembersSection({ members, sortedMembers, onlineMembers, lastSeen
                         <button
                           type="button"
                           onClick={() => navigate(`/u/${member.id}`)}
-                          className={`text-sm font-medium truncate text-left hover:text-primary transition-colors ${!isOnline ? 'text-muted-foreground' : ''}`}
+                          // The name is one line of 14px text — a 20px-tall
+                          // target. `before:` stretches the touch area over
+                          // the full 48px row without changing the layout;
+                          // `truncate` has to live on the inner span, since
+                          // its `overflow: hidden` would clip that pseudo.
+                          className="relative z-10 block min-w-0 max-w-full text-left before:absolute before:-inset-y-3.5 before:inset-x-0 before:content-['']"
                         >
-                          {member.displayName}
+                          <span className={`block truncate text-sm font-medium hover:text-primary transition-colors ${!isOnline ? 'text-muted-foreground' : ''}`}>
+                            {member.displayName}
+                          </span>
                         </button>
                       )}
                     </TooltipTrigger>
@@ -214,7 +221,7 @@ export function HistorySection({ voteHistory, voteHistoryTruncated, currentUserI
         track('premium.upgrade_clicked', { from: 'history' })
         navigate('/subscription?from=history')
       }}
-      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors w-full text-left px-1"
+      className="flex min-h-[44px] items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors w-full text-left px-1"
     >
       <Lock className="size-3 shrink-0" />
       <span>{t('group.historyUpgradeCta')}</span>

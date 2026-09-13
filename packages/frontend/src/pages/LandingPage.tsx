@@ -82,10 +82,10 @@ function SteamCtaButton() {
   const { t } = useTranslation()
 
   return (
-    <Button variant="steam" size="lg" asChild>
+    <Button variant="steam" size="lg" asChild className="max-w-full">
       <a
         href="/api/auth/steam/login"
-        className="gap-3 text-base sm:text-lg px-10 py-7 group"
+        className="gap-2.5 sm:gap-3 text-base sm:text-lg px-5 sm:px-10 py-5 sm:py-7 group"
       >
         <svg
           className="size-6 transition-transform duration-300 group-hover:scale-110"
@@ -107,17 +107,17 @@ function LandingHeader() {
   return (
     <header className="fixed top-0 inset-x-0 z-40 border-b border-white/[0.04] bg-background/60 backdrop-blur-xl">
       <div className="max-w-5xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14">
-        <a href="#" className="flex items-center gap-2.5">
+        <a href="#" className="flex min-h-[44px] items-center gap-2.5">
           <WawptnLogo size={18} variant="color" />
           <span className="font-heading text-sm font-bold tracking-[0.25em] uppercase text-foreground/80">
             WAWPTN
           </span>
         </a>
         <nav className="flex items-center gap-5 sm:gap-7 text-sm text-muted-foreground">
-          <a href="#pricing" className="hover:text-foreground transition-colors">
+          <a href="#pricing" className="inline-flex min-h-[44px] items-center hover:text-foreground transition-colors">
             {t('landing.navPricing')}
           </a>
-          <a href="#faq" className="hover:text-foreground transition-colors">
+          <a href="#faq" className="inline-flex min-h-[44px] items-center hover:text-foreground transition-colors">
             {t('landing.navFaq')}
           </a>
         </nav>
@@ -633,11 +633,11 @@ function LandingFooter() {
             href="https://github.com/wifsimster/wawptn"
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-foreground transition-colors"
+            className="inline-flex min-h-[28px] items-center hover:text-foreground transition-colors"
           >
             GitHub
           </a>
-          <Link to="/contact" className="hover:text-foreground transition-colors">
+          <Link to="/contact" className="inline-flex min-h-[28px] items-center hover:text-foreground transition-colors">
             {t('contact.title')}
           </Link>
           <p>{t('login.privacy')}</p>

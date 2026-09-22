@@ -196,7 +196,11 @@ export function useVoteSession(id: string | undefined) {
     )
 
     const socket = getSocket()
-    socket.emit('group:join', id)
+    // Re-join on every (re)connect: the server-side room membership is lost
+    // with the old socket, and the result would never arrive.
+    const joinRoom = () => socket.emit('group:join', id)
+    joinRoom()
+    socket.on('connect', joinRoom)
 
     // The reducer handles idempotent per-participant tracking; re-receiving
     // the same userId is a no-op.
@@ -215,6 +219,7 @@ export function useVoteSession(id: string | undefined) {
 
     return () => {
       cancelled = true
+      socket.off('connect', joinRoom)
       socket.emit('group:leave', id)
       socket.off('vote:cast')
       socket.off('vote:closed')

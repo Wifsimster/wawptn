@@ -104,7 +104,11 @@ export function useGroupRealtime({
     loadActiveVoteSession(id)
 
     const socket = getSocket()
-    socket.emit('group:join', id)
+    // A reconnect hands the server a fresh socket that is in no group room,
+    // so re-join on every (re)connect or realtime updates silently stop.
+    const joinRoom = () => socket.emit('group:join', id)
+    joinRoom()
+    socket.on('connect', joinRoom)
 
     socket.on('persona:changed', (data) => {
       if (data.groupId === id) dispatch({ type: 'todayPersona', persona: data.persona })
@@ -174,6 +178,7 @@ export function useGroupRealtime({
     })
 
     return () => {
+      socket.off('connect', joinRoom)
       socket.emit('group:leave', id)
       socket.off('persona:changed')
       socket.off('group:presence')

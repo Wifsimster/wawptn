@@ -34,6 +34,19 @@ export const TIER_ERRORS = {
   }),
 } as const
 
+/** Days a past_due subscription keeps premium access while Stripe retries
+ *  the payment. The reconciler cancels the row once this has elapsed. */
+export const PAST_DUE_GRACE_PERIOD_DAYS = 3
+
+/** True while a past_due subscription is still inside its grace window. */
+export function isInPastDueGrace(
+  row: { status: string | null; past_due_since: Date | string | null } | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  if (!row || row.status !== 'past_due' || !row.past_due_since) return false
+  return now - new Date(row.past_due_since).getTime() < PAST_DUE_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000
+}
+
 /** In-memory cache for premium status with TTL */
 interface CacheEntry {
   value: boolean
@@ -60,6 +73,8 @@ setInterval(() => {
  *   2. admin_granted_premium → premium (manual grant overrides Stripe).
  *   3. Active paid subscription → premium when tier='premium', status='active',
  *      and current_period_end is in the future.
+ *   4. Failed renewal → premium while status='past_due' and past_due_since is
+ *      less than PAST_DUE_GRACE_PERIOD_DAYS ago.
  *
  * Rationale: an admin-granted flag must beat a paid subscription so the
  * grant cannot be silently clobbered by a Stripe webhook flipping
@@ -84,11 +99,13 @@ export async function isUserPremium(userId: string): Promise<boolean> {
 
   const subscription = await db('subscriptions')
     .where({ user_id: userId })
-    .select('tier', 'status', 'current_period_end')
+    .select('tier', 'status', 'current_period_end', 'past_due_since')
     .first()
 
   let premium = true
-  if (!subscription || subscription.tier !== 'premium') premium = false
+  if (!subscription) premium = false
+  else if (subscription.status === 'past_due') premium = isInPastDueGrace(subscription, now)
+  else if (subscription.tier !== 'premium') premium = false
   else if (subscription.status !== 'active') premium = false
   else if (subscription.current_period_end && new Date(subscription.current_period_end) < new Date()) premium = false
 

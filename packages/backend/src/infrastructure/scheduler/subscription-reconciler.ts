@@ -4,13 +4,14 @@ import type { Knex } from 'knex'
 import { db } from '../database/connection.js'
 import { getStripe, isStripeEnabled } from '../stripe/stripe-client.js'
 import { logger } from '../logger/logger.js'
-import { invalidatePremiumCache } from '../../domain/subscription-service.js'
+import { invalidatePremiumCache, PAST_DUE_GRACE_PERIOD_DAYS } from '../../domain/subscription-service.js'
+import { mapStripeStatus } from '../../domain/stripe-event-handlers.js'
 import { recordSystemAction } from '../../domain/admin-audit-log.js'
 
 const reconcilerLogger = logger.child({ module: 'subscription-reconciler' })
 
 /** Grace period in days before downgrading past_due subscriptions */
-const GRACE_PERIOD_DAYS = 3
+const GRACE_PERIOD_DAYS = PAST_DUE_GRACE_PERIOD_DAYS
 
 /** Postgres advisory-lock key — only one replica may hold this at a time, so
  *  the daily reconcile fires once across the fleet instead of N times. The
@@ -215,7 +216,7 @@ async function reconcileSubscriptions(): Promise<void> {
   // Index local rows by stripe_subscription_id for O(1) drift comparison.
   const localRows = await db('subscriptions')
     .whereNotNull('stripe_subscription_id')
-    .select('user_id', 'stripe_subscription_id', 'tier', 'status', 'cancel_at_period_end')
+    .select('user_id', 'stripe_subscription_id', 'tier', 'status', 'cancel_at_period_end', 'past_due_since')
   const byStripeId = new Map<string, typeof localRows[number]>()
   for (const row of localRows) byStripeId.set(row.stripe_subscription_id, row)
 
@@ -230,20 +231,21 @@ async function reconcileSubscriptions(): Promise<void> {
     }
     const local = byStripeId.get(stripeSub.id)
 
-    const cancelAtPeriodEnd = !!stripeSub.cancel_at_period_end
-    const stripeStatus = stripeSub.status === 'active' || stripeSub.status === 'trialing'
-      ? 'active'
-      : stripeSub.status === 'canceled'
-        ? 'canceled'
-        : 'past_due'
-    const stripeTier = stripeStatus === 'active' ? 'premium' : 'free'
+    // Same mapping as the webhook path, so the two never fight over a row
+    // (e.g. incomplete_expired is 'canceled' in both).
+    const { tier: stripeTier, status: stripeStatus, cancelAtPeriodEnd } = mapStripeStatus(stripeSub)
 
     try {
       if (!local) {
         // Stripe knows about this sub, we don't. Try to recover via
-        // metadata.userId.
+        // metadata.userId — but only when it can't clobber the user's
+        // current subscription: `status: 'all'` also lists every old,
+        // canceled or abandoned sub of a user whose row points elsewhere,
+        // and the Stripe account is shared with other apps.
         const userId = stripeSub.metadata?.['userId']
-        if (typeof userId === 'string' && userId.length > 0) {
+        const recoverable = typeof userId === 'string' && userId.length > 0
+          && await isRecoverableOrphanSub(userId, stripeSub)
+        if (recoverable) {
           const customer = typeof stripeSub.customer === 'string' ? stripeSub.customer : stripeSub.customer.id
           const periodEnd = stripeSub.items.data[0]
             ? new Date(stripeSub.items.data[0].current_period_end * 1000)
@@ -258,6 +260,7 @@ async function reconcileSubscriptions(): Promise<void> {
               status: stripeStatus,
               cancel_at_period_end: cancelAtPeriodEnd,
               current_period_end: periodEnd,
+              past_due_since: null,
               price_id: price?.id ?? null,
               amount_cents: typeof price?.unit_amount === 'number' ? price.unit_amount : null,
               currency: typeof price?.currency === 'string' ? price.currency : null,
@@ -290,6 +293,14 @@ async function reconcileSubscriptions(): Promise<void> {
           cancel_at_period_end: cancelAtPeriodEnd,
           current_period_end: periodEnd,
           updated_at: db.fn.now(),
+        }
+        // Keep the grace clock consistent with the webhook path: start it
+        // only when a paying row falls behind (never for a row the grace
+        // enforcement already canceled), clear it on the way out.
+        if (stripeStatus === 'past_due') {
+          if (local.status === 'active') update['past_due_since'] = new Date()
+        } else {
+          update['past_due_since'] = null
         }
         if (price?.id) {
           update['price_id'] = price.id
@@ -325,6 +336,29 @@ async function reconcileSubscriptions(): Promise<void> {
       )
     }
   }
+}
+
+/**
+ * Whether an unknown Stripe subscription may be written onto the user's row.
+ * Allowed when the user exists and either has no row yet, a row with no
+ * subscription attached, or the Stripe sub is live while the current row is
+ * not (e.g. a new sub created from the Customer Portal). A dead or stale sub
+ * must never overwrite the one the user currently has.
+ */
+async function isRecoverableOrphanSub(userId: string, stripeSub: Stripe.Subscription): Promise<boolean> {
+  // Other apps on the shared Stripe account may use non-uuid user ids.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) return false
+  const user = await db('users').where({ id: userId }).select('id').first()
+  if (!user) return false
+
+  const row = await db('subscriptions')
+    .where({ user_id: userId })
+    .select('stripe_subscription_id', 'status')
+    .first()
+  if (!row || !row.stripe_subscription_id) return true
+
+  const live = stripeSub.status === 'active' || stripeSub.status === 'trialing'
+  return live && row.status !== 'active'
 }
 
 /**

@@ -526,14 +526,12 @@ router.post('/join', async (req: Request, res: Response) => {
 
   // Look up an in-flight vote session so the frontend can route the user
   // straight to the vote page instead of forcing a group-detail detour.
-  // A `scheduled_at` in the future still reports as open but shouldn't
-  // trigger the auto-route — the user would land on a vote page that
-  // isn't accepting ballots yet. Mirrors the `activeVoteSession` shape
-  // the frontend already uses on `GroupPage`.
+  // `scheduled_at` is the auto-close deadline (see vote-scheduler.ts), not a
+  // start time — an open session accepts ballots until then. Mirrors the
+  // `activeVoteSession` shape the frontend already uses on `GroupPage`.
   const getActiveVoteSession = async () => {
     const row = await db('voting_sessions')
       .where({ group_id: group.id, status: 'open' })
-      .andWhere((b) => b.whereNull('scheduled_at').orWhere('scheduled_at', '<=', new Date()))
       .select('id', 'scheduled_at')
       .first()
     if (!row) return null

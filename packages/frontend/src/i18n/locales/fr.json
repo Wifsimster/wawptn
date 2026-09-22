@@ -601,6 +601,8 @@
     "freeDescription": "Passe en Premium pour débloquer toutes les fonctionnalités.",
     "renewsAt": "Prochain renouvellement le {{date}}",
     "canceledNotice": "Ton abonnement est annulé et restera actif jusqu'à la fin de la période en cours.",
+    "pastDueNotice": "Le dernier paiement a échoué. Mets à jour ton moyen de paiement pour garder Premium : l'accès est maintenu 3 jours.",
+    "pastDueExpiredNotice": "Le paiement de ton abonnement a échoué. Mets à jour ton moyen de paiement pour réactiver Premium.",
     "upgradeButton": "Passer en Premium — 3 €/mois",
     "fromContext": {
       "auto_vote": "Tu as cliqué sur Vote automatique — c'est une fonctionnalité Premium.",
@@ -617,6 +619,7 @@
     "activationDelayed": "L'activation prend plus longtemps que prévu — recharge la page dans un instant.",
     "canceledFromCheckout": "Paiement annulé. Tu peux réessayer quand tu veux.",
     "checkoutError": "Impossible de lancer le paiement",
+    "checkoutErrorAlreadySubscribed": "Tu as déjà un abonnement — gère-le depuis l'espace de facturation",
     "portalError": "Impossible d'ouvrir le portail de gestion",
     "cadence": {
       "monthly": "Mensuel",

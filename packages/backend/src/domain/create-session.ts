@@ -71,7 +71,10 @@ function isUniqueViolation(err: unknown): boolean {
  * Throws on validation errors (with a `statusCode` property on the error).
  */
 export async function createVotingSession(params: CreateSessionParams): Promise<CreateSessionResult> {
-  const { groupId, createdBy, participantIds, filter, filters, scheduledAt, excludeAppIds, games: explicitGames } = params
+  const { groupId, createdBy, filter, filters, scheduledAt, excludeAppIds, games: explicitGames } = params
+  // Deduplicate before validating: [me, me] must not pass the 2-participant
+  // minimum and produce a single-voter session.
+  const participantIds = [...new Set(params.participantIds)]
 
   // Validate participantIds
   if (participantIds.length < 2) {

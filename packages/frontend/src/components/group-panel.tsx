@@ -2,7 +2,7 @@ import { useReducer } from 'react'
 import { useTranslation } from 'react-i18next'
 import { GroupStats } from '@/components/group-stats'
 import { GameRecommendations } from '@/components/game-recommendations'
-import { useSubscriptionStore } from '@/stores/subscription.store'
+import { useSubscriptionStore, selectIsPremium } from '@/stores/subscription.store'
 import {
   MembersSection,
   HistorySection,
@@ -90,8 +90,7 @@ export function GroupPanel({ members, groupId, groupName, syncing, inviteToken, 
   const { i18n } = useTranslation()
   const [dialog, dispatch] = useReducer(dialogReducer, CLOSED)
   const close = () => dispatch(CLOSED)
-  const { tier, status } = useSubscriptionStore()
-  const isPremium = tier === 'premium' && status === 'active'
+  const isPremium = useSubscriptionStore(selectIsPremium)
   const isOwner = currentUserRole === 'owner'
 
   // Sort: owner first, then online, then alphabetical

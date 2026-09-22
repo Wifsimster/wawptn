@@ -126,7 +126,10 @@ if (typeof window !== 'undefined') {
  *  too, which produced a "Premium" label while gates fired elsewhere.
  *  Definition: tier is premium AND status is active. A user who has
  *  scheduled cancellation but is still in their paid period satisfies
- *  this (Stripe keeps status='active' until period_end). */
+ *  this (Stripe keeps status='active' until period_end). A failed renewal
+ *  keeps access during the grace window: the backend then reports
+ *  tier='premium' with status='past_due', and flips tier to 'free' once
+ *  the grace period is over. */
 export function selectIsPremium(s: Pick<SubscriptionState, 'tier' | 'status'>): boolean {
-  return s.tier === 'premium' && s.status === 'active'
+  return s.tier === 'premium' && (s.status === 'active' || s.status === 'past_due')
 }

@@ -6,6 +6,7 @@ import { env } from '../../config/env.js'
 import { isCadence, resolvePriceId, isAnnualAvailable, BILLING_CATALOG, type Cadence } from '../../config/billing.js'
 import { db } from '../../infrastructure/database/connection.js'
 import { logger } from '../../infrastructure/logger/logger.js'
+import { isInPastDueGrace } from '../../domain/subscription-service.js'
 
 /**
  * User-facing subscription routes (auth required, CSRF guarded).
@@ -33,7 +34,7 @@ subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
         .first(),
       db('subscriptions')
         .where({ user_id: req.userId })
-        .select('tier', 'status', 'current_period_end', 'cancel_at_period_end', 'stripe_customer_id')
+        .select('tier', 'status', 'current_period_end', 'cancel_at_period_end', 'stripe_customer_id', 'past_due_since')
         .first(),
     ])
 
@@ -50,8 +51,11 @@ subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
       return
     }
 
+    // During the past_due grace window the user keeps premium access
+    // (isUserPremium agrees), so report the premium tier alongside the
+    // past_due status the UI can use to prompt for a new card.
     res.json({
-      tier: subscription?.tier || 'free',
+      tier: isInPastDueGrace(subscription) ? 'premium' : (subscription?.tier || 'free'),
       status: subscription?.status || 'inactive',
       currentPeriodEnd: subscription?.current_period_end || null,
       cancelAtPeriodEnd: !!subscription?.cancel_at_period_end,
@@ -131,7 +135,25 @@ subscriptionRoutes.post('/checkout', async (req: Request, res: Response) => {
       .where({ user_id: userId })
       .first()
 
+    // One subscription per user: a second checkout would bill both, and
+    // plan changes / card updates belong in the Customer Portal.
+    if (subscription?.stripe_subscription_id && (subscription.status === 'active' || subscription.status === 'past_due')) {
+      res.status(409).json({ error: 'already_subscribed', message: 'You already have a subscription — manage it from the billing portal' })
+      return
+    }
+
     let customerId = subscription?.stripe_customer_id
+
+    // The local row can lag behind Stripe (webhook not processed yet after a
+    // checkout in another tab), so also ask Stripe for a live subscription.
+    if (customerId) {
+      const existing = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 10 })
+      const live = existing.data.some((s) => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due')
+      if (live) {
+        res.status(409).json({ error: 'already_subscribed', message: 'You already have a subscription — manage it from the billing portal' })
+        return
+      }
+    }
 
     if (!customerId) {
       const user = await db('users')

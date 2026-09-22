@@ -15,6 +15,8 @@ let io: TypedServer
 // In-memory presence: groupId -> Set<userId>
 const groupPresence = new Map<string, Set<string>>()
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 function addPresence(groupId: string, userId: string): boolean {
   let members = groupPresence.get(groupId)
   if (!members) {
@@ -100,23 +102,32 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
     socket.join(`user:${socket.data.userId}`)
 
     socket.on('group:join', async (groupId) => {
-      // Verify membership before joining room
-      const membership = await db('group_members')
-        .where({ group_id: groupId, user_id: socket.data.userId })
-        .first()
+      // groupId is client-controlled: a non-uuid value would make Postgres
+      // reject the query, and Socket.IO does not catch listener promises, so
+      // the rejection would reach the process-level handler and exit.
+      if (typeof groupId !== 'string' || !UUID_RE.test(groupId)) return
 
-      if (membership) {
-        await socket.join(`group:${groupId}`)
-        socketLogger.debug({ userId: socket.data.userId, groupId }, 'joined group room')
+      try {
+        // Verify membership before joining room
+        const membership = await db('group_members')
+          .where({ group_id: groupId, user_id: socket.data.userId })
+          .first()
 
-        // Send current presence list to the joining socket
-        socket.emit('group:presence', { onlineUserIds: getPresence(groupId) })
+        if (membership) {
+          await socket.join(`group:${groupId}`)
+          socketLogger.debug({ userId: socket.data.userId, groupId }, 'joined group room')
 
-        // Track presence and notify others
-        const wasNew = addPresence(groupId, socket.data.userId)
-        if (wasNew) {
-          socket.to(`group:${groupId}`).emit('member:online', { groupId, userId: socket.data.userId })
+          // Send current presence list to the joining socket
+          socket.emit('group:presence', { onlineUserIds: getPresence(groupId) })
+
+          // Track presence and notify others
+          const wasNew = addPresence(groupId, socket.data.userId)
+          if (wasNew) {
+            socket.to(`group:${groupId}`).emit('member:online', { groupId, userId: socket.data.userId })
+          }
         }
+      } catch (error) {
+        socketLogger.error({ error: String(error), userId: socket.data.userId, groupId }, 'group:join failed')
       }
     })
 

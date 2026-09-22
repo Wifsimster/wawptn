@@ -29,19 +29,40 @@ interface GroupState {
   deleteGroup: (groupId: string) => Promise<void>
 }
 
-export const useGroupStore = create<GroupState>((set) => ({
+// Id of the most recent fetchGroup call, so a slow response for a group the
+// user already navigated away from can't overwrite the newer one.
+let latestGroupRequestId: string | null = null
+
+export const useGroupStore = create<GroupState>((set, get) => ({
   groups: [],
   currentGroup: null,
   loading: false,
   fetchGroups: async () => {
     set({ loading: true })
-    const groups = await api.getGroups()
-    set({ groups, loading: false })
+    try {
+      const groups = await api.getGroups()
+      set({ groups })
+    } finally {
+      set({ loading: false })
+    }
   },
   fetchGroup: async (id: string) => {
-    set({ loading: true })
-    const group = await api.getGroup(id)
-    set({ currentGroup: group, loading: false })
+    latestGroupRequestId = id
+    // Drop a different group's data right away: consumers (vote setup
+    // dialog, startVote deep link) must never act on the previous group's
+    // members under the new group's URL. A refetch of the same group keeps
+    // its data on screen.
+    if (get().currentGroup?.id !== id) {
+      set({ currentGroup: null, loading: true })
+    } else {
+      set({ loading: true })
+    }
+    try {
+      const group = await api.getGroup(id)
+      if (latestGroupRequestId === id) set({ currentGroup: group })
+    } finally {
+      if (latestGroupRequestId === id) set({ loading: false })
+    }
   },
   createGroup: async (input) => {
     const result = await api.createGroup(input)

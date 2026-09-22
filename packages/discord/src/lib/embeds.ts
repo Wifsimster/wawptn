@@ -164,9 +164,11 @@ export function buildSessionClosedEmbed(
     rows.push(
       new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
-          .setLabel('Lancer sur Steam')
+          .setLabel('Voir sur Steam')
           .setStyle(ButtonStyle.Link)
-          .setURL(`steam://run/${result.steamAppId}`)
+          // Link buttons only accept http(s)/discord URLs — a steam:// URL
+          // makes the builder throw and the whole closed message fails.
+          .setURL(`https://store.steampowered.com/app/${result.steamAppId}`)
           .setEmoji('🚀'),
       ),
     )
@@ -219,9 +221,9 @@ export function buildVoteClosedEmbed(
   if (result.steamAppId) {
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
-        .setLabel('Lancer sur Steam')
+        .setLabel('Voir sur Steam')
         .setStyle(ButtonStyle.Link)
-        .setURL(`steam://run/${result.steamAppId}`)
+        .setURL(`https://store.steampowered.com/app/${result.steamAppId}`)
         .setEmoji('🚀'),
     )
     components.push(row)

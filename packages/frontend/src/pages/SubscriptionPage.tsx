@@ -32,7 +32,7 @@ export function SubscriptionPage() {
   const { t } = useTranslation()
   useDocumentTitle(t('subscription.title'))
   const navigate = useNavigate()
-  const { tier, currentPeriodEnd, cancelAtPeriodEnd, source, loading, fetchSubscription } = useSubscriptionStore()
+  const { tier, status, currentPeriodEnd, cancelAtPeriodEnd, source, loading, fetchSubscription } = useSubscriptionStore()
   const isPremium = useSubscriptionStore(selectIsPremium)
   const [searchParams] = useSearchParams()
   const [actionLoading, setActionLoading] = useState(false)
@@ -146,8 +146,9 @@ export function SubscriptionPage() {
     try {
       const { url } = await api.createCheckout(cadence)
       window.location.href = url
-    } catch {
-      toast.error(t('subscription.checkoutError'))
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : 'unknown'
+      toast.error(t(code === 'already_subscribed' ? 'subscription.checkoutErrorAlreadySubscribed' : 'subscription.checkoutError'))
       setActionLoading(false)
     }
   }
@@ -176,7 +177,11 @@ export function SubscriptionPage() {
   // badge on this page (they used to diverge: the page treated
   // status='canceled' as premium, the gate did not).
   const isAdminGranted = isPremium && source === 'admin_grant'
-  const canManageSubscription = isPremium && source === 'stripe'
+  // A past_due subscription still lives in Stripe: the card has to be fixed
+  // in the portal (a new checkout is refused to avoid double billing), both
+  // during the grace window and after it has run out.
+  const paymentPastDue = status === 'past_due' && source === 'stripe'
+  const canManageSubscription = source === 'stripe' && (isPremium || paymentPastDue)
 
   return (
     <main id="main-content" className="max-w-2xl mx-auto px-4 py-8">
@@ -237,6 +242,11 @@ export function SubscriptionPage() {
                 {cancelAtPeriodEnd && (
                   <p className="text-sm text-reward">
                     {t('subscription.canceledNotice')}
+                  </p>
+                )}
+                {paymentPastDue && (
+                  <p className="text-sm text-destructive" role="status">
+                    {t('subscription.pastDueNotice')}
                   </p>
                 )}
                 {canManageSubscription && (
@@ -302,14 +312,26 @@ export function SubscriptionPage() {
                   </div>
                 )}
 
-                <Button onClick={handleCheckout} disabled={actionLoading} className="mt-2">
-                  <Crown className="size-4 mr-2" />
-                  {cadence === 'yearly' && yearlyEntry
-                    ? t('subscription.upgradeYearly', { price: formatAmount(yearlyEntry) })
-                    : monthlyEntry
-                      ? t('subscription.upgradeMonthly', { price: formatAmount(monthlyEntry) })
-                      : t('subscription.upgradeButton')}
-                </Button>
+                {canManageSubscription ? (
+                  <>
+                    <p className="text-sm text-destructive" role="status">
+                      {t('subscription.pastDueExpiredNotice')}
+                    </p>
+                    <Button onClick={handlePortal} disabled={actionLoading} className="mt-2">
+                      <ExternalLink className="size-4 mr-2" />
+                      {t('subscription.manageButton')}
+                    </Button>
+                  </>
+                ) : (
+                  <Button onClick={handleCheckout} disabled={actionLoading} className="mt-2">
+                    <Crown className="size-4 mr-2" />
+                    {cadence === 'yearly' && yearlyEntry
+                      ? t('subscription.upgradeYearly', { price: formatAmount(yearlyEntry) })
+                      : monthlyEntry
+                        ? t('subscription.upgradeMonthly', { price: formatAmount(monthlyEntry) })
+                        : t('subscription.upgradeButton')}
+                  </Button>
+                )}
               </>
             )}
           </CardContent>

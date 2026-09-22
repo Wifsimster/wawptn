@@ -146,14 +146,16 @@ export function GroupPage() {
 
   useEffect(() => {
     if (!pendingStartVoteRef.current) return
-    if (!currentGroup) return
+    // Wait for *this* group: the store can still hold the previously visited
+    // one on the first render after navigation.
+    if (!currentGroup || currentGroup.id !== id) return
     pendingStartVoteRef.current = false
     if (activeVoteSession) {
       navigate(`/groups/${currentGroup.id}/vote`, { replace: true })
     } else {
       setVoteSetupOpen(true)
     }
-  }, [currentGroup, activeVoteSession, navigate, setVoteSetupOpen])
+  }, [currentGroup, id, activeVoteSession, navigate, setVoteSetupOpen])
 
   const onlineMembers = useMemo(() => new Set(onlineUserIds), [onlineUserIds])
   const currentUserRole = currentGroup?.members.find(m => m.id === user?.id)?.role || 'member'

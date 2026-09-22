@@ -78,13 +78,16 @@ export async function computeCommonGames(
   }
 
   const games = await query
-    .groupBy('user_games.game_id', 'user_games.game_name', 'user_games.header_image_url')
+    // Group on the canonical game only: name/image can differ per platform
+    // or per sync (Epic rows have no image, Steam renames, deduped app ids),
+    // and grouping on them would split one game's owners across buckets.
+    .groupBy('user_games.game_id')
     .havingRaw('COUNT(DISTINCT user_games.user_id) >= ?', [threshold])
     .select(
       db.raw('MIN(user_games.steam_app_id) as "steamAppId"'),
       'user_games.game_id as gameId',
-      'user_games.game_name as gameName',
-      'user_games.header_image_url as headerImageUrl',
+      db.raw('MIN(user_games.game_name) as "gameName"'),
+      db.raw('MAX(user_games.header_image_url) as "headerImageUrl"'),
       db.raw('COUNT(DISTINCT user_games.user_id) as "ownerCount"'),
       db.raw('COALESCE(SUM(user_games.playtime_forever), 0) as "totalPlaytime"'),
       db.raw('COALESCE(AVG(user_games.playtime_forever), 0) as "avgPlaytime"'),

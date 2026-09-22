@@ -57,6 +57,14 @@ function InviteRedirect() {
   return <Navigate to={`/join/${token}`} replace />
 }
 
+// Keyed by group id so moving from one group's vote to another's (e.g. from a
+// notification) remounts the page instead of carrying over the previous
+// group's session, result, or "no session" state.
+function VoteRoute() {
+  const { id } = useParams<{ id: string }>()
+  return <VotePage key={id} />
+}
+
 function App() {
   const { user, loading, fetchUser } = useAuthStore()
 
@@ -158,7 +166,7 @@ function App() {
             <Route path="/groups/:id" element={<GroupPage />} />
           </Route>
           {/* Full-screen / chrome-less routes — own their own layout. */}
-          <Route path="/groups/:id/vote" element={<VotePage />} />
+          <Route path="/groups/:id/vote" element={<VoteRoute />} />
           <Route path="/join/:token" element={<JoinPage />} />
           <Route path="/invite/:token" element={<InviteRedirect />} />
           <Route path="/discord/link" element={<DiscordLinkPage />} />

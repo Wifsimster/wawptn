@@ -88,7 +88,11 @@ export function getUserIdFromSubscription(sub: Stripe.Subscription): string | nu
  *  Rules:
  *  - active or trialing → premium / active (cancel_at_period_end is a
  *    separate flag, NOT a status flip)
- *  - past_due, unpaid, incomplete → free / past_due (3-day grace applies)
+ *  - past_due, unpaid → free / past_due. The tier column reflects Stripe's
+ *    billing state; premium *access* continues for GRACE_PERIOD_DAYS after
+ *    past_due_since (see isUserPremium), then the reconciler cancels.
+ *  - incomplete → free / inactive: the first payment hasn't gone through
+ *    yet, so there was never a paid period to grace.
  *  - canceled, incomplete_expired → free / canceled (immediate downgrade,
  *    no grace — incomplete_expired means the initial payment never
  *    succeeded inside Stripe's retry window, so there's no legitimate
@@ -107,6 +111,9 @@ export function mapStripeStatus(sub: Stripe.Subscription): {
   if (sub.status === 'canceled' || sub.status === 'incomplete_expired') {
     return { tier: 'free', status: 'canceled', cancelAtPeriodEnd }
   }
+  if (sub.status === 'incomplete') {
+    return { tier: 'free', status: 'inactive', cancelAtPeriodEnd }
+  }
   return { tier: 'free', status: 'past_due', cancelAtPeriodEnd }
 }
 
@@ -118,12 +125,12 @@ export function mapStripeStatus(sub: Stripe.Subscription): {
 export async function findLocalSubscriptionForUpdate(
   trx: Knex.Transaction,
   stripeSub: Stripe.Subscription,
-): Promise<{ user_id: string; status: string | null; past_due_since: Date | null } | null> {
+): Promise<{ user_id: string; status: string | null; past_due_since: Date | null; stripe_subscription_id: string | null } | null> {
   const userId = getUserIdFromSubscription(stripeSub)
   if (userId) {
     const row = await trx('subscriptions')
       .where({ user_id: userId })
-      .select('user_id', 'status', 'past_due_since')
+      .select('user_id', 'status', 'past_due_since', 'stripe_subscription_id')
       .forUpdate()
       .first()
     if (row) return row
@@ -131,10 +138,24 @@ export async function findLocalSubscriptionForUpdate(
   const customer = typeof stripeSub.customer === 'string' ? stripeSub.customer : stripeSub.customer.id
   const row = await trx('subscriptions')
     .where({ stripe_customer_id: customer })
-    .select('user_id', 'status', 'past_due_since')
+    .select('user_id', 'status', 'past_due_since', 'stripe_subscription_id')
     .forUpdate()
     .first()
   return row ?? null
+}
+
+/** True when an event concerns a Stripe subscription other than the one the
+ *  local row currently tracks (an abandoned incomplete checkout, a sub the
+ *  user replaced, …). Such events must not overwrite the current one — the
+ *  refund/dispute handlers already apply the same rule. A live (active or
+ *  trialing) subscription is still allowed to take over the row, e.g. one
+ *  created from the Customer Portal after the previous one ended. */
+export function isStaleSubscriptionEvent(
+  local: { stripe_subscription_id: string | null } | null,
+  stripeSub: Stripe.Subscription,
+): boolean {
+  if (!local?.stripe_subscription_id || local.stripe_subscription_id === stripeSub.id) return false
+  return stripeSub.status !== 'active' && stripeSub.status !== 'trialing'
 }
 
 /** Refetch the Subscription from Stripe and apply state. Centralised so
@@ -153,13 +174,26 @@ export async function applySubscriptionState(
   const local = await findLocalSubscriptionForUpdate(trx, stripeSub)
   const customer = typeof stripeSub.customer === 'string' ? stripeSub.customer : stripeSub.customer.id
 
+  if (isStaleSubscriptionEvent(local, stripeSub)) {
+    handlerLogger.info(
+      { userId: local!.user_id, eventSubId: stripeSub.id, currentSubId: local!.stripe_subscription_id, stripeStatus: stripeSub.status },
+      'event for a non-current subscription — ignored',
+    )
+    return
+  }
+
   const { tier, status, cancelAtPeriodEnd } = mapStripeStatus(stripeSub)
   const periodEnd = getSubscriptionPeriodEnd(stripeSub.items)
   const pricing = getSubscriptionPricing(stripeSub)
 
+  // past_due_since starts the premium grace window (isUserPremium), so only
+  // a paying sub falling behind starts it. A row the grace enforcement has
+  // already canceled must not get a fresh window from a later dunning retry.
   let pastDueSince: Date | null | undefined = undefined
   if (status === 'past_due') {
-    if (local?.status !== 'past_due') pastDueSince = new Date()
+    if (local?.status === 'past_due') pastDueSince = undefined
+    else if (!local || local.status === 'active') pastDueSince = new Date()
+    else pastDueSince = null
   } else {
     pastDueSince = null
   }
@@ -300,6 +334,14 @@ async function handleSubscriptionEvent(trx: Knex.Transaction, stripe: Stripe, ev
 async function handleSubscriptionDeleted(trx: Knex.Transaction, event: Stripe.Event): Promise<void> {
   const subscription = event.data.object as Stripe.Subscription
   const local = await findLocalSubscriptionForUpdate(trx, subscription)
+  // Deleting an old subscription must not cancel the one the user pays for now.
+  if (local?.stripe_subscription_id && local.stripe_subscription_id !== subscription.id) {
+    handlerLogger.info(
+      { userId: local.user_id, deletedSubId: subscription.id, currentSubId: local.stripe_subscription_id },
+      'deleted subscription is not the current one — premium retained',
+    )
+    return
+  }
   if (local) {
     await trx('subscriptions')
       .where({ user_id: local.user_id })

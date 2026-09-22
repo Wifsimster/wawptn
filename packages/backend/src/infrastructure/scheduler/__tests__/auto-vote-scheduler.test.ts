@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // vi.hoisted — variables available inside vi.mock factories (which are hoisted)
 // ---------------------------------------------------------------------------
 
-const { mockDb, dbResults, dbCallCounts, scheduledCallbacks, createVotingSessionMock } =
+const { mockDb, dbResults, dbCallCounts, scheduledCallbacks, createVotingSessionMock, isUserPremiumMock } =
   vi.hoisted(() => {
     /**
      * Chainable mock mimicking a Knex query builder.
@@ -46,8 +46,9 @@ const { mockDb, dbResults, dbCallCounts, scheduledCallbacks, createVotingSession
     // Records cron callbacks so tests can fire them manually.
     const scheduledCallbacks: Array<() => Promise<void> | void> = []
     const createVotingSessionMock = vi.fn()
+    const isUserPremiumMock = vi.fn()
 
-    return { mockDb, dbResults, dbCallCounts, scheduledCallbacks, createVotingSessionMock }
+    return { mockDb, dbResults, dbCallCounts, scheduledCallbacks, createVotingSessionMock, isUserPremiumMock }
   })
 
 // ---------------------------------------------------------------------------
@@ -64,6 +65,10 @@ vi.mock('@/infrastructure/logger/logger.js', () => {
 
 vi.mock('@/domain/create-session.js', () => ({
   createVotingSession: createVotingSessionMock,
+}))
+
+vi.mock('@/domain/subscription-service.js', () => ({
+  isUserPremium: isUserPremiumMock,
 }))
 
 vi.mock('node-cron', () => {
@@ -100,6 +105,8 @@ describe('auto-vote-scheduler', () => {
     dbCallCounts.clear()
     scheduledCallbacks.length = 0
     createVotingSessionMock.mockReset()
+    isUserPremiumMock.mockReset()
+    isUserPremiumMock.mockResolvedValue(true)
   })
 
   it('persists the auto-close target on the session row so it survives a restart', async () => {
@@ -166,6 +173,22 @@ describe('auto-vote-scheduler', () => {
     const tick = scheduledCallbacks[0]
     await tick!()
 
+    expect(createVotingSessionMock).not.toHaveBeenCalled()
+  })
+
+  it('skips when the group owner is no longer premium', async () => {
+    dbResults.set('group_members', [
+      ['user-a', 'user-b'],
+      { user_id: 'user-a' },
+    ])
+    setDbResult('voting_sessions', undefined)
+    isUserPremiumMock.mockResolvedValue(false)
+
+    updateGroupSchedule('group-4', '0 21 * * 5', 60)
+    const tick = scheduledCallbacks[0]
+    await tick!()
+
+    expect(isUserPremiumMock).toHaveBeenCalledWith('user-a')
     expect(createVotingSessionMock).not.toHaveBeenCalled()
   })
 })

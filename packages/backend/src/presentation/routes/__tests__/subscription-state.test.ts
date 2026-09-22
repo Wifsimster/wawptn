@@ -98,7 +98,7 @@ vi.mock('@/domain/admin-audit-log.js', () => ({
 }))
 
 import type Stripe from 'stripe'
-import { applySubscriptionState } from '../../../domain/stripe-event-handlers.js'
+import { applySubscriptionState, mapStripeStatus } from '../../../domain/stripe-event-handlers.js'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -182,5 +182,55 @@ describe('applySubscriptionState — past_due transition', () => {
     expect(recordSystemAction).toHaveBeenCalled()
     const args = recordSystemAction.mock.calls[0] as unknown as unknown[]
     expect(args?.[3]).toBe(hoisted.trx)
+  })
+})
+
+describe('applySubscriptionState — non-current subscription', () => {
+  beforeEach(() => {
+    hoisted.resetUpdate()
+    recordSystemAction.mockClear()
+  })
+
+  it('ignores a dead event for an older subscription (keeps the current paid one)', async () => {
+    // Row tracks the paid sub_new; Stripe expires the abandoned sub_123.
+    hoisted.firstSelectResult = { user_id: 'user-1', status: 'active', past_due_since: null, stripe_subscription_id: 'sub_new' }
+    const sub = makeStripeSub({ status: 'incomplete_expired' })
+    await applySubscriptionState(hoisted.trx as never, sub, 'subscription.system.update')
+
+    expect(hoisted.updatePayload).toBeNull()
+    expect(recordSystemAction).not.toHaveBeenCalled()
+  })
+
+  it('lets a live subscription take over a row that tracks another one', async () => {
+    hoisted.firstSelectResult = { user_id: 'user-1', status: 'canceled', past_due_since: null, stripe_subscription_id: 'sub_old' }
+    const sub = makeStripeSub({ status: 'active' })
+    await applySubscriptionState(hoisted.trx as never, sub, 'subscription.system.update')
+
+    expect(hoisted.updatePayload?.['stripe_subscription_id']).toBe('sub_123')
+    expect(hoisted.updatePayload?.['tier']).toBe('premium')
+  })
+})
+
+describe('mapStripeStatus', () => {
+  it('maps incomplete to inactive so an unpaid first checkout gets no grace', () => {
+    expect(mapStripeStatus(makeStripeSub({ status: 'incomplete' }))).toMatchObject({ tier: 'free', status: 'inactive' })
+  })
+
+  it('maps past_due and unpaid to past_due', () => {
+    expect(mapStripeStatus(makeStripeSub({ status: 'past_due' })).status).toBe('past_due')
+    expect(mapStripeStatus(makeStripeSub({ status: 'unpaid' })).status).toBe('past_due')
+  })
+})
+
+describe('applySubscriptionState — grace window', () => {
+  beforeEach(() => hoisted.resetUpdate())
+
+  it('does not restart the grace window for a row already canceled after grace', async () => {
+    hoisted.firstSelectResult = { user_id: 'user-1', status: 'canceled', past_due_since: null, stripe_subscription_id: 'sub_123' }
+    const sub = makeStripeSub({ status: 'past_due' })
+    await applySubscriptionState(hoisted.trx as never, sub, 'subscription.system.past_due')
+
+    expect(hoisted.updatePayload?.['status']).toBe('past_due')
+    expect(hoisted.updatePayload?.['past_due_since']).toBeNull()
   })
 })

@@ -77,6 +77,7 @@ vi.mock('@/infrastructure/stripe/stripe-client.js', () => ({
 
 vi.mock('@/domain/subscription-service.js', () => ({
   invalidatePremiumCache: vi.fn(),
+  PAST_DUE_GRACE_PERIOD_DAYS: 3,
 }))
 
 vi.mock('@/domain/admin-audit-log.js', () => ({

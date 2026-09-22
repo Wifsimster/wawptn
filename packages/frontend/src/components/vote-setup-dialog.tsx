@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Vote, Loader2, Users, Calendar, Handshake, CircleDollarSign, Lock, AlertTriangle } from 'lucide-react'
-import { useSubscriptionStore } from '@/stores/subscription.store'
+import { useSubscriptionStore, selectIsPremium } from '@/stores/subscription.store'
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -116,8 +116,7 @@ function formReducer(state: FormState, action: FormAction): FormState {
 }
 
 export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMembers, activeFilter, onStartVote }: VoteSetupDialogProps) {
-  const { tier, status } = useSubscriptionStore()
-  const isPremium = tier === 'premium' && status === 'active'
+  const isPremium = useSubscriptionStore(selectIsPremium)
 
   // Compute minimum datetime-local value (15 minutes from now)
   const minDateTime = useMemo(() => {

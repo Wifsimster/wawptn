@@ -1,6 +1,7 @@
 import cron, { type ScheduledTask } from 'node-cron'
 import { db } from '../database/connection.js'
 import { createVotingSession } from '../../domain/create-session.js'
+import { isUserPremium } from '../../domain/subscription-service.js'
 import { logger } from '../logger/logger.js'
 
 const schedulerLogger = logger.child({ module: 'auto-vote-scheduler' })
@@ -66,6 +67,13 @@ function scheduleGroupAutoVote(group: GroupSchedule): void {
 
       if (!owner) {
         schedulerLogger.warn({ groupId: group.id }, 'auto-vote skipped: no group owner found')
+        return
+      }
+
+      // Premium is only checked when the schedule is saved; re-check at fire
+      // time so a cancelled or refunded owner stops getting automatic votes.
+      if (!(await isUserPremium(owner.user_id))) {
+        schedulerLogger.info({ groupId: group.id, ownerId: owner.user_id }, 'auto-vote skipped: owner is no longer premium')
         return
       }
 

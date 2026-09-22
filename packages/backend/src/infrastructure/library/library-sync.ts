@@ -11,6 +11,35 @@ import {
 } from '../../domain/library-sync-coordinator.js'
 
 /**
+ * Record `platformGameId → gameId` and return the canonical id that actually
+ * owns the mapping. Group syncs run every member in parallel, so two users
+ * owning the same unseen game race on the unique (platform, platform_game_id)
+ * key; the loser adopts the winner's game instead of aborting its whole sync.
+ * A canonical game created only for the lost race is removed again.
+ */
+async function claimPlatformMapping(
+  platform: string,
+  platformGameId: string,
+  gameId: string,
+  createdGame: boolean,
+): Promise<string> {
+  const inserted = await db('game_platform_ids')
+    .insert({ game_id: gameId, platform, platform_game_id: platformGameId })
+    .onConflict(['platform', 'platform_game_id'])
+    .ignore()
+    .returning('game_id')
+  if (inserted.length > 0) return gameId
+
+  const winner = await db('game_platform_ids')
+    .where({ platform, platform_game_id: platformGameId })
+    .first()
+  if (createdGame) {
+    await db('games').where({ id: gameId }).del()
+  }
+  return winner.game_id as string
+}
+
+/**
  * Per-platform library sync. These functions orchestrate the platform Web API
  * clients (Steam/Epic/GOG) and persist the owned games into the canonical
  * `games` / `game_platform_ids` / `user_games` tables. They live in the
@@ -62,6 +91,7 @@ async function syncSimplePlatformLibrary<TGame>(opts: {
         .whereRaw('LOWER(REGEXP_REPLACE(canonical_name, \'[^a-zA-Z0-9\\s]\', \'\', \'g\')) = ?', [normalizedName])
         .first()
 
+      let createdGame = false
       if (existingGame) {
         gameId = existingGame.id
       } else {
@@ -69,13 +99,10 @@ async function syncSimplePlatformLibrary<TGame>(opts: {
           .insert({ canonical_name: name })
           .returning('id')
         gameId = newGame.id
+        createdGame = true
       }
 
-      await db('game_platform_ids').insert({
-        game_id: gameId,
-        platform,
-        platform_game_id: platformId,
-      })
+      gameId = await claimPlatformMapping(platform, platformId, gameId as string, createdGame)
     }
 
     await db('user_games')
@@ -114,7 +141,10 @@ export function syncEpicLibrary(userId: string): Promise<number> {
 export async function syncUserLibrary(userId: string, steamId: string): Promise<number> {
   const games = await getOwnedGames(steamId)
   if (!games) {
-    await db('users').where({ id: userId }).update({ library_visible: false })
+    // null means the Steam call failed (5xx, timeout, circuit open) — not a
+    // private profile (that comes back as []). Keep the current visibility
+    // so a Steam hiccup doesn't flag every synced user as private.
+    steamLogger.warn({ steamId }, 'Steam library fetch failed — keeping existing library state')
     return 0
   }
 
@@ -152,12 +182,7 @@ export async function syncUserLibrary(userId: string, steamId: string): Promise<
           cover_image_url: getHeaderImageUrl(game.appid),
         })
         .returning('id')
-      gameId = newGame.id
-      await db('game_platform_ids').insert({
-        game_id: gameId,
-        platform: 'steam',
-        platform_game_id: String(game.appid),
-      })
+      gameId = await claimPlatformMapping('steam', String(game.appid), newGame.id, true)
     }
 
     await db('user_games')

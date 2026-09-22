@@ -218,20 +218,22 @@ router.post('/vote', async (req: Request, res: Response) => {
     .first()
   const hasParticipants = Number(participantCount?.count || 0) > 0
 
+  // Always require current group membership: participant rows survive a
+  // kick/leave, and a removed member must not keep voting.
+  const membership = await db('group_members')
+    .where({ group_id: session.group_id, user_id: userId })
+    .first()
+  if (!membership) {
+    res.status(403).json({ error: 'forbidden', message: 'Vous n\'êtes pas membre de ce groupe' })
+    return
+  }
+
   if (hasParticipants) {
     const isParticipant = await db('voting_session_participants')
       .where({ session_id: sessionId, user_id: userId })
       .first()
     if (!isParticipant) {
       res.status(403).json({ error: 'forbidden', message: 'Vous n\'êtes pas participant à cette session de vote' })
-      return
-    }
-  } else {
-    const membership = await db('group_members')
-      .where({ group_id: session.group_id, user_id: userId })
-      .first()
-    if (!membership) {
-      res.status(403).json({ error: 'forbidden', message: 'Vous n\'êtes pas membre de ce groupe' })
       return
     }
   }
@@ -241,13 +243,20 @@ router.post('/vote', async (req: Request, res: Response) => {
     .where({ session_id: sessionId, steam_app_id: steamAppId })
     .first()
 
+  // Same guard as the web route: a vote for a game outside the session
+  // would still be tallied by closeSession and could win as "Unknown".
+  if (!sessionGame) {
+    res.status(400).json({ error: 'validation', message: 'Ce jeu ne fait pas partie de cette session de vote' })
+    return
+  }
+
   // Upsert vote
   await db('votes')
     .insert({
       session_id: sessionId,
       user_id: userId,
       steam_app_id: steamAppId,
-      game_id: sessionGame?.game_id || null,
+      game_id: sessionGame.game_id || null,
       vote,
     })
     .onConflict(['session_id', 'user_id', 'steam_app_id'])
@@ -1236,12 +1245,34 @@ userRouter.delete('/link', requireAuth, async (req: Request, res: Response) => {
 //
 // Announcement webhooks (multi-channel broadcast) stay premium — see
 // `/announcements` below.
+// The backend POSTs to stored webhook URLs, so anything other than a real
+// Discord webhook endpoint is a server-side request forgery vector (internal
+// services, cloud metadata). `endsWith('discord.com')` alone would also let
+// `evildiscord.com` through.
+const DISCORD_WEBHOOK_HOSTS = new Set(['discord.com', 'discordapp.com', 'ptb.discord.com', 'canary.discord.com'])
+function isDiscordWebhookUrl(value: unknown): boolean {
+  if (typeof value !== 'string') return false
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'https:'
+      && DISCORD_WEBHOOK_HOSTS.has(parsed.hostname)
+      && parsed.port === ''
+      && parsed.pathname.startsWith('/api/webhooks/')
+  } catch {
+    return false
+  }
+}
+
 userRouter.post('/webhook', requireAuth, async (req: Request, res: Response) => {
   const userId = req.userId!
   const { groupId, webhookUrl } = req.body as { groupId: string; webhookUrl: string }
 
   if (!groupId || !webhookUrl) {
     res.status(400).json({ error: 'validation', message: 'groupId and webhookUrl are required' })
+    return
+  }
+  if (!isDiscordWebhookUrl(webhookUrl)) {
+    res.status(400).json({ error: 'validation', message: 'webhookUrl must be a https://discord.com/api/webhooks/... URL' })
     return
   }
 
@@ -1336,16 +1367,8 @@ userRouter.post('/announcements', requireAuth, async (req: Request, res: Respons
     res.status(400).json({ error: 'validation', message: 'groupId and webhookUrl are required' })
     return
   }
-  // Minimal URL sanity check — just enough to reject obvious junk without
-  // mirroring Discord's webhook format quirks inside the backend.
-  try {
-    const parsed = new URL(webhookUrl)
-    if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('discord.com')) {
-      res.status(400).json({ error: 'validation', message: 'webhookUrl must be an https://discord.com/... URL' })
-      return
-    }
-  } catch {
-    res.status(400).json({ error: 'validation', message: 'webhookUrl is not a valid URL' })
+  if (!isDiscordWebhookUrl(webhookUrl)) {
+    res.status(400).json({ error: 'validation', message: 'webhookUrl must be a https://discord.com/api/webhooks/... URL' })
     return
   }
   if (label !== undefined && (typeof label !== 'string' || label.length > 64)) {

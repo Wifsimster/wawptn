@@ -200,7 +200,7 @@ router.post('/:groupId/vote', requireGroupMembership({ paramName: 'groupId' }), 
 })
 
 // Cast votes (batch: all games in one request)
-router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => {
+router.post('/:groupId/vote/:sessionId', requireGroupMembership({ paramName: 'groupId' }), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['groupId'])
   const sessionId = String(req.params['sessionId'])
@@ -283,8 +283,17 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
     return
   }
 
-  // Upsert all votes in a single transaction
-  await db.transaction(async (trx) => {
+  // Upsert all votes in a single transaction. Re-check the session under a
+  // share lock: closeSession() flips status with an UPDATE, which then waits
+  // for this transaction, so a vote is either rejected here or included in
+  // the tally — never accepted and silently dropped.
+  const stillOpen = await db.transaction(async (trx) => {
+    const locked = await trx('voting_sessions')
+      .where({ id: sessionId, group_id: groupId, status: 'open' })
+      .forShare()
+      .first()
+    if (!locked) return false
+
     for (const entry of voteEntries) {
       await trx('votes')
         .insert({
@@ -297,7 +306,13 @@ router.post('/:groupId/vote/:sessionId', async (req: Request, res: Response) => 
         .onConflict(['session_id', 'user_id', 'steam_app_id'])
         .merge({ vote: entry.vote, created_at: trx.fn.now() })
     }
+    return true
   })
+
+  if (!stillOpen) {
+    res.status(409).json({ error: 'conflict', message: 'Voting session was closed' })
+    return
+  }
 
   // Get voter count
   const voterCount = await db('votes')
@@ -388,10 +403,16 @@ router.post('/:groupId/vote/:sessionId/rematch', requireGroupMembership({ paramN
     return
   }
 
-  // Fetch participants from the original session
+  // Fetch participants from the original session who are still group
+  // members — anyone who left or was kicked since would make
+  // createVotingSession reject the whole rematch as invalid_members.
   const participantIds: string[] = await db('voting_session_participants')
-    .where({ session_id: sessionId })
-    .pluck('user_id')
+    .join('group_members', function () {
+      this.on('group_members.user_id', '=', 'voting_session_participants.user_id')
+        .andOn('group_members.group_id', '=', db.raw('?', [groupId]))
+    })
+    .where('voting_session_participants.session_id', sessionId)
+    .pluck('voting_session_participants.user_id')
 
   // Fallback to current group members if no participants recorded
   const finalParticipantIds = participantIds.length >= 2

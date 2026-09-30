@@ -38,12 +38,12 @@ packages/
   - `src/infrastructure/steam/` — Steam OpenID 2.0 + Steam Web API client with rate limiter + circuit breaker
   - `src/infrastructure/database/` — Knex.js PostgreSQL connection
   - `src/infrastructure/socket/` — Socket.io server with auth middleware
-  - `src/presentation/routes/` — Express route handlers (auth, groups, votes)
+  - `src/presentation/routes/` — Express route handlers, one file per area (admin, auth, challenge, discord, events, group, invite, koe, library, notification, og, persona, share, stats, subscription, subscription-webhook, user-profile, vote)
   - `src/presentation/middleware/` — Auth middleware
   - `migrations/` — Knex database migrations
 - `packages/frontend/` — `@wawptn/frontend` React SPA
-  - `src/pages/` — Login, Groups, Group detail, Vote, Join
-  - `src/stores/` — Zustand stores (auth, group)
+  - `src/pages/` — Landing, Groups, Group detail, Vote, Join, Profile, My library, User profile, Compare, Discord link, Admin, Subscription, Contact, Not found
+  - `src/stores/` — Zustand stores (auth, challenge, group, notification, profile, socket, subscription, wishlist)
   - `src/lib/` — API client, Socket.io client, utils
 
 ### Key Features
@@ -57,7 +57,7 @@ packages/
 
 ### Database Tables
 
-`users`, `sessions`, `groups`, `group_members`, `user_games`, `voting_sessions`, `voting_session_games`, `votes`
+`users`, `sessions`, `groups`, `group_members`, `user_games`, `voting_sessions`, `voting_session_games`, `votes`, `voting_session_participants`, `game_metadata`, `games`, `game_platform_ids`, `accounts`, `verifications`, `discord_link_codes`, `discord_links`, `app_settings`, `subscriptions`, `stripe_events`, `personas`, `notifications`, `notification_recipients`, `challenges`, `user_challenges`, `referrals`, `streaks`, `discord_daily_challenges`, `discord_daily_challenge_claims`, `admin_audit_log`, `session_audit_trail`, `group_announcement_webhooks`, `discord_guild_settings`, `game_wishlists`, `group_bans`, `discord_auth_intents`, `group_persona_settings`, `group_game_spotlights`
 
 ## Commandes essentielles
 

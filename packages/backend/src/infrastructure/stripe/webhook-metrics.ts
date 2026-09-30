@@ -1,7 +1,7 @@
 /**
  * In-memory webhook metrics, surfaced via /admin/subscription-health.
  *
- * Per-replica counters (no Redis for MVP — see CLAUDE.md). They reset on
+ * Per-replica counters (no Redis for MVP — see AGENTS.md). They reset on
  * process restart, which is acceptable for the things we want to detect:
  *
  *   - signatureFailures > 0 sustained over multiple polls = secret rotated

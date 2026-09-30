@@ -93,7 +93,7 @@ export function resetWeeklyReleasesCache(): void {
 
 /**
  * The week's qualifying co-op / multiplayer releases, newest first. Shared
- * across groups via an in-week cache (per CLAUDE.md: in-memory, no Redis).
+ * across groups via an in-week cache (per AGENTS.md: in-memory, no Redis).
  */
 export async function getWeeklyReleases(): Promise<ReleaseDigestGame[]> {
   const week = currentIsoWeek()

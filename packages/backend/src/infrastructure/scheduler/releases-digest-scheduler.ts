@@ -6,7 +6,7 @@ import { logger } from '../logger/logger.js'
 const schedulerLogger = logger.child({ module: 'releases-digest-scheduler' })
 
 /** Default timezone for digest cron expressions. The app is French-first
- *  (CLAUDE.md) and the bot's reminders default to the same zone. */
+ *  (AGENTS.md) and the bot's reminders default to the same zone. */
 const DIGEST_TIMEZONE = 'Europe/Paris'
 
 /** Map of group ID -> scheduled cron task. */

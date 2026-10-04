@@ -8,4 +8,9 @@ backups/
 uploads/
 test-results/
 playwright-report/
-.claude/
+.claude/*
+!.claude/skills/
+
+# Verification harness (.claude/skills/verify) scratch state and default evidence dir
+.verify-run/
+.verify-evidence/

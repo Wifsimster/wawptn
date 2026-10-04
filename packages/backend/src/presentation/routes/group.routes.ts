@@ -583,25 +583,44 @@ router.post('/join', async (req: Request, res: Response) => {
   }
 
   // Atomic: claim an invite use and add member in a single transaction (race-safe)
-  const joined = await db.transaction(async (trx) => {
+  const outcome = await db.transaction(async (trx) => {
     const claimed = await trx('groups')
       .where({ id: group.id })
       .whereRaw('invite_use_count < invite_max_uses')
       .increment('invite_use_count', 1)
 
-    if (claimed === 0) return false
+    if (claimed === 0) return 'exhausted' as const
 
-    await trx('group_members').insert({
-      group_id: group.id,
-      user_id: userId,
-      role: 'member',
-    })
+    const inserted = await trx('group_members')
+      .insert({
+        group_id: group.id,
+        user_id: userId,
+        role: 'member',
+      })
+      .onConflict(['group_id', 'user_id'])
+      .ignore()
+      .returning('user_id')
 
-    return true
+    // A concurrent request for the same user (double click, second tab,
+    // React StrictMode in dev) passed the membership check first and
+    // already inserted the row: give the invite use back and answer as
+    // "already a member" instead of failing on the primary key.
+    if (inserted.length === 0) {
+      await trx('groups').where({ id: group.id }).decrement('invite_use_count', 1)
+      return 'already_member' as const
+    }
+
+    return 'joined' as const
   })
 
-  if (!joined) {
+  if (outcome === 'exhausted') {
     res.status(410).json({ error: 'expired', message: 'This invite link has reached its maximum uses' })
+    return
+  }
+
+  if (outcome === 'already_member') {
+    const activeVoteSession = await getActiveVoteSession()
+    res.json({ id: group.id, name: group.name, alreadyMember: true, activeVoteSession })
     return
   }
 

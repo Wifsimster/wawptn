@@ -234,6 +234,7 @@ Starts one isolated verification instance:
     records console + HTTP + WebSocket traffic and answers Steam CDN image requests with a placeholder
 STEAM_API_KEY, Discord, Stripe, Resend, LLM, Koe and alert-webhook variables are forced empty.
 Refuses to start if any of those ports is taken: one instance at a time.
+Also refuses, before touching anything, when the Playwright Chromium is not installed.
 
 --dry-run   print the plan and touch nothing.`,
   async run(flags) {
@@ -251,6 +252,8 @@ Refuses to start if any of those ports is taken: one instance at a time.
     for (const [k, p] of Object.entries(PORTS)) if (await portInUse(p)) busy.push(`${k}:${p}`)
     if (busy.length) fail(`Ports already in use: ${busy.join(', ')}.`, 'Another app (or a leaked run) owns them. Do not kill it blindly: check `ss -ltnp`, stop your own leftover with `control-wawptn teardown`, or ask the lead.', { busy })
     try { docker('inspect', PG); fail(`Container ${PG} already exists.`, `Run \`control-wawptn teardown\` (it removes only containers labelled ${LABEL}).`) } catch (e) { if (e instanceof CliError) throw e }
+    const { chromium } = loadPlaywright()
+    if (!fs.existsSync(chromium.executablePath())) fail(`Playwright Chromium is missing (${chromium.executablePath()}).`, 'Run `npx playwright install chromium` in packages/frontend, then launch again. The browser build follows the installed @playwright/test version.')
 
     const runId = new Date().toISOString().replace(/[:.]/g, '-')
     const appSecret = crypto.randomBytes(32).toString('hex')

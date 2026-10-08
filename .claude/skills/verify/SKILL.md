@@ -15,7 +15,7 @@ $C --help                 # command list
 $C <command> --help       # flags, side effects, what it proves
 ```
 
-Prerequisites: `npm ci` at the repo root, Docker, and the Playwright Chromium that matches the repo's Playwright version (`cd packages/frontend && npx playwright install chromium`). `doctor` reports a missing browser.
+Prerequisites: `npm ci` at the repo root, Docker, and the Playwright Chromium that matches the repo's Playwright version (`cd packages/frontend && npx playwright install chromium`). Without that browser `launch` refuses to start before it touches anything, and `doctor` fails its `playwrightChromium` check. After a `@playwright/test` bump, install the browser again.
 
 ## Launch
 

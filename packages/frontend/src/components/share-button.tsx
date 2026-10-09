@@ -223,7 +223,7 @@ function ShareMenuItem({
       className={cn(
         'relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-2 text-sm outline-none',
         'transition-colors hover:bg-accent hover:text-accent-foreground',
-        'focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:ring-[2px] focus-visible:ring-ring/60'
+        'focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:ring-[2px] focus-visible:ring-ring'
       )}
     >
       <span className="flex size-4 items-center justify-center text-muted-foreground">

@@ -79,7 +79,7 @@ export function PwaUpdatePanel() {
                 type="button"
                 onClick={dismiss}
                 aria-label={t('pwa.updateDismissLabel')}
-                className="-m-1 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                className="-m-1 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X className="size-4" aria-hidden="true" />
               </button>

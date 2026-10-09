@@ -11,7 +11,7 @@ colors:
     popover: "oklch(0.165 0.012 280)"
     popover-foreground: "oklch(0.96 0.005 270)"
     primary: "oklch(0.55 0.27 270)"
-    primary-foreground: "oklch(0.97 0.014 254.604)"
+    primary-foreground: "oklch(0.97 0.014 270)"
     secondary: "oklch(0.22 0.02 280)"
     secondary-foreground: "oklch(0.90 0.005 270)"
     muted: "oklch(0.22 0.01 280)"
@@ -57,7 +57,10 @@ elevation:
   shadow-1: "0 2px 12px oklch(0 0 0 / 0.15)"
   shadow-2: "0 8px 24px oklch(0 0 0 / 0.22)"
   shadow-3: "0 16px 48px oklch(0 0 0 / 0.30)"
-  shadow-glow: "0 0 20px oklch(0.55 0.27 270 / 0.18)"
+  shadow-glow: "0 0 20px color-mix(in oklch, var(--primary) 18%, transparent)"
+  shadow-glow-hover: "0 0 28px color-mix(in oklch, var(--primary) 25%, transparent)"
+  shadow-steam-glow: "0 4px 20px color-mix(in oklch, var(--steam) 30%, transparent)"
+  shadow-steam-glow-hover: "0 6px 28px color-mix(in oklch, var(--steam) 45%, transparent)"
 spacing:
   scale: tailwind-default (4px)
   min-touch-target: 44px
@@ -97,7 +100,7 @@ l. 93–147). Tailwind v4, no `tailwind.config`. All colors are OKLCH.
 | `--foreground` | `oklch(0.96 0.005 270)` | Body text |
 | `--card` / `--popover` | `oklch(0.165 0.012 280)` | Cards, menus, tooltips |
 | `--primary` | `oklch(0.55 0.27 270)` | Primary CTA, focus ring, brand violet |
-| `--primary-foreground` | `oklch(0.97 0.014 254.604)` | Text on primary |
+| `--primary-foreground` | `oklch(0.97 0.014 270)` | Text on primary (5.11:1) |
 | `--secondary` | `oklch(0.22 0.02 280)` | Secondary buttons, neutral chips |
 | `--secondary-foreground` | `oklch(0.90 0.005 270)` | Text on secondary |
 | `--muted` | `oklch(0.22 0.01 280)` | Placeholder rows, disabled surfaces |
@@ -160,7 +163,9 @@ to `16px` under `(any-pointer: coarse)` to stop iOS zoom.
 | `shadow-1` | `0 2px 12px oklch(0 0 0 / 0.15)` | Card |
 | `shadow-2` | `0 8px 24px oklch(0 0 0 / 0.22)` | Tooltip, DropdownMenu, popovers |
 | `shadow-3` | `0 16px 48px oklch(0 0 0 / 0.30)` | Dialog, sheets |
-| `shadow-glow` | `0 0 20px oklch(0.55 0.27 270 / 0.18)` | Button `default`, Drawer handle, hero CTAs |
+| `shadow-glow` | `0 0 20px` primary at 18 % | Button `default`, Drawer handle, hero CTAs |
+| `shadow-glow-hover` | `0 0 28px` primary at 25 % | Button `default` on hover |
+| `shadow-steam-glow` / `shadow-steam-glow-hover` | `0 4px 20px` / `0 6px 28px` steam at 30 % / 45 % | Button `steam` |
 
 Glass surfaces: Card `bg-card/80 backdrop-blur-sm`; `.landing-glass-card`
 `oklch(1 0 0 / 0.025)` + `blur(16px)`; `.landing-premium-card` with the
@@ -195,7 +200,7 @@ icons `lucide-react` only, Vaul `Drawer`, `framer-motion`.
 
 | Component | Conventions | Source |
 | --- | --- | --- |
-| `Button` | Variants `default` (+ `shadow-glow`), `destructive`, `outline`, `secondary`, `ghost`, `link`, `steam`; sizes `default`, `sm`, `lg`, `icon`; labels wrap (no `nowrap`); focus `ring-[3px] ring-ring/50` | `ui/button.tsx` |
+| `Button` | Variants `default` (+ `shadow-glow`), `destructive`, `outline`, `secondary`, `ghost`, `link`, `steam`; sizes `default`, `sm`, `lg`, `icon`; labels wrap (no `nowrap`); focus `ring-[3px] ring-ring` | `ui/button.tsx` |
 | `Badge` | Adds `success`, `warning`, `info`, `reward`, `scoreGood`, `scoreMixed`, `scoreBad` (tint `/15`, border `/30`) | `ui/badge.tsx` |
 | `Card` | `padding` prop; `CardTitle` carries `font-heading` | `ui/card.tsx` |
 | `ResponsiveDialog` | Vaul Drawer below 640 px (96dvh cap), Radix Dialog above (`100dvh-2rem` cap) | `ui/responsive-dialog.tsx` |
@@ -235,12 +240,18 @@ contain` and `touch-action: pan-y`.
 
 ## Known Gaps
 
-Found in the code, not fixed here.
+Fixed on 2026-10-09: the seven gaps listed earlier (raw shadows and raw white
+in Button, hard-coded primary, reward, neon and ember in CSS utilities and
+inline styles, `--primary-foreground` hue, focus-ring alphas, `dark:` classes in
+Checkbox, `docs/design-system.md` drift). Tints now derive from the tokens with
+`color-mix(in oklch, var(--…) N%, transparent)`. Contrast after the fix:
+`--primary-foreground` on `--primary` 5.11:1 (AA text); full `ring-ring` 3.65:1
+on `--background` and 3.46:1 on `--card` (AA UI; the old `/40`–`/60` alphas
+gave about 2.1–2.6:1).
 
-1. **Raw shadows in Button**: `default` hover uses `shadow-[0_0_28px_oklch(0.55_0.27_270_/_0.25)]` and `steam` two raw `shadow-[…oklch(0.237_0.029_238…)]`, against the "don't roll your own shadow" rule.
-2. **Raw white in Button `secondary`**: `border-white/[0.04]`, against the "no raw white" rule.
-3. **Primary hard-coded in CSS utilities**: `oklch(0.55 0.27 270 / …)` is repeated in `.landing-*`, `.card-hover-glow`, `.neon-underline`, `.admin-badge`, `.profile-*` and the `premium-glow` keyframes instead of `var(--primary)`; reward `oklch(0.82 0.17 70)` and neon `oklch(0.82 0.19 190)` likewise.
-4. **`--primary-foreground`** is `oklch(0.97 0.014 254.604)` (hue 254, the shadcn blue default) while every other neutral sits on hue 270–280.
-5. **Three focus-ring alphas**: Button `ring-ring/50`, Input `ring-ring/40`, DropdownMenu items `ring-ring/60`; Checkbox and Dialog close use full `ring-ring`.
-6. **`dark:` classes in `ui/checkbox.tsx`** with no `@custom-variant dark` in `index.css`: they follow the OS `prefers-color-scheme` in an app that is dark-only.
-7. **`docs/design-system.md` drift**: says Button has "6 variants" then lists 7; cites the reduced-motion block at `index.css:647-656` (now l. 702–711) and mobile GPU relief at `253-262` under `(any-pointer: coarse)` (now l. 308–317, `(pointer: coarse)`); its radius table omits `3xl` and `4xl`.
+Still open:
+
+1. **Raw white in pages**: `LandingPage.tsx`, `AdminPage.tsx`,
+   `MyLibraryPage.tsx` and `admin-health-card.tsx` use `white/[0.02–0.12]`
+   borders and fills, against the "no raw white" rule. Swap them for
+   `foreground/[…]` in a separate pass.

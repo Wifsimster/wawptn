@@ -415,7 +415,7 @@ function AdminTabNav({
                 <m.div
                   layoutId="admin-tab-bg"
                   className="absolute inset-0 rounded-lg bg-primary/[0.08] border border-primary/15"
-                  style={{ boxShadow: '0 0 20px oklch(0.55 0.27 270 / 0.06)' }}
+                  style={{ boxShadow: '0 0 20px color-mix(in oklch, var(--primary) 6%, transparent)' }}
                   transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
                 />
               )}
@@ -1639,21 +1639,21 @@ function OverviewTab({
             const colorMap = {
               neon: {
                 ring: 'border-neon/15 hover:border-neon/30',
-                glow: '0 0 24px oklch(0.82 0.19 190 / 0.08)',
+                glow: '0 0 24px color-mix(in oklch, var(--neon) 8%, transparent)',
                 iconBg: 'bg-neon/10',
                 iconColor: 'text-neon',
                 valueColor: 'text-neon',
               },
               primary: {
                 ring: 'border-primary/15 hover:border-primary/30',
-                glow: '0 0 24px oklch(0.55 0.27 270 / 0.08)',
+                glow: '0 0 24px color-mix(in oklch, var(--primary) 8%, transparent)',
                 iconBg: 'bg-primary/10',
                 iconColor: 'text-primary',
                 valueColor: 'text-primary',
               },
               ember: {
                 ring: 'border-ember/15 hover:border-ember/30',
-                glow: '0 0 24px oklch(0.72 0.18 50 / 0.08)',
+                glow: '0 0 24px color-mix(in oklch, var(--ember) 8%, transparent)',
                 iconBg: 'bg-ember/10',
                 iconColor: 'text-ember',
                 valueColor: 'text-ember',
@@ -1682,12 +1682,12 @@ function OverviewTab({
                     className="absolute -top-8 -right-8 size-24 rounded-full opacity-[0.04] blur-2xl transition-opacity duration-500 group-hover:opacity-[0.08]"
                     style={{
                       background: card.accent === 'neon'
-                        ? 'oklch(0.82 0.19 190)'
+                        ? 'var(--neon)'
                         : card.accent === 'primary'
-                          ? 'oklch(0.55 0.27 270)'
+                          ? 'var(--primary)'
                           : card.accent === 'ember'
-                            ? 'oklch(0.72 0.18 50)'
-                            : 'oklch(0.723 0.191 142.5)',
+                            ? 'var(--ember)'
+                            : 'var(--success)',
                     }}
                   />
 

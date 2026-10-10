@@ -128,6 +128,8 @@ than a deliberate choice.
 | `rounded-lg` | `radius * 1.0` (default) | Buttons, inputs, dialogs |
 | `rounded-xl` | `radius * 1.4` | Cards, list items |
 | `rounded-2xl` | `radius * 1.8` | Large illustrative cards (profile holo, group hero) |
+| `rounded-3xl` | `radius * 2.2` | Blurred glow behind the vote result |
+| `rounded-4xl` | `radius * 2.6` | Defined, unused today |
 
 The base `--radius` is `0.625rem` (10px); changing it scales the whole
 system.
@@ -187,12 +189,18 @@ Adding a third should be a deliberate design choice, not drift.
 
 ### Buttons (`components/ui/button.tsx`)
 
-- 6 variants: `default | destructive | outline | secondary | ghost |
+- 7 variants: `default | destructive | outline | secondary | ghost |
   link | steam`
 - 4 sizes: `default | sm | lg | icon`
 - Every size enforces `min-h-[44px]` (and `icon` adds `min-w-[44px]`)
   — Apple HIG / Material AAA compliant.
-- Default variant carries `shadow-glow` for the primary-tinted halo.
+- Default variant carries `shadow-glow` for the primary-tinted halo
+  (`shadow-glow-hover` on hover); `steam` uses `shadow-steam-glow` /
+  `shadow-steam-glow-hover`. No arbitrary `shadow-[…]` values.
+- Focus: every control uses the full `ring-ring` (3.65:1 on
+  `--background`, 3.46:1 on `--card`); no alpha on the ring. Button
+  adds a 2px `ring-offset-background` gap so the ring stays visible on
+  the primary fill.
 
 Don't override variants with raw Tailwind classes (`className=
 "bg-primary/10 text-primary border-primary/20"`). If a call site
@@ -276,11 +284,12 @@ for surfaces that genuinely don't have an attribution.
 - Standard easing: `cubic-bezier(0.22, 1, 0.36, 1)` — warm-out curve
   used across CSS transitions and Framer variants.
 - All animation respects `prefers-reduced-motion` via
-  `index.css:647-656` (a global `!important` override) plus
+  the "Global reduced-motion override" block at the end of `index.css`
+  (a global `!important` override) plus
   per-component opt-outs (`useReducedMotion()`).
 - Mobile GPU relief: blurs and fog-drift are stripped on
-  `(any-pointer: coarse) and (max-width: 768px)` — see
-  `index.css:253-262`.
+  `(pointer: coarse) and (max-width: 768px)` — see the
+  "Mobile GPU relief" block in `index.css`.
 
 ---
 

@@ -10,17 +10,17 @@ import { cn } from '@/lib/utils'
 // 320-360px screen instead of wrapping. Buttons short enough to fit render
 // exactly as before — one line at the same 44/48px height.
 const buttonVariants = cva(
-  'inline-flex max-w-full items-center justify-center gap-2 text-center rounded-lg text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[0.97] active:transition-transform active:duration-100 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex max-w-full items-center justify-center gap-2 text-center rounded-lg text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[0.97] active:transition-transform active:duration-100 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/85 shadow-glow hover:shadow-[0_0_28px_oklch(0.55_0.27_270_/_0.25)]',
+        default: 'bg-primary text-primary-foreground hover:bg-primary/85 shadow-glow hover:shadow-glow-hover',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
         outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/70 border border-white/[0.04]',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/70 border border-foreground/[0.04]',
         ghost: 'hover:bg-secondary text-muted-foreground hover:text-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
-        steam: 'bg-steam text-steam-foreground hover:bg-steam-light shadow-[0_4px_20px_oklch(0.237_0.029_238_/_0.3)] hover:shadow-[0_6px_28px_oklch(0.237_0.029_238_/_0.45)] hover:translate-y-[-1px] active:translate-y-[0px]',
+        steam: 'bg-steam text-steam-foreground hover:bg-steam-light shadow-steam-glow hover:shadow-steam-glow-hover hover:translate-y-[-1px] active:translate-y-[0px]',
       },
       size: {
         default: 'min-h-[44px] px-4 py-2',

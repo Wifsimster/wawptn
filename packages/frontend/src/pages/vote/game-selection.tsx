@@ -142,7 +142,7 @@ export function GameSelection({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={t('group.searchGames')}
             aria-label={t('group.searchGames')}
-            className="w-full min-h-[44px] rounded-lg border border-border bg-background pl-10 pr-4 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:border-primary/30"
+            className="w-full min-h-[44px] rounded-lg border border-border bg-background pl-10 pr-4 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:border-primary/30"
           />
         </search>
 

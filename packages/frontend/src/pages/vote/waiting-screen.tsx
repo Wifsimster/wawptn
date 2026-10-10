@@ -88,7 +88,7 @@ export function WaitingScreen({
                 aria-label={voted ? t('vote.participantVoted') : t('vote.participantWaiting')}
                 className={`size-2.5 rounded-full transition-colors duration-300 ${
                   voted
-                    ? 'bg-primary shadow-[0_0_8px_oklch(0.55_0.27_270_/_0.45)]'
+                    ? 'bg-primary shadow-[0_0_8px_color-mix(in_oklch,var(--primary)_45%,transparent)]'
                     : 'bg-muted-foreground/30'
                 }`}
               />

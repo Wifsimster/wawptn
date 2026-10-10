@@ -1,6 +1,24 @@
+/* `koe` sits between Tailwind's `base` and `components` layers: the
+   widget still beats our preflight, but every app utility beats the widget. */
+@layer theme, base, koe, components, utilities;
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+/* @wifsimster/koe < 1.37.1 ships an unscoped Tailwind v3 reset
+   (`*, ::before, ::after { --tw-ring-shadow: 0 0 #0000; --tw-shadow: … }`).
+   Loaded unlayered, it outranked every layered Tailwind v4 utility and wiped
+   the app's focus rings and shadows (WCAG 2.4.7). Layering it fixes that;
+   drop this workaround once koe >= 1.37.1 (reset scoped to `.koe-root`). */
+@import "@wifsimster/koe/style.css" layer(koe);
+
+@layer koe {
+  /* The same reset also defaults the ring colour to blue-500/50, where v4
+     falls back to `currentColor`. Koe always pairs its rings with a colour. */
+  *, ::before, ::after, ::backdrop {
+    --tw-ring-color: initial;
+  }
+}
 
 /* ── Self-hosted fonts ──
    Variable woff2 files vendored in /public/fonts so the critical render

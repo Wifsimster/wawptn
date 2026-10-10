@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { KoeWidget } from '@wifsimster/koe'
-import '@wifsimster/koe/style.css'
+// The widget stylesheet is imported from `index.css` inside the `koe`
+// cascade layer — see the comment there before importing it here.
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth.store'
 

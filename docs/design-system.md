@@ -198,7 +198,9 @@ Adding a third should be a deliberate design choice, not drift.
   (`shadow-glow-hover` on hover); `steam` uses `shadow-steam-glow` /
   `shadow-steam-glow-hover`. No arbitrary `shadow-[…]` values.
 - Focus: every control uses the full `ring-ring` (3.65:1 on
-  `--background`, 3.46:1 on `--card`); no alpha on the ring.
+  `--background`, 3.46:1 on `--card`); no alpha on the ring. Button
+  adds a 2px `ring-offset-background` gap so the ring stays visible on
+  the primary fill.
 
 Don't override variants with raw Tailwind classes (`className=
 "bg-primary/10 text-primary border-primary/20"`). If a call site

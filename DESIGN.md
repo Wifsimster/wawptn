@@ -200,7 +200,7 @@ icons `lucide-react` only, Vaul `Drawer`, `framer-motion`.
 
 | Component | Conventions | Source |
 | --- | --- | --- |
-| `Button` | Variants `default` (+ `shadow-glow`), `destructive`, `outline`, `secondary`, `ghost`, `link`, `steam`; sizes `default`, `sm`, `lg`, `icon`; labels wrap (no `nowrap`); focus `ring-[3px] ring-ring` | `ui/button.tsx` |
+| `Button` | Variants `default` (+ `shadow-glow`), `destructive`, `outline`, `secondary`, `ghost`, `link`, `steam`; sizes `default`, `sm`, `lg`, `icon`; labels wrap (no `nowrap`); focus `ring-[3px] ring-ring` with a 2px `ring-offset-background` gap (the ring would merge into `default`'s primary fill otherwise) | `ui/button.tsx` |
 | `Badge` | Adds `success`, `warning`, `info`, `reward`, `scoreGood`, `scoreMixed`, `scoreBad` (tint `/15`, border `/30`) | `ui/badge.tsx` |
 | `Card` | `padding` prop; `CardTitle` carries `font-heading` | `ui/card.tsx` |
 | `ResponsiveDialog` | Vaul Drawer below 640 px (96dvh cap), Radix Dialog above (`100dvh-2rem` cap) | `ui/responsive-dialog.tsx` |
@@ -255,3 +255,10 @@ Still open:
    `MyLibraryPage.tsx` and `admin-health-card.tsx` use `white/[0.02–0.12]`
    borders and fills, against the "no raw white" rule. Swap them for
    `foreground/[…]` in a separate pass.
+2. **Rings and shadows dead in production**: `@wifsimster/koe/dist/style.css`
+   (imported by `KoeSupport.tsx`) starts with an unlayered Tailwind v3 block
+   `*,:before,:after{--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;…}`.
+   Unlayered rules beat `@layer utilities`, so every `ring-*`, `shadow-*` and
+   `focus-visible:ring-*` utility renders nothing; with `outline-none` keyboard
+   focus is invisible (WCAG 2.4.7). Fix in koe: scope those defaults to the
+   widget root or ship them inside a layer, then bump the dependency.

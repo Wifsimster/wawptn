@@ -14,6 +14,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "lint": "OXLINT_TSGOLINT_PATH=\"$(tsrslint-path)\" oxlint -c ../../.oxlintrc.json --type-aware src",
     "clean": "rm -rf dist",
     "dev": "tsc --watch"
   },

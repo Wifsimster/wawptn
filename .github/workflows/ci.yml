@@ -48,6 +48,9 @@ jobs:
       - name: Type check frontend
         run: npx tsrs --noEmit -p packages/frontend/tsconfig.app.json
 
+      - name: Type check discord bot
+        run: npx tsrs --noEmit -p packages/discord/tsconfig.json
+
   test:
     name: Tests
     runs-on: ubuntu-latest

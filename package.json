@@ -29,7 +29,8 @@
     "docker:tag": "docker tag wifsimster/wawptn:$npm_package_version wifsimster/wawptn:$(echo $npm_package_version | cut -d. -f1-2) && docker tag wifsimster/wawptn:$npm_package_version wifsimster/wawptn:$(echo $npm_package_version | cut -d. -f1)",
     "docker:push": "docker push wifsimster/wawptn --all-tags",
     "release": "npm run build && npm run docker:build && npm run docker:tag && npm run docker:push",
-    "prepare": "husky"
+    "prepare": "husky",
+    "typecheck": "tsrs --noEmit -p packages/backend/tsconfig.json && tsrs --noEmit -p packages/frontend/tsconfig.app.json"
   },
   "engines": {
     "node": ">=24.0.0"
@@ -37,6 +38,7 @@
   "devDependencies": {
     "@commitlint/cli": "^20.3.1",
     "@commitlint/config-conventional": "^20.3.1",
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "tsrs": "0.18.0-ts7.1.0-dev.20260929"
   }
 }

@@ -43,10 +43,10 @@ jobs:
         run: npm run lint
 
       - name: Type check backend
-        run: npx tsc --noEmit -p packages/backend/tsconfig.json
+        run: npx tsrs --noEmit -p packages/backend/tsconfig.json
 
       - name: Type check frontend
-        run: npx tsc --noEmit -p packages/frontend/tsconfig.app.json
+        run: npx tsrs --noEmit -p packages/frontend/tsconfig.app.json
 
   test:
     name: Tests

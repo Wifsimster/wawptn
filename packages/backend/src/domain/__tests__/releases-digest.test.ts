@@ -1,8 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
 
-// releases-digest.ts pulls in the DB connection, Steam clients and the
-// Discord notifier at import time. The functions under test here are pure,
-// so those side-effecting modules are stubbed out.
 vi.mock('@/infrastructure/database/connection.js', () => ({ db: {} }))
 vi.mock('@/infrastructure/discord/releases-notifier.js', () => ({ notifyReleasesDigest: vi.fn() }))
 vi.mock('@/infrastructure/steam/steam-store-client.js', () => ({

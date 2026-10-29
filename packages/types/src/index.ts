@@ -1,7 +1,3 @@
-// ============================================
-// User
-// ============================================
-
 export interface User {
   id: string
   steamId: string
@@ -14,10 +10,6 @@ export interface User {
   createdAt: string
   updatedAt: string
 }
-
-// ============================================
-// Group
-// ============================================
 
 export interface Group {
   id: string
@@ -45,16 +37,6 @@ export interface GroupWithMembers extends Group {
   members: (GroupMember & { user: Pick<User, 'id' | 'steamId' | 'displayName' | 'avatarUrl'> })[]
 }
 
-// ============================================
-// Persona (daily bot persona — per group)
-// ============================================
-
-/**
- * Lean per-group "persona du jour" projection. The full persona pool lives
- * in the global `personas` table and is shared across all groups — each
- * group gets its own deterministic daily pick from that shared pool via
- * `djb2("${YYYY-MM-DD}:${groupId}")`.
- */
 export interface GroupDailyPersona {
   id: string
   name: string
@@ -62,11 +44,6 @@ export interface GroupDailyPersona {
   introMessage: string
 }
 
-/**
- * Per-group persona settings. All fields are optional overrides — when a
- * value is null/empty, the group falls back to the global `bot.*` defaults
- * stored in `app_settings`. Stored 1:1 with groups in `group_persona_settings`.
- */
 export interface GroupPersonaSettings {
   groupId: string
   rotationEnabled: boolean
@@ -75,20 +52,12 @@ export interface GroupPersonaSettings {
   overrideExpiresAt: string | null
 }
 
-/**
- * Payload accepted by `PATCH /api/groups/:id/persona-settings`. Undefined
- * fields are left untouched; null clears an override.
- */
 export interface GroupPersonaSettingsUpdate {
   rotationEnabled?: boolean
   disabledPersonas?: string[]
   personaOverride?: string | null
   overrideExpiresAt?: string | null
 }
-
-// ============================================
-// Games
-// ============================================
 
 export interface UserGame {
   userId: string
@@ -126,10 +95,6 @@ export interface CommonGame {
   contentDescriptors: { ids: number[]; notes: string | null } | null
 }
 
-/** A single game from the authenticated user's own Steam library, surfaced
- *  on the "Ma bibliothèque" page. Scoped to Steam titles (they carry a
- *  steam_app_id, header image, and store link), enriched with the optional
- *  metadata join. */
 export interface LibraryGame {
   steamAppId: number
   gameId?: string
@@ -143,15 +108,11 @@ export interface LibraryGame {
   controllerSupport: string | null
 }
 
-/** A group the user can promote a game into — i.e. one that has a Discord
- *  destination configured (linked channel or webhook). */
 export interface PromoteTarget {
   groupId: string
   groupName: string
   discordGuildName: string | null
   discordChannelName: string | null
-  /** True when the post lands in a bot-linked channel; false for a
-   *  webhook-only destination. Lets the UI label the target. */
   hasChannel: boolean
 }
 
@@ -174,10 +135,6 @@ export interface GameMetadata {
   isCoop: boolean | null
   enrichedAt: string | null
 }
-
-// ============================================
-// Voting
-// ============================================
 
 export type VotingSessionStatus = 'open' | 'closed'
 
@@ -219,10 +176,6 @@ export interface VoteResult {
   totalVoters: number
 }
 
-// ============================================
-// API Responses
-// ============================================
-
 export interface ApiError {
   error: string
   message: string
@@ -235,15 +188,6 @@ export interface SteamLibrarySyncStatus {
   lastSyncedAt: string | null
 }
 
-// ============================================
-// Profile comparison
-// ============================================
-
-/**
- * One game row inside a public profile — used by both the single
- * profile view and the two-user comparison view. `playtimeForever`
- * is in minutes, matching Steam's raw value.
- */
 export interface PublicProfileGame {
   steamAppId: number
   gameName: string
@@ -251,37 +195,19 @@ export interface PublicProfileGame {
   playtimeForever: number | null
 }
 
-/**
- * Public view of another user's profile, scoped to a viewer they
- * share at least one group with. The list of fields that are
- * actually populated depends on the target user's visibility
- * settings — see the backend route for the exact gating rules.
- */
 export interface PublicUserProfile {
   id: string
   displayName: string
   avatarUrl: string | null
-  /** Total number of games in the target's library (always visible). */
   gameCount: number
-  /** Total minutes across the library, only if `visibilityFullLibrary`. */
   totalPlaytimeMinutes: number | null
-  /** Games in common with the viewer, always populated. */
   commonGamesWithViewer: PublicProfileGame[]
-  /** Full top-N library, only populated if `visibilityFullLibrary`. */
   topGames: PublicProfileGame[] | null
-  /** Last time we successfully refreshed their library from Steam. */
   lastSyncedAt: string | null
-  /** True if the target has opted in to sharing their full library. */
   visibilityFullLibrary: boolean
-  /** True if the target has opted in to sharing last-played timestamps. */
   visibilityLastPlayed: boolean
 }
 
-/**
- * Side-by-side comparison of two users, scoped to what the viewer
- * is authorized to see. Both `a` and `b` must be co-members of at
- * least one group with the viewer.
- */
 export interface UserCompareResult {
   a: PublicUserProfile
   b: PublicUserProfile
@@ -297,15 +223,10 @@ export interface UserCompareResult {
   overlapRatio: number
 }
 
-/** Self-settings payload for the visibility toggles. */
 export interface ProfileVisibilitySettings {
   visibilityFullLibrary: boolean
   visibilityLastPlayed: boolean
 }
-
-// ============================================
-// Discord
-// ============================================
 
 export interface DiscordLink {
   userId: string
@@ -320,12 +241,6 @@ export interface DiscordGroupConfig {
   discordWebhookUrl: string | null
 }
 
-// ── Bot HTTP contract ──────────────────────────────────────────────────
-// The backend talks to the Discord bot process over HTTP so the bot
-// (which holds the persistent Gateway connection) can send, edit, and
-// close interactive vote messages. These shapes are the wire format.
-
-/** Per-game vote tally used by every live/close message payload. */
 export interface DiscordVoteTally {
   steamAppId: number
   gameName: string
@@ -334,7 +249,6 @@ export interface DiscordVoteTally {
   noCount: number
 }
 
-/** Vote summary attached to create/update payloads. */
 export interface DiscordVoteSummary {
   voterCount: number
   totalParticipants: number
@@ -382,10 +296,6 @@ export interface DiscordSessionClosedRequest {
   summary: DiscordVoteSummary
 }
 
-/** Minimal Discord embed shape — a subset of the Discord API embed object,
- *  carrying only the fields WAWPTN actually emits. Used for plain
- *  (non-interactive) posts that flow through either a webhook or the bot's
- *  generic channel-post endpoint. */
 export interface DiscordEmbedField {
   name: string
   value: string
@@ -404,10 +314,6 @@ export interface DiscordEmbedPayload {
   timestamp?: string
 }
 
-/** Backend → bot: post one or more plain embeds into a channel. Generic on
- *  purpose — unlike the session endpoints it carries no business logic, so
- *  any best-effort announcement (e.g. the weekly Steam releases digest) can
- *  reuse it. */
 export interface DiscordChannelPostRequest {
   channelId: string
   embeds: DiscordEmbedPayload[]
@@ -417,24 +323,14 @@ export interface DiscordChannelPostResponse {
   messageId: string
 }
 
-// ============================================
-// Steam releases digest
-// ============================================
-
-/** One game row in the weekly "new Steam releases" digest. */
 export interface ReleaseDigestGame {
   steamAppId: number
   name: string
   headerImageUrl: string
-  /** Release date as an ISO calendar date (YYYY-MM-DD). */
   releaseDate: string
   isCoop: boolean
   isMultiplayer: boolean
 }
-
-// ============================================
-// Challenges
-// ============================================
 
 export interface ChallengeProgress {
   id: string
@@ -448,10 +344,6 @@ export interface ChallengeProgress {
   percentage: number
   unlockedAt: string | null
 }
-
-// ============================================
-// Notifications
-// ============================================
 
 export type NotificationType =
   | 'vote_opened'
@@ -472,10 +364,6 @@ export interface Notification {
   read: boolean
   createdAt: string
 }
-
-// ============================================
-// Socket.io Events
-// ============================================
 
 export interface ServerToClientEvents {
   'vote:cast': (data: { sessionId: string; userId: string; voterCount: number; totalParticipants?: number }) => void
@@ -499,10 +387,6 @@ export interface ClientToServerEvents {
   'group:join': (groupId: string) => void
   'group:leave': (groupId: string) => void
 }
-
-// ============================================
-// Invite Preview
-// ============================================
 
 export interface InvitePreviewGame {
   gameName: string

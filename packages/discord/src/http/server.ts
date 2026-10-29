@@ -10,16 +10,6 @@ import {
   handleSessionUpdate,
 } from './handlers.js'
 
-/**
- * Internal HTTP API exposed by the Discord bot so the backend can ask it
- * to send/edit/close the interactive vote messages the webhook transport
- * can't carry. Binds to loopback by default (see env.BOT_HTTP_HOST) so the
- * only ambient trust boundary is the shared secret.
- *
- * Kept deliberately minimal — one route per verb, no router, no middleware
- * framework. Adding express here would be overkill for four endpoints.
- */
-
 const MAX_BODY_BYTES = 64 * 1024
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {

@@ -10,11 +10,6 @@ import {
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
 
-/**
- * Visual test page for dialog components at various viewports.
- * Navigate to /test-dialogs to use.
- * Only available in development mode.
- */
 export function DialogTestPage() {
   const [activeDialog, setActiveDialog] = useState<string | null>(null)
 
@@ -34,7 +29,6 @@ export function DialogTestPage() {
         <Button onClick={() => setActiveDialog('no-padding')}>No Padding Dialog</Button>
       </div>
 
-      {/* Simple Dialog */}
       <ResponsiveDialog open={activeDialog === 'simple'} onOpenChange={(open) => !open && setActiveDialog(null)}>
         <ResponsiveDialogContent>
           <ResponsiveDialogHeader>
@@ -45,7 +39,6 @@ export function DialogTestPage() {
         </ResponsiveDialogContent>
       </ResponsiveDialog>
 
-      {/* Form Dialog (like Create/Join Group) */}
       <ResponsiveDialog open={activeDialog === 'form'} onOpenChange={(open) => !open && setActiveDialog(null)}>
         <ResponsiveDialogContent>
           <ResponsiveDialogHeader>
@@ -62,7 +55,6 @@ export function DialogTestPage() {
         </ResponsiveDialogContent>
       </ResponsiveDialog>
 
-      {/* Footer Dialog (like Logout) */}
       <ResponsiveDialog open={activeDialog === 'footer'} onOpenChange={(open) => !open && setActiveDialog(null)}>
         <ResponsiveDialogContent>
           <ResponsiveDialogHeader>
@@ -76,7 +68,6 @@ export function DialogTestPage() {
         </ResponsiveDialogContent>
       </ResponsiveDialog>
 
-      {/* Long Content Dialog (like Vote Setup) */}
       <ResponsiveDialog open={activeDialog === 'long'} onOpenChange={(open) => !open && setActiveDialog(null)}>
         <ResponsiveDialogContent>
           <ResponsiveDialogHeader>
@@ -98,7 +89,6 @@ export function DialogTestPage() {
         </ResponsiveDialogContent>
       </ResponsiveDialog>
 
-      {/* No Padding Dialog (like Random Pick) */}
       <ResponsiveDialog open={activeDialog === 'no-padding'} onOpenChange={(open) => !open && setActiveDialog(null)}>
         <ResponsiveDialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden">
           <ResponsiveDialogTitle className="sr-only">No Padding Dialog</ResponsiveDialogTitle>

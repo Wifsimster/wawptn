@@ -1,8 +1,4 @@
 #!/bin/sh
-# deploy.sh — Restricted deploy script for WAWPTN
-# This script is called by GitHub Actions via SSH (command= restricted key).
-# It pulls the latest Docker images and restarts app services.
-# Postgres is intentionally excluded — never restart the database from CI.
 
 set -eu
 

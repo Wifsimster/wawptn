@@ -15,9 +15,6 @@ import { useWishlistStore } from '@/stores/wishlist.store'
 import { KoeSupport } from '@/components/KoeSupport'
 import { AppLayout } from '@/components/app-layout'
 
-// Route-level code splitting. Keeps LandingPage (LCP target) and
-// NotFoundPage eager; everything else loads on demand so the first paint
-// for an unauthenticated visitor doesn't ship VotePage + framer-motion.
 const GroupsPage = lazy(() => import('@/pages/GroupsPage').then((m) => ({ default: m.GroupsPage })))
 const GroupPage = lazy(() => import('@/pages/GroupPage').then((m) => ({ default: m.GroupPage })))
 const VotePage = lazy(() => import('@/pages/VotePage').then((m) => ({ default: m.VotePage })))
@@ -31,35 +28,22 @@ const AdminPage = lazy(() => import('@/pages/AdminPage').then((m) => ({ default:
 const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage').then((m) => ({ default: m.SubscriptionPage })))
 const ContactPage = lazy(() => import('@/pages/ContactPage').then((m) => ({ default: m.ContactPage })))
 
-// Dev-only sandbox; lazy + DEV-gated so it never ships in the prod bundle.
 const DialogTestPage = import.meta.env.DEV
   ? lazy(() => import('@/pages/DialogTestPage').then((m) => ({ default: m.DialogTestPage })))
   : null
 
-/** Synchronous admin guard. Wraps protected admin routes so a non-admin
- *  user is redirected before the page mounts and runs its data-loading
- *  effects (which would otherwise hit /api/admin endpoints and rely on
- *  the server's 403 to bounce them). */
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user)
   if (!user?.isAdmin) return <Navigate to="/" replace />
   return <>{children}</>
 }
 
-/** Bridges the OG-rich `/invite/:token` URL (used in Discord/Slack/Twitter
- *  unfurls) onto the SPA's `/join/:token` route. The server handles the
- *  unauthenticated meta-tag preview directly; this client-side component
- *  just guarantees that an authenticated user clicking the link from a
- *  rich embed lands on the join screen instead of the 404 fallback. */
 function InviteRedirect() {
   const { token } = useParams<{ token: string }>()
   if (!token) return <Navigate to="/" replace />
   return <Navigate to={`/join/${token}`} replace />
 }
 
-// Keyed by group id so moving from one group's vote to another's (e.g. from a
-// notification) remounts the page instead of carrying over the previous
-// group's session, result, or "no session" state.
 function VoteRoute() {
   const { id } = useParams<{ id: string }>()
   return <VotePage key={id} />
@@ -75,8 +59,6 @@ function App() {
   useEffect(() => {
     if (user) {
       connectSocket()
-      // Seed the wishlist store for authenticated users so every game
-      // card renders with the correct star state on first paint.
       void useWishlistStore.getState().fetch()
     } else {
       disconnectSocket()
@@ -86,27 +68,16 @@ function App() {
     return () => disconnectSocket()
   }, [user])
 
-  // Global notification listener (only when authenticated)
   useNotificationListener()
 
-  // Global challenge unlock listener
   useChallengeListener()
 
-  // Keeps the group list fresh so the app-wide "vote in progress" banner
-  // reacts to votes starting / closing in any of the user's groups.
   useActiveVoteSync()
 
-  // PWA install prompt — captures beforeinstallprompt and surfaces a
-  // sonner toast with a native install action.
   usePwaInstallPrompt()
 
-  // Socket connection status tracking — binds the socket store to the
-  // socket.io client's lifecycle events and pops a sonner toast on
-  // disconnect / reconnect so users aren't left guessing why events
-  // have stopped arriving.
   useSocketConnectionStatus()
 
-  // Dev-only dialog test page (no auth required)
   if (import.meta.env.DEV && DialogTestPage && window.location.pathname === '/test-dialogs') {
     return (
       <Suspense fallback={null}>
@@ -137,9 +108,6 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/join/:token" element={<JoinPage />} />
-          {/* /invite/:token is the OG-rich URL surfaced by InviteLink — point
-              it at the SPA join page so a deep-linked invitee from Discord
-              doesn't hit the 404 fallback. */}
           <Route path="/invite/:token" element={<InviteRedirect />} />
           <Route path="/discord/link" element={<DiscordLinkPage />} />
           <Route path="/contact" element={<ContactPage />} />
@@ -153,8 +121,6 @@ function App() {
     <>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          {/* Standard pages — wrapped in the shared AppLayout shell
-              (persistent header + footer + header slot). */}
           <Route element={<AppLayout />}>
             <Route path="/" element={<GroupsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
@@ -165,7 +131,6 @@ function App() {
             <Route path="/subscription" element={<SubscriptionPage />} />
             <Route path="/groups/:id" element={<GroupPage />} />
           </Route>
-          {/* Full-screen / chrome-less routes — own their own layout. */}
           <Route path="/groups/:id/vote" element={<VoteRoute />} />
           <Route path="/join/:token" element={<JoinPage />} />
           <Route path="/invite/:token" element={<InviteRedirect />} />

@@ -17,20 +17,9 @@ on:
         default: "patch"
 
 concurrency:
-  # `cancel-in-progress` USED to be `true`. That interacted badly with the
-  # self-push of the `chore: bump version` commit: every release pushed the
-  # bump back to main, which fired a second workflow run on the same
-  # `release-refs/heads/main` group, which then cancelled the in-flight
-  # release mid-way through (between the tag push and the GitHub release
-  # creation, typically). Symptom: v0.69.0 cut cleanly, but every
-  # subsequent feat/fix merge silently produced no release. Queue runs
-  # instead — the bump-commit run is cheap (detect-release short-circuits
-  # it in a few seconds), so queuing barely adds latency on real releases.
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
-# Least-privilege default — read-only. The release job elevates per-job
-# to the contents:write / packages:write it actually needs.
 permissions:
   contents: read
 
@@ -38,7 +27,6 @@ jobs:
   detect-release:
     name: Detect Release Type
     runs-on: ubuntu-latest
-    # Skip CI's own version bump commits (belt-and-suspenders with GITHUB_TOKEN behavior)
     if: >-
       github.event_name == 'workflow_dispatch'
       || (
@@ -167,11 +155,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Rebase onto the latest origin/main BEFORE bumping so a previous
-      # release's `chore: bump version` commit (queued ahead of us by
-      # `concurrency.cancel-in-progress: false`) is picked up. Without
-      # this, the bump runs against a stale base and `git push origin
-      # main` later rejects as non-fast-forward.
       - name: Sync with latest origin/main
         run: |
           git fetch origin main
@@ -201,9 +184,6 @@ jobs:
           fi
           echo "changelog_file=CHANGELOG_TEMP.md" >> $GITHUB_OUTPUT
 
-      # Diff-guard: if `npm run version:*` somehow left the worktree clean
-      # (e.g. a re-run after a partially-committed previous attempt), skip
-      # the commit so `git commit` doesn't exit 1 and kill the job.
       - name: Commit version bump
         env:
           HUSKY: "0"
@@ -218,16 +198,6 @@ jobs:
       - name: Create tag
         run: git tag -fa "v${{ steps.version.outputs.new_version }}" -m "Release v${{ steps.version.outputs.new_version }}"
 
-      # Push git BEFORE Docker. Previously Docker was pushed first, so a
-      # failing `git push origin main` left the registry with a v<new>
-      # image that had no corresponding git tag or commit. Reordering keeps
-      # git as the source of truth: if step (1) fails we abort before
-      # burning Docker build time or polluting GHCR.
-      #
-      # Retry loop handles the expected race: another release's bump
-      # commit can land between our rebase and our push. Pull --rebase
-      # picks it up and we retry — up to 4 attempts with exponential
-      # backoff matching the agent-side guidance elsewhere in the repo.
       - name: Push git changes (retry on non-fast-forward)
         env:
           HUSKY: "0"
@@ -275,10 +245,6 @@ jobs:
 
       - name: Capture build metadata
         id: meta
-        # `github.event.repository.updated_at` used to feed BUILD_DATE but
-        # that's when the repo metadata last changed, not when this image
-        # was built. Emit the real build timestamp + short SHA here so the
-        # image honestly reflects its provenance.
         run: |
           echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
           echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
@@ -300,7 +266,6 @@ jobs:
             VCS_REF=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max,ignore-error=true
-          # amd64-only: production target is x86_64. Re-add arm64 with native runners if needed.
           platforms: linux/amd64
 
       - name: Create GitHub Release

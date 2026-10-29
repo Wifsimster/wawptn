@@ -1,24 +1,12 @@
 import { cn } from '@/lib/utils'
 
 interface StatDiffChipProps {
-  /** Signed diff value (positive = A ahead, negative = B ahead). */
   value: number
-  /** Unit suffix, e.g. "h", "min", "". */
   unit?: string
-  /** Neutral label used when value === 0. */
   neutralLabel?: string
   className?: string
 }
 
-/**
- * Colored pill used to surface A-vs-B differences on the compare
- * screen. Positive values render with the "neon" accent, negative
- * with the "ember" accent, zero with a muted chrome.
- *
- * Pulled out on day one (Camille) so the same visual language shows
- * up on profile headers, compare rows, and — eventually — vote
- * result breakdowns.
- */
 export function StatDiffChip({ value, unit = '', neutralLabel = '=', className }: StatDiffChipProps) {
   const isZero = value === 0
   const isPositive = value > 0

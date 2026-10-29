@@ -1,30 +1,16 @@
-/* `koe` sits between Tailwind's `base` and `components` layers: the
-   widget still beats our preflight, but every app utility beats the widget. */
 @layer theme, base, koe, components, utilities;
 
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-/* @wifsimster/koe < 1.37.1 ships an unscoped Tailwind v3 reset
-   (`*, ::before, ::after { --tw-ring-shadow: 0 0 #0000; --tw-shadow: … }`).
-   Loaded unlayered, it outranked every layered Tailwind v4 utility and wiped
-   the app's focus rings and shadows (WCAG 2.4.7). Layering it fixes that;
-   drop this workaround once koe >= 1.37.1 (reset scoped to `.koe-root`). */
 @import "@wifsimster/koe/style.css" layer(koe);
 
 @layer koe {
-  /* The same reset also defaults the ring colour to blue-500/50, where v4
-     falls back to `currentColor`. Koe always pairs its rings with a colour. */
   *, ::before, ::after, ::backdrop {
     --tw-ring-color: initial;
   }
 }
 
-/* ── Self-hosted fonts ──
-   Variable woff2 files vendored in /public/fonts so the critical render
-   path no longer blocks on a third-party fonts.googleapis.com stylesheet.
-   Each family ships one file per subset; the variable weight axis covers
-   every weight the UI uses (300-700 body, 600-800 headings). */
 @font-face {
   font-family: "Plus Jakarta Sans";
   font-style: normal;
@@ -59,7 +45,6 @@
 }
 
 :root {
-  /* ── Core palette: "Neon Dusk" ── */
   --background: oklch(0.115 0.015 280);
   --foreground: oklch(0.96 0.005 270);
   --card: oklch(0.165 0.012 280);
@@ -76,9 +61,6 @@
   --accent-foreground: oklch(0.96 0.005 270);
   --destructive: oklch(0.65 0.22 25);
   --destructive-foreground: oklch(0.985 0 0);
-  /* Raised from 8%/10% so card edges, dividers and outline-button borders
-     clear a perceptible non-text contrast on the dark background
-     (WCAG 1.4.11). Still a subtle hairline — just no longer near-invisible. */
   --border: oklch(1 0 0 / 14%);
   --input: oklch(1 0 0 / 18%);
   --ring: oklch(0.55 0.27 270);
@@ -90,18 +72,12 @@
   --reward: oklch(0.82 0.17 70);
   --reward-foreground: oklch(0.20 0.06 70);
   --neon: oklch(0.82 0.19 190);
-  /* Semantic: Metacritic score colors */
   --score-good: oklch(0.60 0.18 155);
   --score-mixed: oklch(0.75 0.15 85);
   --score-bad: oklch(0.60 0.20 25);
-  /* Semantic: Online status */
   --online: oklch(0.65 0.19 155);
-  /* New: Warm ember accent */
   --ember: oklch(0.72 0.18 50);
   --ember-foreground: oklch(0.15 0.05 50);
-  /* Semantic: cautionary/info surfaces. `--warning` replaces ad-hoc
-     amber-500 usage in invite-error / no-common-games / network-warning
-     contexts; `--info` for neutral attention-grab without alarm. */
   --warning: oklch(0.78 0.17 80);
   --warning-foreground: oklch(0.20 0.06 80);
   --info: oklch(0.70 0.13 230);
@@ -147,10 +123,6 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
-  /* Elevation scale. `shadow-1` for cards/panels (subtle drop),
-     `shadow-2` for popovers/dropdowns (mid),
-     `shadow-3` for modals/sheets (strongest).
-     `shadow-glow` for primary-tinted halo on hero CTAs / focus moments. */
   --shadow-1: 0 2px 12px oklch(0 0 0 / 0.15);
   --shadow-2: 0 8px 24px oklch(0 0 0 / 0.22);
   --shadow-3: 0 16px 48px oklch(0 0 0 / 0.30);
@@ -171,24 +143,16 @@
   * {
     @apply border-border outline-ring;
   }
-  /* Display family applied to every heading by default — call sites no
-     longer have to remember `font-heading`. Override locally when an
-     embedded label needs to inherit the body face. */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
   }
   html, body {
-    /* Prevent horizontal overflow from edge-case wide children
-       while preserving sticky positioning (clip doesn't establish a scroll container) */
     overflow-x: clip;
   }
   body {
     @apply text-foreground antialiased;
     font-family: var(--font-sans);
     background-color: var(--background);
-    /* `vh` first as a fallback for browsers that predate dynamic viewport
-       units; `dvh` wins on iOS Safari / Chrome Android where the URL bar
-       chrome otherwise chops the bottom of the page off. */
     min-height: 100vh;
     min-height: 100dvh;
     padding-bottom: env(safe-area-inset-bottom);
@@ -198,7 +162,6 @@
     touch-action: manipulation;
   }
 
-  /* ── Atmospheric gradient mesh ── */
   body::before {
     content: '';
     position: fixed;
@@ -211,7 +174,6 @@
       radial-gradient(ellipse at 70% 60%, oklch(0.12 0.06 50 / 0.08), transparent 40%);
   }
 
-  /* ── Drifting fog layer ── */
   body::after {
     content: '';
     position: fixed;
@@ -229,7 +191,6 @@
     animation: fog-drift 32s ease-in-out infinite alternate;
   }
 
-  /* ── Noise grain texture ── */
   body > #root::after {
     content: '';
     position: fixed;
@@ -242,13 +203,6 @@
     background-size: 256px 256px;
   }
 
-  /* ── Aurora ambient layer (react-bits WebGL background) ──
-     Host for the <AuroraBackground> WebGL canvas. Sits beneath the gradient
-     mesh (body::before, z-index -2) and the fog layer (body::after, -1) as
-     the deepest band of atmosphere, so it shows through wherever a page
-     leaves its root transparent. Held faint and pointer-inert so it never
-     competes with content; the React layer is skipped entirely on coarse-
-     pointer phones and under prefers-reduced-motion. */
   .aurora-bg-layer {
     position: fixed;
     inset: 0;
@@ -257,8 +211,6 @@
     opacity: 0.28;
   }
 }
-
-/* ── Keyframes ── */
 
 @keyframes fog-drift {
   0% {
@@ -319,13 +271,6 @@
   }
 }
 
-/* ── Mobile GPU relief ──
-   Phones and small tablets can't cheaply composite 160-220px blur filters;
-   the LandingPage hero stacks four of them plus an animated 90px fog layer,
-   which jank-locks mid-tier Androids. We keep the full visual on desktop
-   and on devices that opted into reduced motion we already neutered above;
-   this block handles everyone else on a touch screen up to tablet-portrait
-   width — the cohort most likely to be running on weak GPUs. */
 @media (pointer: coarse) and (max-width: 768px) {
   .landing-blur-orb {
     display: none;
@@ -336,8 +281,6 @@
     opacity: 0.06;
   }
 }
-
-/* ── Landing page utilities ── */
 
 .landing-gradient-text {
   background: linear-gradient(
@@ -382,7 +325,6 @@
   animation: premium-glow 5s ease-in-out infinite;
 }
 
-/* ── Card interaction: neon edge glow ── */
 .card-hover-glow {
   transition: border-color 0.4s, box-shadow 0.4s, transform 0.4s;
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
@@ -395,7 +337,6 @@
   transform: translateY(-2px);
 }
 
-/* ── Neon underline accent ── */
 .neon-underline {
   position: relative;
 }
@@ -412,7 +353,6 @@
   box-shadow: 0 0 12px color-mix(in oklch, var(--primary) 40%, transparent);
 }
 
-/* ── Warm highlight text ── */
 .text-gradient-warm {
   background: linear-gradient(135deg, var(--reward), var(--ember));
   -webkit-background-clip: text;
@@ -420,7 +360,6 @@
   background-clip: text;
 }
 
-/* ── Admin badge pulse ── */
 .admin-badge {
   position: relative;
   overflow: hidden;
@@ -442,8 +381,6 @@
   0%, 100% { transform: translateX(-100%); }
   50% { transform: translateX(100%); }
 }
-
-/* ── Profile: Holographic Player Card ── */
 
 .profile-player-card {
   position: relative;
@@ -469,7 +406,6 @@
     inset 0 1px 0 oklch(1 0 0 / 0.08);
 }
 
-/* Holographic shimmer sweep */
 .profile-player-card::before {
   content: '';
   position: absolute;
@@ -489,7 +425,6 @@
   z-index: 1;
 }
 
-/* Scanlines overlay */
 .profile-player-card::after {
   content: '';
   position: absolute;
@@ -509,8 +444,6 @@
   0%, 100% { background-position: 200% 0; }
   50% { background-position: -100% 0; }
 }
-
-/* ── Profile: Holographic seal decoration ── */
 
 .profile-holo-seal {
   position: absolute;
@@ -541,8 +474,6 @@
   background: oklch(0.16 0.03 270);
 }
 
-/* ── Profile: Holographic gradient name ── */
-
 .profile-holo-name {
   background: linear-gradient(
     135deg,
@@ -563,8 +494,6 @@
   0%, 100% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
 }
-
-/* ── Profile: spinning avatar ring ── */
 
 .profile-avatar-ring {
   position: relative;
@@ -616,8 +545,6 @@
   to { transform: rotate(360deg); }
 }
 
-/* ── Profile: section header with neon line ── */
-
 .profile-section-line {
   display: flex;
   align-items: center;
@@ -633,8 +560,6 @@
     color-mix(in oklch, var(--primary) 3%, transparent)
   );
 }
-
-/* ── Profile: crown game card ── */
 
 .profile-game-crown {
   background: oklch(0.165 0.015 280);
@@ -673,25 +598,17 @@
   }
 }
 
-/* ── Mobile touch improvements ── */
-
-/* Prevent iOS input zoom (inputs < 16px trigger zoom). Keyed on pointer
-   capability rather than viewport width so iPads, phablets in landscape
-   and Android tablets — all of which exhibit the zoom — are covered, not
-   just narrow phones. */
 @media (any-pointer: coarse) {
   input, select, textarea {
     font-size: 16px;
   }
 }
 
-/* Improve touch scrolling */
 .touch-scroll {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
 
-/* Hide scrollbar on touch-friendly containers while keeping scroll functionality */
 .touch-scroll::-webkit-scrollbar {
   display: none;
 }
@@ -700,7 +617,6 @@
   scrollbar-width: none;
 }
 
-/* Hide scrollbar while preserving scroll — used on horizontal filter/toggle rows */
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
@@ -709,17 +625,11 @@
   scrollbar-width: none;
 }
 
-/* Prevent pull-to-refresh interfering with drawers/modals */
 [data-slot="drawer-content"] {
   overscroll-behavior: contain;
   touch-action: pan-y;
 }
 
-/* ── Global reduced-motion override ──
-   WCAG 2.3.3: honour users who prefer reduced motion by neutralising
-   non-essential animations and transitions across the entire app
-   (Framer Motion, Tailwind transitions, custom keyframes). Keep
-   opacity transitions short so async UI still fades in gracefully. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

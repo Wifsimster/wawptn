@@ -3,19 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { api } from '@/lib/api'
 
-/**
- * Compact retention indicator surfaced on the GroupsPage header.
- *
- * Shows the user's best *current* streak across every group, with a
- * tooltip that adds the all-time best for context. Hidden when the
- * user has no streak yet (current < 2) so it doesn't clutter the
- * empty-handed first-run state.
- *
- * Fetches its own data: the badge is the only consumer, the response
- * is tiny, and adding a global Zustand store for one number would be
- * over-engineering. Errors swallow silently — analytics/retention
- * surfaces must never break the page.
- */
 export function StreakBadge() {
   const { t } = useTranslation()
   const [data, setData] = useState<{ bestCurrent: number; bestEver: number; activeStreakGroups: number } | null>(null)
@@ -25,7 +12,7 @@ export function StreakBadge() {
     api
       .getMyStreaks()
       .then((d) => { if (!cancelled) setData(d) })
-      .catch(() => { /* swallow — never break the header */ })
+      .catch(() => { })
     return () => { cancelled = true }
   }, [])
 

@@ -40,11 +40,6 @@ interface VoteSetupDialogProps {
 
 type Step = 'select' | 'confirm'
 
-// All editable form state for the dialog lives in one reducer so that opening
-// the dialog (and other grouped transitions) is a single atomic update rather
-// than a cascade of individual setState calls. The live game-count preview
-// (loading flag + result) lives here too so the debounced effect updates it
-// with a single dispatch instead of several setState calls.
 interface FormState {
   step: Step
   selectedIds: Set<string>
@@ -118,13 +113,11 @@ function formReducer(state: FormState, action: FormAction): FormState {
 export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMembers, activeFilter, onStartVote }: VoteSetupDialogProps) {
   const isPremium = useSubscriptionStore(selectIsPremium)
 
-  // Compute minimum datetime-local value (15 minutes from now)
   const minDateTime = useMemo(() => {
     const d = new Date(Date.now() + 15 * 60 * 1000)
     return d.toISOString().slice(0, 16)
   }, [])
 
-  // Default to today at 20:00 (or tomorrow if past 20:00)
   const defaultScheduledDate = useMemo(() => {
     const now = new Date()
     const target = new Date(now)
@@ -144,11 +137,6 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
 
   const [loadingPreview, setLoadingPreview] = useState(false)
 
-  // Re-seed the editable form when the dialog transitions from closed to open.
-  // The previous open-state is tracked in a ref (not state) and compared during
-  // render so the reset is a single dispatch with no extra stale commit — see
-  // react.dev "You Might Not Need an Effect". Opening is driven by the parent
-  // `open` prop, so it cannot be handled in an event handler here.
   const wasOpenRef = useRef(open)
   if (open !== wasOpenRef.current) {
     wasOpenRef.current = open
@@ -157,9 +145,6 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
     }
   }
 
-  // Debounced live preview of common game count. The fetch is an async side
-  // effect (network), so it stays in an effect; all state updates flow through a
-  // single dispatch per outcome rather than several setState calls.
   useEffect(() => {
     if (!open || step !== 'select') return
 
@@ -171,8 +156,6 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
 
     dispatch({ type: 'livePreviewPending' })
 
-    // Controller for the request this effect run may start. Tracked in a local
-    // (not a ref) so the cleanup closure aborts exactly this run's request.
     let controller: AbortController | null = null
 
     const timer = setTimeout(() => {
@@ -232,7 +215,6 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
       const result = await api.previewCommonGames(groupId, Array.from(selectedIds), activeFilter, filtersParam)
       dispatch({ type: 'goToConfirm', previewCount: result.gameCount })
     } catch {
-      // If preview fails, still allow proceeding without count
       dispatch({ type: 'goToConfirm', previewCount: null })
     } finally {
       setLoadingPreview(false)
@@ -243,9 +225,6 @@ export function VoteSetupDialog({ open, onOpenChange, members, groupId, onlineMe
     dispatch({ type: 'goToSelect' })
   }
 
-  // One-tap path: start the vote straight from the member-selection step
-  // with no game filters and no scheduling. The live common-game count is
-  // already shown above, so the confirm step adds nothing for this case.
   const handleQuickStart = () => {
     onStartVote(Array.from(selectedIds), undefined, undefined)
     onOpenChange(false)
@@ -358,13 +337,6 @@ function SelectStep({
 
         <div className="border-t border-border" />
 
-        {/* Desktop keeps a bounded inner scroll so the dialog footer
-            stays visible while a long member list is scrolled. On
-            mobile the component renders as a Drawer which already
-            provides an outer scroll (`ResponsiveDialogContent` line
-            88), so a nested scroll here turned into a swipe trap
-            when users tried to reach the footer. Let the drawer
-            handle overflow on small screens. */}
         <div className="sm:max-h-[40dvh] sm:overflow-y-auto sm:overflow-x-hidden sm:overscroll-contain">
           {sortedMembers.map((member) => {
             const isOnline = onlineMembers.has(member.id)
@@ -392,7 +364,6 @@ function SelectStep({
         </div>
       </div>
 
-      {/* Live game count preview */}
       <div className="mt-3 flex items-center gap-2 text-sm">
         {selectedIds.size < 2 ? (
           <span className="text-muted-foreground">

@@ -16,22 +16,10 @@ import {
   startPersonaCacheRefresh,
 } from './personas.js'
 
-// ─── State ────────────────────────────────────────────────────────────────────
-
 let currentSettings: BotSettings | null = null
 let personaAnnounceTask: ScheduledTask | null = null
 let dailyPulseTask: ScheduledTask | null = null
 
-/**
- * Per-guild reminder tasks. Before Tom #2 the scheduler registered one
- * global Friday and one global Weekday cron and fanned out to every
- * linked channel. With per-guild overrides, we now register one cron
- * per (guild, schedule-kind) combination so `/wawptn-config set` can
- * give each server its own rhythm without affecting the others.
- *
- * Legacy channels without a guild_id (pre-migration rows) fall through
- * to the `null` bucket below, which uses the global defaults.
- */
 interface GuildReminderTasks {
   friday: ScheduledTask | null
   weekday: ScheduledTask | null
@@ -39,7 +27,6 @@ interface GuildReminderTasks {
 const guildTasks = new Map<string | null, GuildReminderTasks>()
 
 function getPersona() {
-  // Admin override takes priority
   if (currentSettings?.persona_override) {
     const override = getPersonaById(currentSettings.persona_override)
     if (override) return override
@@ -51,19 +38,8 @@ function getPersona() {
   return getTodayPersona(disabled)
 }
 
-/**
- * Per-group variant: layers the group's own overrides on top of the
- * global bot settings. Each group draws its own deterministic persona
- * from the shared pool via `djb2("${date}:${groupId}")`. Mirrors the
- * backend's `selectPersonaForGroup` exactly so both ends always pick
- * the same persona for the same group on the same day.
- */
 function getPersonaForChannel(channel: LinkedChannel) {
   const globalOverride = currentSettings?.persona_override || null
-  // A group override may be time-boxed via `overrideExpiresAt`. Once it has
-  // elapsed the backend drops it and resumes daily rotation, so we must do
-  // the same here — otherwise an expired override would stick forever on the
-  // bot side and the two ends would pick different personas for the group.
   const expiresAt = channel.personaSettings.overrideExpiresAt
   const groupOverrideExpired =
     expiresAt != null && new Date(expiresAt).getTime() < Date.now()
@@ -93,8 +69,6 @@ function getPersonaForChannel(channel: LinkedChannel) {
     rotationEnabled: true,
   })
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function pickRandom(pool: string[]): string {
   return pool[Math.floor(Math.random() * pool.length)]!
@@ -128,9 +102,6 @@ async function sendPersonaAnnouncement(client: Client): Promise<void> {
       return
     }
 
-    // Each linked channel announces *its own group's* persona. With 50
-    // groups this means 50 distinct intro messages each morning — the bot
-    // no longer broadcasts a single global persona to every server.
     for (const channel of channels) {
       try {
         const persona = getPersonaForChannel(channel)
@@ -172,10 +143,6 @@ function resolvePool(persona: ReturnType<typeof getPersonaForChannel>, kind: Rem
 function selectReminderMessage(channel: LinkedChannel, kind: ReminderPool): string | null {
   const persona = getPersonaForChannel(channel)
 
-  // For friday/weekday reminders, roll against `offTopicInjectionRate` so a
-  // share of scheduled messages comes from the idle-banter pool — zero slash
-  // commands, pure character. Keeps the bot feeling alive instead of having
-  // every cron fire read like the same marketing reminder.
   if ((kind === 'friday' || kind === 'weekday') && persona.idleBanter.length > 0) {
     const rate = Math.max(0, Math.min(1, persona.offTopicInjectionRate))
     if (Math.random() < rate) {
@@ -195,8 +162,6 @@ async function sendToChannels(
 ): Promise<void> {
   if (channels.length === 0) return
 
-  // Each channel resolves its own persona + message so per-group settings
-  // (disabled list, override) are honoured individually.
   for (const channel of channels) {
     try {
       const message = selectReminderMessage(channel, kind)
@@ -232,24 +197,11 @@ async function sendToLinkedChannels(client: Client, kind: ReminderPool): Promise
   }
 }
 
-// ─── Manual test trigger ──────────────────────────────────────────────────────
-
-/**
- * Sends a reminder embed to a single channel right now, bypassing the cron
- * schedule. Used by `/wawptn-config test-reminder` so admins can verify the
- * persona voice, channel permissions and end-to-end delivery without having
- * to wait until the next Friday 21:00.
- *
- * Throws on any failure so the caller can surface the error back to the
- * invoking slash command.
- */
 export async function triggerReminder(
   client: Client,
   channelId: string,
   kind: 'friday' | 'weekday',
 ): Promise<{ personaName: string; message: string }> {
-  // Look up the linked channel so we can use per-group persona selection
-  // — the preview must match what the real scheduled reminder will send.
   const linked = await getLinkedChannels()
   const channelInfo = linked.find((c) => c.channelId === channelId)
 
@@ -279,8 +231,6 @@ export async function triggerReminder(
 
   return { personaName: persona.name, message }
 }
-
-// ─── Dynamic cron scheduling ──────────────────────────────────────────────────
 
 function stopAllGuildTasks(): void {
   for (const tasks of guildTasks.values()) {
@@ -338,10 +288,6 @@ function scheduleGuildReminders(
 }
 
 async function rebuildGuildCrons(client: Client, settings: BotSettings): Promise<void> {
-  // Fetch channels FIRST. The previous version stopped all existing tasks up
-  // front and then awaited the HTTP call, so any transient backend error left
-  // the bot with zero rappels scheduled until the next settings refresh —
-  // which is exactly the failure mode the user hit ("never once rappel works").
   let channels: LinkedChannel[] = []
   try {
     channels = await getLinkedChannels()
@@ -356,9 +302,6 @@ async function rebuildGuildCrons(client: Client, settings: BotSettings): Promise
     return
   }
 
-  // Group channels by guild so we schedule at most one (friday, weekday)
-  // pair per unique Discord guild. Legacy channels without a guild_id
-  // are bucketed under null and use the global defaults.
   const byGuild = new Map<string | null, LinkedChannel[]>()
   for (const channel of channels) {
     const key = channel.guildId ?? null
@@ -367,10 +310,6 @@ async function rebuildGuildCrons(client: Client, settings: BotSettings): Promise
     else byGuild.set(key, [channel])
   }
 
-  // Resolve each guild's effective schedule BEFORE stopping the old tasks so
-  // we spend as little time as possible with no cron scheduled. Per-guild
-  // overrides come from /api/discord/guild-settings which already merges
-  // against the global defaults, so we only hit it when we know a guildId.
   interface ResolvedGuild {
     key: string | null
     channels: LinkedChannel[]
@@ -408,19 +347,10 @@ async function rebuildGuildCrons(client: Client, settings: BotSettings): Promise
 }
 
 function scheduleCrons(client: Client, settings: BotSettings): void {
-  // Per-guild reminder crons — rebuilt whenever global or per-guild
-  // settings change. The call is async so we fire-and-forget, but we
-  // attach a catch handler because a bare `void` on a rejected promise
-  // becomes a silent unhandled rejection — which is exactly how rappels
-  // were disappearing from the schedule without a single log line.
   rebuildGuildCrons(client, settings).catch((err) => {
     console.error('[scheduler] rebuildGuildCrons failed:', err)
   })
 
-  // Persona change announcement at 07:00 local time (global, not per-guild).
-  // The persona itself still rotates at midnight (date-based hash), but we
-  // wait until morning to announce it so the message lands when people are
-  // awake instead of waking them up or getting buried overnight.
   personaAnnounceTask?.stop()
   const timezone = settings.schedule_timezone || 'Europe/Paris'
   if (settings.announce_persona_change && settings.persona_rotation_enabled) {
@@ -438,9 +368,6 @@ function scheduleCrons(client: Client, settings: BotSettings): void {
     console.log('[scheduler] Persona announcement: disabled')
   }
 
-  // Daily pulse at 10:00 local time: morning greetings on weekdays,
-  // weekend vibes on Sat/Sun. Runs once a day with a per-channel jitter
-  // so 50 servers don't all emit at 10:00:00.000 sharp.
   dailyPulseTask?.stop()
   if (settings.daily_pulse_enabled) {
     dailyPulseTask = cron.schedule(
@@ -461,29 +388,21 @@ function scheduleCrons(client: Client, settings: BotSettings): void {
 }
 
 function resolveDailyPulseKind(timezone: string): 'morning' | 'weekend' {
-  // Use Intl to get the weekday in the configured TZ so we don't pick
-  // "weekend" for a server still on Friday night vs. a server in UTC+14.
   const weekday = new Intl.DateTimeFormat('en-US', { timeZone: timezone, weekday: 'short' })
     .format(new Date())
     .toLowerCase()
   return weekday === 'sat' || weekday === 'sun' ? 'weekend' : 'morning'
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
-
 export async function startScheduler(client: Client): Promise<void> {
-  // Load personas from API (falls back to hardcoded if unavailable)
   await loadPersonasFromApi()
   startPersonaCacheRefresh()
 
-  // Fetch settings from backend
   currentSettings = await getBotSettings()
   console.log(`[scheduler] Loaded settings: persona_rotation=${currentSettings.persona_rotation_enabled}`)
 
-  // Schedule crons with dynamic settings
   scheduleCrons(client, currentSettings)
 
-  // Refresh settings every 5 minutes to pick up admin changes
   setInterval(async () => {
     try {
       const newSettings = await getBotSettings()
@@ -501,11 +420,6 @@ export async function startScheduler(client: Client): Promise<void> {
         console.log('[scheduler] Global settings changed, rescheduling crons')
         scheduleCrons(client, newSettings)
       } else {
-        // Per-guild schedule overrides set via `/wawptn-config set` don't
-        // change any global field, so `globalChanged` stays false and the
-        // old path never rebuilt guild crons. Rebuild them every tick so
-        // per-guild edits take effect within the refresh interval instead
-        // of requiring a full bot restart.
         rebuildGuildCrons(client, newSettings).catch((err) => {
           console.error('[scheduler] Periodic rebuildGuildCrons failed:', err)
         })

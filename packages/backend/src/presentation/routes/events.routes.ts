@@ -3,23 +3,6 @@ import { db } from '../../infrastructure/database/connection.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 import { SESSION_COOKIE_NAME } from '../../config/session.js'
 
-/**
- * Adoption-funnel event ingestion.
- *
- * Accepts lightweight, privacy-safe events from the frontend analytics module
- * and forwards them to the structured logger so they can be shipped to any
- * downstream destination (Datadog, BigQuery, PostHog, etc.) via log pipelines.
- *
- * Design goals:
- *   - Never trust the client: event name is strictly whitelisted
- *   - No PII in properties (enforced by a simple shape check)
- *   - Auth is best-effort: we attach the session user id if present but do not
- *     require it — this lets us track pre-login events like landing-page hits
- *     and still respects the `credentials: include` browser request
- *   - Fails closed: malformed payloads return 204 so a bad client can never
- *     pollute error budgets or rate-limit other endpoints
- */
-
 const router = Router()
 
 const analyticsLogger = logger.child({ module: 'analytics' })
@@ -55,7 +38,6 @@ function sanitizeProperties(raw: unknown): Record<string, string | number | bool
   let count = 0
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     if (count >= MAX_PROPS) break
-    // Key must be a short, snake/camelCase-ish identifier
     if (!/^[a-zA-Z][a-zA-Z0-9_]{0,31}$/.test(key)) continue
     if (!isSafeValue(value)) continue
     out[key] = value as string | number | boolean | null
@@ -64,7 +46,6 @@ function sanitizeProperties(raw: unknown): Record<string, string | number | bool
   return out
 }
 
-// Best-effort session lookup — returns undefined on any failure.
 async function getOptionalUserId(req: Request): Promise<string | undefined> {
   const token = req.signedCookies?.[SESSION_COOKIE_NAME]
   if (!token) return undefined
@@ -80,7 +61,6 @@ async function getOptionalUserId(req: Request): Promise<string | undefined> {
 }
 
 router.post('/', async (req: Request, res: Response) => {
-  // Always answer 204 so a malformed analytics call never breaks the UI.
   res.status(204).end()
 
   try {

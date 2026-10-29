@@ -1,13 +1,5 @@
 import type { Knex } from 'knex'
 
-// Frees the personas from being pure vote-CTAs. Adds three new content
-// pools — idle banter (pure character, no command), morning greetings
-// (weekday daily pulse) and weekend vibes (Sat/Sun chill) — plus a
-// tunable probability the scheduler uses to swap a regular reminder
-// for an idle-banter line. Existing personas are backfilled with
-// hand-written French content per persona so the rotation feels alive
-// from the first reboot after migration.
-
 interface PersonaPoolSeed {
   id: string
   idleBanter: string[]
@@ -164,16 +156,9 @@ export async function up(knex: Knex): Promise<void> {
     table.jsonb('idle_banter').notNullable().defaultTo('[]')
     table.jsonb('morning_greetings').notNullable().defaultTo('[]')
     table.jsonb('weekend_vibes').notNullable().defaultTo('[]')
-    // Per-persona probability the scheduler swaps a friday/weekday
-    // reminder for an idle-banter line. Stored as numeric so we get
-    // a proper number out of knex (postgres decimal → string in js
-    // otherwise, which would silently disable the rolls).
     table.decimal('off_topic_injection_rate', 3, 2).notNullable().defaultTo(0.3)
   })
 
-  // Backfill each seeded persona with its tailored pools. New personas
-  // created via the admin UI start with empty pools + the default 0.3
-  // rate; admins fill them in from the form.
   for (const seed of SEEDS) {
     await knex('personas')
       .where({ id: seed.id })
@@ -186,8 +171,6 @@ export async function up(knex: Knex): Promise<void> {
       })
   }
 
-  // Daily-pulse feature flag defaults to on. Admins can kill it from
-  // /admin/bot-settings without touching individual personas.
   const existing = await knex('app_settings').where({ key: 'bot.daily_pulse_enabled' }).first()
   if (!existing) {
     await knex('app_settings').insert({

@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Request, Response } from 'express'
 
-// Stub env + logger before importing the SUT — env reads process.env at
-// import time and the logger pulls in pino's env-dependent setup.
 vi.mock('@/config/env.js', () => ({
   env: { CORS_ORIGIN: 'https://wawptn.test' },
 }))
@@ -67,8 +65,6 @@ describe('requireSameOrigin', () => {
   })
 
   it('blocks POST when Origin is a subdomain or path variant', () => {
-    // Subdomain attack: cookie with sameSite=lax + a wildcard Origin check
-    // would allow a subdomain. Exact match means we reject.
     const req = makeReq('POST', { origin: 'https://attacker.wawptn.test' })
     const res = makeRes()
     const next = vi.fn()

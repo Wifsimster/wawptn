@@ -6,7 +6,6 @@ import type { ChallengeProgress } from '@wawptn/types'
 
 const challengeLogger = logger.child({ module: 'challenges' })
 
-/** Evaluation strategies keyed by challenge category */
 interface EvalResult {
   challengeId: string
   progress: number
@@ -72,15 +71,10 @@ const CATEGORY_EVALUATORS: Record<string, (userId: string) => Promise<EvalResult
   participation: evaluateParticipation,
 }
 
-/**
- * Evaluate challenges for a user in the given categories.
- * Updates progress, detects new unlocks, fires notifications.
- */
 export async function evaluateChallenges(
   userId: string,
   categories: string[],
 ): Promise<void> {
-  // Gather all eval results for requested categories
   const allResults: EvalResult[] = []
   for (const category of categories) {
     const evaluator = CATEGORY_EVALUATORS[category]
@@ -92,7 +86,6 @@ export async function evaluateChallenges(
 
   if (allResults.length === 0) return
 
-  // Fetch thresholds for these challenges
   const challengeIds = allResults.map(r => r.challengeId)
   const definitions = await db('challenges').whereIn('id', challengeIds)
   const defMap = new Map(definitions.map((d: { id: string; threshold: number; title: string; description: string; icon: string; tier: number }) => [d.id, d]))
@@ -103,7 +96,6 @@ export async function evaluateChallenges(
 
     const isUnlocked = result.progress >= def.threshold
 
-    // Upsert progress — only set unlocked_at once via COALESCE
     await db.raw(`
       INSERT INTO user_challenges (user_id, challenge_id, progress, unlocked_at, notified, updated_at)
       VALUES (?, ?, ?, ?, false, NOW())
@@ -114,7 +106,6 @@ export async function evaluateChallenges(
         updated_at = NOW()
     `, [userId, result.challengeId, result.progress, isUnlocked ? new Date() : null])
 
-    // Check if newly unlocked (notified = false AND unlocked_at is set)
     if (isUnlocked) {
       const updated = await db('user_challenges')
         .where({ user_id: userId, challenge_id: result.challengeId, notified: false })
@@ -122,7 +113,6 @@ export async function evaluateChallenges(
         .update({ notified: true })
 
       if (updated > 0) {
-        // New unlock — notify via Socket.io and in-app
         challengeLogger.info(
           { userId, challengeId: result.challengeId },
           'challenge unlocked',
@@ -142,7 +132,7 @@ export async function evaluateChallenges(
           body: def.description,
           metadata: { challengeId: result.challengeId, tier: def.tier },
           recipientUserIds: [userId],
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         }).catch(err =>
           challengeLogger.warn({ error: String(err) }, 'challenge notification failed'),
         )
@@ -151,14 +141,9 @@ export async function evaluateChallenges(
   }
 }
 
-/**
- * Get all challenge progress for a user (computed live + merged with stored progress).
- */
 export async function getChallengesForUser(userId: string): Promise<ChallengeProgress[]> {
-  // First, evaluate all categories to ensure progress is fresh
   await evaluateChallenges(userId, ['playtime', 'dedication', 'collection', 'participation'])
 
-  // Then read the materialized state
   const rows = await db('challenges')
     .leftJoin('user_challenges', function () {
       this.on('challenges.id', '=', 'user_challenges.challenge_id')

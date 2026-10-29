@@ -47,7 +47,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .setColor(0x5865F2)
       .setFooter({ text: `${result.games.length} jeux en commun au total` })
 
-    // Post the game list publicly in the channel.
     if (interaction.channel && 'send' in interaction.channel) {
       await interaction.channel.send({ embeds: [embed] })
     }

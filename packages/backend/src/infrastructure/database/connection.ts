@@ -10,9 +10,6 @@ export const db: Knex = knex({
   client: 'pg',
   connection: {
     connectionString: env.DATABASE_URL,
-    // TLS is opt-in via DB_SSL. The reference production deploy runs
-    // Postgres as a sibling container on a private Docker network; a
-    // managed/remote database should set DB_SSL=true.
     ...(env.DB_SSL ? { ssl: { rejectUnauthorized: true } } : {}),
   },
   pool: {

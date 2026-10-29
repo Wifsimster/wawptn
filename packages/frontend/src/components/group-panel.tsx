@@ -20,9 +20,6 @@ import {
   ReleasesDigestDialog,
 } from '@/components/group-panel-dialogs'
 
-/** Which slice of the group detail this panel renders. The "tonight"
- *  surface lives directly in GroupPage; this component owns the four
- *  secondary tabs. */
 export type GroupPanelSection = 'members' | 'history' | 'stats' | 'settings'
 
 interface GroupPanelProps {
@@ -32,8 +29,6 @@ interface GroupPanelProps {
   syncing: boolean
   inviteToken: string | null
   voteHistory: VoteHistoryEntry[]
-  /** True when the free tier cap chopped the history — the sidebar shows an
-   *  "upgrade to see full history" link instead of silently truncating. */
   voteHistoryTruncated: boolean
   onlineMembers: Set<string>
   lastSeenMap: Map<string, number>
@@ -45,8 +40,6 @@ interface GroupPanelProps {
   releasesDigestSchedule: string
   releasesDigestCoopOnly: boolean
   newGameSpotlightEnabled: boolean
-  /** Null when the group has no linked Discord channel — the digest has
-   *  nowhere to post, so the config entry point is shown disabled. */
   discordChannelId: string | null
   onSync: () => void
   onGenerateInvite: () => void
@@ -58,18 +51,11 @@ interface GroupPanelProps {
   onToggleNotifications: (enabled: boolean) => void
   onUpdateAutoVote: (schedule: string | null, durationMinutes: number) => Promise<void>
   onUpdateReleasesDigest: (input: { enabled: boolean; schedule: string; coopOnly: boolean }) => Promise<void>
-  /** Sends a one-off test message to the linked Discord channel so the
-   *  owner can confirm the digest will land before relying on the schedule. */
   onTestReleasesDigest: () => Promise<void>
-  /** Toggles the new-game spotlight (announces freshly acquired games into the
-   *  group's Discord with an interactive vote). */
   onToggleNewGameSpotlight: (enabled: boolean) => void
-  /** Which secondary section this panel instance renders. */
   section: GroupPanelSection
 }
 
-/** Exactly one dialog is open at a time, so the panel's modal surface is a
- *  single discriminated-union value rather than a cluster of boolean flags. */
 type DialogState =
   | { type: 'none' }
   | { type: 'leave' }
@@ -93,7 +79,6 @@ export function GroupPanel({ members, groupId, groupName, syncing, inviteToken, 
   const isPremium = useSubscriptionStore(selectIsPremium)
   const isOwner = currentUserRole === 'owner'
 
-  // Sort: owner first, then online, then alphabetical
   const sortedMembers = members.toSorted((a, b) => {
     if (a.role !== b.role) return a.role === 'owner' ? -1 : 1
     const aOnline = onlineMembers.has(a.id)
@@ -187,9 +172,6 @@ export function GroupPanel({ members, groupId, groupName, syncing, inviteToken, 
         onConfirm={() => { if (dialog.type === 'deleteHistory') { onDeleteHistory(dialog.entry.id); close() } }}
       />
 
-      {/* Form dialogs stay mounted so their open/close transitions play; a
-          key tied to the open state re-seeds their fields from the current
-          props each time they open (matching the old per-open seeding). */}
       <RenameGroupDialog
         key={`rename-${dialog.type === 'rename'}`}
         open={dialog.type === 'rename'}

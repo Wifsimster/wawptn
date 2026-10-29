@@ -11,12 +11,6 @@ import { buildSessionClosedEmbed, buildSessionEmbed } from '../lib/embeds.js'
 import { sendMessage, editMessage } from '../lib/channel-adapter.js'
 import { BotHandlerError } from './handlers-error.js'
 
-/**
- * Handlers live here (separated from the transport layer in server.ts) so
- * they can be unit-tested with a fake Client later without any HTTP noise.
- * Each handler receives an already-parsed, already-authenticated payload.
- */
-
 export { BotHandlerError }
 
 export async function handleSessionCreated(
@@ -73,18 +67,10 @@ export async function handleSessionClosed(
     throw new BotHandlerError(400, 'Missing required fields')
   }
 
-  // `summary.tallies` is dereferenced below to rebuild the game list, so a
-  // malformed payload (e.g. summary missing, or tallies not an array) would
-  // crash the handler with a 500. The request type marks summary as required,
-  // but the HTTP boundary is the right place to defend against drift between
-  // the backend and the bot.
   if (!summary || !Array.isArray(summary.tallies)) {
     throw new BotHandlerError(400, 'Missing or invalid summary.tallies')
   }
 
-  // Re-materialize the game list from the tallies so the closed embed can
-  // show every game row that was in the original message even if we don't
-  // re-fetch the source game list.
   const games = summary.tallies.map((t) => ({
     steamAppId: t.steamAppId,
     gameName: t.gameName,
@@ -103,12 +89,6 @@ export async function handleSessionClosed(
   return { ok: true }
 }
 
-/**
- * Posts plain embeds into a channel. Generic transport for best-effort
- * announcements (e.g. the weekly Steam releases digest) — the embeds are
- * already-shaped Discord embed objects, so the bot just forwards them to
- * `channel.send` without rebuilding anything.
- */
 export async function handleChannelPost(
   client: Client,
   body: DiscordChannelPostRequest,

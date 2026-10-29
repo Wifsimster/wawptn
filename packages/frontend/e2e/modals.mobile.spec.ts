@@ -1,8 +1,6 @@
 import { test, expect, mockGames } from './fixtures'
 
 test.describe('Modals on mobile', () => {
-  // ── Groups page modals ────────────────────────────────────────
-
   test.describe('Create Group modal', () => {
     test('opens as drawer, accepts input, and submits', async ({ page }) => {
       await page.goto('/')
@@ -80,15 +78,12 @@ test.describe('Modals on mobile', () => {
     })
   })
 
-  // ── Logout confirmation modal ─────────────────────────────────
-
   test.describe('Logout confirmation modal', () => {
     test('opens from user menu and confirms logout', async ({ page }) => {
       await page.goto('/')
       await page.waitForTimeout(500)
 
       await page.getByRole('button', { name: 'Mon Profil' }).click()
-      // The dropdown menu Se déconnecter (Radix dropdown → role=menuitem)
       await page.getByRole('menuitem', { name: 'Se déconnecter' }).click()
 
       const dialog = page.getByRole('dialog')
@@ -112,11 +107,6 @@ test.describe('Modals on mobile', () => {
       await expect(dialog).not.toBeVisible()
     })
   })
-
-  // ── Group page panel tabs (members / history / settings) ──────
-  // The mobile members sidebar drawer was replaced by persistent tabs on the
-  // group detail page; members, history and owner actions now live under those
-  // tabs (rendered inline, not in a dialog).
 
   test.describe('Members tab', () => {
     test('lists members and exposes the invite action', async ({ page }) => {
@@ -158,8 +148,6 @@ test.describe('Modals on mobile', () => {
 
   test.describe('Leave Group confirmation', () => {
     test('member can leave from the settings tab', async ({ page }) => {
-      // Override the group detail to make the user a member (not owner) so the
-      // leave button appears.
       await page.route(/\/api\/groups\/group-2$/, (route) => {
         if (route.request().method() !== 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) })
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
@@ -215,8 +203,6 @@ test.describe('Modals on mobile', () => {
     })
   })
 
-  // ── Vote Setup modal ──────────────────────────────────────────
-
   test.describe('Vote Setup modal', () => {
     test.beforeEach(async ({ page }) => {
       await page.goto('/groups/group-1')
@@ -237,13 +223,11 @@ test.describe('Modals on mobile', () => {
       await page.getByRole('button', { name: 'Lancer un vote', exact: true }).click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
-      await page.waitForTimeout(400) // Wait for drawer animation to settle
+      await page.waitForTimeout(400)
 
-      // Click the label for Bob's checkbox (member-user-3)
       await dialog.locator('#member-user-3').click({ force: true })
       await expect(dialog.getByText('2 joueur(s) sélectionné(s)')).toBeVisible()
 
-      // Re-check
       await dialog.locator('#member-user-3').click({ force: true })
       await expect(dialog.getByText('3 joueur(s) sélectionné(s)')).toBeVisible()
     })
@@ -254,11 +238,9 @@ test.describe('Modals on mobile', () => {
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400)
 
-      // Deselect all
       await dialog.locator('#select-all').click({ force: true })
       await expect(dialog.getByText('0 joueur(s) sélectionné(s)')).toBeVisible()
 
-      // Select all again
       await dialog.locator('#select-all').click({ force: true })
       await expect(dialog.getByText('3 joueur(s) sélectionné(s)')).toBeVisible()
     })
@@ -293,8 +275,6 @@ test.describe('Modals on mobile', () => {
     })
 
     test('schedule option (premium) reveals the date picker', async ({ page }) => {
-      // Scheduling is premium-gated; grant premium then reload so the
-      // subscription store picks it up before the dialog opens.
       await page.route('**/api/subscription/me', (route) =>
         route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tier: 'premium', status: 'active', currentPeriodEnd: '2026-12-31', cancelAtPeriodEnd: false, source: 'stripe' }) })
       )
@@ -308,7 +288,6 @@ test.describe('Modals on mobile', () => {
 
       await dialog.getByRole('button', { name: "Plus d'options" }).click({ force: true })
 
-      // Toggle schedule
       await dialog.locator('#schedule-toggle').click({ force: true })
       await expect(dialog.locator('#scheduled-date')).toBeVisible()
       await expect(dialog.getByRole('button', { name: 'Planifier la soirée' })).toBeVisible()
@@ -333,7 +312,6 @@ test.describe('Modals on mobile', () => {
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
       await page.waitForTimeout(400)
 
-      // Deselect all, then select only one
       await dialog.locator('#select-all').click({ force: true })
       await dialog.locator('#member-user-1').click({ force: true })
 
@@ -341,8 +319,6 @@ test.describe('Modals on mobile', () => {
       await expect(dialog.getByRole('button', { name: "Plus d'options" })).toBeDisabled()
     })
   })
-
-  // ── Random Pick modal ─────────────────────────────────────────
 
   test.describe('Random Pick modal', () => {
     test.beforeEach(async ({ page }) => {
@@ -358,12 +334,10 @@ test.describe('Modals on mobile', () => {
       await expect(dialog).toBeVisible()
       await page.waitForTimeout(400)
 
-      // Should show a game name — the visible h2 (not sr-only title)
       const gameNames = mockGames.filter(g => g.type === 'game').map(g => g.gameName)
       const gameName = await dialog.locator('h2:not(.sr-only)').textContent()
       expect(gameNames).toContain(gameName)
 
-      // Reroll and launch buttons visible
       await expect(dialog.getByRole('button', { name: 'Relancer' })).toBeVisible()
     })
 

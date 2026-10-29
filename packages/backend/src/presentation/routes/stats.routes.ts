@@ -5,22 +5,14 @@ import { logger } from '../../infrastructure/logger/logger.js'
 const router = Router()
 const statsLogger = logger.child({ module: 'stats' })
 
-/** Lightweight cache so the LandingPage social-proof strip doesn't run
- *  three COUNT(*) queries per page load. The numbers move slowly; one
- *  refresh per 5 minutes is plenty for a marketing surface. */
 let cache: { value: PublicStats; expiresAt: number } | null = null
 const TTL_MS = 5 * 60_000
 
 interface PublicStats {
-  /** Total registered users — proxy for "join X gamers". */
   users: number
-  /** Total groups created — proxy for "Y groupes décident ensemble". */
   groups: number
-  /** Closed voting sessions, all-time — proxy for "Z parties choisies". */
   votesClosed: number
-  /** Closed voting sessions in the last 7 days — proxy for "active right now". */
   votesClosed7d: number
-  /** Server timestamp — surfaced for cache-debug. */
   generatedAt: string
 }
 
@@ -47,16 +39,6 @@ async function computeStats(): Promise<PublicStats> {
   }
 }
 
-/**
- * GET /api/stats/public — unauthenticated landing-page social-proof
- * aggregates. No PII, no per-user data; only roll-ups that cannot
- * identify any individual.
- *
- * Cached in-memory for 5 minutes (these numbers move slowly and the
- * landing page is the highest-traffic surface). Failures fall back to
- * the cached value if available, otherwise return zeros — analytics
- * must never block the marketing page from rendering.
- */
 router.get('/public', async (_req: Request, res: Response) => {
   const now = Date.now()
   if (cache && cache.expiresAt > now) {
@@ -71,7 +53,6 @@ router.get('/public', async (_req: Request, res: Response) => {
   } catch (error) {
     statsLogger.warn({ error: String(error) }, 'failed to compute public stats')
     if (cache) {
-      // Stale-while-error: better to show last-known numbers than zero.
       res.json(cache.value)
       return
     }

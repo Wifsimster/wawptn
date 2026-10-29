@@ -5,15 +5,8 @@ import { notifyNewGameSpotlight, type SpotlightGame } from '../infrastructure/di
 
 const spotlightLogger = logger.child({ module: 'new-game-spotlight' })
 
-/**
- * Discord caps a vote message at 10 games-with-buttons (see the bot's
- * embeds.ts), so a single spotlight run promotes at most this many of a
- * member's freshly acquired games. Anything beyond is left for a later sync —
- * the ledger means it won't be lost, just deferred.
- */
 export const MAX_SPOTLIGHT_GAMES_PER_RUN = 10
 
-/** A game a member's sync just added to their library for the first time. */
 export interface NewlyAcquiredGame {
   steamAppId: number
   gameId: string
@@ -28,20 +21,10 @@ interface SpotlightGroupRow {
   discord_webhook_url: string | null
 }
 
-/**
- * Pure helper: which of the just-synced app IDs are new (not previously owned).
- * Exposed for unit testing the detection rule independently of the DB.
- */
 export function diffNewlyAcquired(existingAppIds: Set<number>, syncedAppIds: number[]): number[] {
   return syncedAppIds.filter((id) => !existingAppIds.has(id))
 }
 
-/**
- * Entry point called (non-blocking) from the Steam library sync once it has
- * detected that a member acquired new games. For every group the member
- * belongs to that has the spotlight enabled and a Discord destination, it
- * announces the new games and opens an interactive "qui veut jouer ?" vote.
- */
 export async function processNewGameSpotlights(
   userId: string,
   newGames: NewlyAcquiredGame[],
@@ -70,8 +53,6 @@ export async function processNewGameSpotlights(
     try {
       await runSpotlightForGroup(group, userId, ownerName, newGames)
     } catch (err) {
-      // One group's failure (deleted channel, race, etc.) must never block the
-      // others — the whole feature is best-effort.
       spotlightLogger.warn({ error: String(err), groupId: group.id, userId }, 'spotlight failed for group')
     }
   }
@@ -85,16 +66,10 @@ async function runSpotlightForGroup(
 ): Promise<void> {
   const members: string[] = await db('group_members').where({ group_id: group.id }).pluck('user_id')
   const memberCount = members.length
-  // A spotlight asks "who wants to play?" — pointless in a solo group.
   if (memberCount < 2) return
 
   const candidates = newGames.slice(0, MAX_SPOTLIGHT_GAMES_PER_RUN)
 
-  // Atomic idempotency claim: insert all candidate (group, game) rows in one
-  // statement; ON CONFLICT DO NOTHING means a game already spotlighted for
-  // this group (re-sync, another member's sync, second backend instance) is
-  // skipped. RETURNING tells us exactly which rows we won, so we only post the
-  // games this run is actually responsible for.
   const inserted: Array<{ game_id: string }> = await db('group_game_spotlights')
     .insert(
       candidates.map((g) => ({
@@ -111,7 +86,6 @@ async function runSpotlightForGroup(
   const claimed = candidates.filter((g) => claimedIds.has(g.gameId))
   if (claimed.length === 0) return
 
-  // How many group members already own each claimed game (the buyer included).
   const ownershipRows: Array<{ game_id: string; cnt: string | number }> = await db('user_games')
     .whereIn('user_id', members)
     .whereIn('game_id', claimed.map((g) => g.gameId))
@@ -130,7 +104,6 @@ async function runSpotlightForGroup(
     ownerCount: ownerCountByGameId.get(g.gameId) ?? 1,
   }))
 
-  // 1) Context announcement: who bought what, who already owns it.
   await notifyNewGameSpotlight(
     {
       id: group.id,
@@ -143,10 +116,6 @@ async function runSpotlightForGroup(
     spotlightGames,
   )
 
-  // 2) The interactive "qui veut jouer ?" vote, reusing the full voting
-  //    machinery (Discord buttons, live tally, web votes, winner reveal).
-  //    Best-effort: if a vote is already open for the group the announcement
-  //    still went out, and members can react/vote on the site.
   try {
     await createVotingSession({
       groupId: group.id,

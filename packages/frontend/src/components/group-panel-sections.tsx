@@ -28,9 +28,6 @@ export interface VoteHistoryEntry {
   createdBy: string
 }
 
-/** Small uppercase divider label that groups the settings actions into
- *  member / group / premium / danger clusters so destructive and routine
- *  actions are no longer an undifferentiated stack. */
 function PanelSectionLabel({ children }: { children: string }) {
   return (
     <p className="px-0.5 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -119,11 +116,6 @@ export function MembersSection({ members, sortedMembers, onlineMembers, lastSeen
                         <button
                           type="button"
                           onClick={() => navigate(`/u/${member.id}`)}
-                          // The name is one line of 14px text — a 20px-tall
-                          // target. `before:` stretches the touch area over
-                          // the full 48px row without changing the layout;
-                          // `truncate` has to live on the inner span, since
-                          // its `overflow: hidden` would clip that pseudo.
                           className="relative z-10 block min-w-0 max-w-full text-left before:absolute before:-inset-y-3.5 before:inset-x-0 before:content-['']"
                         >
                           <span className={`block truncate text-sm font-medium hover:text-primary transition-colors ${!isOnline ? 'text-muted-foreground' : ''}`}>
@@ -211,9 +203,6 @@ export function HistorySection({ voteHistory, voteHistoryTruncated, currentUserI
     )
   }
 
-  // Shown under the history list when the free tier cap was hit. Renders
-  // only when we actually have at least one session displayed AND the
-  // backend flagged the response as truncated. Premium users never see this.
   const historyUpgradeCta = voteHistoryTruncated && !isPremium && (
     <button
       type="button"
@@ -304,7 +293,6 @@ export function SettingsActions({ isOwner, isPremium, syncing, notificationsEnab
 
   return (
     <div className="space-y-4">
-      {/* Membre — actions available to every member */}
       <div className="space-y-1.5">
         <PanelSectionLabel>{t('group.sectionMember')}</PanelSectionLabel>
         <Button
@@ -330,7 +318,6 @@ export function SettingsActions({ isOwner, isPremium, syncing, notificationsEnab
         </Button>
       </div>
 
-      {/* Groupe — owner-only group management */}
       {isOwner && (
         <div className="space-y-1.5">
           <PanelSectionLabel>{t('group.sectionGroup')}</PanelSectionLabel>
@@ -343,10 +330,6 @@ export function SettingsActions({ isOwner, isPremium, syncing, notificationsEnab
             {t('group.renameGroup')}
           </Button>
 
-          {/* New-game spotlight (free) — announces a member's freshly acquired
-              games into the linked Discord with an interactive vote. Needs a
-              linked Discord channel; shown disabled otherwise so the
-              prerequisite is discoverable. */}
           {!discordChannelId ? (
             <Button
               variant="outline"
@@ -373,11 +356,9 @@ export function SettingsActions({ isOwner, isPremium, syncing, notificationsEnab
         </div>
       )}
 
-      {/* Premium — owner-only scheduled automations */}
       {isOwner && (
         <div className="space-y-1.5">
           <PanelSectionLabel>{t('group.sectionPremium')}</PanelSectionLabel>
-          {/* Auto-vote settings */}
           {isPremium ? (
             <Button
               variant="outline"
@@ -405,7 +386,6 @@ export function SettingsActions({ isOwner, isPremium, syncing, notificationsEnab
             </Button>
           )}
 
-          {/* Weekly Steam releases digest (needs a linked Discord channel) */}
           {!discordChannelId ? (
             <Button
               variant="outline"
@@ -445,7 +425,6 @@ export function SettingsActions({ isOwner, isPremium, syncing, notificationsEnab
         </div>
       )}
 
-      {/* Zone de danger — irreversible actions, fenced off from routine ones */}
       <div className="space-y-1.5 border-t border-border pt-3">
         <PanelSectionLabel>{t('group.sectionDanger')}</PanelSectionLabel>
         {!isOwner && (

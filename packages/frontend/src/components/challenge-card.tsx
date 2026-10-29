@@ -4,10 +4,6 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import type { ChallengeProgress } from '@wawptn/types'
 
-// Tier styling uses the existing warm-cool-warm semantic tokens rather
-// than raw amber/slate/yellow Tailwind hues so future palette tweaks
-// flow through to challenges automatically. ember=Bronze, neon=Argent
-// (cool metallic), reward=Or.
 const TIER_STYLES: Record<number, { border: string; badgeVariant: 'reward' | 'info' | 'success'; label: string }> = {
   1: { border: 'border-l-ember/60', badgeVariant: 'reward', label: 'Bronze' },
   2: { border: 'border-l-neon/60', badgeVariant: 'info', label: 'Argent' },
@@ -47,12 +43,10 @@ export function ChallengeCard({ challenge }: { challenge: ChallengeProgress }) {
         ${isUnlocked ? 'ring-1 ring-inset ring-reward/10' : ''}
       `}
     >
-      {/* Icon */}
       <div className="text-2xl shrink-0 size-10 flex items-center justify-center rounded-lg bg-muted/30">
         {challenge.icon}
       </div>
 
-      {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
           <span className="font-medium text-sm truncate">{challenge.title}</span>

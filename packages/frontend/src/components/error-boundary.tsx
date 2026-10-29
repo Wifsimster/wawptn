@@ -18,8 +18,6 @@ class ErrorBoundaryInner extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Surface the underlying error so it shows up in the browser console
-    // instead of being silently swallowed by the boundary.
     console.error('[ErrorBoundary]', error, info.componentStack)
   }
 

@@ -9,10 +9,6 @@ import {
 
 const accountLogger = logger.child({ module: 'account-deletion' })
 
-/**
- * Gather every piece of data WAWPTN holds about a user, for the RGPD
- * data-portability right. Returns the caller's own data only.
- */
 export async function exportUserData(userId: string): Promise<Record<string, unknown>> {
   const [profile, memberships, games, votes, subscription, discord] = await Promise.all([
     db('users').where({ id: userId }).first(),
@@ -37,23 +33,7 @@ export async function exportUserData(userId: string): Promise<Record<string, unk
   }
 }
 
-/**
- * Permanently delete a user account (RGPD right to erasure).
- *
- * `groups.created_by` has ON DELETE CASCADE, so a group the user created
- * would be destroyed — taking its other members with it — the moment the
- * user row is deleted. Every group the user created or owns is therefore
- * handed to the longest-standing remaining member first; a group where
- * the user is the only member is deleted outright.
- *
- * The user row is deleted last. All remaining foreign keys to `users` are
- * ON DELETE CASCADE or SET NULL (audited 2026-05-16), so memberships,
- * votes, library, sessions, subscription, etc. are cleaned up by cascade.
- */
 export async function deleteUserAccount(userId: string): Promise<void> {
-  // Cancel any live Stripe subscription first, outside the DB transaction,
-  // so billing stops even though the local row is about to be deleted.
-  // Best-effort — a Stripe outage must not block the right to erasure.
   if (isStripeEnabled()) {
     try {
       const sub = await db('subscriptions')
@@ -90,17 +70,14 @@ export async function deleteUserAccount(userId: string): Promise<void> {
         .first('user_id')
 
       if (!heir) {
-        // The user is the only member — the group leaves with the account.
         await trx('groups').where({ id: groupId }).del()
         continue
       }
 
-      // Reassign created_by so the cascade does not destroy the group.
       if (group.created_by === userId) {
         await trx('groups').where({ id: groupId }).update({ created_by: heir.user_id })
       }
 
-      // Hand current ownership to the heir if the departing user is the owner.
       const userIsOwner = await trx('group_members')
         .where({ group_id: groupId, user_id: userId, role: 'owner' })
         .first()

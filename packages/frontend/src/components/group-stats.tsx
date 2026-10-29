@@ -34,10 +34,6 @@ interface StatsState {
 
 const LOADING_STATE: StatsState = { stats: null, status: 'loading' }
 
-/** Fetches stats for a group and pushes the outcome into the passed setter.
- *  Returns a cancel handle so an in-flight request can be discarded when the
- *  group changes or the component unmounts. Module-scope (not reactive) so
- *  both the load effect and the retry handler can call it without re-running. */
 function fetchGroupStats(groupId: string, setState: (next: StatsState | ((prev: StatsState) => StatsState)) => void) {
   let cancelled = false
   api.getGroupStats(groupId)
@@ -53,9 +49,6 @@ function fetchGroupStats(groupId: string, setState: (next: StatsState | ((prev: 
 
 export function GroupStats({ groupId }: GroupStatsProps) {
   const { t, i18n } = useTranslation()
-  // State resets per group via a `key={groupId}` remount at the parent
-  // (see GroupPanel), so a stale group's stats never flash before the new
-  // fetch resolves — no in-render reset needed.
   const [state, setState] = useState<StatsState>(LOADING_STATE)
   const { stats, status } = state
 
@@ -98,7 +91,6 @@ function StatsContent({ stats, language }: { stats: GroupStatsData; language: st
 
   return (
     <div className="space-y-4">
-      {/* Summary counters */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex items-center gap-2.5 rounded-lg bg-muted/50 p-3">
           <Vote className="size-5 text-primary shrink-0" aria-hidden="true" />
@@ -116,7 +108,6 @@ function StatsContent({ stats, language }: { stats: GroupStatsData; language: st
         </div>
       </div>
 
-      {/* Top games */}
       {stats.topGames.length > 0 && (
         <div className="space-y-2">
           <h3 className={SECTION_LABEL}>
@@ -155,7 +146,6 @@ function StatsContent({ stats, language }: { stats: GroupStatsData; language: st
         </div>
       )}
 
-      {/* Member participation */}
       {stats.memberParticipation.length > 0 && (
         <div className="space-y-2">
           <h3 className={SECTION_LABEL}>
@@ -179,7 +169,6 @@ function StatsContent({ stats, language }: { stats: GroupStatsData; language: st
         </div>
       )}
 
-      {/* Recent winners */}
       {stats.recentWinners.length > 0 && (
         <div className="space-y-2">
           <h3 className={SECTION_LABEL}>

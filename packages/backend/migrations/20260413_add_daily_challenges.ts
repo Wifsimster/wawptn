@@ -1,7 +1,6 @@
 import type { Knex } from 'knex'
 
 export async function up(knex: Knex): Promise<void> {
-  // Daily challenge rolled per group per day
   await knex.schema.createTable('discord_daily_challenges', (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'))
     table.uuid('group_id').notNullable().references('id').inTable('groups').onDelete('CASCADE')
@@ -18,7 +17,6 @@ export async function up(knex: Knex): Promise<void> {
     table.unique(['group_id', 'challenge_date'])
   })
 
-  // Claims (one per user per challenge)
   await knex.schema.createTable('discord_daily_challenge_claims', (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'))
     table.uuid('challenge_id').notNullable().references('id').inTable('discord_daily_challenges').onDelete('CASCADE')

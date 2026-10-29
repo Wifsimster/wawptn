@@ -2,7 +2,6 @@ import type { Request, Response, NextFunction, RequestHandler } from 'express'
 import { db } from '../../infrastructure/database/connection.js'
 import { authLogger } from '../../infrastructure/logger/logger.js'
 
-// Extend Express Request with the resolved group membership
 declare global {
   namespace Express {
     interface Request {
@@ -23,19 +22,10 @@ interface GroupMembershipRow {
 }
 
 interface RequireGroupMembershipOptions {
-  /** If set, requires the user to have this role in the group */
   role?: 'owner'
-  /** Request param name that holds the group id. Defaults to `'id'`. */
   paramName?: string
 }
 
-/**
- * Express middleware — verifies the authenticated user is a member of the
- * group referenced by the route param (default: `:id`). On success, attaches
- * `req.membership = { role, groupId }` for downstream handlers.
- *
- * Must be mounted after `requireAuth` so `req.userId` is populated.
- */
 export function requireGroupMembership(options: RequireGroupMembershipOptions = {}): RequestHandler {
   const paramName = options.paramName ?? 'id'
   const requiredRole = options.role

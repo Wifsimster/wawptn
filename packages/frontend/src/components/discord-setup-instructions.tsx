@@ -4,12 +4,6 @@ import { ExternalLink, Terminal, UserPlus } from 'lucide-react'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 
-/**
- * Two-step instructions for binding a Discord channel to a group via the
- * bot's `/wawptn-setup` slash command. Fetches the bot invite URL on mount
- * so the "invite the bot" button only shows when the backend has enough
- * config to surface it.
- */
 export function DiscordSetupInstructions() {
   const { t } = useTranslation()
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)

@@ -21,13 +21,6 @@ function compareKey(a: string, b: string): string {
   return [a, b].sort().join('::')
 }
 
-/**
- * Side-by-side comparison of two users' libraries.
- *
- * The URL shape is `/compare?a=<userId>&b=<userId>`, both UUIDs.
- * Defaults `a` to the current viewer if omitted so the canonical
- * "compare with me" button only needs to pass `b`.
- */
 export function ComparePage() {
   const { t } = useTranslation()
   useDocumentTitle(t('compare.title'))
@@ -50,7 +43,6 @@ export function ComparePage() {
     if (a && b && a !== b) fetchCompare(a, b)
   }, [a, b, fetchCompare])
 
-  // Identify which side is "me" so labels read naturally.
   const meIsA = me?.id === a
   const meIsB = me?.id === b
 
@@ -145,7 +137,6 @@ export function ComparePage() {
 
       <main id="main-content" className="max-w-3xl mx-auto w-full p-4 space-y-6 pb-12">
         <h1 className="sr-only">{t('compare.srHeading', { a: nameA, b: nameB })}</h1>
-        {/* ── VS header ── */}
         <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-6">
           <div className="flex items-center justify-center gap-4 sm:gap-8">
             <UserBadge
@@ -168,7 +159,6 @@ export function ComparePage() {
             />
           </div>
 
-          {/* Overlap callout — the emotional hook */}
           <div className="mt-6 pt-6 border-t border-border/40 text-center">
             <div className="text-3xl font-heading font-bold text-primary tabular-nums">
               {commonCount}
@@ -179,7 +169,6 @@ export function ComparePage() {
           </div>
         </div>
 
-        {/* ── Common games with playtime bars ── */}
         <section>
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
             <Trophy className="size-4" />
@@ -233,7 +222,6 @@ export function ComparePage() {
           )}
         </section>
 
-        {/* ── Only-A / Only-B ── */}
         {(result.onlyAGames.length > 0 || result.onlyBGames.length > 0) && (
           <section>
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">

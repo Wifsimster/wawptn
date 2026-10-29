@@ -16,7 +16,6 @@ interface PlatformIconProps extends SVGProps<SVGSVGElement> {
   platformId: string
 }
 
-/** Renders the brand logo SVG for a given platform, or a generic gamepad fallback. */
 export function PlatformIcon({ platformId, ...props }: PlatformIconProps) {
   const Icon = PLATFORM_ICON_MAP[platformId]
 

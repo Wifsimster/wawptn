@@ -1,6 +1,5 @@
 import type { SVGProps } from 'react'
 
-/** Epic Games logo — SVG path sourced from Simple Icons (MIT/CC0) */
 export function EpicGamesIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg

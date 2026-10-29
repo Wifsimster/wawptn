@@ -52,14 +52,8 @@ async function main() {
   const app = express()
   const httpServer = createServer(app)
 
-  // Trust the first reverse proxy (Traefik in the reference deploy). Without
-  // this, `req.ip` returns the proxy's container address, which collapses
-  // every anonymous client onto a single rate-limit bucket and writes the
-  // wrong IP into the admin audit log. One hop matches the production
-  // topology (client → Traefik → app); add more if a CDN is stacked in front.
   app.set('trust proxy', 1)
 
-  // Security headers
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
@@ -77,15 +71,12 @@ async function main() {
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   }))
 
-  // gzip/brotli on text responses. Cuts HTML/JSON/CSS/JS transfer by ~60-80%.
   app.use(compression())
 
-  // Stripe webhook — must be registered BEFORE express.json() to receive raw body
   if (isStripeEnabled()) {
     app.use('/api/subscription/webhook', express.raw({ type: 'application/json' }), subscriptionWebhookRouter)
   }
 
-  // Middleware
   app.use(cors({
     origin: env.CORS_ORIGIN,
     credentials: true,
@@ -93,17 +84,8 @@ async function main() {
   app.use(express.json({ limit: '10kb' }))
   app.use(cookieParser(env.APP_SECRET))
 
-  // Rate limiting. Key on the signed session cookie when present so that
-  // two users sharing a NAT/IP don't deplete each other's budget; fall
-  // back to the client IP for unauthenticated traffic.
-  //
-  // The Stripe webhook is mounted upstream of this and skipped explicitly
-  // here too — Stripe delivers from a small set of egress IPs and a noisy
-  // morning of events from one IP can deplete the global budget, after
-  // which a 429 response triggers Stripe retries forever (the dead-letter
-  // would never clear).
   const apiLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 minute
+    windowMs: 60 * 1000,
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
@@ -116,13 +98,6 @@ async function main() {
   })
   app.use('/api/', apiLimiter)
 
-  // Per-user limiter for Stripe-billed endpoints. The global apiLimiter
-  // already covers casual abuse, but a buggy client (or a logged-in
-  // attacker) could spam customers.create / checkout.sessions.create at
-  // the global cap and have us throttled org-wide by Stripe before the
-  // global limit fires. Cap creation calls per session to a sensible
-  // ceiling (10/min); ample for a real user retrying or comparing plans,
-  // hostile to a script.
   const stripeBilledLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 10,
@@ -133,8 +108,6 @@ async function main() {
       if (typeof token === 'string' && token.length > 0) return `s:${token}`
       return `ip:${req.ip ?? 'unknown'}`
     },
-    // Only count POSTs (creates a Stripe-billed session); GET /me reads
-    // cached local state and stays on the global limiter.
     skip: (req) => req.method !== 'POST',
   })
 
@@ -145,7 +118,6 @@ async function main() {
     legacyHeaders: false,
   })
 
-  // Health endpoint
   app.get('/health', async (_req, res) => {
     try {
       await db.raw('SELECT 1')
@@ -155,7 +127,6 @@ async function main() {
     }
   })
 
-  // Rate limiter for auth login initiation (prevent brute force / enumeration)
   const authLoginLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 10,
@@ -164,7 +135,6 @@ async function main() {
   })
   app.use('/api/auth/steam/login', authLoginLimiter)
 
-  // Strict rate limiter for auth callback (heavy endpoint: Steam verification + DB writes)
   const authCallbackLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 5,
@@ -173,84 +143,47 @@ async function main() {
   })
   app.use('/api/auth/steam/callback', authCallbackLimiter)
 
-  // API Routes
   app.use('/api/auth', authRoutes)
   app.use('/api/groups', requireAuth, groupRoutes)
   app.use('/api/groups', requireAuth, voteLimiter, voteRoutes)
 
-  // "Ma bibliothèque" — the user's own Steam library + promote-to-Discord.
-  // requireSameOrigin guards the promote POST (an outbound Discord side
-  // effect) against CSRF; it exempts the GET reads.
   app.use('/api/library', requireAuth, requireSameOrigin, libraryRoutes)
 
-  // Persona route (public, read-only — shows today's bot personality)
   app.use('/api/persona', personaRoutes)
 
-  // Koe support widget — HMAC identity signing. Auth required so
-  // userHash is only issued for the caller's own session id.
   app.use('/api/koe', requireAuth, koeRoutes)
 
-  // Notification routes (requires authenticated user)
   app.use('/api/notifications', requireAuth, notificationRoutes)
 
-  // Challenge routes (requires authenticated user)
   app.use('/api/challenges', requireAuth, challengeRoutes)
 
-  // User profile routes — view another member's profile and compare
-  // stats. All endpoints require auth; per-endpoint co-member checks
-  // live inside the route file. See issue #142 for the design.
   app.use('/api/users', requireAuth, userProfileRoutes)
 
-  // Adoption-funnel analytics ingestion (public, best-effort user id lookup).
-  // Intentionally NOT gated by requireAuth so we can track pre-login events
-  // (e.g. landing-page → login clicks) and so a dead session never prevents
-  // the final vote.completed event from being recorded.
   app.use('/api/events', eventRoutes)
 
-  // Public marketing stats (unauth). Aggregates only — no PII, no per-user
-  // data. Powers the LandingPage social-proof strip. Cached server-side
-  // for 5 minutes; the global apiLimiter still applies upstream.
   app.use('/api/stats', statsRoutes)
 
-  // Strict rate limiter for admin mutation endpoints (privilege grants,
-  // persona CRUD, bot settings). Capped well below normal usage so a
-  // compromised admin account cannot mass-mutate state, while leaving plenty
-  // of headroom for legitimate panel use.
   const adminMutationLimiter = rateLimit({
-    windowMs: 5 * 60 * 1000, // 5 minutes
+    windowMs: 5 * 60 * 1000,
     max: 30,
     standardHeaders: true,
     legacyHeaders: false,
-    // Only count state-changing requests; reads (GET) stay on the global
-    // apiLimiter so panel browsing stays snappy.
     skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
   })
 
-  // Admin routes (requires authenticated admin user). requireSameOrigin
-  // blocks CSRF on mutating endpoints — without it, lax-cookie sessions
-  // could be coerced into granting privileges via a victim admin's browser.
   app.use('/api/admin', requireAuth, requireAdmin, requireSameOrigin, adminMutationLimiter, adminRoutes)
   app.use('/api/admin/notifications', requireAuth, requireAdmin, requireSameOrigin, adminMutationLimiter, adminNotificationRoutes)
 
-  // Discord user-facing routes (session auth, no bot auth required)
   app.use('/api/discord', discordUserRoutes)
 
-  // Discord bot API routes (bot auth for bot-originated requests)
   if (env.DISCORD_BOT_API_SECRET) {
     app.use('/api/discord', requireBotAuth, discordRoutes)
   }
 
-  // Stripe subscription routes (feature-flagged). requireSameOrigin blocks
-  // CSRF on /checkout and /portal — both initiate Stripe interactions and
-  // create customer state, so a forged cross-site POST would be costly.
-  // The webhook router is mounted earlier without requireAuth/requireSameOrigin
-  // because Stripe authenticates by signed payload, not browser cookies.
   if (isStripeEnabled()) {
     app.use('/api/subscription', requireAuth, requireSameOrigin, stripeBilledLimiter, subscriptionRoutes)
   }
 
-  // Invite preview route (public, no auth) — serves OG meta tags for Discord/social embeds
-  // Must be registered BEFORE the SPA catch-all so it is matched first
   const inviteLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 30,
@@ -259,14 +192,8 @@ async function main() {
   })
   app.use('/invite', inviteLimiter, inviteRoutes)
 
-  // OG image route (public, no auth) — dynamic PNG for vote result previews.
-  // Mounted under /api so the apiLimiter already applies; additional per-route
-  // caching is set by the handler itself.
   app.use('/api', ogRoutes)
 
-  // Share page route (public, no auth) — serves HTML with OG meta tags so
-  // Discord/Twitter/etc. can render rich embeds for closed voting sessions.
-  // Must be registered BEFORE the SPA catch-all so it is matched first.
   const shareLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 30,
@@ -275,7 +202,6 @@ async function main() {
   })
   app.use('/share', shareLimiter, shareRoutes)
 
-  // Serve frontend in production
   if (env.NODE_ENV === 'production') {
     const frontendPath = path.resolve(__dirname, '..', '..', 'frontend', 'dist')
     app.use(express.static(frontendPath, {
@@ -289,9 +215,6 @@ async function main() {
     })
   }
 
-  // Error handler of last resort. Express 5 routes a rejected async
-  // handler here — without it such a request hangs until the socket
-  // times out. Must be registered after all routes.
   app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const e = (err ?? {}) as { statusCode?: number; status?: number; message?: string; stack?: string }
     logger.error(
@@ -305,7 +228,6 @@ async function main() {
     res.status(status).json({ error: 'internal_error' })
   })
 
-  // Database
   const connected = await testConnection()
   if (!connected) {
     logger.fatal('Failed to connect to database')
@@ -313,10 +235,6 @@ async function main() {
     process.exit(1)
   }
 
-  // Migrations must succeed before the server starts accepting traffic —
-  // a partial or stale schema means request handlers will hit missing
-  // columns and fail at runtime. Exit loudly so the container restarts
-  // (and an operator gets paged) instead of silently serving a broken API.
   const migrated = await runMigrations()
   if (!migrated) {
     logger.fatal('Database migrations failed')
@@ -324,26 +242,16 @@ async function main() {
     process.exit(1)
   }
 
-  // Socket.io
   const io = createSocketServer(httpServer)
 
-  // Register domain event subscribers for session side effects
-  // (Socket.io emissions, Discord webhooks, in-app notifications)
   registerSessionEffects()
 
-  // Vote scheduler (auto-close scheduled sessions)
   startVoteScheduler()
 
-  // Auto-vote scheduler (recurring auto-created sessions)
   startAutoVoteScheduler()
 
-  // Weekly Steam new-releases digest scheduler (per-group, owner-configured)
   startReleasesDigestScheduler()
 
-  // Anti-Toko guardrail: assert every configured price belongs to the
-  // expected product. Fatal in production (a wrong price ID would charge
-  // customers for the wrong SKU); a warning in dev so a half-set local
-  // env doesn't block running the app.
   if (isStripeEnabled()) {
     try {
       await assertConfiguredPricesBelongToProduct()
@@ -356,50 +264,37 @@ async function main() {
     }
   }
 
-  // Subscription reconciler (daily Stripe sync + grace period enforcement)
   startSubscriptionReconciler()
 
-  // Notification cleanup (purge expired notifications weekly)
   startNotificationCleanup()
 
-  // Start server
   httpServer.listen(env.PORT, () => {
     logger.info({ port: env.PORT, env: env.NODE_ENV }, 'server started')
   })
 
-  // Graceful shutdown
   let shuttingDown = false
   const shutdown = async (signal: string) => {
     if (shuttingDown) return
     shuttingDown = true
     logger.info({ signal }, 'shutting down...')
 
-    // Force-exit if a clean shutdown stalls (a hung connection, a slow
-    // in-flight reconciler pass) so the orchestrator isn't left waiting.
     const forceExit = setTimeout(() => {
       logger.error('graceful shutdown timed out — forcing exit')
       process.exit(1)
     }, 15_000)
     forceExit.unref()
 
-    // Stop accepting new HTTP connections.
     await new Promise<void>((resolve) => httpServer.close(() => resolve()))
 
-    // Stop every cron scheduler so no new work starts mid-shutdown.
     for (const task of cron.getTasks().values()) {
       try {
         task.stop()
       } catch {
-        /* already stopped */
       }
     }
 
-    // Close Socket.io — disconnects clients and stops the engine.
     await new Promise<void>((resolve) => io.close(() => resolve()))
 
-    // Wait for any in-flight reconciler pass so we don't kill an active
-    // Stripe pagination loop or leave a Postgres advisory lock orphaned
-    // mid-transaction.
     await stopSubscriptionReconciler()
 
     await closeConnection()
@@ -413,10 +308,6 @@ async function main() {
   process.on('SIGINT', () => { void shutdown('SIGINT') })
 }
 
-// Process-level safety net. A rejected promise or thrown error with no
-// local handler leaves the process in an undefined state — log it loudly
-// and exit so the container restarts cleanly (and an operator is paged)
-// instead of silently serving a broken process.
 process.on('unhandledRejection', (reason) => {
   logger.fatal({ error: String(reason) }, 'unhandled promise rejection')
   void sendFatalAlert('unhandled promise rejection', String(reason)).finally(() => process.exit(1))

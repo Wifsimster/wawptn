@@ -3,7 +3,6 @@ import { db } from '../../infrastructure/database/connection.js'
 import { authLogger } from '../../infrastructure/logger/logger.js'
 import { SESSION_COOKIE_NAME } from '../../config/session.js'
 
-// Extend Express Request
 declare global {
   namespace Express {
     interface Request {

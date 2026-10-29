@@ -6,12 +6,6 @@ import type {
   VoteRow,
 } from '../../domain/repositories/vote-repository.js'
 
-/**
- * Knex-backed implementation of `IVoteRepository`.
- *
- * The `knex` instance is injected (defaulting to the shared `db` singleton),
- * which lets callers pass a transaction (`trx`) or a test double.
- */
 export class KnexVoteRepository implements IVoteRepository {
   constructor(private readonly knex: Knex = db) {}
 
@@ -62,5 +56,4 @@ export class KnexVoteRepository implements IVoteRepository {
   }
 }
 
-/** Default singleton bound to the shared `db` connection. */
 export const voteRepository: IVoteRepository = new KnexVoteRepository()

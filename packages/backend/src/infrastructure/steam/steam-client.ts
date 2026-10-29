@@ -5,9 +5,8 @@ import { steamLogger } from '../logger/logger.js'
 const STEAM_API_BASE = 'https://api.steampowered.com'
 const STEAM_CDN_BASE = 'https://cdn.akamai.steamstatic.com/steam/apps'
 
-// Simple in-memory cache with TTL
 const cache = new Map<string, { data: unknown; expiresAt: number }>()
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000 // 6 hours
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000
 
 function getCached<T>(key: string): T | null {
   const entry = cache.get(key)
@@ -23,10 +22,6 @@ function setCache(key: string, data: unknown): void {
   cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS })
 }
 
-// Rate limiter: 1 request per second, serialized. Concurrent callers used
-// to all read the same `lastRequestTime` and fire near-simultaneously
-// (an 8-member library sync could burst 8 requests at once); chaining each
-// request onto the previous one enforces the 1s gap for real.
 let lastRequestTime = 0
 let fetchChain: Promise<unknown> = Promise.resolve()
 async function rateLimitedFetch(url: string): Promise<Response> {
@@ -36,20 +31,16 @@ async function rateLimitedFetch(url: string): Promise<Response> {
       await new Promise(resolve => setTimeout(resolve, 1000 - sinceLast))
     }
     lastRequestTime = Date.now()
-    // Cap the request so a hung Steam connection cannot pin a request
-    // handler indefinitely; the caller treats a reject as a failure.
     return fetch(url, { signal: AbortSignal.timeout(10_000) })
   })
-  // Keep the chain alive for the next caller even if this request rejects.
   fetchChain = result.then(() => undefined, () => undefined)
   return result
 }
 
-// Circuit breaker state
 let consecutiveFailures = 0
 let circuitOpenUntil = 0
 const CIRCUIT_THRESHOLD = 3
-const CIRCUIT_RESET_MS = 5 * 60 * 1000 // 5 minutes
+const CIRCUIT_RESET_MS = 5 * 60 * 1000
 
 function isCircuitOpen(): boolean {
   if (consecutiveFailures < CIRCUIT_THRESHOLD) return false
@@ -72,12 +63,6 @@ function recordFailure(): void {
   }
 }
 
-/**
- * Snapshot of the Steam client's current health: circuit breaker state,
- * cache size, and whether requests are currently being shed. Read by the
- * /api/admin/health endpoint so admins can see when the integration is
- * degraded without tailing the logs.
- */
 export function getHealth(): {
   state: 'closed' | 'open'
   consecutiveFailures: number
@@ -134,7 +119,6 @@ export async function getOwnedGames(steamId: string): Promise<SteamOwnedGame[] |
 
     const games = data.response.games || []
 
-    // Empty list might mean private profile
     if (games.length === 0 && data.response.game_count === undefined) {
       steamLogger.warn({ steamId }, 'Steam profile might be private — no games returned')
       return []
@@ -189,7 +173,6 @@ export function getSteamRunUrl(appId: number): string {
   return `steam://run/${appId}`
 }
 
-// Generate a cryptographically random invite token
 export function generateInviteToken(): { token: string; hash: string } {
   const token = crypto.randomBytes(32).toString('hex')
   const hash = crypto.createHash('sha256').update(token).digest('hex')
@@ -200,7 +183,6 @@ export function hashInviteToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
 }
 
-// Steam OpenID 2.0 verification
 const STEAM_OPENID_URL = 'https://steamcommunity.com/openid/login'
 
 export function getSteamLoginUrl(returnUrl: string): string {
@@ -208,9 +190,6 @@ export function getSteamLoginUrl(returnUrl: string): string {
     'openid.ns': 'http://specs.openid.net/auth/2.0',
     'openid.mode': 'checkid_setup',
     'openid.return_to': returnUrl,
-    // Realm is pinned to the canonical app origin from trusted config —
-    // never derived from the caller-supplied returnUrl, which would be a
-    // phishing primitive if the returnUrl host could ever vary.
     'openid.realm': new URL(env.API_URL).origin,
     'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
     'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
@@ -220,14 +199,12 @@ export function getSteamLoginUrl(returnUrl: string): string {
 }
 
 export async function verifySteamLogin(params: Record<string, string>): Promise<string | null> {
-  // Verify the claimed_id is from Steam
   const claimedId = params['openid.claimed_id']
   if (!claimedId || !claimedId.startsWith('https://steamcommunity.com/openid/id/')) {
     steamLogger.warn({ claimedId }, 'invalid Steam claimed_id')
     return null
   }
 
-  // Build verification request
   const verifyParams = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
     verifyParams.set(key, value)
@@ -249,7 +226,6 @@ export async function verifySteamLogin(params: Record<string, string>): Promise<
       return null
     }
 
-    // Extract Steam ID from claimed_id
     const steamId = claimedId.replace('https://steamcommunity.com/openid/id/', '')
     steamLogger.info({ steamId }, 'Steam OpenID verified')
     return steamId

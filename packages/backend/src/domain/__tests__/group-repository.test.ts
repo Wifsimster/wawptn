@@ -1,17 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// ---------------------------------------------------------------------------
-// vi.hoisted — shared state between mock factories (hoisted) and tests
-// ---------------------------------------------------------------------------
-
 const { mockKnex, dbResultQueue, dbCallCounts, lastArgs } = vi.hoisted(() => {
-  /**
-   * Chainable mock mimicking a Knex query builder.
-   *
-   * Every method returns the same proxy, `await` resolves to `resolveValue`,
-   * and each method invocation is recorded in `callLog` so tests can assert
-   * on the exact chain that the repository built (e.g. `.where({ id })`).
-   */
   function chain(
     resolveValue: unknown,
     callLog: Array<{ method: string; args: unknown[] }>,
@@ -61,36 +50,18 @@ const { mockKnex, dbResultQueue, dbCallCounts, lastArgs } = vi.hoisted(() => {
   return { mockKnex, dbResultQueue, dbCallCounts, lastArgs }
 })
 
-// ---------------------------------------------------------------------------
-// Module mocks
-// ---------------------------------------------------------------------------
-
 vi.mock('@/infrastructure/database/connection.js', () => ({ db: mockKnex }))
-
-// ---------------------------------------------------------------------------
-// Import module under test (after mocks are registered)
-// ---------------------------------------------------------------------------
 
 import { KnexGroupRepository } from '../../infrastructure/repositories/knex-group-repository.js'
 import type { Knex } from 'knex'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function setResult(table: string, ...values: unknown[]) {
   dbResultQueue.set(table, values)
 }
 
 function makeRepo(): KnexGroupRepository {
-  // The proxy-based mock is structurally compatible with Knex for the
-  // subset of operations the repository uses, but not nominally typed.
   return new KnexGroupRepository(mockKnex as unknown as Knex)
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('KnexGroupRepository', () => {
   beforeEach(() => {

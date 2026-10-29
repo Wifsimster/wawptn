@@ -24,13 +24,6 @@ interface TonightPickHeroProps {
   members: Member[]
   onStartVote: () => void
   onRandomPick: () => void
-  /**
-   * If a voting session is already open for this group, the hero renders a
-   * "join existing vote" variant instead of the normal "start a vote" CTA.
-   * The backend enforces one open session per group, so surfacing this at
-   * the group detail page prevents users from walking through the setup
-   * dialog only to land on a 409 toast on the vote page.
-   */
   activeVoteSession?: { id: string; scheduledAt: string | null } | null
   onJoinActiveVote?: () => void
 }
@@ -63,19 +56,11 @@ export function TonightPickHero({
     )
   }
 
-  // A vote is already open for this group → show a dedicated "join" hero
-  // instead of the normal pick, since creating another vote would just
-  // bounce off the backend's one-open-session-per-group guard. We key
-  // the "scheduled" vs "in progress" copy off the presence of a
-  // `scheduledAt` timestamp rather than comparing against `Date.now()` to
-  // keep the render pure — the VotePage itself handles countdown vs live
-  // display once the user clicks through.
   if (activeVoteSession && onJoinActiveVote) {
     const isScheduled = !!activeVoteSession.scheduledAt
     const avatars = members.slice(0, 5)
     return (
       <div className="relative overflow-hidden rounded-xl border border-primary/40 bg-card/40 shadow-1 ring-1 ring-primary/20">
-        {/* Soft primary-tinted wash to set this state apart from the regular hero. */}
         <div
           aria-hidden="true"
           className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/5 to-transparent pointer-events-none"
@@ -136,7 +121,6 @@ export function TonightPickHero({
     )
   }
 
-  // No games available → minimal hero that still offers the primary CTA.
   if (!pick) {
     return (
       <div className="rounded-xl border border-border bg-card/40 shadow-1 p-5 sm:p-6">
@@ -161,24 +145,16 @@ export function TonightPickHero({
   const { game, reason } = pick
   const ReasonIcon = REASON_META[reason].icon
   const ownershipComplete = game.ownerCount === game.totalMembers
-  // Avatars — prefer stable slice so the display is deterministic.
   const avatars = members.slice(0, 5)
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-border bg-card/40 shadow-1 group">
-      {/* Background art: the Steam header, heavily masked. The image is
-          absolute so the content below stays readable on any screen size. */}
       <div className="absolute inset-0">
         <img
           src={resolveSteamHeaderImage(game.steamAppId, game.headerImageUrl)}
           alt=""
           aria-hidden="true"
           className="w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-opacity duration-500 group-hover:scale-[1.02] motion-safe:transition-transform"
-          // The visible foreground thumb (below) is the sharp asset we
-          // care about; this is a decorative 40%-opacity backdrop. Tell
-          // the browser so it can deprioritise the network slot when
-          // both fetches race over flaky 4G. Same URL → cache dedupes.
-          // Mobile review §C7.
           loading="lazy"
           fetchPriority="low"
         />
@@ -187,13 +163,9 @@ export function TonightPickHero({
       </div>
 
       <div className="relative p-4 sm:p-6 flex flex-col sm:flex-row gap-4 sm:gap-5 items-stretch">
-        {/* Left: small game thumb — kept as a visible card so users see the
-            actual Steam art sharply (background is too faded to count). */}
         <div className="shrink-0 hidden sm:block">
           <img
             src={resolveSteamHeaderImage(game.steamAppId, game.headerImageUrl)}
-            // Decorative — the adjacent <h2> already announces the game
-            // name, so an alt here causes screen readers to hear it twice.
             alt=""
             aria-hidden="true"
             className="w-[200px] aspect-[460/215] rounded-lg object-cover ring-1 ring-white/10 shadow-lg"
@@ -201,7 +173,6 @@ export function TonightPickHero({
           />
         </div>
 
-        {/* Right: reason + title + meta + CTA */}
         <div className="flex-1 min-w-0 flex flex-col justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1.5">
@@ -253,7 +224,6 @@ export function TonightPickHero({
             )}
           </div>
 
-          {/* CTA row: dominant primary + small dice secondary + member avatars */}
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <Button
               onClick={onStartVote}

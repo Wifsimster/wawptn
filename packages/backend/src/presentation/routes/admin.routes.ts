@@ -14,8 +14,6 @@ import { getHealth as getGogHealth } from '../../infrastructure/gog/gog-client.j
 import { mergeDuplicateGames } from '../../domain/game-dedupe.js'
 import { validateBody } from '../middleware/validate.middleware.js'
 
-// ─── Zod schemas ──────────────────────────────────────────────────────────────
-
 const ToggleAdminSchema = z.object({
   isAdmin: z.boolean(),
 })
@@ -31,7 +29,6 @@ const TestEmailSchema = z.object({
 })
 
 const CreatePersonaSchema = z.object({
-  // kebab-case identifier, max 50 chars — matches the previous inline regex
   id: z
     .string()
     .min(1)
@@ -42,8 +39,6 @@ const CreatePersonaSchema = z.object({
   fridayMessages: z.array(z.string().min(1)).min(1),
   weekdayMessages: z.array(z.string().min(1)).min(1),
   backOnlineMessages: z.array(z.string().min(1)).min(1),
-  // New pools are optional on create — an admin can leave them empty and
-  // the persona will simply skip the off-topic injection / daily pulse.
   idleBanter: z.array(z.string().min(1)).optional(),
   morningGreetings: z.array(z.string().min(1)).optional(),
   weekendVibes: z.array(z.string().min(1)).optional(),
@@ -53,7 +48,6 @@ const CreatePersonaSchema = z.object({
   embedColor: z.number().int().min(0).max(0xffffff),
 })
 
-// All fields optional for PATCH; at least one must be provided.
 const UpdatePersonaSchema = z
   .object({
     name: z.string().min(1).max(64),
@@ -76,8 +70,6 @@ const UpdatePersonaSchema = z
 
 const router = Router()
 
-// ─── Bot settings ─────────────────────────────────────────────────────────────
-
 router.get('/bot-settings', async (_req: Request, res: Response) => {
   try {
     const rows = await db('app_settings')
@@ -86,7 +78,6 @@ router.get('/bot-settings', async (_req: Request, res: Response) => {
 
     const settings: Record<string, unknown> = {}
     for (const row of rows) {
-      // Strip the 'bot.' prefix for cleaner API response
       const shortKey = row.key.replace(/^bot\./, '')
       settings[shortKey] = row.value
     }
@@ -106,7 +97,6 @@ router.patch('/bot-settings', async (req: Request, res: Response) => {
     return
   }
 
-  // Allowlist of valid settings keys
   const allowedKeys = new Set([
     'persona_rotation_enabled',
     'friday_schedule',
@@ -141,8 +131,6 @@ router.patch('/bot-settings', async (req: Request, res: Response) => {
   res.json({ ok: true })
 })
 
-// ─── Users management ─────────────────────────────────────────────────────────
-
 interface UserRow {
   id: string
   steam_id: string
@@ -156,8 +144,6 @@ interface UserRow {
   created_at: Date
 }
 
-/** Compute whether a user is currently premium, accounting for both
- * admin-granted access and an active Stripe subscription. */
 function computeIsPremium(u: UserRow): boolean {
   if (u.is_admin || u.admin_granted_premium) return true
   if (u.stripe_tier !== 'premium') return false
@@ -224,12 +210,10 @@ router.get('/users', async (req: Request, res: Response) => {
   }
 })
 
-// Toggle admin status for a user
 router.patch('/users/:id/admin', validateBody(ToggleAdminSchema), async (req: Request, res: Response) => {
   const targetId = String(req.params['id'])
   const { isAdmin } = req.body as z.infer<typeof ToggleAdminSchema>
 
-  // Prevent self-demotion
   if (targetId === req.userId && !isAdmin) {
     res.status(400).json({ error: 'validation', message: 'Vous ne pouvez pas révoquer votre propre accès admin' })
     return
@@ -244,9 +228,6 @@ router.patch('/users/:id/admin', validateBody(ToggleAdminSchema), async (req: Re
   await db('users').where({ id: targetId }).update({ is_admin: isAdmin })
   authLogger.warn({ userId: req.userId, targetId, isAdmin }, 'admin role changed')
 
-  // Force the target to re-authenticate so any in-flight sessions pick up
-  // the new privilege state immediately. Critical when revoking admin: a
-  // lingering session would otherwise keep working until natural expiry.
   const invalidatedSessions = await invalidateAllUserSessions(targetId)
 
   await recordAdminAction({
@@ -263,7 +244,6 @@ router.patch('/users/:id/admin', validateBody(ToggleAdminSchema), async (req: Re
   res.json({ ok: true })
 })
 
-// Grant or revoke admin-granted premium access for a user
 router.patch('/users/:id/premium', validateBody(TogglePremiumSchema), async (req: Request, res: Response) => {
   const targetId = String(req.params['id'])
   const { isPremium } = req.body as z.infer<typeof TogglePremiumSchema>
@@ -275,10 +255,6 @@ router.patch('/users/:id/premium', validateBody(TogglePremiumSchema), async (req
   }
 
   const wasPremium = !!target.admin_granted_premium
-  // Track who granted the premium and when so the row is self-describing
-  // even if the audit log is purged. The CHECK constraint added in
-  // 20260509_admin_grant_metadata enforces that _by/_at are both populated
-  // when the flag is true and both null when revoked.
   await db('users').where({ id: targetId }).update(
     isPremium
       ? {
@@ -299,8 +275,6 @@ router.patch('/users/:id/premium', validateBody(TogglePremiumSchema), async (req
     'admin-granted premium changed',
   )
 
-  // Force re-auth so the next session reflects the new tier without waiting
-  // for the in-memory premium cache to expire on every backend instance.
   const invalidatedSessions = await invalidateAllUserSessions(targetId)
 
   await recordAdminAction({
@@ -314,8 +288,6 @@ router.patch('/users/:id/premium', validateBody(TogglePremiumSchema), async (req
     },
   })
 
-  // Notify the target (in-app + email) only when the flag actually flipped,
-  // so repeated clicks on the same state don't spam the user.
   if (wasPremium !== isPremium) {
     notifyPremiumChange({
       targetUserId: targetId,
@@ -331,8 +303,6 @@ router.patch('/users/:id/premium', validateBody(TogglePremiumSchema), async (req
 
   res.json({ ok: true })
 })
-
-// ─── Personas management ──────────────────────────────────────────────────────
 
 router.get('/personas', async (_req: Request, res: Response) => {
   try {
@@ -383,8 +353,6 @@ router.post('/personas', validateBody(CreatePersonaSchema), async (req: Request,
     embedColor,
   } = req.body as z.infer<typeof CreatePersonaSchema>
 
-  // Check for duplicate id (uniqueness is a domain concern, not a shape
-  // concern, so it stays in the handler instead of moving into the schema)
   const existing = await db('personas').where({ id }).first()
   if (existing) {
     res.status(409).json({ error: 'conflict', message: 'Un persona avec cet identifiant existe déjà' })
@@ -429,9 +397,6 @@ router.patch('/personas/:id', validateBody(UpdatePersonaSchema), async (req: Req
     return
   }
 
-  // Build update object from the validated fields. The schema's .refine()
-  // already guaranteed at least one field, so we can map straight from
-  // body to column names without re-checking emptiness.
   const updates: Record<string, unknown> = {}
   if (body.name !== undefined) updates.name = body.name
   if (body.systemPromptOverlay !== undefined) updates.system_prompt_overlay = body.systemPromptOverlay
@@ -511,8 +476,6 @@ router.patch('/personas/:id/toggle', async (req: Request, res: Response) => {
   res.json({ ok: true, isActive: newActive })
 })
 
-// ─── Stats ────────────────────────────────────────────────────────────────────
-
 router.get('/stats', async (_req: Request, res: Response) => {
   try {
     const userCount = await db('users').count('id as count').first()
@@ -532,20 +495,7 @@ router.get('/stats', async (_req: Request, res: Response) => {
   }
 })
 
-// ─── Health / observability ──────────────────────────────────────────────────
-
-/**
- * Aggregated health snapshot for ops. Surfaces the state of each external
- * integration's circuit breaker + cache, plus a database ping. Lets admins
- * see when an integration is degraded without tailing the logs.
- *
- * Mounted under /api/admin so it requires the admin middleware (the handler
- * itself never throws — every dependency is wrapped in a try/catch so a
- * single broken integration cannot 500 the whole report).
- */
 router.get('/health', async (_req: Request, res: Response) => {
-  // Database ping — measures round-trip and reports up/down separately so a
-  // DB outage doesn't make the response itself unreadable.
   let dbStatus: 'up' | 'down' = 'down'
   let dbLatencyMs: number | null = null
   try {
@@ -557,9 +507,6 @@ router.get('/health', async (_req: Request, res: Response) => {
     authLogger.error({ error: String(error) }, 'admin health: database ping failed')
   }
 
-  // Each integration getHealth() is synchronous and reads in-memory state.
-  // We still wrap them so a future async refactor (or an unexpected throw)
-  // can't take down the rest of the report.
   const safe = <T>(fn: () => T, fallback: T): T => {
     try { return fn() } catch { return fallback }
   }
@@ -575,15 +522,6 @@ router.get('/health', async (_req: Request, res: Response) => {
   })
 })
 
-// ─── Cross-platform game dedupe (Marcus #1) ──────────────────────────────
-// One-shot idempotent pass that merges canonical games whose normalised
-// names collide. Useful to run after a big normalizer change or when
-// cross-platform "not seeing my friend's game" reports come in.
-//
-// The utility in domain/game-dedupe.ts is safe to re-run; a second call
-// after the first merged everything it could will be a no-op. We record
-// the invocation in the admin audit log with the summary stats so admins
-// can see who triggered the last pass.
 router.post('/games/dedupe', async (req: Request, res: Response) => {
   try {
     const result = await mergeDuplicateGames()
@@ -598,11 +536,6 @@ router.post('/games/dedupe', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'internal', message: 'Failed to run game dedupe pass' })
   }
 })
-
-// ─── Email integration test ──────────────────────────────────────────────────
-// Lets an admin verify the Resend integration end-to-end (config + delivery)
-// without having to trigger a real transactional flow. Useful after rotating
-// RESEND_API_KEY or switching EMAIL_FROM domain.
 
 const PLACEHOLDER_EMAIL_SUFFIX = '@steam.wawptn.app'
 
@@ -669,10 +602,6 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;')
 }
 
-// ─── Subscription / Stripe health ────────────────────────────────────────────
-// Surfaces the daily reconciler's last-pass counters and the recent webhook
-// outcomes so ops can answer "have webhooks been failing for 24h?" without
-// grepping logs. Read-only.
 router.get('/subscription-health', async (_req: Request, res: Response) => {
   const { getReconcilerHealth, runReconciliation: _runReconciliation } = await import(
     '../../infrastructure/scheduler/subscription-reconciler.js'
@@ -686,7 +615,6 @@ router.get('/subscription-health', async (_req: Request, res: Response) => {
     ? (Date.now() - reconciler.lastRunAt.getTime()) / (60 * 60_000)
     : null
 
-  // Webhook event outcomes for the last 24h, grouped by event_type and status.
   const since = new Date(Date.now() - 24 * 60 * 60_000)
   const events = await db('stripe_events')
     .where('processed_at', '>=', since)
@@ -694,7 +622,6 @@ router.get('/subscription-health', async (_req: Request, res: Response) => {
     .count<{ event_type: string; status: string; count: string }[]>('* as count')
     .groupBy('event_type', 'status')
 
-  // Subscription tier breakdown for at-a-glance sanity.
   const tiers = await db('subscriptions')
     .select('tier', 'status')
     .count<{ tier: string; status: string; count: string }[]>('* as count')
@@ -709,13 +636,8 @@ router.get('/subscription-health', async (_req: Request, res: Response) => {
     },
     reconciler: {
       ...reconciler,
-      // Hours since last completed run — alarm above ~25h indicates the
-      // daily 03:00 UTC cron stopped firing or every replica lost the
-      // advisory lock race.
       hoursSinceLastRun: reconcilerStaleHours,
     },
-    // Per-replica counters from webhook-metrics. Reset on process
-    // restart; for a fleet view, query each replica's health endpoint.
     webhookMetrics,
     webhookEvents24h: events.map((e) => ({
       eventType: e.event_type,
@@ -730,8 +652,6 @@ router.get('/subscription-health', async (_req: Request, res: Response) => {
   })
 })
 
-// Manual trigger for the reconciler — useful when the daily 03:00 UTC pass
-// has been failing and ops wants to re-run after a fix without waiting.
 router.post('/subscription-health/reconcile', async (req: Request, res: Response) => {
   const { runReconciliation } = await import('../../infrastructure/scheduler/subscription-reconciler.js')
   try {

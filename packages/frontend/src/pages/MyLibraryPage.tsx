@@ -32,8 +32,6 @@ function formatPlaytime(minutes: number | null): string | null {
   return `${(hours / 1000).toFixed(1)}kh`
 }
 
-/* ── Game card with a "promote to Discord" action ── */
-
 function LibraryCard({
   game,
   onPromote,
@@ -87,8 +85,6 @@ function LibraryCard({
   )
 }
 
-/* ── Promote-to-Discord dialog ── */
-
 function PromoteDialog({
   game,
   open,
@@ -104,7 +100,6 @@ function PromoteDialog({
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
 
-  // Load the user's Discord-enabled groups when the dialog opens.
   useEffect(() => {
     if (!open) return
     setTargets(null)
@@ -145,7 +140,6 @@ function PromoteDialog({
         </ResponsiveDialogHeader>
 
         <div className="space-y-4 px-4 sm:px-0">
-          {/* Group picker */}
           {targets === null ? (
             <div className="space-y-2">
               <Skeleton className="h-14 rounded-xl" />
@@ -193,7 +187,6 @@ function PromoteDialog({
             </div>
           )}
 
-          {/* Optional message */}
           {targets && targets.length > 0 && (
             <div className="space-y-1.5">
               <label htmlFor="promote-message" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -224,8 +217,6 @@ function PromoteDialog({
   )
 }
 
-/* ── Page ── */
-
 export function MyLibraryPage() {
   const { t } = useTranslation()
   useDocumentTitle(t('library.title'))
@@ -255,8 +246,6 @@ export function MyLibraryPage() {
     loadLibrary()
   }, [loadLibrary])
 
-  // Search + sort happen client-side over the already-loaded library — snappy
-  // and avoids a network round-trip per keystroke.
   const displayed = useMemo(() => {
     const q = query.trim().toLowerCase()
     const filtered = q ? games.filter((g) => g.gameName.toLowerCase().includes(q)) : games.slice()
@@ -291,7 +280,6 @@ export function MyLibraryPage() {
       </PageHeader>
 
       <main id="main-content" className="max-w-6xl mx-auto w-full p-4 space-y-4 pb-12">
-        {/* Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
@@ -318,7 +306,6 @@ export function MyLibraryPage() {
           </div>
         </div>
 
-        {/* Count */}
         {!loading && (
           <p className="text-xs text-muted-foreground">
             {query.trim()
@@ -327,7 +314,6 @@ export function MyLibraryPage() {
           </p>
         )}
 
-        {/* Grid */}
         {loading ? (
           <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 m-0 p-0 list-none">
             {Array.from({ length: 12 }).map((_, i) => (

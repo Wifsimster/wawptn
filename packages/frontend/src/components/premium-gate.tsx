@@ -6,9 +6,6 @@ import { useSubscriptionStore, selectIsPremium } from '@/stores/subscription.sto
 import { Button } from '@/components/ui/button'
 import { track } from '@/lib/analytics'
 
-/** Identifier for which feature/limit triggered the gate. Used both for
- *  copy selection and for `?from=` analytics attribution on the upsell
- *  funnel. Add a new key here when you add a new gate. */
 export type PremiumFromKey =
   | 'auto_vote'
   | 'recommendations'
@@ -19,11 +16,8 @@ export type PremiumFromKey =
 
 interface PremiumGateProps {
   children: React.ReactNode
-  /** Identifies the gated surface — drives copy + analytics attribution. */
   from?: PremiumFromKey
-  /** Optional custom feature label (overrides the per-`from` default). */
   feature?: string
-  /** Replace the default fallback UI with custom content. */
   fallback?: React.ReactNode
 }
 
@@ -40,8 +34,6 @@ function PremiumGateFallback({ from, feature }: { from: PremiumFromKey; feature?
   const { t } = useTranslation()
   const navigate = useNavigate()
 
-  // Fire `gate_shown` once per mount with the originating surface so we
-  // can compute (gates_shown → upgrade_clicked) conversion per gate type.
   useEffect(() => {
     track('premium.gate_shown', { from })
   }, [from])

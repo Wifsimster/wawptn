@@ -5,14 +5,10 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card'
 interface CollapsibleCardProps {
   title: string
   icon: LucideIcon
-  /** Whether the panel starts open. Stats-style surfaces default to open. */
   defaultExpanded?: boolean
   children: ReactNode
 }
 
-/** A Card whose body can be folded away behind its header. Shared so every
- *  collapsible surface keeps the same header, chevron and a11y wiring
- *  (`aria-expanded` / `aria-controls`, a 44px touch target, a unique id). */
 export function CollapsibleCard({ title, icon: Icon, defaultExpanded = true, children }: CollapsibleCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const panelId = useId()

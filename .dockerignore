@@ -1,31 +1,24 @@
-# Version control
 .git
 .github
 .gitignore
 .gitattributes
 
-# Dependencies (rebuilt in Docker)
 **/node_modules
 
-# Documentation
 **/*.md
 
-# Environment files
 .env*
 **/.env*
 
-# Docker compose / Dockerfiles
 compose*.yml
 docker-compose*.yml
 .dockerignore
 Dockerfile*
 
-# IDE / editor
 .vscode
 .idea
 *.swp
 
-# Tests & coverage
 **/coverage
 **/__tests__
 **/*.test.ts
@@ -34,7 +27,6 @@ Dockerfile*
 **/*.spec.tsx
 **/vitest.config.*
 
-# Build artifacts & caches
 **/dist
 **/.turbo
 **/.cache
@@ -43,10 +35,8 @@ Dockerfile*
 *.log
 .DS_Store
 
-# Husky & hooks
 .husky
 
-# Misc runtime dirs
 backups/
 uploads/
 .eslintrc*

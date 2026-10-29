@@ -5,8 +5,6 @@ services:
     image: ghcr.io/wifsimster/wawptn:latest
     container_name: wawptn
     restart: unless-stopped
-    # Safety ceilings so a leak or runaway cannot starve the host (and the
-    # database alongside it). Tune to the host once real usage is observed.
     mem_limit: 1g
     cpus: 1.5
     pids_limit: 512
@@ -29,10 +27,6 @@ services:
       - API_URL=https://wawptn.battistella.ovh
       - CORS_ORIGIN=https://wawptn.battistella.ovh
       - DISCORD_BOT_API_SECRET=${DISCORD_BOT_API_SECRET}
-      # Reach the bot's internal HTTP API across the compose network so that
-      # starting/closing a vote on the web surfaces in the linked Discord
-      # channel. Without this the backend's isBotClientEnabled() short-circuits
-      # to false and no bot-backed message is ever posted.
       - DISCORD_BOT_HTTP_URL=http://wawptn-discord:3001
       - ADMIN_STEAM_ID=${ADMIN_STEAM_ID:-}
     depends_on:
@@ -70,10 +64,6 @@ services:
       - DISCORD_APPLICATION_ID=${DISCORD_APPLICATION_ID}
       - DISCORD_BOT_API_SECRET=${DISCORD_BOT_API_SECRET}
       - BACKEND_URL=http://wawptn:8080
-      # Bind the internal HTTP API on all interfaces so the backend container
-      # can reach it over the compose network. The default 127.0.0.1 only
-      # accepts connections from inside this container, which makes the
-      # backend -> bot link unreachable and silently drops vote messages.
       - DISCORD_BOT_HTTP_HOST=0.0.0.0
       - DISCORD_BOT_HTTP_PORT=3001
     depends_on:
@@ -109,11 +99,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Daily pg_dump → ./backups, 7-day retention. Reuses the trusted Postgres
-  # image (no extra third-party dependency).
-  # IMPORTANT: ./backups lives on the same host as the database — for a real
-  # disaster-recovery guarantee, sync that directory off-host (object
-  # storage / another machine) and periodically test a restore.
   postgres-backup:
     image: postgres:16-alpine
     container_name: wawptn-postgres-backup

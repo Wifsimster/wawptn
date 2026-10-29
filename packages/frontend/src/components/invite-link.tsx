@@ -6,14 +6,8 @@ import { track } from '@/lib/analytics'
 
 interface InviteLinkProps {
   token: string
-  /** When true, render the Discord-share action as the primary CTA and
-   *  surface a follow-up "Continue to group" affordance. Use after the
-   *  group-creation success dialog — that's the strongest viral moment. */
   prominent?: boolean
-  /** Handler for the secondary "Continuer vers le groupe" button. Only
-   *  rendered when `prominent` is true. */
   onContinue?: () => void
-  /** Override the secondary continue label. */
   continueLabel?: string
 }
 
@@ -21,7 +15,6 @@ async function copyToClipboard(text: string) {
   try {
     await navigator.clipboard.writeText(text)
   } catch {
-    // Fallback for non-secure contexts
     const textarea = document.createElement('textarea')
     textarea.value = text
     textarea.style.position = 'fixed'
@@ -43,7 +36,6 @@ function DiscordIcon({ className }: { className?: string }) {
 
 export function InviteLink({ token, prominent = false, onContinue, continueLabel }: InviteLinkProps) {
   const { t } = useTranslation()
-  // Use /invite/ path for rich embeds (Discord, Slack, Twitter), redirects to SPA
   const url = `${window.location.origin}/invite/${token}`
   const canShare = typeof navigator.share === 'function'
 
@@ -69,16 +61,12 @@ export function InviteLink({ token, prominent = false, onContinue, continueLabel
       })
       track('invite.shared', { surface: 'native' })
     } catch (err) {
-      // User cancelled share or not supported — fall back to copy
       if (err instanceof Error && err.name !== 'AbortError') {
         handleCopy()
       }
     }
   }
 
-  // Prominent variant: at the post-creation viral moment, lead with the
-  // Discord-share CTA (most invites flow through Discord per product
-  // research) and demote the bare "copy link" to a secondary action.
   if (prominent) {
     return (
       <div className="mt-3 p-4 bg-background rounded-md border border-primary/30">

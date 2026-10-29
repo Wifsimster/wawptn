@@ -1,15 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// ---------------------------------------------------------------------------
-// vi.hoisted — variables available inside vi.mock factories (which are hoisted)
-// ---------------------------------------------------------------------------
-
 const { mockDb, dbResults, dbCallCounts, scheduledCallbacks, createVotingSessionMock, isUserPremiumMock } =
   vi.hoisted(() => {
-    /**
-     * Chainable mock mimicking a Knex query builder.
-     * Every method returns the same proxy, and `await` resolves to `resolveValue`.
-     */
     function chain(resolveValue: unknown = undefined): unknown {
       const proxy: unknown = new Proxy(() => {}, {
         get(_t, prop: string) {
@@ -43,17 +35,12 @@ const { mockDb, dbResults, dbCallCounts, scheduledCallbacks, createVotingSession
       { fn: { now: () => 'NOW()' }, raw: noop },
     )
 
-    // Records cron callbacks so tests can fire them manually.
     const scheduledCallbacks: Array<() => Promise<void> | void> = []
     const createVotingSessionMock = vi.fn()
     const isUserPremiumMock = vi.fn()
 
     return { mockDb, dbResults, dbCallCounts, scheduledCallbacks, createVotingSessionMock, isUserPremiumMock }
   })
-
-// ---------------------------------------------------------------------------
-// Module mocks
-// ---------------------------------------------------------------------------
 
 vi.mock('@/infrastructure/database/connection.js', () => ({ db: mockDb }))
 
@@ -84,17 +71,9 @@ vi.mock('node-cron', () => {
   }
 })
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function setDbResult(table: string, ...values: unknown[]) {
   dbResults.set(table, values)
 }
-
-// ---------------------------------------------------------------------------
-// Import module under test (after mocks)
-// ---------------------------------------------------------------------------
 
 import { updateGroupSchedule } from '../auto-vote-scheduler.js'
 
@@ -110,17 +89,12 @@ describe('auto-vote-scheduler', () => {
   })
 
   it('persists the auto-close target on the session row so it survives a restart', async () => {
-    // Arrange — the cron tick reads members, then existing open session,
-    // then the group owner. Configure the mock db results in that order.
-    setDbResult('group_members', ['user-a', 'user-b', 'user-c']) // member ids
-    setDbResult('voting_sessions', undefined) // no existing open session
-    // Owner lookup: a single row
-    dbResults.set('group_members', ['user-a', 'user-b', 'user-c']) // memberIds.pluck()
-    // The second call to db('group_members') is the owner lookup; we override
-    // by sequencing two distinct results for the same table.
+    setDbResult('group_members', ['user-a', 'user-b', 'user-c'])
+    setDbResult('voting_sessions', undefined)
+    dbResults.set('group_members', ['user-a', 'user-b', 'user-c'])
     dbResults.set('group_members', [
-      ['user-a', 'user-b', 'user-c'], // first call: pluck() returns array
-      { user_id: 'user-a' }, // second call: .first() returns owner row
+      ['user-a', 'user-b', 'user-c'],
+      { user_id: 'user-a' },
     ])
 
     createVotingSessionMock.mockResolvedValue({
@@ -128,19 +102,15 @@ describe('auto-vote-scheduler', () => {
       games: [],
     })
 
-    // Pin the clock so we can assert the close target deterministically.
     const fixedNow = new Date('2026-04-13T20:00:00.000Z').getTime()
     vi.spyOn(Date, 'now').mockReturnValue(fixedNow)
 
-    // Act — register a schedule (registers a cron callback in our mock),
-    // then fire that callback as if the cron had ticked.
     updateGroupSchedule('group-1', '0 21 * * 5', 90)
     expect(scheduledCallbacks.length).toBe(1)
     const tick = scheduledCallbacks[0]
     expect(tick).toBeDefined()
     await tick!()
 
-    // Assert — createVotingSession received scheduledAt = now + 90 minutes.
     expect(createVotingSessionMock).toHaveBeenCalledTimes(1)
     const call = createVotingSessionMock.mock.calls[0]?.[0] as {
       scheduledAt?: Date

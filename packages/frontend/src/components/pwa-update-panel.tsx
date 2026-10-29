@@ -4,17 +4,6 @@ import { AnimatePresence, m } from 'framer-motion'
 import { RefreshCw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-/**
- * Surfaces a fixed bottom panel when vite-plugin-pwa detects that a fresh
- * service worker is waiting. The user can refresh on demand (calls
- * `updateServiceWorker(true)`, which `skipWaiting`s the new SW and reloads
- * the page) or dismiss the panel and keep working — the new SW stays in
- * waiting state and the panel re-surfaces if a subsequent deploy fires
- * `onNeedRefresh` again.
- *
- * Wrapped in AnimatePresence/motion so it slides in without jolting the
- * layout (the panel sits in a fixed overlay above the routes).
- */
 export function PwaUpdatePanel() {
   const { t } = useTranslation()
 
@@ -23,10 +12,6 @@ export function PwaUpdatePanel() {
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_url, registration) {
-      // Belt-and-braces hourly check: vite-plugin-pwa calls `update()` on
-      // load, but a long-lived PWA tab (mobile, screen never locked) would
-      // otherwise miss deploys until a manual reload. 1h is gentle enough
-      // not to hammer the SW cache.
       if (!registration) return
       setInterval(() => {
         void registration.update()

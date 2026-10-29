@@ -18,20 +18,8 @@ interface GameListProps {
   t: (key: string, options?: Record<string, unknown>) => string
 }
 
-/**
- * Virtualized renderer used when the displayed list is large enough to
- * benefit from windowing. Lives in its own component so its column-count
- * state + ResizeObserver only exist while virtualization is actually
- * active (the parent gates the mount on `shouldVirtualize`). The
- * virtualizer relies on inline styles/refs on the scroll + item elements,
- * so those are preserved verbatim; only the container tag changed
- * (div → menu) and items render as <li> via GameCard.
- */
 function VirtualizedGameList({ games, t }: GameListProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  // Lazy initialiser measures the viewport once on mount instead of
-  // syncing state from a prop inside an effect. Subsequent changes come
-  // exclusively from the ResizeObserver below.
   const [columnCount, setColumnCount] = useState(() => computeColumnCount(window.innerWidth))
 
   const updateColumnCount = useCallback(() => {
@@ -53,7 +41,6 @@ function VirtualizedGameList({ games, t }: GameListProps) {
     count: rowCount,
     getScrollElement: () => scrollContainerRef.current,
     estimateSize: () => {
-      // aspect-[460/215] → height = width / (460/215) ≈ width * 0.467 + gap
       const containerWidth = scrollContainerRef.current?.offsetWidth ?? 300
       const gap = 8
       const cardWidth = (containerWidth - gap * (columnCount - 1)) / columnCount
@@ -99,12 +86,6 @@ function VirtualizedGameList({ games, t }: GameListProps) {
   )
 }
 
-/**
- * Renders the displayed games either as a plain responsive grid or, for
- * large lists, a virtualized window. Splitting the virtualized branch into
- * its own component keeps the heavy virtualization hooks out of the small
- * grid path and confines the column-count state to where it's used.
- */
 export function GameList({ games, t }: GameListProps) {
   if (games.length >= VIRTUALIZE_THRESHOLD) {
     return <VirtualizedGameList games={games} t={t} />

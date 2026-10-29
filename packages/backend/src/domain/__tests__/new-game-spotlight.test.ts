@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest'
 
-// new-game-spotlight.ts pulls in the DB connection, the session creator and
-// the Discord notifier at import time. The function under test here is pure,
-// so those side-effecting modules are stubbed out.
 import { vi } from 'vitest'
 vi.mock('@/infrastructure/database/connection.js', () => ({ db: {} }))
 vi.mock('@/domain/create-session.js', () => ({ createVotingSession: vi.fn() }))
@@ -27,8 +24,6 @@ describe('diffNewlyAcquired', () => {
   })
 
   it('treats an empty existing library as "everything is new"', () => {
-    // The caller is responsible for suppressing spotlights on a first sync;
-    // the diff itself just reports the set difference.
     expect(diffNewlyAcquired(new Set(), [7, 8])).toEqual([7, 8])
   })
 

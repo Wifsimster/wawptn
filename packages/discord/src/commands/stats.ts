@@ -21,9 +21,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     const embed = buildStatsEmbed(stats)
 
-    // Post the leaderboard publicly so the whole channel sees it. The
-    // ephemeral defer above is upgraded to an in-channel send to match the
-    // pattern used by /wawptn-random.
     if (interaction.channel && 'send' in interaction.channel) {
       await interaction.channel.send({ embeds: [embed] })
     }

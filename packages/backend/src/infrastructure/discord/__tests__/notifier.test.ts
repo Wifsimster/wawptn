@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// ---------------------------------------------------------------------------
-// vi.hoisted — variables available inside vi.mock factories (which are hoisted)
-// ---------------------------------------------------------------------------
-
 const {
   mockDb,
   dbResults,
@@ -14,10 +10,6 @@ const {
   buildVoteSummaryMock,
   flushPendingMock,
 } = vi.hoisted(() => {
-  /**
-   * Chainable mock mimicking a Knex query builder.
-   * Every method returns the same proxy, and `await` resolves to `resolveValue`.
-   */
   function chain(resolveValue: unknown = undefined): unknown {
     const proxy: unknown = new Proxy(() => {}, {
       get(_t, prop: string) {
@@ -63,10 +55,6 @@ const {
   }
 })
 
-// ---------------------------------------------------------------------------
-// Module mocks
-// ---------------------------------------------------------------------------
-
 vi.mock('@/infrastructure/database/connection.js', () => ({ db: mockDb }))
 
 vi.mock('@/infrastructure/logger/logger.js', () => {
@@ -93,32 +81,19 @@ vi.mock('@/infrastructure/discord/live-vote-updater.js', () => ({
   flushPending: flushPendingMock,
 }))
 
-// ---------------------------------------------------------------------------
-// Import module under test (after mocks)
-// ---------------------------------------------------------------------------
-
 import { notifySessionCreated } from '../notifier.js'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function setDbResult(table: string, ...values: unknown[]) {
   dbResults.set(table, values)
 }
 
 const fetchMock = vi.fn()
-// notifier posts webhooks via global fetch
 globalThis.fetch = fetchMock as unknown as typeof fetch
 
 const games = [
   { steamAppId: 730, gameName: 'Counter-Strike 2', headerImageUrl: 'https://img/730.jpg' },
   { steamAppId: 440, gameName: 'Team Fortress 2', headerImageUrl: 'https://img/440.jpg' },
 ]
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('notifySessionCreated', () => {
   beforeEach(() => {
@@ -154,14 +129,10 @@ describe('notifySessionCreated', () => {
         creatorName: 'Alice',
       }),
     )
-    // Webhook fallback MUST NOT fire when the bot successfully handled it.
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('falls back to webhook when bot is disabled even if channel is linked', async () => {
-    // Regression guard for the gap where a group with both a linked channel
-    // AND a configured webhook received NO notification when the bot HTTP
-    // URL was missing from the backend env.
     setDbResult('groups', {
       id: 'g1',
       name: 'Test Group',
@@ -194,7 +165,6 @@ describe('notifySessionCreated', () => {
     setDbResult('voting_sessions', { display_name: 'Carol' })
 
     isBotClientEnabledMock.mockReturnValue(true)
-    // Simulate bot HTTP failure — postSessionCreated swallows and returns null.
     postSessionCreatedMock.mockResolvedValue(null)
 
     await notifySessionCreated('g1', 'sess-1', games)
@@ -249,12 +219,6 @@ describe('notifySessionCreated', () => {
   })
 
   it('drops the notification (but does not throw) when channel is linked, bot is disabled, and no webhook is set', async () => {
-    // Regression guard for the "still no Discord message" bug: a group
-    // that only went through `/wawptn-setup` has discord_channel_id but
-    // no webhook. If the backend is misconfigured so isBotClientEnabled()
-    // returns false, notifySessionCreated used to silently do nothing.
-    // It still has nothing to send, but it must not throw and must not
-    // try to post anywhere.
     setDbResult('groups', {
       id: 'g1',
       name: 'Test Group',
@@ -272,10 +236,6 @@ describe('notifySessionCreated', () => {
   })
 
   it('drops the notification when channel is linked, bot enabled, bot fails, and no webhook is set', async () => {
-    // Similar regression guard for the bot-enabled-but-unreachable case
-    // (e.g. DISCORD_BOT_HTTP_URL points at a dead host). With no webhook
-    // configured there's still no transport to fall back to, but the
-    // function must return cleanly so the caller's .catch() doesn't fire.
     setDbResult('groups', {
       id: 'g1',
       name: 'Test Group',

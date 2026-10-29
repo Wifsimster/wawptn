@@ -1,17 +1,8 @@
 import { test, expect } from './fixtures'
 
-/**
- * Page-level smoke + key-interaction coverage for the routes not exercised by
- * the filters / modals / voting specs: Landing, Contact, NotFound, Profile,
- * Library, Compare, Subscription, UserProfile and Join. All backend calls are
- * mocked in fixtures.ts, so these run against the frontend dev server alone.
- */
-
 test.describe('Pages on mobile', () => {
-  // ── Landing (logged-out) ───────────────────────────────────────
   test.describe('Landing page', () => {
     test('renders the hero and Steam login CTA when logged out', async ({ page }) => {
-      // Override the default "logged in" auth mock for this test.
       await page.route('**/api/auth/me', (route) =>
         route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
       )
@@ -22,7 +13,6 @@ test.describe('Pages on mobile', () => {
     })
   })
 
-  // ── Contact (public) ───────────────────────────────────────────
   test.describe('Contact page', () => {
     test('shows Discord and email support options', async ({ page }) => {
       await page.goto('/contact')
@@ -38,7 +28,6 @@ test.describe('Pages on mobile', () => {
     })
   })
 
-  // ── 404 ────────────────────────────────────────────────────────
   test.describe('Not found page', () => {
     test('renders for an unknown authenticated route', async ({ page }) => {
       await page.goto('/this-route-does-not-exist')
@@ -53,7 +42,6 @@ test.describe('Pages on mobile', () => {
     })
   })
 
-  // ── Profile ────────────────────────────────────────────────────
   test.describe('Profile page', () => {
     test('shows connected platforms with Steam linked', async ({ page }) => {
       await page.goto('/profile')
@@ -63,7 +51,6 @@ test.describe('Pages on mobile', () => {
     })
   })
 
-  // ── My library ─────────────────────────────────────────────────
   test.describe('My library page', () => {
     test('lists the user games and exposes a search box', async ({ page }) => {
       await page.goto('/library')
@@ -81,7 +68,6 @@ test.describe('Pages on mobile', () => {
     })
   })
 
-  // ── Compare ────────────────────────────────────────────────────
   test.describe('Compare page', () => {
     test('renders a comparison between two users', async ({ page }) => {
       await page.goto('/compare?a=user-2&b=user-3')
@@ -95,7 +81,6 @@ test.describe('Pages on mobile', () => {
     })
   })
 
-  // ── Subscription ───────────────────────────────────────────────
   test.describe('Subscription page', () => {
     test('shows the current plan and an upgrade path', async ({ page }) => {
       await page.goto('/subscription')
@@ -104,7 +89,6 @@ test.describe('Pages on mobile', () => {
     })
   })
 
-  // ── Public user profile ────────────────────────────────────────
   test.describe('User profile page', () => {
     test('renders the target user with common games', async ({ page }) => {
       await page.goto('/u/user-2')
@@ -113,7 +97,6 @@ test.describe('Pages on mobile', () => {
     })
   })
 
-  // ── Join via invite ────────────────────────────────────────────
   test.describe('Join page', () => {
     test('shows the invite preview and Steam prompt when logged out', async ({ page }) => {
       await page.route('**/api/auth/me', (route) =>

@@ -19,12 +19,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = await api.getMe()
       if (user) {
         set({ user, loading: false })
-        // Only fire user.login the first time we observe a session in this
-        // tab — otherwise every re-hydration would pollute the funnel.
         if (!wasLoggedIn) {
           track('user.login')
         }
-        // Fetch subscription state after successful auth
         useSubscriptionStore.getState().fetchSubscription()
       } else {
         set({ user: null, loading: false })

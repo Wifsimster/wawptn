@@ -28,12 +28,6 @@ function useFormatSyncedAt() {
   }
 }
 
-/**
- * Profile of another user, scoped to groups the viewer shares with
- * them. See issue #142. The page is intentionally simpler than the
- * self-profile: no linked platforms, no challenges, no toggles —
- * just the stats the other person has chosen to surface.
- */
 export function UserProfilePage() {
   const { t } = useTranslation()
   const formatSyncedAt = useFormatSyncedAt()
@@ -51,9 +45,6 @@ export function UserProfilePage() {
     if (userId) fetchProfile(userId)
   }, [userId, fetchProfile])
 
-  // Redirect to the self-profile page if a user somehow navigates to
-  // their own public profile URL. The self-profile page has the
-  // linked-platforms and settings UI they actually want.
   useEffect(() => {
     if (me && userId && me.id === userId) {
       navigate('/profile', { replace: true })
@@ -114,7 +105,6 @@ export function UserProfilePage() {
       </PageHeader>
 
       <main id="main-content" className="max-w-2xl mx-auto w-full p-4 space-y-6 pb-12">
-        {/* ── Header card ── */}
         <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 flex flex-col items-center text-center">
           <Avatar className="size-24 ring-2 ring-background mb-4">
             <AvatarImage src={profile.avatarUrl ?? undefined} alt={profile.displayName} />
@@ -128,7 +118,6 @@ export function UserProfilePage() {
             {t('userProfile.lastSyncedAt', { date: formatSyncedAt(profile.lastSyncedAt) })}
           </p>
 
-          {/* Stats row */}
           <div className="grid grid-cols-3 gap-6 w-full mt-6 pt-6 border-t border-border/40">
             <div className="flex flex-col items-center">
               <span className="text-2xl font-heading font-bold tabular-nums">{commonCount}</span>
@@ -175,7 +164,6 @@ export function UserProfilePage() {
           </div>
         </div>
 
-        {/* ── Common games with me ── */}
         <section>
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
             <Trophy className="size-4" />
@@ -231,7 +219,6 @@ export function UserProfilePage() {
           )}
         </section>
 
-        {/* ── Top games (opt-in only) ── */}
         {profile.visibilityFullLibrary && profile.topGames && profile.topGames.length > 0 && (
           <section>
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
@@ -257,7 +244,6 @@ export function UserProfilePage() {
           </section>
         )}
 
-        {/* ── Empty state when the user has opted out of full library ── */}
         {!profile.visibilityFullLibrary && (
           <div className="flex items-start gap-3 p-4 rounded-xl border border-dashed border-border/50 bg-muted/10">
             <Lock className="size-4 text-muted-foreground shrink-0 mt-0.5" />

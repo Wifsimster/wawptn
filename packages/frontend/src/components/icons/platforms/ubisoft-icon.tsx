@@ -1,6 +1,5 @@
 import type { SVGProps } from 'react'
 
-/** Ubisoft logo — SVG path sourced from Simple Icons (MIT/CC0) */
 export function UbisoftIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg

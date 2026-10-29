@@ -34,9 +34,6 @@ function isGroupTab(value: string | null): value is GroupTab {
   return value === 'tonight' || value === 'members' || value === 'history' || value === 'stats' || value === 'settings'
 }
 
-// The three modal flags are independent booleans (each can be toggled on its
-// own) but they form one cohesive "which overlays are open" concern, so a tiny
-// reducer keeps them together without changing the open/close semantics.
 interface DialogsState {
   voteSetup: boolean
   randomPick: boolean
@@ -76,11 +73,6 @@ export function GroupPage() {
   const setDiscordDialogOpen = useCallback((open: boolean) => dispatchDialog({ dialog: 'discord', open }), [])
   const activeFilter = gameFilters.multiplayerOnly ? 'multiplayer' : gameFilters.coopOnly ? 'coop' : undefined
 
-  // Server-driven data (games, vote history, active session, persona,
-  // presence) plus its loading + live socket subscription. Mirrors the
-  // backend's "one open session per group" guard so the page can surface a
-  // "join existing vote" CTA instead of walking users through the setup dialog
-  // only to bounce off a 409 on the vote page.
   const { data, dispatch, loadActiveVoteSession, lastSeenMap } = useGroupRealtime({
     id,
     activeFilter,
@@ -117,22 +109,12 @@ export function GroupPage() {
     openVoteSetup: () => setVoteSetupOpen(true),
   })
 
-  // Keep the hero persona in sync with the group detail response. The
-  // socket listener above applies live midnight/override flips on top.
   useEffect(() => {
     if (currentGroup?.todayPersona) {
       dispatch({ type: 'todayPersona', persona: currentGroup.todayPersona })
     }
   }, [currentGroup?.todayPersona, dispatch])
 
-  // Action-first launch from GroupsPage: ?startVote=1 means the user clicked
-  // the hero CTA on the dashboard. The dialog needs the member list, so we
-  // can't act until the group detail has loaded. We strip the param as soon
-  // as it's seen (so a refresh / back never re-triggers the flow) and carry
-  // the intent in a ref. A second effect, gated on the loaded group, then
-  // opens the right surface — joining an existing vote or the participant
-  // picker. Splitting "consume the param" from "open the surface" keeps each
-  // effect to a single state write instead of chaining them.
   const pendingStartVoteRef = useRef(false)
   useEffect(() => {
     if (searchParams.get('startVote') !== '1') return
@@ -146,8 +128,6 @@ export function GroupPage() {
 
   useEffect(() => {
     if (!pendingStartVoteRef.current) return
-    // Wait for *this* group: the store can still hold the previously visited
-    // one on the first render after navigation.
     if (!currentGroup || currentGroup.id !== id) return
     pendingStartVoteRef.current = false
     if (activeVoteSession) {
@@ -160,9 +140,6 @@ export function GroupPage() {
   const onlineMembers = useMemo(() => new Set(onlineUserIds), [onlineUserIds])
   const currentUserRole = currentGroup?.members.find(m => m.id === user?.id)?.role || 'member'
 
-  // Active group-detail tab, mirrored in the URL (`?tab=`) so a section is
-  // deep-linkable and the browser back button leaves the group rather than
-  // cycling tabs. Defaults to "tonight" — the play-a-game-now surface.
   const tabParam = searchParams.get('tab')
   const activeTab: GroupTab = isGroupTab(tabParam) ? tabParam : 'tonight'
   const setActiveTab = useCallback((next: GroupTab) => {
@@ -195,8 +172,6 @@ export function GroupPage() {
     )
   }
 
-  // Shared props for the four secondary tab panels (members / history /
-  // stats / settings). Built once so the giant prop list isn't repeated.
   const panelProps = {
     members: currentGroup.members,
     groupId: id!,
@@ -270,7 +245,6 @@ export function GroupPage() {
           )}
         </div>
 
-        {/* Spacer so the mobile fixed action bar never covers content. */}
         <div className="h-20 sm:hidden" />
       </main>
 
@@ -333,9 +307,6 @@ interface GroupMobileActionBarProps {
   onVote: () => void
 }
 
-// Mobile: persistent bottom action bar — keeps the vote CTA one tap away from
-// every tab on small screens. Flips to "join vote" when a session is already
-// open so the user isn't walked through the setup dialog for nothing.
 function GroupMobileActionBar({ activeVoteSession, commonGamesCount, onVote }: GroupMobileActionBarProps) {
   const { t } = useTranslation()
   return (
@@ -372,9 +343,6 @@ interface GroupDialogsProps {
   onDiscordDialogOpenChange: (open: boolean) => void
 }
 
-// Dialogs — mounted regardless of the active tab so the vote / random pick /
-// Discord flows can be triggered from anywhere (incl. the `?startVote=1` deep
-// link from the dashboard).
 function GroupDialogs({
   members,
   groupId,
@@ -449,10 +417,6 @@ interface TonightTabProps {
   onOpenDiscord: () => void
 }
 
-// "Tonight" tab — the play-a-game-now surface: Discord linkage banner/chip,
-// the persona-du-jour badge, the recommendation hero, and the filterable
-// common-games grid. Extracted from GroupPage to keep that component focused
-// on data orchestration.
 function TonightTab({
   group,
   currentUserRole,
@@ -475,12 +439,6 @@ function TonightTab({
 
   return (
     <div className="space-y-4 min-w-0">
-      {/* Owner-only prompt: if the group has no Discord channel
-          bound yet, surface a persistent banner inviting the owner
-          to link one. The banner stays visible until a channel is
-          bound (no dismiss — Discord binding is core, not optional
-          post-creation). Hidden for non-owners and for already-
-          bound groups. */}
       {currentUserRole === 'owner' && !group.discordChannelId && (
         <m.div
           initial={{ opacity: 0, y: 12 }}
@@ -500,10 +458,6 @@ function TonightTab({
         </m.div>
       )}
 
-      {/* Persistent "linked to X" chip — visible to all members once
-          a Discord channel is bound, so everyone knows where vote
-          announcements will land. Falls back to a generic label for
-          groups bound before the name-snapshot migration. */}
       {group.discordChannelId && (
         <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border border-border/60 bg-muted/20 rounded-full px-2.5 py-1">
           <Link2 className="size-3 text-primary shrink-0" />
@@ -523,10 +477,6 @@ function TonightTab({
         </div>
       )}
 
-      {/* Per-group "persona du jour" — hero variant. Pre-fetched via
-          the enriched group detail response, refreshed live via the
-          `persona:changed` socket event (midnight flip or owner
-          override). */}
       {todayPersona && (
         <PersonaBadge
           groupId={groupId}
@@ -535,10 +485,6 @@ function TonightTab({
         />
       )}
 
-      {/* Hero: "Tonight's Pick" — dominant CTA at the top of the page.
-          Replaces the old 2-button grid (Start vote / Random pick) and
-          surfaces a client-scored recommendation so a first-time user
-          can start a vote in one tap without touching any filter. */}
       <TonightPickHero
         games={commonGames}
         loading={loadingGames}

@@ -1,7 +1,6 @@
 import type { Knex } from 'knex'
 
 export async function up(knex: Knex): Promise<void> {
-  // Users
   await knex.schema.createTable('users', (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'))
     table.string('steam_id').unique().notNullable()
@@ -13,7 +12,6 @@ export async function up(knex: Knex): Promise<void> {
     table.timestamps(true, true)
   })
 
-  // Sessions (for auth)
   await knex.schema.createTable('sessions', (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'))
     table.uuid('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
@@ -25,7 +23,6 @@ export async function up(knex: Knex): Promise<void> {
     table.index('expires_at')
   })
 
-  // Groups
   await knex.schema.createTable('groups', (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'))
     table.string('name').notNullable()
@@ -38,7 +35,6 @@ export async function up(knex: Knex): Promise<void> {
     table.timestamps(true, true)
   })
 
-  // Group members
   await knex.schema.createTable('group_members', (table) => {
     table.uuid('group_id').notNullable().references('id').inTable('groups').onDelete('CASCADE')
     table.uuid('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
@@ -48,7 +44,6 @@ export async function up(knex: Knex): Promise<void> {
     table.primary(['group_id', 'user_id'])
   })
 
-  // User games (Steam library cache)
   await knex.schema.createTable('user_games', (table) => {
     table.uuid('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
     table.integer('steam_app_id').notNullable()
@@ -59,7 +54,6 @@ export async function up(knex: Knex): Promise<void> {
     table.primary(['user_id', 'steam_app_id'])
   })
 
-  // Voting sessions
   await knex.schema.createTable('voting_sessions', (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'))
     table.uuid('group_id').notNullable().references('id').inTable('groups').onDelete('CASCADE')
@@ -73,7 +67,6 @@ export async function up(knex: Knex): Promise<void> {
     table.index(['group_id', 'status'])
   })
 
-  // Games selected for a voting session
   await knex.schema.createTable('voting_session_games', (table) => {
     table.uuid('session_id').notNullable().references('id').inTable('voting_sessions').onDelete('CASCADE')
     table.integer('steam_app_id').notNullable()
@@ -83,7 +76,6 @@ export async function up(knex: Knex): Promise<void> {
     table.primary(['session_id', 'steam_app_id'])
   })
 
-  // Votes
   await knex.schema.createTable('votes', (table) => {
     table.uuid('session_id').notNullable().references('id').inTable('voting_sessions').onDelete('CASCADE')
     table.uuid('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
@@ -95,7 +87,6 @@ export async function up(knex: Knex): Promise<void> {
     table.index(['session_id'])
   })
 
-  // Game metadata (Steam store enrichment)
   await knex.schema.createTable('game_metadata', (table) => {
     table.integer('steam_app_id').primary()
     table.jsonb('categories').nullable()

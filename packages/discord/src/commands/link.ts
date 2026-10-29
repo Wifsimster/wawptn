@@ -10,7 +10,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   await interaction.deferReply({ ephemeral: true })
 
   try {
-    // Check if already linked
     const status = await backendApi<{ linked: boolean }>(`/api/discord/link/status`, {
       discordUserId: interaction.user.id,
     })
@@ -22,7 +21,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       return
     }
 
-    // Generate a link code
     const { code, frontendUrl } = await backendApi<{ code: string; frontendUrl: string }>(`/api/discord/link`, {
       method: 'POST',
       body: { discordUserId: interaction.user.id, discordUsername: interaction.user.username },

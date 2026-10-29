@@ -1,8 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
 
-// promote-notifier.ts imports the logger and bot client at load time. The
-// helpers under test (sanitizePromoteMessage, buildPromoteEmbed) are pure, so
-// those side-effecting modules are stubbed out.
 vi.mock('@/infrastructure/discord/bot-client.js', () => ({
   isBotClientEnabled: () => false,
   postChannelEmbed: vi.fn(),

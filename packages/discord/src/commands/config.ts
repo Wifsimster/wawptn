@@ -7,10 +7,6 @@ import {
 import { getGuildSettings, updateGuildSettings } from '../lib/api.js'
 import { triggerReminder } from '../scheduler.js'
 
-// Matches a 5-field cron expression loosely enough to reject obvious
-// nonsense while still allowing ranges, lists and step values. The
-// backend does its own cron validation; this is only the first line of
-// defence so we can give the user a friendly error before the round-trip.
 const CRON_PATTERN = /^[-*/,0-9\s]+$/
 
 export const data = new SlashCommandBuilder()
@@ -169,9 +165,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     }
 
     if (sub === 'test-reminder') {
-      // Ephemeral confirmation, but the reminder itself is a public message
-      // in the current channel so the admin can see exactly what would fire
-      // on the next cron tick (permissions, persona copy, embed style).
       const kind = interaction.options.getString('type', true) as 'friday' | 'weekday'
       const label = kind === 'friday' ? 'vendredi' : 'semaine'
 

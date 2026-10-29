@@ -11,7 +11,6 @@ import { logger } from '../../infrastructure/logger/logger.js'
 
 const router = Router()
 
-// Get unread notifications for current user
 router.get('/', async (req: Request, res: Response) => {
   try {
     const userId = req.userId!
@@ -23,7 +22,6 @@ router.get('/', async (req: Request, res: Response) => {
   }
 })
 
-// Get unread count
 router.get('/count', async (req: Request, res: Response) => {
   try {
     const userId = req.userId!
@@ -35,7 +33,6 @@ router.get('/count', async (req: Request, res: Response) => {
   }
 })
 
-// Mark a single notification as read
 router.patch('/:id/read', async (req: Request, res: Response) => {
   try {
     const userId = req.userId!
@@ -54,7 +51,6 @@ router.patch('/:id/read', async (req: Request, res: Response) => {
   }
 })
 
-// Mark all notifications as read
 router.post('/read-all', async (req: Request, res: Response) => {
   try {
     const userId = req.userId!
@@ -68,11 +64,8 @@ router.post('/read-all', async (req: Request, res: Response) => {
 
 export { router as notificationRoutes }
 
-// ─── Admin notification routes ───────────────────────────────────────────────
-
 const adminRouter = Router()
 
-// Broadcast a notification to all users or a specific group
 adminRouter.post('/', async (req: Request, res: Response) => {
   const adminUserId = req.userId!
   const { title, body, groupId } = req.body as { title?: string; body?: string; groupId?: string }
@@ -92,7 +85,6 @@ adminRouter.post('/', async (req: Request, res: Response) => {
     return
   }
 
-  // Determine recipients
   let recipientUserIds: string[]
   if (groupId) {
     recipientUserIds = await db('group_members')
@@ -114,7 +106,7 @@ adminRouter.post('/', async (req: Request, res: Response) => {
     groupId,
     createdBy: adminUserId,
     recipientUserIds,
-    expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days
+    expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
   })
 
   logger.info(

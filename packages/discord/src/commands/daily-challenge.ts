@@ -86,11 +86,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         .setStyle(ButtonStyle.Primary),
     )
 
-    // Send the challenge as a public message
     if (interaction.channel && 'send' in interaction.channel) {
       const sent = await interaction.channel.send({ embeds: [embed], components: [row] })
 
-      // Store the Discord message ID so we can reference it later
       try {
         await backendApi(`/api/discord/daily-challenge/${challenge.id}/message`, {
           method: 'PATCH',

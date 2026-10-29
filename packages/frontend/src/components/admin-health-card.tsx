@@ -33,10 +33,6 @@ function IntegrationRow({ label, health }: IntegrationRowProps) {
   const disabled = health.enabled === false
   const open = health.state === 'open'
 
-  // Three visual states:
-  //   disabled — integration is not configured, render muted
-  //   open     — circuit breaker tripped, render error
-  //   closed   — healthy, render success
   const tone = disabled
     ? { dotClass: 'bg-muted-foreground/40', textClass: 'text-muted-foreground/70', label: 'désactivé' }
     : open
@@ -62,22 +58,11 @@ function IntegrationRow({ label, health }: IntegrationRowProps) {
   )
 }
 
-/**
- * Admin health card consuming GET /api/admin/health. Shows database
- * connectivity and the circuit breaker state of each external integration
- * so admins can spot a degraded bot without tailing the logs.
- *
- * Auto-refreshes every 30 seconds while the card is mounted; a manual
- * refresh button is also provided. Failures are non-fatal — the card just
- * renders an error state and keeps trying on the next tick.
- */
 export function AdminHealthCard() {
   const [snapshot, setSnapshot] = useState<HealthSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
-  // Single fetcher shared by the manual refresh button and the polling
-  // effect. Returns nothing; updates state directly.
   const loadHealth = useCallback(async () => {
     try {
       const data = await api.getAdminHealth()
@@ -90,9 +75,6 @@ export function AdminHealthCard() {
     }
   }, [])
 
-  // Poll the health endpoint every 30s while mounted. This is a periodic
-  // subscription, not a one-time state initializer: the manual refresh
-  // button (handleRefresh) drives the same fetcher independently.
   useEffect(() => {
     void loadHealth()
     const interval = setInterval(() => { void loadHealth() }, 30 * 1000)
@@ -137,9 +119,6 @@ export function AdminHealthCard() {
             </div>
           ) : snapshot ? (
             <>
-              {/* Database row uses a slightly different shape than the
-                  integrations because it carries latency, not a circuit
-                  breaker state. */}
               <div className="flex items-center justify-between gap-3 rounded-md border border-border/50 bg-card/40 px-3 py-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <Database className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />

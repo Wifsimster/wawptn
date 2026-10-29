@@ -35,15 +35,11 @@ export function JoinPage() {
   const [error, setError] = useState<string | null>(null)
   const [preview, setPreview] = useState<InvitePreview | null>(null)
   const [previewLoading, setPreviewLoading] = useState(true)
-  // Users who tap "Try anyway" after the warning fall through to the normal
-  // Steam button. Most of the time the login still fails in the webview,
-  // but we owe them the escape hatch rather than hard-locking the flow.
   const [overrideInAppBrowser, setOverrideInAppBrowser] = useState(false)
   const inAppBrowser = typeof navigator !== 'undefined' && isInAppBrowser()
   const mobileOS = typeof navigator !== 'undefined' ? detectMobileOS() : 'other'
   const joining = !!user && !!token && !error
 
-  // Fetch invite preview (public, no auth needed)
   useEffect(() => {
     if (!token) return
     let cancelled = false
@@ -53,7 +49,6 @@ export function JoinPage() {
         if (!cancelled) setPreview(data)
       })
       .catch(() => {
-        // Preview is best-effort, don't block the page
       })
       .finally(() => {
         if (!cancelled) setPreviewLoading(false)
@@ -70,11 +65,6 @@ export function JoinPage() {
       (result) => {
         if (cancelled) return
         toast.success(t('joinGroup.success'))
-        // If a vote is already in flight, skip the group-detail detour and
-        // drop the user straight on the ballot. The backend only returns
-        // `activeVoteSession` when `status='open'` AND the session is
-        // actually accepting votes now (scheduled_at null or in the past),
-        // so this won't land anyone on a not-yet-started vote.
         if (result.activeVoteSession) {
           navigate(`/groups/${result.id}/vote`)
         } else {
@@ -107,12 +97,10 @@ export function JoinPage() {
             {t('join.invited')}
           </m.h1>
 
-          {/* Group name & member info from preview */}
           {!previewLoading && preview?.isValid && (
             <m.div variants={fadeUp} className="flex flex-col items-center mb-6 w-full">
               <p className="text-lg font-semibold text-foreground mb-2">{preview.groupName}</p>
 
-              {/* Member avatars & count */}
               <div className="flex items-center gap-2 mb-4">
                 {preview.memberAvatars.length > 0 && (
                   <div className="flex [&>*:not(:first-child)]:-ml-2">
@@ -136,7 +124,6 @@ export function JoinPage() {
                 </span>
               </div>
 
-              {/* Recent winner */}
               {preview.recentWinner && (
                 <Card className="w-full p-3 mb-4">
                   <div className="flex items-center gap-3">
@@ -162,7 +149,6 @@ export function JoinPage() {
                 </Card>
               )}
 
-              {/* Top 3 popular games */}
               {preview.topGames.length > 0 && (
                 <div className="w-full">
                   <p className="text-xs text-muted-foreground mb-2">{t('join.popularGames')}</p>
@@ -193,21 +179,18 @@ export function JoinPage() {
             </m.div>
           )}
 
-          {/* Fallback prompt when no preview or invalid */}
           {!previewLoading && (!preview || !preview.isValid) && (
             <m.p variants={fadeUp} className="text-muted-foreground mb-6">
               {t('join.loginPrompt')}
             </m.p>
           )}
 
-          {/* Simple prompt when preview is valid but no rich data */}
           {!previewLoading && preview?.isValid && !preview.recentWinner && preview.topGames.length === 0 && preview.memberAvatars.length === 0 && (
             <m.p variants={fadeUp} className="text-muted-foreground mb-2">
               {t('join.loginPrompt')}
             </m.p>
           )}
 
-          {/* Loading state for preview */}
           {previewLoading && (
             <m.p variants={fadeUp} className="text-muted-foreground mb-6">
               {t('join.loginPrompt')}
@@ -238,9 +221,6 @@ export function JoinPage() {
                   className="w-full"
                   onClick={() => {
                     const url = window.location.href
-                    // Clipboard API isn't available on every in-app webview.
-                    // When it isn't, fall back to a visible toast with the
-                    // URL so the user can long-press and copy manually.
                     navigator.clipboard
                       ?.writeText(url)
                       .then(() => toast.success(t('join.copyLinkSuccess')))

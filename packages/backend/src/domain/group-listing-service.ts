@@ -44,15 +44,6 @@ interface ActiveSessionRow {
   scheduled_at: string | null
 }
 
-/**
- * Compose the "my groups" list view for a user.
- *
- * Encapsulates the batched fan-out queries (member counts, last winners,
- * common-game counts, daily personas) that previously lived inline in the
- * GET /api/groups handler. Centralizing them here keeps the route as a
- * thin transport adapter and makes the query orchestration testable in
- * isolation from Express.
- */
 export async function listGroupsForUser(userId: string): Promise<GroupListItem[]> {
   const groups: GroupRow[] = await db('group_members')
     .join('groups', 'groups.id', 'group_members.group_id')
@@ -83,9 +74,6 @@ export async function listGroupsForUser(userId: string): Promise<GroupListItem[]
     .select('group_id', 'winning_game_app_id', 'winning_game_name', 'closed_at')
   const lastSessionMap = indexBy(lastSessions, (s) => s.group_id)
 
-  // Open vote sessions per group. The DB enforces "at most one open session
-  // per group" via a partial unique index, so a single distinctOn-style
-  // batched lookup is sufficient and shape-matches lastSessionMap.
   const activeSessions: ActiveSessionRow[] = await db('voting_sessions')
     .whereIn('group_id', groupIds)
     .where('status', 'open')

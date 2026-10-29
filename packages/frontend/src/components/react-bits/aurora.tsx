@@ -1,14 +1,3 @@
-/*
- * Aurora — animated WebGL aurora-borealis background.
- *
- * Vendored from react-bits (https://github.com/DavidHDev/react-bits),
- * ts-tailwind variant: src/ts-tailwind/Backgrounds/Aurora/Aurora.tsx.
- * License: MIT + Commons Clause. Treated as project-owned code; the only
- * changes from upstream are the two ESLint-disable comments below, which
- * annotate intentional patterns (the latest-props read via propsRef inside
- * the rAF loop, and the forward-referenced `program` binding) that this
- * project's lint config would otherwise flag.
- */
 import { useEffect, useRef } from 'react';
 import { Renderer, Program, Mesh, Color, Triangle } from 'ogl';
 
@@ -138,11 +127,6 @@ export default function Aurora(props: AuroraProps) {
     const ctn = ctnDom.current;
     if (!ctn) return;
 
-    // Seed the initial uniforms from the latest props (read via the ref so
-    // they aren't effect dependencies). The rAF loop below keeps every
-    // uniform in sync with live prop changes, so we deliberately set up the
-    // GL context once on mount and never tear it down on prop updates —
-    // re-initialising would drop and rebuild the WebGL context needlessly.
     const colorStops = propsRef.current.colorStops ?? DEFAULT_COLOR_STOPS;
     const amplitude = propsRef.current.amplitude ?? 1.0;
     const blend = propsRef.current.blend ?? 0.5;

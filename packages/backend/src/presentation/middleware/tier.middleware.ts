@@ -2,20 +2,12 @@ import type { Request, Response, NextFunction } from 'express'
 import { authLogger } from '../../infrastructure/logger/logger.js'
 import { isUserPremium } from '../../domain/subscription-service.js'
 
-// Re-export domain primitives for backwards compatibility with existing imports
 export {
   isUserPremium,
   FREE_TIER_LIMITS,
   PREMIUM_TIER_LIMITS,
 } from '../../domain/subscription-service.js'
 
-/** Express middleware — blocks request if user is not premium.
- *
- *  A DB error MUST surface as 503 (not 403): a transient connection blip
- *  used to silently demote paying users to "premium_required", firing
- *  upgrade gates on a session that should still be unlocked. 503 tells
- *  the client "try again", and clients with retry logic recover instead
- *  of taking the user to the upgrade flow. */
 export async function requirePremium(req: Request, res: Response, next: NextFunction): Promise<void> {
   let premium: boolean
   try {
@@ -32,10 +24,6 @@ export async function requirePremium(req: Request, res: Response, next: NextFunc
   next()
 }
 
-/** Premium-feature gate registry. Adding a new gated feature = add one entry
- *  here, then mount `requirePremiumFeature('feature-name')` on the route.
- *  Routes never need to know about isUserPremium() or the message string.
- */
 const PREMIUM_FEATURE_MESSAGES = {
   'auto-vote': 'Auto-vote scheduling requires a premium subscription',
   'vote-scheduling': 'Vote scheduling requires a premium subscription',
@@ -45,9 +33,6 @@ const PREMIUM_FEATURE_MESSAGES = {
 
 export type PremiumFeature = keyof typeof PREMIUM_FEATURE_MESSAGES
 
-/** Express middleware factory — blocks request if user is not premium, with
- *  a feature-specific 403 message so the client can render the right CTA.
- *  See requirePremium for the 503-on-DB-error rationale. */
 export function requirePremiumFeature(feature: PremiumFeature) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     let premium: boolean

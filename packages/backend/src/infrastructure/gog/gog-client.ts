@@ -9,7 +9,6 @@ const GOG_LIBRARY_API = 'https://embed.gog.com/account/getFilteredProducts'
 
 const MAX_PAGES = 100
 
-// Rate limiter: 1 request per second (independent from other providers)
 let lastRequestTime = 0
 async function rateLimitedFetch(url: string, options?: RequestInit): Promise<Response> {
   const now = Date.now()
@@ -21,7 +20,6 @@ async function rateLimitedFetch(url: string, options?: RequestInit): Promise<Res
   return fetch(url, options)
 }
 
-// Circuit breaker (independent from other providers)
 let consecutiveFailures = 0
 let circuitOpenUntil = 0
 const CIRCUIT_THRESHOLD = 3
@@ -48,7 +46,6 @@ function recordFailure(): void {
   }
 }
 
-// In-memory cache
 const cache = new Map<string, { data: unknown; expiresAt: number }>()
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000
 
@@ -66,7 +63,6 @@ function setCache(key: string, data: unknown): void {
   cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS })
 }
 
-/** Health snapshot exposed to /api/admin/health. */
 export function getHealth(): {
   state: 'closed' | 'open'
   consecutiveFailures: number
@@ -273,8 +269,4 @@ export async function getOwnedGames(userId: string): Promise<GogOwnedGame[] | nu
   }
 }
 
-// Re-export the shared canonical name normaliser. See Marcus #1 notes
-// on epic-client.ts — the logic lives in domain/game-name.ts so the
-// dedupe and sync paths agree on what "two different titles mean the
-// same game" looks like.
 export { normalizeGameName } from '../../domain/game-name.js'

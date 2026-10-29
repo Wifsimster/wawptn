@@ -4,39 +4,16 @@ import type { IGroupRepository } from './repositories/group-repository.js'
 
 const streakLogger = logger.child({ module: 'streaks' })
 
-/**
- * Optional dependencies for streak functions.
- *
- * This is a proof-of-concept for dependency injection via the repository
- * layer. For now the implementations still access `db` directly; future
- * passes will progressively route queries through `deps.groupRepository`
- * (and siblings) so these functions can be unit-tested without a real
- * database.
- */
 export interface StreakDeps {
   groupRepository?: IGroupRepository
 }
 
-/**
- * Update a user's voting streak for a group after a session closes.
- *
- * Logic:
- * - If this is the user's first tracked session, start the streak at 1.
- * - If the user already has a streak and the last_session_id is the immediately
- *   preceding closed session in this group, increment current_streak.
- * - Otherwise, the user missed a session — reset current_streak to 1.
- * - best_streak is updated whenever current_streak exceeds it.
- *
- * Uses upsert (INSERT ... ON CONFLICT DO UPDATE) to handle first-time and
- * returning participants in a single query.
- */
 export async function updateStreak(
   userId: string,
   groupId: string,
   sessionId: string,
   _deps: StreakDeps = {},
 ): Promise<void> {
-  // Find the session that closed immediately before this one in the same group
   const previousSession = await db('voting_sessions')
     .where({ group_id: groupId, status: 'closed' })
     .where('id', '!=', sessionId)
@@ -46,7 +23,6 @@ export async function updateStreak(
 
   const previousSessionId = previousSession?.id ?? null
 
-  // Get current streak row (if any)
   const existing = await db('streaks')
     .where({ user_id: userId, group_id: groupId })
     .first()
@@ -54,16 +30,12 @@ export async function updateStreak(
   let newStreak: number
 
   if (!existing) {
-    // First time — start at 1
     newStreak = 1
   } else if (existing.last_session_id === sessionId) {
-    // Already processed this session for this user — idempotent, skip
     return
   } else if (previousSessionId && existing.last_session_id === previousSessionId) {
-    // Consecutive participation — increment
     newStreak = existing.current_streak + 1
   } else {
-    // Missed one or more sessions — reset to 1
     newStreak = 1
   }
 
@@ -86,9 +58,6 @@ export async function updateStreak(
   )
 }
 
-/**
- * Get all streaks for a group, joined with user info, sorted by current_streak desc.
- */
 export async function getGroupStreaks(groupId: string): Promise<Array<{
   userId: string
   displayName: string
@@ -120,19 +89,9 @@ export async function getGroupStreaks(groupId: string): Promise<Array<{
   }))
 }
 
-/**
- * Per-user roll-up across every group the user is in. Powers the
- * GroupsPage streak badge: a single "🔥 N" indicator that shows the
- * user's best *current* (still-alive) streak, plus the all-time best
- * for context. Returns zeros when the user hasn't earned any streak yet
- * — call sites can then suppress rendering.
- */
 export async function getUserStreakSummary(userId: string): Promise<{
   bestCurrent: number
   bestEver: number
-  /** Number of distinct groups where the user has a current_streak >= 2
-   *  (i.e. an active streak — a single session doesn't count). Surfaced
-   *  to give context for the badge tooltip. */
   activeStreakGroups: number
 }> {
   const rows = await db('streaks')

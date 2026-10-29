@@ -5,11 +5,8 @@ import { logger } from '../logger/logger.js'
 
 const schedulerLogger = logger.child({ module: 'releases-digest-scheduler' })
 
-/** Default timezone for digest cron expressions. The app is French-first
- *  (AGENTS.md) and the bot's reminders default to the same zone. */
 const DIGEST_TIMEZONE = 'Europe/Paris'
 
-/** Map of group ID -> scheduled cron task. */
 const scheduledTasks = new Map<string, ScheduledTask>()
 
 interface GroupDigestSchedule {
@@ -17,14 +14,6 @@ interface GroupDigestSchedule {
   releases_digest_schedule: string
 }
 
-/**
- * Register (or replace) the digest cron for a single group.
- *
- * When the cron fires, `runReleasesDigestForGroup` re-validates eligibility
- * and claims the ISO week atomically before posting — so a re-register from
- * the 5-minute sync, an overlapping tick, or a second backend instance can
- * never produce a double post.
- */
 function scheduleGroupDigest(group: GroupDigestSchedule): void {
   const existing = scheduledTasks.get(group.id)
   if (existing) {
@@ -53,7 +42,6 @@ function scheduleGroupDigest(group: GroupDigestSchedule): void {
   schedulerLogger.info({ groupId: group.id, schedule: group.releases_digest_schedule }, 'releases digest scheduled')
 }
 
-/** Load all groups with the digest enabled and reconcile the cron tasks. */
 async function syncSchedules(): Promise<void> {
   try {
     const groups: GroupDigestSchedule[] = await db('groups')
@@ -80,10 +68,6 @@ async function syncSchedules(): Promise<void> {
   }
 }
 
-/**
- * Start the releases-digest scheduler. Loads schedules on startup and
- * re-syncs every 5 minutes to pick up owner config changes.
- */
 export function startReleasesDigestScheduler(): void {
   syncSchedules()
 
@@ -94,10 +78,6 @@ export function startReleasesDigestScheduler(): void {
   schedulerLogger.info('releases digest scheduler started (syncing every 5 minutes)')
 }
 
-/**
- * Apply a group's digest schedule change immediately (called after the
- * owner PATCHes the config) instead of waiting for the 5-minute sync.
- */
 export function updateGroupDigestSchedule(groupId: string, enabled: boolean, schedule: string): void {
   if (!enabled) {
     const existing = scheduledTasks.get(groupId)

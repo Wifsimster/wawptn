@@ -1,8 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
 
-// spotlight-notifier.ts imports env, the logger and the bot client at load
-// time. The helpers under test (ownershipHint, buildSpotlightEmbed) are pure,
-// so those side-effecting modules are stubbed out.
 vi.mock('@/config/env.js', () => ({ env: { CORS_ORIGIN: 'https://app.test' } }))
 vi.mock('@/infrastructure/discord/bot-client.js', () => ({
   isBotClientEnabled: () => false,

@@ -64,8 +64,6 @@ interface Profile {
   discord?: DiscordState
 }
 
-/* ── Helpers ── */
-
 function handleConnect(platformId: string) {
   window.location.href = `/api/auth/${platformId}/link`
 }
@@ -102,8 +100,6 @@ function useAnimatedValue(target: number, duration = 1400) {
   return target <= 0 ? 0 : value
 }
 
-/* ── Config ── */
-
 const PLATFORM_NAMES: Record<string, string> = {
   steam: 'Steam',
   epic: 'Epic Games',
@@ -117,8 +113,6 @@ const PLATFORM_ACCENT: Record<string, string> = {
   gog: 'oklch(0.55 0.18 310)',
   ubisoft: 'oklch(0.55 0.15 250)',
 }
-
-/* ── Animation variants ── */
 
 const orchestrator: Variants = {
   hidden: {},
@@ -183,8 +177,6 @@ const statItem: Variants = {
   },
 }
 
-/* ── Loading skeleton ── */
-
 function ProfileSkeleton({ onBack, label }: { onBack: () => void; label: string }) {
   return (
     <>
@@ -211,8 +203,6 @@ function ProfileSkeleton({ onBack, label }: { onBack: () => void; label: string 
   )
 }
 
-/* ── Holographic player card ── */
-
 function PlayerCard({
   profile,
   animGames,
@@ -231,13 +221,11 @@ function PlayerCard({
       variants={cardReveal}
       className="profile-player-card relative rounded-2xl p-6 pt-10 sm:p-8 sm:pt-10"
     >
-      {/* Decorative holographic seal */}
       <div className="profile-holo-seal" aria-hidden="true">
         <Gamepad2 className="size-4 relative z-10 text-foreground/25" />
       </div>
 
       <div className="relative z-10 flex flex-col items-center text-center">
-        {/* Avatar with prismatic ring */}
         <m.div variants={avatarReveal} className="profile-avatar-ring mb-5">
           <Avatar className="size-24 sm:w-28 sm:h-28 ring-2 ring-background">
             <AvatarImage src={profile.avatarUrl} alt={profile.displayName} />
@@ -247,7 +235,6 @@ function PlayerCard({
           </Avatar>
         </m.div>
 
-        {/* Display name — holographic gradient */}
         <m.h1
           variants={nameReveal}
           className="profile-holo-name text-2xl sm:text-3xl font-heading font-bold tracking-tight mb-1.5"
@@ -255,7 +242,6 @@ function PlayerCard({
           {profile.displayName}
         </m.h1>
 
-        {/* Member since */}
         <m.p
           variants={nameReveal}
           className="text-sm text-muted-foreground"
@@ -267,7 +253,6 @@ function PlayerCard({
           })}
         </m.p>
 
-        {/* Steam profile link */}
         {profile.profileUrl && (
           <m.a
             variants={nameReveal}
@@ -281,10 +266,8 @@ function PlayerCard({
           </m.a>
         )}
 
-        {/* Gradient divider */}
         <div className="w-full h-px bg-gradient-to-r from-transparent via-border to-transparent my-6" />
 
-        {/* Stats */}
         <m.div variants={statStagger} className="grid grid-cols-3 gap-4 sm:gap-8 w-full">
           {[
             { raw: animGames, label: t('profile.statsGames'), accent: 'var(--neon)', icon: Gamepad2 },
@@ -312,8 +295,6 @@ function PlayerCard({
     </m.div>
   )
 }
-
-/* ── Platforms ── */
 
 function PlatformsSection({
   platforms,
@@ -457,8 +438,6 @@ function PlatformsSection({
   )
 }
 
-/* ── Discord link ── */
-
 function DiscordSection({
   discord,
   unlinking,
@@ -522,15 +501,13 @@ function DiscordSection({
   )
 }
 
-/* ── Visibility settings (issue #142) ── */
-
 function VisibilitySection() {
   const { t } = useTranslation()
   const [visibility, setVisibility] = useState<ProfileVisibilitySettings | null>(null)
   const [visibilitySaving, setVisibilitySaving] = useState<keyof ProfileVisibilitySettings | null>(null)
 
   useEffect(() => {
-    api.getVisibility().then(setVisibility).catch(() => { /* silent — section just won't render */ })
+    api.getVisibility().then(setVisibility).catch(() => { })
   }, [])
 
   const updateVisibility = async (key: keyof ProfileVisibilitySettings, value: boolean) => {
@@ -599,8 +576,6 @@ function VisibilitySection() {
   )
 }
 
-/* ── Top games showcase ── */
-
 function TopGamesSection({ topGames }: { topGames: TopGame[] }) {
   const { t } = useTranslation()
   const crownGame = topGames[0]
@@ -613,7 +588,6 @@ function TopGamesSection({ topGames }: { topGames: TopGame[] }) {
         {t('profile.topGames')}
       </h3>
       <m.div variants={stagger} className="space-y-3">
-        {/* Crown game: #1 */}
         {crownGame && (
           <m.div variants={scaleIn} className="profile-game-crown rounded-xl overflow-hidden">
             <div className="relative">
@@ -647,7 +621,6 @@ function TopGamesSection({ topGames }: { topGames: TopGame[] }) {
           </m.div>
         )}
 
-        {/* Remaining games: 2-column grid */}
         {otherGames.length > 0 && (
           <div className="grid grid-cols-2 gap-2.5">
             {otherGames.map((game, i) => (
@@ -691,8 +664,6 @@ function TopGamesSection({ topGames }: { topGames: TopGame[] }) {
   )
 }
 
-/* ── Challenges ── */
-
 function ChallengesSection() {
   const { t } = useTranslation()
   const { challenges, totalUnlocked, totalChallenges } = useChallengeStore()
@@ -718,8 +689,6 @@ function ChallengesSection() {
     </m.section>
   )
 }
-
-/* ── Danger zone (RGPD) ── */
 
 function DangerZoneSection({ onRequestDelete }: { onRequestDelete: () => void }) {
   const { t } = useTranslation()
@@ -793,8 +762,6 @@ function DangerZoneSection({ onRequestDelete }: { onRequestDelete: () => void })
   )
 }
 
-/* ── Delete-account dialog ── */
-
 interface DeleteDialogState {
   open: boolean
   confirmText: string
@@ -842,7 +809,6 @@ function DeleteAccountDialog({
     try {
       await api.deleteAccount()
       toast.success(t('profile.deleteAccountSuccess'))
-      // The account and its session are gone — hard-reload to the landing page.
       window.location.href = '/'
     } catch {
       toast.error(t('profile.deleteAccountError'))
@@ -888,8 +854,6 @@ function DeleteAccountDialog({
     </Dialog>
   )
 }
-
-/* ── Component ── */
 
 export function ProfilePage() {
   const { t } = useTranslation()

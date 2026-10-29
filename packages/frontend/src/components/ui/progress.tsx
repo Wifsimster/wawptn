@@ -16,9 +16,6 @@ function Progress({
       className={cn('relative h-2 w-full overflow-hidden rounded-full bg-secondary', className)}
       {...props}
     >
-      {/* Real <progress> carries the semantics for assistive tech but is
-          visually hidden — the styled track/indicator below renders the
-          visual bar (a void <progress> can't host the custom indicator). */}
       <progress value={value} max={max} className="sr-only" />
       <div
         className="h-full rounded-full bg-primary transition-all duration-500 ease-out"

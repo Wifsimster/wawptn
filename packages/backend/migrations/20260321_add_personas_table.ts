@@ -17,7 +17,6 @@ export async function up(knex: Knex): Promise<void> {
     table.timestamp('updated_at', { useTz: true }).defaultTo(knex.fn.now())
   })
 
-  // Seed the 7 existing personas with is_default = true
   await knex('personas').insert([
     {
       id: 'pote-sarcastique',

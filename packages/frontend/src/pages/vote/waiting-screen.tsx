@@ -33,9 +33,6 @@ export function WaitingScreen({
   onBack,
 }: WaitingScreenProps) {
   const { t } = useTranslation()
-  // Snapshot "now" once at mount rather than reading the impure Date.now()
-  // during render. The CountdownTimer below handles the live ticking; this
-  // only decides whether the scheduled start is still in the future.
   const [mountedAt] = useState(() => Date.now())
   const scheduledDate = session?.scheduledAt ? new Date(session.scheduledAt) : null
   const isScheduledSession = scheduledDate !== null && scheduledDate.getTime() > mountedAt
@@ -63,18 +60,10 @@ export function WaitingScreen({
       </output>
 
       <div className="relative w-48 mb-3">
-        {/* Burst a fresh set of particles each time voterCount increments —
-            the changing key remounts the component so the lazy initializer
-            regenerates random positions and the animation replays. */}
         {voterCount > 0 && <CelebrationParticles key={voterCount} count={10} />}
         <Progress value={voterCount} max={totalMembers} />
       </div>
 
-      {/* Per-participant progress dots. Each dot represents one participant
-          in the session and lights up once that participant has cast at
-          least one vote. Lets members see *who* the session is waiting on
-          instead of just the bare X/Y count. Hidden when the session has
-          no participant data (legacy sessions before the junction table). */}
       {participantIds.length > 0 && (
         <menu
           aria-label={t('vote.waiting', { done: voterCount, total: totalMembers })}

@@ -3,12 +3,6 @@ import { Slot } from '@radix-ui/react-slot'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
-// Mobile-first sizing. The size variants set a *minimum* height rather than a
-// fixed one, and the base no longer forces `whitespace-nowrap`: French labels
-// ("Passer en Premium — 2,99 €/mois", "Se connecter avec Steam") are long
-// enough that a nowrap button pushed its own container past the viewport on a
-// 320-360px screen instead of wrapping. Buttons short enough to fit render
-// exactly as before — one line at the same 44/48px height.
 const buttonVariants = cva(
   'inline-flex max-w-full items-center justify-center gap-2 text-center rounded-lg text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[0.97] active:transition-transform active:duration-100 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   {
@@ -55,8 +49,4 @@ function Button({
   )
 }
 
-// `buttonVariants` is intentionally not re-exported — no consumer needs it,
-// and re-exporting non-component values from a component module trips the
-// react-refresh/only-export-components lint rule. If a call site ever
-// genuinely needs the cva variants, hoist them into a sibling file.
 export { Button }

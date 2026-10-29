@@ -8,10 +8,6 @@ import { getSocket } from '@/lib/socket'
 import { useAuthStore } from '@/stores/auth.store'
 import type { Game, VoteResult, SessionMeta } from './types'
 
-// Consolidated voting-session state. These fields all describe one cohesive
-// concern, the lifecycle of the current voting session, and change together
-// (initial load, socket events, close, rematch). Grouping them into a reducer
-// lets a single dispatch replace what used to be many cascading setState calls.
 interface VoteState {
   session: SessionMeta | null
   games: Game[]
@@ -123,29 +119,19 @@ function voteReducer(state: VoteState, action: VoteAction): VoteState {
   }
 }
 
-// Which session action is currently in flight. Replaces three independent
-// boolean flags (submit/close/rematch) so the screens can disable the matching
-// control without juggling several useState values.
 type Pending = 'submit' | 'close' | 'rematch' | null
 
 export function useVoteSession(id: string | undefined) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  // All voting-session lifecycle state lives in one reducer (see voteReducer).
-  // participantIds / votedUserIds drive the per-participant progress dots on
-  // the waiting screen so members can see *who* the session is waiting on.
   const [state, dispatch] = useReducer(voteReducer, initialVoteState)
-  // Transient UI state independent of the session lifecycle.
   const [pending, setPending] = useState<Pending>(null)
   const [search, setSearch] = useState('')
   const [detailGame, setDetailGame] = useState<Game | null>(null)
 
   const { session, games, selectedGames, result } = state
 
-  // Fire vote.completed exactly once, when the result first arrives (either
-  // via the close API response or the vote:closed socket event). Guarding on
-  // steamAppId keeps a synthetic null-reset from double-firing the event.
   const completedSessionRef = useRef<string | null>(null)
   useEffect(() => {
     if (!result || !session) return
@@ -196,14 +182,10 @@ export function useVoteSession(id: string | undefined) {
     )
 
     const socket = getSocket()
-    // Re-join on every (re)connect: the server-side room membership is lost
-    // with the old socket, and the result would never arrive.
     const joinRoom = () => socket.emit('group:join', id)
     joinRoom()
     socket.on('connect', joinRoom)
 
-    // The reducer handles idempotent per-participant tracking; re-receiving
-    // the same userId is a no-op.
     socket.on('vote:cast', (data) => {
       dispatch({
         type: 'voteCast',
@@ -234,7 +216,6 @@ export function useVoteSession(id: string | undefined) {
     if (!id || !session || pending) return
     setPending('submit')
     try {
-      // Send all votes in a single request: selected = true, not selected = false
       const votes = games.map(game => ({
         steamAppId: game.steamAppId,
         vote: selectedGames.has(game.steamAppId),
@@ -268,7 +249,6 @@ export function useVoteSession(id: string | undefined) {
     setPending('rematch')
     try {
       const data = await api.rematchVote(id, session.id)
-      // Reset state to show the new voting session
       dispatch({
         type: 'rematch',
         session: { id: data.session.id, createdBy: data.session.createdBy, scheduledAt: data.session.scheduledAt },
@@ -288,19 +268,9 @@ export function useVoteSession(id: string | undefined) {
     return games.filter(g => g.gameName.toLowerCase().includes(q))
   }, [games, search])
 
-  // Keep a stable ref to the latest handleRematch closure so the launch-timeout
-  // toast (scheduled from the click handler) always rematches the live session.
   const handleRematchRef = useRef(handleRematch)
   handleRematchRef.current = handleRematch
 
-  // Soft "still here? game not launching?" prompt. Five minutes after the user
-  // clicks the Steam launch link, if they're still on the result screen, we
-  // pop a non-blocking toast offering to rematch. The Steam protocol handler
-  // can fail silently (uninstalled app, missing DLC, blocked URL) and there
-  // was previously no path back to the vote without restarting the flow.
-  // Scheduled from the click handler (a side effect of the click, not of
-  // render); the ref holds the pending timer so it survives re-renders and is
-  // cleared on unmount.
   const launchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     const timerRef = launchTimerRef

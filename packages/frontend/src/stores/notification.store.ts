@@ -34,7 +34,6 @@ export const useNotificationStore = create<NotificationState>((set) => ({
       const { count } = await api.getNotificationCount()
       set({ unreadCount: count })
     } catch {
-      // ignore
     }
   },
 
@@ -55,7 +54,6 @@ export const useNotificationStore = create<NotificationState>((set) => ({
         unreadCount: Math.max(0, state.unreadCount - 1),
       }))
     } catch {
-      // ignore
     }
   },
 
@@ -67,7 +65,6 @@ export const useNotificationStore = create<NotificationState>((set) => ({
         unreadCount: 0,
       }))
     } catch {
-      // ignore
     }
   },
 

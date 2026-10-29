@@ -12,13 +12,6 @@ interface NotifyPremiumChangeParams {
   actorUserId?: string
 }
 
-/**
- * Fan-out notifications for an admin-driven premium change: an in-app
- * notification (always) plus an email (when the user has a real address
- * and SMTP is configured). UI language is French to match the rest of
- * the product. Failures are swallowed — the caller has already committed
- * the premium change to the DB and shouldn't fail over a missed notice.
- */
 export async function notifyPremiumChange(params: NotifyPremiumChangeParams): Promise<void> {
   const { targetUserId, granted, actorUserId } = params
 
@@ -38,8 +31,6 @@ export async function notifyPremiumChange(params: NotifyPremiumChangeParams): Pr
       createdBy: actorUserId,
       metadata: { actionUrl: '/account' },
       recipientUserIds: [targetUserId],
-      // Keep the banner around long enough that the user sees it even if
-      // they weren't online when the admin toggled the flag.
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     })
   } catch (error) {

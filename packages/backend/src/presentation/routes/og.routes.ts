@@ -9,11 +9,6 @@ import { logger } from '../../infrastructure/logger/logger.js'
 
 const router = Router()
 
-/**
- * Public OG image endpoint for closed voting sessions.
- * Returns a 1200x630 PNG with the winning game rendered on a branded card.
- * Cached aggressively since the content is immutable (closed session).
- */
 router.get('/og/vote/:sessionId.png', async (req: Request, res: Response) => {
   const sessionId = String(req.params['sessionId'])
 
@@ -37,7 +32,6 @@ router.get('/og/vote/:sessionId.png', async (req: Request, res: Response) => {
       return
     }
 
-    // Get header image from the voting_session_games row matching the winning game
     let headerImageUrl: string | null = null
     if (session.winning_game_app_id) {
       const gameRow = await db('voting_session_games')
@@ -47,21 +41,18 @@ router.get('/og/vote/:sessionId.png', async (req: Request, res: Response) => {
       headerImageUrl = gameRow?.header_image_url ?? null
     }
 
-    // Get yes-vote count for the winning game
     const yesCountRow = await db('votes')
       .where({ session_id: sessionId, steam_app_id: session.winning_game_app_id, vote: true })
       .count('* as count')
       .first()
     const yesCount = Number(yesCountRow?.count || 0)
 
-    // Distinct voter count across all games in this session
     const voterCountRow = await db('votes')
       .where({ session_id: sessionId })
       .countDistinct('user_id as count')
       .first()
     const voterCount = Number(voterCountRow?.count || 0)
 
-    // Total voters: prefer participants count, fallback to current group members
     const participantCountRow = await db('voting_session_participants')
       .where({ session_id: sessionId })
       .count('* as count')
@@ -93,12 +84,6 @@ router.get('/og/vote/:sessionId.png', async (req: Request, res: Response) => {
   }
 })
 
-/**
- * Public OG image endpoint for invite previews.
- * Returns a 1200x630 PNG branded for the target group: name, member count,
- * and up to 3 top-voted game thumbnails. Cached short (10 min) since member
- * count and top games shift as the group plays.
- */
 router.get('/og/invite/:token.png', async (req: Request, res: Response) => {
   const token = String(req.params['token'])
 

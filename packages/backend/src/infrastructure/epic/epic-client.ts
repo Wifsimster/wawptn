@@ -8,7 +8,6 @@ const EPIC_TOKEN_URL = 'https://api.epicgames.dev/epic/oauth/v2/token'
 const EPIC_ACCOUNT_API = 'https://api.epicgames.dev/epic/id/v2'
 const EPIC_LIBRARY_API = 'https://library-service.live.use1a.on.epicgames.com/library/api/public'
 
-// Rate limiter: 1 request per second
 let lastRequestTime = 0
 async function rateLimitedFetch(url: string, options?: RequestInit): Promise<Response> {
   const now = Date.now()
@@ -20,7 +19,6 @@ async function rateLimitedFetch(url: string, options?: RequestInit): Promise<Res
   return fetch(url, options)
 }
 
-// Circuit breaker
 let consecutiveFailures = 0
 let circuitOpenUntil = 0
 const CIRCUIT_THRESHOLD = 3
@@ -47,7 +45,6 @@ function recordFailure(): void {
   }
 }
 
-// In-memory cache
 const cache = new Map<string, { data: unknown; expiresAt: number }>()
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000
 
@@ -65,7 +62,6 @@ function setCache(key: string, data: unknown): void {
   cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS })
 }
 
-/** Health snapshot exposed to /api/admin/health. */
 export function getHealth(): {
   state: 'closed' | 'open'
   consecutiveFailures: number
@@ -280,9 +276,4 @@ export async function getOwnedGames(userId: string): Promise<EpicOwnedGame[] | n
   }
 }
 
-// Re-export the shared canonical name normaliser. The old location kept
-// its own copy of a weak lowercase-strip normaliser; Marcus #1 centralised
-// the logic in domain/game-name.ts so the cross-platform dedupe and the
-// Epic/GOG sync paths stay in lockstep. Callers can keep importing
-// `normalizeGameName` from here.
 export { normalizeGameName } from '../../domain/game-name.js'

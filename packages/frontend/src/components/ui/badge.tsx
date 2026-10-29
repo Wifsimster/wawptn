@@ -11,10 +11,6 @@ const badgeVariants = cva(
         secondary: 'border-transparent bg-secondary text-secondary-foreground',
         destructive: 'border-transparent bg-destructive text-destructive-foreground',
         outline: 'text-foreground',
-        // Semantic surfaces. Tinted background + matching text + a subtle
-        // border, so call sites stop reaching for `bg-primary/10
-        // text-primary border-primary/20` triplets and the design system
-        // owns the contrast.
         success: 'border-success/30 bg-success/15 text-success',
         warning: 'border-warning/30 bg-warning/15 text-warning',
         info: 'border-info/30 bg-info/15 text-info',
@@ -44,6 +40,4 @@ function Badge({
   )
 }
 
-// See note on Button: `badgeVariants` is intentionally module-private
-// to keep this file a clean components-only export.
 export { Badge }

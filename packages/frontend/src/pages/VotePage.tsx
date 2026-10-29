@@ -48,7 +48,6 @@ export function VotePage() {
     votedUserIds,
   } = state
 
-  // No active session
   if (noSession) {
     return (
       <div className="min-h-dvh flex flex-col">
@@ -73,9 +72,6 @@ export function VotePage() {
     )
   }
 
-  // Result screen — owns its reveal choreography, focus management and
-  // reduced-motion hooks. The hook keeps the lifecycle effects
-  // (completedSessionRef, launch-timeout toast) since they read `session`.
   if (result) {
     return (
       <ResultScreen
@@ -89,7 +85,6 @@ export function VotePage() {
     )
   }
 
-  // Waiting screen (already voted)
   if (hasVoted) {
     return (
       <WaitingScreen
@@ -107,7 +102,6 @@ export function VotePage() {
     )
   }
 
-  // Non-participant view
   if (!isParticipant) {
     return (
       <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center p-4">
@@ -123,7 +117,6 @@ export function VotePage() {
     )
   }
 
-  // Game selection interface
   return (
     <GameSelection
       games={games}

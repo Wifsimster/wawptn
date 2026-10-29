@@ -1,16 +1,6 @@
 import { db } from '../infrastructure/database/connection.js'
 import { logger } from '../infrastructure/logger/logger.js'
 
-/**
- * Per-platform sync provider. Implementations live in
- * infrastructure/library/library-sync.ts (Steam, Epic, GOG) and are wired into
- * the registry by `createLibrarySyncCoordinator()` so callers don't have to
- * know which providers exist.
- *
- * `linked(userId)` returns true if this provider should be invoked for the
- * member. Steam is always linked (every WAWPTN user has a Steam ID); Epic
- * and GOG are opt-in via the `accounts` table.
- */
 export interface LibrarySyncProvider {
   readonly id: string
   linked(userId: string, context: GroupSyncContext): boolean | Promise<boolean>
@@ -20,19 +10,11 @@ export interface LibrarySyncProvider {
 export interface GroupSyncContext {
   groupId: string
   member: { id: string; steamId: string }
-  /** Set of provider ids the member has explicitly linked (excludes Steam,
-   *  which is implicit). Pre-fetched in one query so each provider doesn't
-   *  re-hit the DB for every member. */
   linkedProviderIds: ReadonlySet<string>
 }
 
 export type SyncedHandler = (memberId: string, gameCount: number, providerId: string) => void
 
-/**
- * Coordinates fan-out library sync across providers. The route handler
- * registers providers once, then calls `syncGroup()` per request. Adding a
- * new platform = register a new provider here, no route change needed.
- */
 export class LibrarySyncCoordinator {
   private readonly providers: LibrarySyncProvider[] = []
 

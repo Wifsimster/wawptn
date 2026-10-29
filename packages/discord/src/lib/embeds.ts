@@ -8,10 +8,6 @@ export interface SessionGame {
   headerImageUrl: string | null
 }
 
-/** Discord hard limit: 5 action rows × 5 buttons per row. We pack 2 games
- *  (4 buttons) per row, so 5 rows × 2 games = 10 games max per message.
- *  We cap early and display a "vote on the web" hint when truncation
- *  happens so Discord voters know the overflow exists. */
 const MAX_GAMES_WITH_BUTTONS = 10
 
 function truncate(text: string, max: number): string {
@@ -37,8 +33,6 @@ function buildVoteRows(
   const visible = games.slice(0, MAX_GAMES_WITH_BUTTONS)
   const rows: ActionRowBuilder<ButtonBuilder>[] = []
 
-  // Two buttons per game = 2 per row of width 5, so we fit 2 games per row.
-  // Using label "👍 <name>" / "👎 <name>" lets voters tell games apart.
   for (let i = 0; i < visible.length; i += 2) {
     const row = new ActionRowBuilder<ButtonBuilder>()
     const chunk = visible.slice(i, i + 2)
@@ -70,11 +64,6 @@ interface BuildSessionEmbedParams {
   summary?: DiscordVoteSummary
 }
 
-/**
- * Builds the "vote opened" / "live update" message.
- * The same function is reused for every update — the only difference
- * between the initial post and a live edit is the `summary` payload.
- */
 export function buildSessionEmbed(
   params: BuildSessionEmbedParams,
 ): { embeds: EmbedBuilder[]; components: ActionRowBuilder<ButtonBuilder>[] } {
@@ -122,11 +111,6 @@ interface BuildSessionClosedEmbedParams {
   summary?: DiscordVoteSummary
 }
 
-/**
- * Final state of the message once the session closes: winner highlighted,
- * all buttons disabled so nobody keeps clicking, and the per-game tallies
- * preserved so you can scroll back and see the full picture.
- */
 export function buildSessionClosedEmbed(
   params: BuildSessionClosedEmbedParams,
 ): { embeds: EmbedBuilder[]; components: ActionRowBuilder<ButtonBuilder>[] } {
@@ -154,20 +138,14 @@ export function buildSessionClosedEmbed(
     winnerEmbed.setURL(`https://store.steampowered.com/app/${result.steamAppId}`)
   }
 
-  // Rebuild the vote rows in disabled state so the closed message still
-  // shows every game that was in the vote, but nobody can click them.
   const rows = buildVoteRows(games, sessionId, { disabled: true })
 
-  // Append the Steam launch link as a separate row if it fits (Discord
-  // allows up to 5 action rows total).
   if (result.steamAppId && rows.length < 5) {
     rows.push(
       new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setLabel('Voir sur Steam')
           .setStyle(ButtonStyle.Link)
-          // Link buttons only accept http(s)/discord URLs — a steam:// URL
-          // makes the builder throw and the whole closed message fails.
           .setURL(`https://store.steampowered.com/app/${result.steamAppId}`)
           .setEmoji('🚀'),
       ),
@@ -176,8 +154,6 @@ export function buildSessionClosedEmbed(
 
   return { embeds: [winnerEmbed], components: rows }
 }
-
-// ── Legacy helpers kept for the existing setup/stats/random commands ───────
 
 export function buildSessionCreatedEmbed(
   groupName: string,

@@ -8,23 +8,10 @@ import { db } from '../../infrastructure/database/connection.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 import { isInPastDueGrace } from '../../domain/subscription-service.js'
 
-/**
- * User-facing subscription routes (auth required, CSRF guarded).
- *
- * The Stripe webhook lives in subscription-webhook.routes.ts so it can be
- * mounted ahead of body parsing and without auth/CSRF — see that file
- * for rationale. Per-event business logic lives in
- * domain/stripe-event-handlers.ts.
- */
 export const subscriptionRoutes = Router()
 
 const subLogger = logger.child({ module: 'subscription' })
 
-// GET /api/subscription/me — current subscription state
-// Admins and admin-granted premium users are reported as active premium so
-// the client-side PremiumGate unlocks features regardless of Stripe state.
-// `source` distinguishes a real Stripe-backed sub (manageable via the Customer
-// Portal) from an admin grant (no Stripe customer — Manage button is hidden).
 subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
   try {
     const [user, subscription] = await Promise.all([
@@ -51,9 +38,6 @@ subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
       return
     }
 
-    // During the past_due grace window the user keeps premium access
-    // (isUserPremium agrees), so report the premium tier alongside the
-    // past_due status the UI can use to prompt for a new card.
     res.json({
       tier: isInPastDueGrace(subscription) ? 'premium' : (subscription?.tier || 'free'),
       status: subscription?.status || 'inactive',
@@ -67,10 +51,6 @@ subscriptionRoutes.get('/me', async (req: Request, res: Response) => {
   }
 })
 
-// GET /api/subscription/catalog — public-facing pricing catalog. Drives
-// the cadence toggle in the upgrade UI. Reads live amounts from Stripe
-// once and caches in-memory; if Stripe is unreachable, callers fall back
-// to the monthly-only single-CTA layout.
 const CATALOG_CACHE_TTL_MS = 5 * 60_000
 let catalogCache: { value: Array<{ cadence: Cadence; priceId: string; unitAmount: number | null; currency: string | null; default: boolean }>; expiresAt: number } | null = null
 
@@ -110,15 +90,11 @@ subscriptionRoutes.get('/catalog', async (_req: Request, res: Response) => {
   }
 })
 
-// POST /api/subscription/checkout — create Stripe Checkout Session
 subscriptionRoutes.post('/checkout', async (req: Request, res: Response) => {
   try {
     const stripe = getStripe()
     const userId = req.userId!
 
-    // Resolve cadence: client sends a discrete enum, server maps it to a
-    // configured price ID. The price string is never taken from the
-    // client — that closes the price-substitution attack surface.
     const requestedCadence: unknown = (req.body as { cadence?: unknown } | undefined)?.cadence
     const cadence: Cadence = isCadence(requestedCadence) ? requestedCadence : 'monthly'
     const priceId = resolvePriceId(cadence)
@@ -127,16 +103,10 @@ subscriptionRoutes.post('/checkout', async (req: Request, res: Response) => {
       return
     }
 
-    // Get or create Stripe customer. The idempotency key keyed off userId
-    // makes the customer-create call safe under concurrent double-clicks
-    // (same key returns the same customer, no duplicates). The local
-    // upsert on user_id covers the DB-side race.
     const subscription = await db('subscriptions')
       .where({ user_id: userId })
       .first()
 
-    // One subscription per user: a second checkout would bill both, and
-    // plan changes / card updates belong in the Customer Portal.
     if (subscription?.stripe_subscription_id && (subscription.status === 'active' || subscription.status === 'past_due')) {
       res.status(409).json({ error: 'already_subscribed', message: 'You already have a subscription — manage it from the billing portal' })
       return
@@ -144,8 +114,6 @@ subscriptionRoutes.post('/checkout', async (req: Request, res: Response) => {
 
     let customerId = subscription?.stripe_customer_id
 
-    // The local row can lag behind Stripe (webhook not processed yet after a
-    // checkout in another tab), so also ask Stripe for a live subscription.
     if (customerId) {
       const existing = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 10 })
       const live = existing.data.some((s) => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due')
@@ -180,8 +148,6 @@ subscriptionRoutes.post('/checkout', async (req: Request, res: Response) => {
         .merge(['stripe_customer_id', 'updated_at'])
     }
 
-    // 5-minute bucket: a determined double-click resolves to the same
-    // Checkout Session, but an honest retry hours later gets a fresh one.
     const bucket = Math.floor(Date.now() / (5 * 60_000))
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
@@ -191,10 +157,6 @@ subscriptionRoutes.post('/checkout', async (req: Request, res: Response) => {
       success_url: `${env.CORS_ORIGIN}/subscription?success=true`,
       cancel_url: `${env.CORS_ORIGIN}/subscription?canceled=true`,
       client_reference_id: userId,
-      // Propagate userId AND cadence onto the Subscription itself so
-      // webhook handlers, the reconciler, and any future audit query can
-      // identify both the user and the picked cadence from any
-      // Subscription object — not just from the Checkout Session.
       subscription_data: { metadata: { userId, cadence } },
       metadata: { userId, cadence },
       allow_promotion_codes: true,
@@ -224,7 +186,6 @@ subscriptionRoutes.post('/checkout', async (req: Request, res: Response) => {
   }
 })
 
-// POST /api/subscription/portal — create Stripe Customer Portal session
 subscriptionRoutes.post('/portal', async (req: Request, res: Response) => {
   try {
     const stripe = getStripe()
@@ -240,18 +201,12 @@ subscriptionRoutes.post('/portal', async (req: Request, res: Response) => {
       return
     }
 
-    // Per-day bucket: prevents portal-spam duplicates within a day, allows
-    // a fresh session next day.
     const bucket = Math.floor(Date.now() / (24 * 60 * 60_000))
 
     const session = await stripe.billingPortal.sessions.create(
       {
         customer: subscription.stripe_customer_id,
         return_url: `${env.CORS_ORIGIN}/subscription`,
-        // Restricts the portal to WAWPTN Premium products only. The four
-        // apps share one Stripe account, so without a config a WAWPTN
-        // customer would see Toko / The Box / CoproPilot prices in the
-        // "switch plan" picker.
         ...(env.STRIPE_PORTAL_CONFIG_ID
           ? { configuration: env.STRIPE_PORTAL_CONFIG_ID }
           : {}),
@@ -272,7 +227,4 @@ subscriptionRoutes.post('/portal', async (req: Request, res: Response) => {
   }
 })
 
-// Re-export the webhook router from its dedicated file so existing
-// imports of `subscriptionWebhookRouter` from this module keep working
-// without code churn at the index.ts mount point.
 export { subscriptionWebhookRouter } from './subscription-webhook.routes.js'

@@ -1,6 +1,5 @@
 import type { SVGProps } from 'react'
 
-/** GOG.com logo — SVG path sourced from Simple Icons (MIT/CC0) */
 export function GogIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg

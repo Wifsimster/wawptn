@@ -23,12 +23,10 @@ import {
 
 const router = Router()
 
-// List my groups
 router.get('/', async (req: Request, res: Response) => {
   res.json(await listGroupsForUser(req.userId!))
 })
 
-// Get group detail with members
 router.get('/:id', requireGroupMembership(), async (req: Request, res: Response) => {
   const groupId = String(req.params['id'])
 
@@ -75,9 +73,6 @@ router.get('/:id', requireGroupMembership(), async (req: Request, res: Response)
   })
 })
 
-// GET /api/groups/:id/persona/current — group's current "persona du jour".
-// Public to any group member. Drives the per-group PersonaBadge on the
-// groups list and the hero on the group detail page.
 router.get('/:id/persona/current', requireGroupMembership(), async (req: Request, res: Response) => {
   try {
     const groupId = String(req.params['id'])
@@ -95,8 +90,6 @@ router.get('/:id/persona/current', requireGroupMembership(), async (req: Request
   }
 })
 
-// GET /api/groups/:id/persona-settings — returns the effective per-group
-// overrides (rows are lazy-created so missing rows return defaults).
 router.get('/:id/persona-settings', requireGroupMembership(), async (req: Request, res: Response) => {
   const groupId = String(req.params['id'])
   const row = await db('group_persona_settings').where({ group_id: groupId }).first()
@@ -109,10 +102,6 @@ router.get('/:id/persona-settings', requireGroupMembership(), async (req: Reques
   })
 })
 
-// PATCH /api/groups/:id/persona-settings — owner-only. Creates the row
-// lazily on first write and invalidates the per-group cache so the next
-// read picks up the change immediately. Emits `persona:changed` on the
-// group room so connected clients refresh their badge in real time.
 router.patch('/:id/persona-settings', requireGroupMembership({ role: 'owner' }), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['id'])
@@ -123,7 +112,6 @@ router.patch('/:id/persona-settings', requireGroupMembership({ role: 'owner' }),
     overrideExpiresAt?: string | null
   }
 
-  // Validate disabled list shape
   if (disabledPersonas !== undefined && !Array.isArray(disabledPersonas)) {
     res.status(400).json({ error: 'validation', message: 'disabledPersonas must be an array of persona ids' })
     return
@@ -136,7 +124,6 @@ router.patch('/:id/persona-settings', requireGroupMembership({ role: 'owner' }),
     return
   }
 
-  // Validate override references a real persona id
   if (personaOverride !== undefined && personaOverride !== null) {
     if (typeof personaOverride !== 'string' || personaOverride.length === 0 || personaOverride.length > 50) {
       res.status(400).json({ error: 'validation', message: 'personaOverride must be a persona id or null' })
@@ -169,7 +156,6 @@ router.patch('/:id/persona-settings', requireGroupMembership({ role: 'owner' }),
   if (personaOverride !== undefined) patch['persona_override'] = personaOverride
   if (expiresAt !== undefined) patch['override_expires_at'] = expiresAt
 
-  // Upsert: insert if missing, update otherwise
   await db('group_persona_settings')
     .insert({ group_id: groupId, ...patch })
     .onConflict('group_id')
@@ -177,7 +163,6 @@ router.patch('/:id/persona-settings', requireGroupMembership({ role: 'owner' }),
 
   invalidateGroupPersonaCache(groupId)
 
-  // Notify connected members so their badge refreshes instantly
   const persona = await selectPersonaForGroup(groupId)
   if (persona) {
     getIO().to(`group:${groupId}`).emit('persona:changed', {
@@ -199,11 +184,6 @@ router.patch('/:id/persona-settings', requireGroupMembership({ role: 'owner' }),
   })
 })
 
-// Create group. Discord binding is NOT part of this payload — owners
-// bind a channel after creation by running `/wawptn-setup` in their
-// Discord server (see `packages/discord/src/commands/setup.ts` →
-// `POST /api/discord/setup`). The bot is the single writer for the
-// `discord_channel_id` / `discord_guild_id` columns.
 router.post('/', async (req: Request, res: Response) => {
   const userId = req.userId!
   const { name } = req.body as { name: string }
@@ -218,7 +198,6 @@ router.post('/', async (req: Request, res: Response) => {
     return
   }
 
-  // Free tier: max groups limit
   const premium = await isUserPremium(userId)
   if (!premium) {
     const ownedCount = await db('group_members').where({ user_id: userId, role: 'owner' }).count('* as count').first()
@@ -229,7 +208,7 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   const { token, hash } = generateInviteToken()
-  const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000) // 72 hours
+  const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000)
 
   const [group] = await db('groups').insert({
     name: name.trim(),
@@ -240,7 +219,6 @@ router.post('/', async (req: Request, res: Response) => {
     invite_max_uses: 10,
   }).returning('*')
 
-  // Add creator as owner
   await db('group_members').insert({
     group_id: group.id,
     user_id: userId,
@@ -259,8 +237,6 @@ router.post('/', async (req: Request, res: Response) => {
   })
 })
 
-// Rename group (owner only). Discord binding is written by the bot via
-// `POST /api/discord/setup` — not accepted here.
 router.patch('/:id', requireGroupMembership({ role: 'owner' }), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['id'])
@@ -296,7 +272,6 @@ router.patch('/:id', requireGroupMembership({ role: 'owner' }), async (req: Requ
   })
 })
 
-// Toggle Discord notifications for current user
 router.patch('/:id/notifications', requireGroupMembership(), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['id'])
@@ -315,7 +290,6 @@ router.patch('/:id/notifications', requireGroupMembership(), async (req: Request
   res.json({ ok: true })
 })
 
-// Configure auto-vote schedule (owner only)
 router.patch(
   '/:id/auto-vote',
   requireGroupMembership({ role: 'owner' }),
@@ -325,7 +299,6 @@ router.patch(
   const groupId = String(req.params['id'])
   const { schedule, durationMinutes } = req.body as { schedule: string | null; durationMinutes?: number }
 
-  // Validate cron expression if provided
   if (schedule !== null && schedule !== undefined) {
     if (typeof schedule !== 'string' || schedule.trim().length === 0) {
       res.status(400).json({ error: 'validation', message: 'schedule must be a non-empty string or null' })
@@ -337,7 +310,6 @@ router.patch(
     }
   }
 
-  // Validate duration
   const duration = durationMinutes ?? 120
   if (typeof duration !== 'number' || duration < 5 || duration > 1440) {
     res.status(400).json({ error: 'validation', message: 'durationMinutes must be between 5 and 1440' })
@@ -350,16 +322,12 @@ router.patch(
     updated_at: db.fn.now(),
   })
 
-  // Immediately update the scheduler
   updateGroupSchedule(groupId, schedule || null, duration)
 
   logger.info({ userId, groupId, schedule, durationMinutes: duration }, 'auto-vote schedule updated')
   res.json({ ok: true })
 })
 
-// Configure the weekly Steam new-releases digest (owner only, premium).
-// Posts the week's newest co-op / multiplayer Steam releases into the
-// group's linked Discord on a recurring schedule (default Friday 21:00).
 router.patch(
   '/:id/releases-digest',
   requireGroupMembership({ role: 'owner' }),
@@ -382,8 +350,6 @@ router.patch(
       return
     }
 
-    // The schedule is only meaningful when the digest is enabled; when it
-    // is, require a valid cron expression. Default to Friday 21:00.
     let cronSchedule = '0 21 * * 5'
     if (schedule !== undefined && schedule !== null) {
       if (typeof schedule !== 'string' || !cron.validate(schedule)) {
@@ -400,7 +366,6 @@ router.patch(
       updated_at: db.fn.now(),
     })
 
-    // Apply the change to the running scheduler immediately.
     updateGroupDigestSchedule(groupId, enabled, cronSchedule)
 
     logger.info({ userId, groupId, enabled, schedule: cronSchedule, coopOnly: coopOnly ?? false }, 'releases digest config updated')
@@ -413,9 +378,6 @@ router.patch(
   },
 )
 
-// Send a one-off test message to the group's linked Discord, so an owner
-// can confirm the digest will land in the right channel before relying on
-// the weekly schedule. Owner only, premium — same gate as the digest config.
 router.post(
   '/:id/releases-digest/test',
   requireGroupMembership({ role: 'owner' }),
@@ -446,10 +408,6 @@ router.post(
   },
 )
 
-// Toggle the new-game spotlight (owner only, free). When enabled, a member's
-// freshly acquired Steam games are announced into the group's linked Discord
-// with an interactive "qui veut jouer ?" vote. Default off — auto-posting into
-// a group's Discord is opt-in.
 router.patch(
   '/:id/new-game-spotlight',
   requireGroupMembership({ role: 'owner' }),
@@ -485,7 +443,6 @@ router.patch(
   },
 )
 
-// Generate new invite link (owner only)
 router.post('/:id/invite', requireGroupMembership({ role: 'owner' }), async (req: Request, res: Response) => {
   const groupId = String(req.params['id'])
 
@@ -502,7 +459,6 @@ router.post('/:id/invite', requireGroupMembership({ role: 'owner' }), async (req
   res.json({ inviteToken: token, inviteExpiresAt: expiresAt.toISOString() })
 })
 
-// Join group via invite token
 router.post('/join', async (req: Request, res: Response) => {
   const userId = req.userId!
   const { token } = req.body as { token: string }
@@ -524,11 +480,6 @@ router.post('/join', async (req: Request, res: Response) => {
     return
   }
 
-  // Look up an in-flight vote session so the frontend can route the user
-  // straight to the vote page instead of forcing a group-detail detour.
-  // `scheduled_at` is the auto-close deadline (see vote-scheduler.ts), not a
-  // start time — an open session accepts ballots until then. Mirrors the
-  // `activeVoteSession` shape the frontend already uses on `GroupPage`.
   const getActiveVoteSession = async () => {
     const row = await db('voting_sessions')
       .where({ group_id: group.id, status: 'open' })
@@ -538,7 +489,6 @@ router.post('/join', async (req: Request, res: Response) => {
     return { id: row.id as string, scheduledAt: (row.scheduled_at as Date | null)?.toISOString() ?? null }
   }
 
-  // Check if already a member (before claiming an invite use)
   const existing = await db('group_members')
     .where({ group_id: group.id, user_id: userId })
     .first()
@@ -549,9 +499,6 @@ router.post('/join', async (req: Request, res: Response) => {
     return
   }
 
-  // Ban check (decision D16): a kicked user must not be able to rejoin
-  // via a still-live invite link. Also blocks users whose Discord identity
-  // was banned before a WAWPTN account existed for them.
   const linkedDiscord = await db('discord_links').where({ user_id: userId }).first()
   const banned = await isBannedFromGroup({
     groupId: group.id,
@@ -566,7 +513,6 @@ router.post('/join', async (req: Request, res: Response) => {
     return
   }
 
-  // Tier-based max members per group limit
   const owner = await db('group_members').where({ group_id: group.id, role: 'owner' }).select('user_id').first()
   if (owner) {
     const ownerIsPremium = await isUserPremium(owner.user_id)
@@ -582,7 +528,6 @@ router.post('/join', async (req: Request, res: Response) => {
     }
   }
 
-  // Atomic: claim an invite use and add member in a single transaction (race-safe)
   const outcome = await db.transaction(async (trx) => {
     const claimed = await trx('groups')
       .where({ id: group.id })
@@ -601,10 +546,6 @@ router.post('/join', async (req: Request, res: Response) => {
       .ignore()
       .returning('user_id')
 
-    // A concurrent request for the same user (double click, second tab,
-    // React StrictMode in dev) passed the membership check first and
-    // already inserted the row: give the invite use back and answer as
-    // "already a member" instead of failing on the primary key.
     if (inserted.length === 0) {
       await trx('groups').where({ id: group.id }).decrement('invite_use_count', 1)
       return 'already_member' as const
@@ -624,7 +565,6 @@ router.post('/join', async (req: Request, res: Response) => {
     return
   }
 
-  // Notify group via Socket.io
   const user = await db('users').where({ id: userId }).first()
   if (user) {
     getIO().to(`group:${group.id}`).emit('member:joined', {
@@ -637,7 +577,6 @@ router.post('/join', async (req: Request, res: Response) => {
     })
   }
 
-  // Track referral: the group owner (created_by) is the referrer
   if (group.created_by !== userId) {
     await db('referrals')
       .insert({
@@ -654,14 +593,12 @@ router.post('/join', async (req: Request, res: Response) => {
   res.json({ id: group.id, name: group.name, alreadyMember: false, activeVoteSession })
 })
 
-// Leave group (self) or kick member (owner only)
 router.delete('/:id/members/:userId', async (req: Request, res: Response) => {
   const currentUserId = req.userId!
   const groupId = String(req.params['id'])
   const targetUserId = String(req.params['userId'])
   const isSelfLeave = currentUserId === targetUserId
 
-  // Verify target is actually a member
   const targetMembership = await db('group_members')
     .where({ group_id: groupId, user_id: targetUserId })
     .first()
@@ -672,13 +609,11 @@ router.delete('/:id/members/:userId', async (req: Request, res: Response) => {
   }
 
   if (isSelfLeave) {
-    // Owner cannot leave — must delete the group instead
     if (targetMembership.role === 'owner') {
       res.status(403).json({ error: 'forbidden', message: 'Group owner cannot leave. Delete the group instead.' })
       return
     }
   } else {
-    // Only the owner can kick other members
     const currentMembership = await db('group_members')
       .where({ group_id: groupId, user_id: currentUserId, role: 'owner' })
       .first()
@@ -689,10 +624,6 @@ router.delete('/:id/members/:userId', async (req: Request, res: Response) => {
     }
   }
 
-  // A kick implies a ban (decision D16) so the removed member cannot
-  // rejoin via a still-live invite link. A voluntary self-leave does not
-  // ban. The delete and the ban insert run in one transaction so the two
-  // never diverge.
   await db.transaction(async (trx) => {
     await trx('group_members')
       .where({ group_id: groupId, user_id: targetUserId })
@@ -715,16 +646,12 @@ router.delete('/:id/members/:userId', async (req: Request, res: Response) => {
     }
   })
 
-  // Force-evict kicked/left user from socket room
   forceLeaveRoom(groupId, targetUserId)
 
   if (isSelfLeave) {
     getIO().to(`group:${groupId}`).emit('member:left', { groupId, userId: targetUserId })
   } else {
-    // Emit kicked event so the kicked user's frontend can react
     getIO().to(`group:${groupId}`).emit('member:kicked', { groupId, userId: targetUserId })
-    // Also notify the kicked user directly (they may have been removed from room already,
-    // so emit on their socket specifically)
     const io = getIO()
     for (const [, socket] of io.sockets.sockets) {
       if (socket.data.userId === targetUserId) {
@@ -737,12 +664,10 @@ router.delete('/:id/members/:userId', async (req: Request, res: Response) => {
   res.json({ ok: true })
 })
 
-// Delete group (owner only)
 router.delete('/:id', requireGroupMembership({ role: 'owner' }), async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = String(req.params['id'])
 
-  // Check for open voting sessions
   const openSession = await db('voting_sessions')
     .where({ group_id: groupId, status: 'open' })
     .first()
@@ -755,10 +680,8 @@ router.delete('/:id', requireGroupMembership({ role: 'owner' }), async (req: Req
   const group = await db('groups').where({ id: groupId }).first()
   const groupName = group?.name || 'Unknown'
 
-  // Notify all members before deletion
   getIO().to(`group:${groupId}`).emit('group:deleted', { groupId, groupName })
 
-  // Force all sockets out of the room
   const io = getIO()
   const room = io.sockets.adapter.rooms.get(`group:${groupId}`)
   if (room) {
@@ -768,14 +691,12 @@ router.delete('/:id', requireGroupMembership({ role: 'owner' }), async (req: Req
     }
   }
 
-  // Delete the group — CASCADE handles group_members, voting_sessions, votes, etc.
   await db('groups').where({ id: groupId }).del()
 
   logger.info({ userId, groupId, groupName }, 'group deleted')
   res.json({ ok: true })
 })
 
-// Get common games for a group
 router.get('/:id/common-games', requireGroupMembership(), async (req: Request, res: Response) => {
   try {
     const groupId = String(req.params['id'])
@@ -788,7 +709,6 @@ router.get('/:id/common-games', requireGroupMembership(), async (req: Request, r
 
     const commonGames = await computeCommonGames(memberIds, { filter, threshold })
 
-    // Trigger background enrichment for un-enriched common games
     const allAppIds = commonGames.map(g => g.steamAppId)
     if (allAppIds.length > 0) {
       triggerBackgroundEnrichment(allAppIds)
@@ -812,7 +732,6 @@ router.get('/:id/common-games', requireGroupMembership(), async (req: Request, r
   }
 })
 
-// Preview common games for a subset of members (read-only, no enrichment)
 router.post('/:id/common-games/preview', requireGroupMembership(), async (req: Request, res: Response) => {
   try {
     const groupId = String(req.params['id'])
@@ -828,7 +747,6 @@ router.post('/:id/common-games/preview', requireGroupMembership(), async (req: R
       return
     }
 
-    // Validate all provided IDs are actual group members
     const validMembers = await db('group_members')
       .where({ group_id: groupId })
       .whereIn('user_id', memberIds)
@@ -849,19 +767,16 @@ router.post('/:id/common-games/preview', requireGroupMembership(), async (req: R
   }
 })
 
-// Get group voting stats dashboard
 router.get('/:id/stats', requireGroupMembership(), async (req: Request, res: Response) => {
   try {
     const groupId = String(req.params['id'])
 
-    // Total closed sessions
     const totalSessionsResult = await db('voting_sessions')
       .where({ group_id: groupId, status: 'closed' })
       .count('* as count')
       .first()
     const totalSessions = Number(totalSessionsResult?.count || 0)
 
-    // Total individual votes cast across all sessions in this group
     const totalVotesResult = await db('votes')
       .join('voting_sessions', 'voting_sessions.id', 'votes.session_id')
       .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed' })
@@ -869,7 +784,6 @@ router.get('/:id/stats', requireGroupMembership(), async (req: Request, res: Res
       .first()
     const totalVotes = Number(totalVotesResult?.count || 0)
 
-    // Top 5 most winning games (by win count, with total nominations)
     const topGames = await db('voting_sessions')
       .where({ group_id: groupId, status: 'closed' })
       .whereNotNull('winning_game_name')
@@ -882,7 +796,6 @@ router.get('/:id/stats', requireGroupMembership(), async (req: Request, res: Res
       .orderBy('winCount', 'desc')
       .limit(5) as unknown as { gameName: string; steamAppId: number; winCount: string }[]
 
-    // Count total nominations per game (how many sessions each game appeared in)
     const topGameAppIds = topGames.map(g => g.steamAppId).filter(Boolean)
     let nominationMap = new Map<number, number>()
     if (topGameAppIds.length > 0) {
@@ -898,7 +811,6 @@ router.get('/:id/stats', requireGroupMembership(), async (req: Request, res: Res
       )
     }
 
-    // Member participation: per member vote count and sessions participated
     const memberParticipation = await db('votes')
       .join('voting_sessions', 'voting_sessions.id', 'votes.session_id')
       .join('users', 'users.id', 'votes.user_id')
@@ -917,7 +829,6 @@ router.get('/:id/stats', requireGroupMembership(), async (req: Request, res: Res
       .groupBy('votes.user_id', 'users.display_name', 'users.avatar_url')
       .orderBy('voteCount', 'desc') as unknown as { userId: string; displayName: string; avatarUrl: string; voteCount: string; sessionsParticipated: string }[]
 
-    // Recent 5 winners with dates
     const recentWinners = await db('voting_sessions')
       .where({ group_id: groupId, status: 'closed' })
       .whereNotNull('winning_game_name')
@@ -957,7 +868,6 @@ router.get('/:id/stats', requireGroupMembership(), async (req: Request, res: Res
   }
 })
 
-// Trigger library sync for all group members (owner only)
 router.post('/:id/sync', requireGroupMembership({ role: 'owner' }), async (req: Request, res: Response) => {
   const groupId = String(req.params['id'])
 
@@ -968,7 +878,6 @@ router.post('/:id/sync', requireGroupMembership({ role: 'owner' }), async (req: 
   res.json({ ok: true, message: 'Library sync started for all members across all platforms' })
 })
 
-// Get smart game recommendations based on vote history
 router.get(
   '/:id/recommendations',
   requireGroupMembership(),
@@ -982,7 +891,6 @@ router.get(
     const totalMembers = memberIds.length
     const threshold = group?.common_game_threshold || totalMembers
 
-    // Get all common games for the group
     const commonGames = await computeCommonGames(memberIds, { threshold })
 
     if (commonGames.length === 0) {
@@ -992,7 +900,6 @@ router.get(
 
     const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
 
-    // Get win history for this group: last win date per game (by game_id or steam_app_id)
     const winHistory = await db('voting_sessions')
       .where({ group_id: groupId, status: 'closed' })
       .whereNotNull('winning_game_app_id')
@@ -1011,7 +918,6 @@ router.get(
       ])
     )
 
-    // Get positive vote counts per game across all closed sessions in this group
     const positiveVotes = await db('votes')
       .join('voting_sessions', 'voting_sessions.id', 'votes.session_id')
       .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed', 'votes.vote': true })
@@ -1025,14 +931,12 @@ router.get(
       ])
     )
 
-    // Score and filter games
     const now = Date.now()
     const scored = commonGames
       .map(game => {
         const win = winMap.get(game.steamAppId)
         const positiveCount = positiveVoteMap.get(game.steamAppId) || 0
 
-        // Exclude games that won in the last 2 weeks
         if (win && win.lastWonAt > twoWeeksAgo) {
           return null
         }
@@ -1041,19 +945,15 @@ router.get(
         let reason: string
 
         if (!win) {
-          // Never won — highest priority
           score = 1000 + positiveCount
           reason = 'never_played'
         } else {
-          // Time since last win in days
           const daysSinceWin = Math.floor((now - win.lastWonAt.getTime()) / (1000 * 60 * 60 * 24))
 
           if (positiveCount >= 3 && daysSinceWin > 30) {
-            // Popular but forgotten
             score = 500 + daysSinceWin + positiveCount * 10
             reason = 'popular_forgotten'
           } else {
-            // Not played in a while
             score = daysSinceWin + positiveCount
             reason = 'not_played_long'
           }
@@ -1079,12 +979,10 @@ router.get(
   }
 })
 
-// Get member leaderboard/rankings for a group
 router.get('/:id/leaderboard', requireGroupMembership(), async (req: Request, res: Response) => {
   try {
     const groupId = String(req.params['id'])
 
-    // Total votes cast per member in this group's closed sessions
     const memberVotes = await db('votes')
       .join('voting_sessions', 'voting_sessions.id', 'votes.session_id')
       .join('users', 'users.id', 'votes.user_id')
@@ -1104,7 +1002,6 @@ router.get('/:id/leaderboard', requireGroupMembership(), async (req: Request, re
         sessionsParticipated: string
       }[]
 
-    // Count wins per member: times user voted for the winning game
     const memberWins = await db('votes')
       .join('voting_sessions', 'voting_sessions.id', 'votes.session_id')
       .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed', 'votes.vote': true })
@@ -1134,7 +1031,6 @@ router.get('/:id/leaderboard', requireGroupMembership(), async (req: Request, re
   }
 })
 
-// Get voting streaks for a group
 router.get('/:id/streaks', requireGroupMembership(), async (req: Request, res: Response) => {
   try {
     const groupId = String(req.params['id'])

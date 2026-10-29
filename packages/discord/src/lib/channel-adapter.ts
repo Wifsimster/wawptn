@@ -1,18 +1,6 @@
 import type { Client } from 'discord.js'
 import { BotHandlerError } from '../http/handlers-error.js'
 
-/**
- * Thin adapter over discord.js channel/message ops.
- *
- * Why: discord.js types branch heavily by channel kind, but in WAWPTN we
- * only care that the channel can `send` a message and `messages.fetch` an
- * existing one. Keeping the unsafe type narrowings in one place means the
- * handler code reads as plain business logic and any future discord.js
- * upgrade only needs adjustments here.
- *
- * All methods raise `BotHandlerError` (not raw discord.js errors) so the
- * HTTP layer can map them to status codes uniformly.
- */
 type SendablePayload = { embeds?: unknown; components?: unknown }
 
 interface SendableChannel {

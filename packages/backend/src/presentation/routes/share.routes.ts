@@ -5,12 +5,6 @@ import { logger } from '../../infrastructure/logger/logger.js'
 
 const router = Router()
 
-/**
- * Public share page for a closed voting session result.
- * Serves HTML with Open Graph + Twitter Card meta tags so that social
- * crawlers (Twitter, Discord, Facebook, Slack) render a rich preview.
- * Human visitors are redirected to the SPA via <meta http-equiv="refresh">.
- */
 router.get('/vote/:sessionId', async (req: Request, res: Response) => {
   const sessionId = String(req.params['sessionId'])
 
@@ -34,7 +28,6 @@ router.get('/vote/:sessionId', async (req: Request, res: Response) => {
       return
     }
 
-    // Compute vote stats for the description text
     const yesCountRow = await db('votes')
       .where({ session_id: sessionId, steam_app_id: session.winning_game_app_id, vote: true })
       .count('* as count')

@@ -30,7 +30,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     const embed = buildRandomGameEmbed(result.game, group.groupName)
 
-    // Send the result as a public message
     if (interaction.channel && 'send' in interaction.channel) {
       await interaction.channel.send({ embeds: [embed] })
     }

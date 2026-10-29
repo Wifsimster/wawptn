@@ -1,6 +1,5 @@
 import type { SVGProps } from 'react'
 
-/** Steam logo — SVG path sourced from Simple Icons (MIT/CC0) */
 export function SteamIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg

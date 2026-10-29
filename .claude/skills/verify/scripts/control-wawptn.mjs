@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// control-wawptn — drive a throwaway local WAWPTN instance the way a group of players does.
-// Agent-facing: JSON on stdout, one object per invocation, exit 0 on success.
-// Run `control-wawptn --help` or `control-wawptn <command> --help`.
 
 import { spawn, execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
@@ -11,10 +8,6 @@ import net from 'node:net'
 import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
-// With NODE_USE_ENV_PROXY=1 and HTTP(S)_PROXY set, Node sends fetch() and http.request() through the
-// proxy, loopback included. The proxy closes the socket (UND_ERR_SOCKET) and `launch` times out on
-// backend /health while the backend is up. Every call this CLI makes is local, so keep loopback direct.
-// Child processes (backend, Vite, browser daemon) inherit the same NO_PROXY.
 for (const k of ['NO_PROXY', 'no_proxy']) {
   const hosts = (process.env[k] || '').split(',').map((s) => s.trim()).filter(Boolean)
   for (const h of ['localhost', '127.0.0.1']) if (!hosts.includes(h)) hosts.push(h)
@@ -28,7 +21,6 @@ const STATE_FILE = path.join(RUN_DIR, 'state.json')
 const EGRESS_LOG = path.join(RUN_DIR, 'egress-blocked.jsonl')
 const EVIDENCE_ROOT = process.env.WAWPTN_EVIDENCE_DIR || path.join(REPO, '.verify-evidence')
 
-// The Vite proxy hardcodes localhost:3000, so backend and frontend ports are fixed.
 const PORTS = { backend: 3000, frontend: 5173, cdp: 9334, postgres: 55442 }
 const PG = 'wawptn-verify-pg'
 const LABEL = 'wawptn-verify=1'
@@ -36,14 +28,11 @@ const DB_URL = `postgresql://wawptn:wawptn_verify@127.0.0.1:${PORTS.postgres}/wa
 const BASE = `http://localhost:${PORTS.frontend}`
 const SESSION_COOKIE = 'wawptn.session_token'
 
-// Fake players. Steam ids use a 7656119000000000x range that no real account has.
 const USERS = {
   alice: { steamId: '76561190000000001', displayName: 'Alice (fake)' },
   bob: { steamId: '76561190000000002', displayName: 'Bob (fake)' },
   carol: { steamId: '76561190000000003', displayName: 'Carol (fake)' },
 }
-// Fake games (app ids 9900001+ do not exist on Steam). Owners decide the common set:
-// all three players own 1-4, so a 3-player vote offers exactly those four.
 const GAMES = [
   { appId: 9900001, name: 'Verify Quest', owners: ['alice', 'bob', 'carol'] },
   { appId: 9900002, name: 'Fake Kart Party', owners: ['alice', 'bob', 'carol'] },
@@ -53,7 +42,6 @@ const GAMES = [
   { appId: 9900006, name: 'Lonely Lighthouse', owners: ['alice'] },
 ]
 
-// ---------- output ----------
 function out(obj) {
   process.stdout.write(JSON.stringify(obj, null, 2) + '\n')
 }
@@ -68,7 +56,6 @@ function fail(message, fix, extra) {
   throw new CliError(message, fix, extra)
 }
 
-// ---------- args ----------
 function parseArgs(argv) {
   const pos = []
   const flags = {}
@@ -84,7 +71,6 @@ function parseArgs(argv) {
   return { pos, flags }
 }
 
-// ---------- state ----------
 function readState() {
   try {
     return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'))
@@ -102,13 +88,11 @@ function requireState() {
   return s
 }
 function evidenceDir(state) {
-  // launch records the evidence root, so later calls write to the same place even without the env var.
   const dir = path.join(state?.evidenceRoot || EVIDENCE_ROOT, state?.runId || 'adhoc')
   fs.mkdirSync(dir, { recursive: true })
   return dir
 }
 
-// ---------- helpers ----------
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 function portInUse(port) {
   return new Promise((resolve) => {
@@ -187,7 +171,6 @@ async function me(page) {
   return page.evaluate(() => fetch('/api/auth/me', { credentials: 'include' }).then((r) => r.json()).catch(() => null))
 }
 async function closeOverlays(page) {
-  // Onboarding / PWA / notification dialogs can sit on top of the page. Escape closes Radix dialogs.
   for (let i = 0; i < 2; i++) {
     if (await page.getByRole('dialog').first().isVisible().catch(() => false)) {
       await page.keyboard.press('Escape').catch(() => {})
@@ -201,7 +184,6 @@ function resolveGroup(state, flags) {
   return id
 }
 
-// ---------- fake data ----------
 function seedSql() {
   const lines = ['begin;']
   for (const [key, u] of Object.entries(USERS)) {
@@ -211,7 +193,6 @@ function seedSql() {
   for (const g of GAMES) {
     lines.push(`insert into games (canonical_name) values (${q(g.name)});`)
     lines.push(`insert into game_platform_ids (game_id, platform, platform_game_id) select id, 'steam', ${q(String(g.appId))} from games where canonical_name = ${q(g.name)};`)
-    // enriched_at + genres set: the backend's background enrichment skips these ids, so it never calls the Steam store.
     lines.push(`insert into game_metadata (steam_app_id, categories, is_multiplayer, is_coop, enriched_at, genres, type, short_description, is_free) values (${g.appId}, '[]', true, true, now(), '["Verification"]', 'game', 'Fake game for local verification.', false);`)
     for (const o of g.owners) {
       lines.push(`insert into user_games (user_id, steam_app_id, game_name, game_id, platform, playtime_forever) select u.id, ${g.appId}, ${q(g.name)}, gm.id, 'steam', 60 from users u, games gm where u.steam_id = ${q(USERS[o].steamId)} and gm.canonical_name = ${q(g.name)};`)
@@ -221,13 +202,11 @@ function seedSql() {
   return lines.join('\n')
 }
 
-// cookie-parser signed-cookie format (cookie-signature): "s:" + value + "." + base64(HMAC-SHA256) without padding.
 function signCookie(value, secret) {
   const mac = crypto.createHmac('sha256', secret).update(value).digest('base64').replace(/=+$/, '')
   return `s:${value}.${mac}`
 }
 
-// ---------- commands ----------
 const COMMANDS = {}
 
 COMMANDS.launch = {
@@ -284,14 +263,11 @@ Also refuses, before touching anything, when the Playwright Chromium is not inst
       PORT: String(PORTS.backend),
       DATABASE_URL: DB_URL,
       APP_SECRET: appSecret,
-      // Production serves API and SPA from one origin; the invite page redirects to `${API_URL}/join/<token>`.
-      // Point it at the Vite origin (which proxies /api) so invite links land on the SPA, as in production.
       API_URL: BASE,
       CORS_ORIGIN: BASE,
       APP_PUBLIC_URL: BASE,
       LOG_LEVEL: 'info',
       WAWPTN_EGRESS_LOG: EGRESS_LOG,
-      // Never real third parties during verification.
       STEAM_API_KEY: '', EPIC_CLIENT_ID: '', EPIC_CLIENT_SECRET: '', GOG_CLIENT_ID: '', GOG_CLIENT_SECRET: '',
       DISCORD_BOT_API_SECRET: '', DISCORD_BOT_HTTP_URL: '', DISCORD_CLIENT_ID: '', DISCORD_BOT_TOKEN: '',
       LLM_API_KEY: '', STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: '', STRIPE_PRICE_ID: '', STRIPE_PRICE_ID_MONTHLY: '', STRIPE_PRICE_ID_YEARLY: '',
@@ -299,7 +275,6 @@ Also refuses, before touching anything, when the Playwright Chromium is not inst
       VITE_KOE_PROJECT_KEY: '', VITE_KOE_API_URL: '',
     }
     const logDir = path.join(RUN_DIR, 'logs'); fs.mkdirSync(logDir, { recursive: true })
-    // Backend and frontend import @wawptn/types from its dist/: build it first.
     for (const [name, args] of [['types', ['run', 'build:types']], ['migrate', ['run', 'db:migrate']]]) {
       try {
         const o = sh('npm', args, { cwd: REPO, env, maxBuffer: 64 << 20 })
@@ -527,7 +502,6 @@ COMMANDS.key = {
   },
 }
 
-// ---------- group session ----------
 function currentPlayer(state) {
   if (!state.currentPlayer) fail('No player is logged in.', 'Run `control-wawptn login --as alice` first.')
   return { key: state.currentPlayer, ...USERS[state.currentPlayer] }
@@ -717,7 +691,6 @@ show    Read-only: latest session row, its games and every player's ballot.
         saveJson(state, `vote-cast-${player.key}`, result)
         return result
       }
-      // close
       const closeBtn = page.getByRole('button', { name: /Clôturer le vote et révéler le gagnant/ })
       await closeBtn.waitFor({ timeout: 10000 }).catch(() => fail('No "Clôturer le vote" button.', 'Only the session creator sees it, after casting their own ballot. `login --as` the owner and `vote cast` first.'))
       const progress = await page.getByRole('status').first().textContent().catch(() => null)
@@ -727,7 +700,7 @@ show    Read-only: latest session row, its games and every player's ballot.
       const resp = await respP
       const body = await resp.json().catch(() => null)
       await page.getByText(/Ce soir vous jouez à/).waitFor({ timeout: 10000 }).catch(() => {})
-      await sleep(1500) // reveal animation
+      await sleep(1500)
       const shownWinner = await page.getByRole('heading', { level: 1 }).first().textContent().catch(() => null)
       const file = shotPath(state, 'vote-result')
       await page.screenshot({ path: file })
@@ -772,7 +745,6 @@ COMMANDS['network-log'] = {
   },
 }
 
-// Internal: the long-lived browser owner, spawned by launch.
 async function browserd() {
   const { chromium } = loadPlaywright()
   const ctx = await chromium.launchPersistentContext(path.join(RUN_DIR, 'browser-profile'), {
@@ -784,7 +756,6 @@ async function browserd() {
   })
   const con = fs.createWriteStream(path.join(RUN_DIR, 'console.jsonl'), { flags: 'a' })
   const netw = fs.createWriteStream(path.join(RUN_DIR, 'network.jsonl'), { flags: 'a' })
-  // External boundary: Steam CDN images get a local placeholder; any other third-party request is refused.
   await ctx.route((url) => !['localhost', '127.0.0.1'].includes(url.hostname), (route) => {
     const url = route.request().url()
     if (/steamstatic\.com|steamcdn/.test(url)) {
@@ -794,9 +765,6 @@ async function browserd() {
     netw.write(JSON.stringify({ ts: new Date().toISOString(), method: route.request().method(), url, status: 'blocked' }) + '\n')
     return route.abort('blockedbyclient')
   })
-  // Production sits behind Traefik with `trust proxy` = 1, so the rate limiters key on each player's own
-  // IP. Locally every fake player comes from 127.0.0.1 through the Vite proxy and they would share one
-  // budget (voteLimiter: 30/min on /api/groups). Add the header Traefik would add: one address per player.
   const playerIps = Object.fromEntries(Object.keys(USERS).map((k, i) => [k, `10.77.0.${i + 1}`]))
   await ctx.route((url) => ['localhost', '127.0.0.1'].includes(url.hostname) && url.pathname.startsWith('/api/'), (route) => {
     const ip = playerIps[readState()?.currentPlayer]
@@ -811,7 +779,6 @@ async function browserd() {
       netw.write(JSON.stringify({ ts: new Date().toISOString(), method: req.method(), url: req.url(), status: res?.status() ?? null, ms: Math.round(req.timing().responseEnd) }) + '\n')
     })
     page.on('requestfailed', (req) => netw.write(JSON.stringify({ ts: new Date().toISOString(), method: req.method(), url: req.url(), status: null, failure: req.failure()?.errorText }) + '\n'))
-    // socket.io runs over WebSocket (vote progress, results, member events): log frames so pushes can be proven.
     page.on('websocket', (ws) => {
       const log = (dir, payload) => netw.write(JSON.stringify({ ts: new Date().toISOString(), method: 'WS', dir, url: ws.url(), status: 101, frame: String(payload).slice(0, 300) }) + '\n')
       log('open', '')

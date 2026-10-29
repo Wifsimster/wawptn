@@ -35,7 +35,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json()
 }
 
-// Auth
 export const api = {
   getMe: () => request<{ id: string; steamId: string; displayName: string; avatarUrl: string; libraryVisible: boolean; isAdmin: boolean }>('/auth/me'),
   logout: () => request('/auth/logout', { method: 'POST' }),
@@ -60,7 +59,6 @@ export const api = {
     return request<{ ok: boolean }>(`/auth/${providerId}/link`, { method: 'DELETE' })
   },
 
-  // Discord
   confirmDiscordLink: (code: string) => request<{ ok: boolean; discordUsername: string }>('/discord/link/confirm', {
     method: 'POST',
     body: JSON.stringify({ code }),
@@ -68,20 +66,15 @@ export const api = {
   unlinkDiscord: () => request<{ ok: boolean; wasLinked: boolean }>('/discord/link', {
     method: 'DELETE',
   }),
-  // Returns the bot invite URL so the UI can link the owner to Discord's
-  // "add bot" flow. When `enabled` is false the backend has no bot config
-  // and the button should be hidden.
   getDiscordBotInviteUrl: () =>
     request<{ enabled: boolean; url: string | null }>('/discord/bot-invite-url'),
 
-  // Invite preview (public, no auth — mounted at /invite, not /api)
   getInvitePreview: async (token: string): Promise<import('@wawptn/types').InvitePreview> => {
     const res = await fetch(`/invite/${token}/preview`)
     if (!res.ok) throw new Error('Failed to load invite preview')
     return res.json()
   },
 
-  // Groups
   getGroups: () => request<{ id: string; name: string; role: string; createdAt: string; memberCount: number; commonGameCount: number; lastSession: { gameName: string; gameAppId: number; closedAt: string } | null; activeVoteSession: { id: string; scheduledAt: string | null } | null; todayPersona: { id: string; name: string; embedColor: number; introMessage: string } | null; discordGuildId: string | null; discordChannelId: string | null; discordGuildName: string | null; discordChannelName: string | null }[]>('/groups'),
   getGroup: (id: string) => request<{
     id: string; name: string; createdBy: string; commonGameThreshold: number | null; createdAt: string;
@@ -106,10 +99,6 @@ export const api = {
     id: string
     name: string
     alreadyMember: boolean
-    // When a vote is in flight for this group the backend includes it so the
-    // caller can route the user straight to the ballot. `scheduledAt` is set
-    // for pre-scheduled sessions; we only auto-route when the session is
-    // actually accepting votes now.
     activeVoteSession: { id: string; scheduledAt: string | null } | null
   }>('/groups/join', {
     method: 'POST',
@@ -172,7 +161,6 @@ export const api = {
       body: JSON.stringify({ memberIds, ...(filter ? { filter } : {}), ...(filters ? { filters } : {}) }),
     }),
 
-  // Voting
   getVoteSession: (groupId: string) => request<{
     session: { id: string; groupId: string; status: string; createdBy: string; scheduledAt: string | null; createdAt: string } | null;
     games: {
@@ -224,7 +212,6 @@ export const api = {
   deleteVoteSession: (groupId: string, sessionId: string) =>
     request<{ ok: boolean }>(`/groups/${groupId}/vote/${sessionId}`, { method: 'DELETE' }),
 
-  // Notifications
   getNotifications: () => request<import('@wawptn/types').Notification[]>('/notifications'),
   getNotificationCount: () => request<{ count: number }>('/notifications/count'),
   markNotificationRead: (id: string) => request<{ ok: boolean }>(`/notifications/${id}/read`, { method: 'PATCH' }),
@@ -235,13 +222,11 @@ export const api = {
       body: JSON.stringify({ title, body, groupId }),
     }),
 
-  // Challenges
   getChallenges: () => request<{
     challenges: import('@wawptn/types').ChallengeProgress[];
     stats: { totalUnlocked: number; totalChallenges: number };
   }>('/challenges/me'),
 
-  // User profile comparison (issue #142)
   getPublicProfile: (userId: string) =>
     request<import('@wawptn/types').PublicUserProfile>(`/users/${userId}/profile`),
   compareProfiles: (a: string, b: string) =>
@@ -254,12 +239,8 @@ export const api = {
       body: JSON.stringify(patch),
     }),
 
-  // Account (RGPD right to erasure). The export download is a plain
-  // authenticated navigation to /api/users/me/export, handled in the UI.
   deleteAccount: () => request<{ ok: boolean }>('/users/me', { method: 'DELETE' }),
 
-  // Persona — the app-wide endpoint is the global fallback (login page).
-  // Prefer `getGroupPersona(groupId)` for the per-group "persona du jour".
   getCurrentPersona: () => request<{ id: string; name: string; embedColor: number; introMessage: string }>('/persona/current'),
   getGroupPersona: (groupId: string) =>
     request<{ persona: { id: string; name: string; embedColor: number; introMessage: string }; date: string }>(`/groups/${groupId}/persona/current`),
@@ -278,14 +259,12 @@ export const api = {
       body: JSON.stringify(patch),
     }),
 
-  // Admin
   getAdminBotSettings: () => request<Record<string, unknown>>('/admin/bot-settings'),
   updateAdminBotSettings: (settings: Record<string, unknown>) =>
     request<{ ok: boolean }>('/admin/bot-settings', {
       method: 'PATCH',
       body: JSON.stringify(settings),
     }),
-  // Wishlist — Sarah #3
   getWishlist: () => request<{ data: { steamAppId: number; createdAt: string }[] }>('/auth/me/wishlist'),
   addToWishlist: (steamAppId: number) =>
     request<{ ok: true }>('/auth/me/wishlist', {
@@ -295,7 +274,6 @@ export const api = {
   removeFromWishlist: (steamAppId: number) =>
     request<{ ok: true }>(`/auth/me/wishlist/${steamAppId}`, { method: 'DELETE' }),
 
-  // Ma bibliothèque — the user's own Steam library + promote-to-Discord.
   getLibrary: (params?: { q?: string; sort?: 'playtime' | 'name' | 'recent' }) => {
     const search = new URLSearchParams()
     if (params?.q) search.set('q', params.q)
@@ -351,7 +329,6 @@ export const api = {
       body: JSON.stringify({ isPremium }),
     }),
 
-  // Email integration testing — admins only
   getAdminEmailStatus: () =>
     request<{ configured: boolean; from: string }>('/admin/email/status'),
   sendAdminTestEmail: (input: { to: string; subject?: string; message?: string }) =>
@@ -360,20 +337,16 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
-  // Subscription
   getSubscription: () => request<{ tier: 'free' | 'premium'; status: 'active' | 'past_due' | 'canceled' | 'inactive'; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean; source: 'stripe' | 'admin_grant' | 'none' }>('/subscription/me'),
   getCatalog: () => request<{ entries: Array<{ cadence: 'monthly' | 'yearly'; priceId: string; unitAmount: number | null; currency: string | null; default: boolean }>; annualAvailable: boolean }>('/subscription/catalog'),
   createCheckout: (cadence: 'monthly' | 'yearly' = 'monthly') =>
     request<{ url: string }>('/subscription/checkout', { method: 'POST', body: JSON.stringify({ cadence }) }),
   createPortal: () => request<{ url: string }>('/subscription/portal', { method: 'POST' }),
 
-  // Per-user streak roll-up (powers the GroupsPage streak badge)
   getMyStreaks: () => request<{ bestCurrent: number; bestEver: number; activeStreakGroups: number }>('/users/me/streaks'),
 
-  // Unauthenticated public stats — feeds the LandingPage social-proof strip.
   getPublicStats: () => request<{ users: number; groups: number; votesClosed: number; votesClosed7d: number; generatedAt: string }>('/stats/public'),
 
-  // Personas
   getAdminPersonas: () => request<{
     id: string; name: string; systemPromptOverlay: string;
     fridayMessages: string[]; weekdayMessages: string[]; backOnlineMessages: string[];

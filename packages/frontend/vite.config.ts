@@ -22,10 +22,6 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // Prompt-based: a new SW waits in the background until the user
-      // confirms via <PwaUpdatePanel>. Switching from `autoUpdate` avoids
-      // dropping a vote / unsaved input on the floor when a deploy lands
-      // mid-session.
       registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'logo.svg'],
       manifest: {
@@ -35,9 +31,6 @@ export default defineConfig({
         theme_color: '#0d0b14',
         background_color: '#0d0b14',
         display: 'standalone',
-        // Intentionally no `orientation` — a hard portrait lock annoys
-        // tablet users who install the PWA in landscape. The UI already
-        // reflows at `sm:` and `lg:` breakpoints.
         start_url: '/',
         icons: [
           {
@@ -63,7 +56,6 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//, /^\/health$/, /^\/invite\//],
         runtimeCaching: [
           {
-            // Steam profile avatars: immutable — keep for a week.
             urlPattern: /^https:\/\/avatars\.steamstatic\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
@@ -75,10 +67,6 @@ export default defineConfig({
             },
           },
           {
-            // Steam game header/capsule images live on two Akamai CDNs
-            // depending on the asset. Both are effectively immutable by
-            // app-id, so cache aggressively — the vote UI on flaky 4G
-            // was otherwise re-downloading ~50 capsule JPEGs per render.
             urlPattern: /^https:\/\/(cdn\.akamai\.steamstatic\.com|steamcdn-a\.akamaihd\.net|shared\.(?:akamai|fastly)\.steamstatic\.com)\/.*/i,
             handler: 'CacheFirst',
             options: {
@@ -91,18 +79,6 @@ export default defineConfig({
             },
           },
           {
-            // Authenticated API GETs. NetworkFirst so the user always
-            // sees fresh data when online; falls back to the last
-            // successful response when the network flakes or the phone
-            // is offline, which is exactly the "tab frozen after Discord
-            // switch" case mobile users hit. Short network timeout
-            // (3s) so we don't stall the UI waiting for a dead radio.
-            //
-            // Excludes navigation requests (request.mode === 'navigate')
-            // because endpoints like /api/auth/steam/login respond with a
-            // 3xx redirect to a cross-origin OpenID URL, and a SW cannot
-            // return a redirected Response for a navigation — the browser
-            // then falls back to the SPA shell and renders the 404 page.
             urlPattern: ({ sameOrigin, url, request }) =>
               sameOrigin &&
               request.method === 'GET' &&
@@ -127,14 +103,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(appVersion),
     __BUILD_TIME__: JSON.stringify(buildTime),
   },
-  // Vendor isolation. Hot-path libraries (React, the router) stay in their
-  // own long-lived chunk so a stylistic tweak in app code doesn't bust
-  // them. Heavy libraries used by a single route (framer-motion is mainly
-  // VotePage, virtual is the game grid) get split so the landing path
-  // doesn't pay for them.
   build: {
-    // Hidden source maps: emitted for stack-trace symbolication but not
-    // referenced from the bundle, so source is not exposed in DevTools.
     sourcemap: 'hidden',
     rollupOptions: {
       output: {

@@ -1,10 +1,3 @@
-/**
- * Vote repository interface — abstracts voting session and vote persistence
- * so domain/application code does not depend directly on Knex/Postgres.
- *
- * Concrete implementations live under `src/infrastructure/repositories/`.
- */
-
 export interface VotingSessionRow {
   id: string
   group_id: string
@@ -28,28 +21,19 @@ export interface VoteRow {
 }
 
 export interface IVoteRepository {
-  /** Return the currently open voting session for a group, or `null`. */
   findOpenSession(groupId: string): Promise<VotingSessionRow | null>
 
-  /** Look up a voting session by id. Returns `null` when not found. */
   findSessionById(id: string): Promise<VotingSessionRow | null>
 
-  /**
-   * List closed voting sessions for a group in reverse-chronological order,
-   * with pagination.
-   */
   listClosedSessions(
     groupId: string,
     limit: number,
     offset: number,
   ): Promise<VotingSessionRow[]>
 
-  /** Count closed voting sessions for a group (useful for pagination). */
   countClosedSessions(groupId: string): Promise<number>
 
-  /** Return every vote row belonging to a session. */
   findVotesBySession(sessionId: string): Promise<VoteRow[]>
 
-  /** Count distinct users that have voted in a session. */
   countVotersBySession(sessionId: string): Promise<number>
 }

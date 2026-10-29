@@ -3,27 +3,25 @@ import { steamLogger } from '../logger/logger.js'
 
 const STEAM_STORE_API_BASE = 'https://store.steampowered.com/api'
 
-// Steam category IDs for multiplayer-related modes
 const MULTIPLAYER_CATEGORY_IDS = new Set([
-  1,  // Multi-player
-  9,  // Co-op
-  36, // Online PvP
-  37, // Local PvP
-  38, // Online Co-op
-  39, // Shared/Split Screen Co-op
-  47, // LAN PvP
-  48, // LAN Co-op
-  49, // Shared/Split Screen
+  1,
+  9,
+  36,
+  37,
+  38,
+  39,
+  47,
+  48,
+  49,
 ])
 
 const COOP_CATEGORY_IDS = new Set([
-  9,  // Co-op
-  38, // Online Co-op
-  39, // Shared/Split Screen Co-op
-  48, // LAN Co-op
+  9,
+  38,
+  39,
+  48,
 ])
 
-// Separate rate limiter: 1 request per 1.5 seconds
 let lastStoreRequestTime = 0
 
 async function storeRateLimitedFetch(url: string): Promise<Response> {
@@ -36,7 +34,6 @@ async function storeRateLimitedFetch(url: string): Promise<Response> {
   return fetch(url)
 }
 
-// Separate circuit breaker (isolated from main Steam Web API)
 let storeConsecutiveFailures = 0
 let storeCircuitOpenUntil = 0
 const STORE_CIRCUIT_THRESHOLD = 5
@@ -127,7 +124,6 @@ async function getAppDetails(appId: number): Promise<AppDetailsResult | null> {
     const appData = data[String(appId)]
 
     if (!appData?.success) {
-      // App delisted or region-locked — not a service failure
       recordStoreSuccess()
       return {
         type: null, shortDescription: null, isFree: null,
@@ -164,8 +160,6 @@ async function getAppDetails(appId: number): Promise<AppDetailsResult | null> {
 async function enrichGameMetadata(appIds: number[]): Promise<void> {
   if (appIds.length === 0) return
 
-  // Find which ones still need enrichment
-  // Also re-enrich games that were enriched before genres/metacritic columns existed
   const existing = await db('game_metadata')
     .whereIn('steam_app_id', appIds)
     .whereNotNull('enriched_at')
@@ -193,7 +187,6 @@ async function enrichGameMetadata(appIds: number[]): Promise<void> {
     const details = await getAppDetails(appId)
 
     if (details === null) {
-      // Transient error — skip, will retry next time
       continue
     }
 
@@ -201,7 +194,6 @@ async function enrichGameMetadata(appIds: number[]): Promise<void> {
     const isMultiplayer = categoryIds.some(id => MULTIPLAYER_CATEGORY_IDS.has(id))
     const isCoop = categoryIds.some(id => COOP_CATEGORY_IDS.has(id))
 
-    // Look up game_id from platform mapping
     const platformMapping = await db('game_platform_ids')
       .where({ platform: 'steam', platform_game_id: String(appId) })
       .first()
@@ -239,21 +231,8 @@ async function enrichGameMetadata(appIds: number[]): Promise<void> {
   }
 }
 
-// ─── New-releases digest support ────────────────────────────────────────────
-//
-// Steam has no clean, date-filtered "new releases" Web API endpoint, so the
-// weekly digest uses the public storefront search (sorted by release date,
-// pre-filtered to multiplayer/co-op categories) to get a candidate app-id
-// list, then confirms each candidate through `getStoreAppForDigest` — the
-// authoritative source for category, type, release date and content
-// descriptors. Both reuse the rate limiter + circuit breaker above so the
-// digest can never out-pace or bypass the Store API protections.
-
 const STEAM_STORE_SEARCH_URL = 'https://store.steampowered.com/search/results/'
 
-/** Authoritative per-app metadata the digest needs. `null` means the Store
- *  API was unavailable (circuit open or transient error) — the caller must
- *  treat that as "stop scanning", not "app rejected". */
 export interface DigestStoreApp {
   appId: number
   name: string
@@ -261,23 +240,11 @@ export interface DigestStoreApp {
   type: string | null
   isCoop: boolean
   isMultiplayer: boolean
-  /** Localized release-date string from Steam (English locale requested). */
   releaseDateRaw: string | null
   comingSoon: boolean
   contentDescriptorIds: number[]
 }
 
-/**
- * Candidate app IDs for the weekly digest, newest-first.
- *
- * Primary source: the storefront search JSON, sorted `Released_DESC` and
- * pre-filtered server-side to Multi-player (1), Co-op (9) and Online Co-op
- * (38). The response embeds an HTML fragment; we extract only the
- * `data-ds-appid` attribute from it — the narrowest, most stable thing to
- * scrape (prices/badges get restyled constantly, app IDs don't).
- *
- * Fallback: `featuredcategories.new_releases` when search yields nothing.
- */
 export async function getNewReleaseCandidateIds(limit = 100): Promise<number[]> {
   if (isStoreCircuitOpen()) return []
 
@@ -316,9 +283,6 @@ export async function getNewReleaseCandidateIds(limit = 100): Promise<number[]> 
 
   if (ids.size > 0) return [...ids]
 
-  // Fallback: the curated "new & trending" block. Coarser than the search
-  // (no strict 7-day guarantee) but every candidate is still confirmed by
-  // getStoreAppForDigest, which re-checks the real release date.
   try {
     const response = await storeRateLimitedFetch(`${STEAM_STORE_API_BASE}/featuredcategories?cc=us&l=english`)
     if (response.ok) {
@@ -337,16 +301,6 @@ export async function getNewReleaseCandidateIds(limit = 100): Promise<number[]> 
   return [...ids]
 }
 
-/**
- * Authoritative app details for a digest candidate. English locale is
- * requested explicitly so `release_date.date` comes back in a parseable
- * `D Month, YYYY` shape regardless of the server region.
- *
- * Returns `null` only when the Store API is unavailable (circuit open or a
- * transient/HTTP error). A delisted or region-locked app comes back as a
- * resolved object with null fields — that's a "reject this game", not a
- * "stop scanning".
- */
 export async function getStoreAppForDigest(appId: number): Promise<DigestStoreApp | null> {
   if (isStoreCircuitOpen()) return null
 
@@ -365,7 +319,6 @@ export async function getStoreAppForDigest(appId: number): Promise<DigestStoreAp
     recordStoreSuccess()
 
     if (!appData?.success || !appData.data) {
-      // Delisted / region-locked — resolved, but not digest-eligible.
       return {
         appId,
         name: '',
@@ -399,7 +352,6 @@ export async function getStoreAppForDigest(appId: number): Promise<DigestStoreAp
   }
 }
 
-// Sequential enrichment queue to prevent concurrent Steam Store API calls
 let enrichmentQueue: Promise<void> = Promise.resolve()
 
 export function triggerBackgroundEnrichment(appIds: number[]): void {

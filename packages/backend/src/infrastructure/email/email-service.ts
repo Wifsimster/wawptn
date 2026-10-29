@@ -4,8 +4,6 @@ import { logger } from '../logger/logger.js'
 
 const emailLogger = logger.child({ module: 'email' })
 
-/** Suffix applied to synthetic Steam-derived emails. Users with this suffix
- *  never actually registered their address, so we must not attempt delivery. */
 const PLACEHOLDER_EMAIL_SUFFIX = '@steam.wawptn.app'
 
 let client: Resend | null = null
@@ -24,12 +22,6 @@ export interface SendEmailParams {
   html?: string
 }
 
-/**
- * Send a transactional email through Resend. No-ops (logs a warning) when
- * RESEND_API_KEY is not configured or the recipient is a placeholder
- * Steam-derived address — so development and Steam-only users degrade
- * gracefully instead of erroring.
- */
 export async function sendEmail(params: SendEmailParams): Promise<boolean> {
   const { to, subject, text, html } = params
 

@@ -77,10 +77,6 @@ jobs:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Run in the official Playwright image: browsers + OS deps are preinstalled,
-    # so there is no `playwright install` step (which hung indefinitely on the
-    # runner after downloading the browser). The tag must match the pinned
-    # @playwright/test version so the bundled browser build matches.
     container:
       image: mcr.microsoft.com/playwright:v1.56.1-noble
     steps:
@@ -100,8 +96,6 @@ jobs:
         run: npm run build:types
 
       - name: Run E2E tests
-        # Scoped to Mobile Chrome — the WebKit/Mobile Safari project stays in
-        # playwright.config.ts for local runs but is not gated in CI yet.
         run: npm run test:e2e -- --project="Mobile Chrome"
         working-directory: packages/frontend
 

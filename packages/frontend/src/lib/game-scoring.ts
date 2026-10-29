@@ -14,16 +14,6 @@ export interface VoteHistoryEntry {
   closedAt: string
 }
 
-/**
- * Client-side scorer for "Tonight's Pick". Deterministic so it works on the
- * free tier without any backend call — the premium recommendations endpoint
- * remains the richer alternative surfaced in the sidebar. Signals used:
- *   - ownership ratio (how many members own it)
- *   - metacritic (quality bump, generous default when missing)
- *   - log-scaled recommendations (popularity)
- *   - novelty penalty if the game won recently
- *   - small bonus for MP/coop since this is a group product
- */
 export function scoreGames(games: CommonGame[], history: VoteHistoryEntry[]): ScoredPick | null {
   if (games.length === 0) return null
 

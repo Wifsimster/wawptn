@@ -13,40 +13,17 @@ interface PersonaData {
 }
 
 interface PersonaBadgeProps {
-  /**
-   * Group identifier for the per-group "persona du jour". When omitted,
-   * the badge falls back to the deprecated global persona endpoint —
-   * used only on screens without a group context (e.g. landing page).
-   */
   groupId?: string
-  /**
-   * Pre-fetched persona. When provided the component skips its own
-   * network call — lets the groups list pass the enriched `todayPersona`
-   * field down without any extra round-trip.
-   */
   persona?: PersonaData | null
-  /**
-   * `hero` renders the dominant full-width card with the intro message,
-   * `compact` renders an inline one-line chip suitable for GroupCard.
-   */
   variant?: 'hero' | 'compact'
   className?: string
 }
 
-/**
- * Daily persona greeting card — now scoped per-group.
- *
- * Displays the group's rotating bot persona with its name and (in hero
- * variant) full intro message. Each group has its own deterministic
- * daily pick from the shared persona pool, so two users looking at two
- * different groups on the same day will usually see different personas.
- */
 export function PersonaBadge({ groupId, persona: initialPersona, variant = 'hero', className }: PersonaBadgeProps) {
   const { t } = useTranslation()
   const [fetched, setFetched] = useState<PersonaData | null>(null)
 
   useEffect(() => {
-    // Parent already supplied the persona (list enrichment) — skip fetch.
     if (initialPersona) return
     let cancelled = false
     const run = async () => {
@@ -59,7 +36,6 @@ export function PersonaBadge({ groupId, persona: initialPersona, variant = 'hero
           if (!cancelled) setFetched(result)
         }
       } catch {
-        /* swallow — persona is a nice-to-have, not critical */
       }
     }
     void run()
@@ -68,14 +44,9 @@ export function PersonaBadge({ groupId, persona: initialPersona, variant = 'hero
     }
   }, [groupId, initialPersona])
 
-  // Prop wins over locally fetched state so the list-enriched path (and
-  // real-time `persona:changed` socket updates) always reflects the latest.
   const persona = initialPersona ?? fetched
   if (!persona) return null
 
-  // Clamp the persona's embed color into a contrast-safe range so an
-  // arbitrary admin-picked hex doesn't crash the visual hierarchy.
-  // See lib/persona-color.ts and design-review §D8.
   const color = clampPersonaColor(persona.embedColor)
 
   if (variant === 'compact') {

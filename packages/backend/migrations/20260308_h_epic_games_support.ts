@@ -1,12 +1,10 @@
 import type { Knex } from 'knex'
 
 export async function up(knex: Knex): Promise<void> {
-  // Add status column to accounts table for token lifecycle management
   await knex.schema.alterTable('accounts', (table) => {
     table.string('status').defaultTo('active')
   })
 
-  // Add unique constraint for user+provider to prevent duplicate account links
   await knex.raw(`
     DO $$ BEGIN
       IF NOT EXISTS (
@@ -17,7 +15,6 @@ export async function up(knex: Knex): Promise<void> {
     END $$;
   `)
 
-  // Add composite unique constraint for user_games to support multi-platform dedup
   await knex.raw(`
     DO $$ BEGIN
       IF NOT EXISTS (

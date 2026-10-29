@@ -2,15 +2,6 @@ import { create } from 'zustand'
 import type { PublicUserProfile, UserCompareResult } from '@wawptn/types'
 import { api } from '@/lib/api'
 
-/**
- * Profile store — caches `PublicUserProfile` and `UserCompareResult`
- * responses in memory keyed by user id (or sorted pair for compares).
- *
- * Deliberately separate from `useGroupStore`: profiles are cross-group
- * data, and mixing invalidation would make the group store muddy.
- * See issue #142.
- */
-
 interface ProfileState {
   profiles: Record<string, PublicUserProfile>
   compares: Record<string, UserCompareResult>

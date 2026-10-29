@@ -3,12 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { useGroupStore } from '@/stores/group.store'
 import { Button } from '@/components/ui/button'
 
-/**
- * App-wide banner surfacing any group with a live vote. Rendered by
- * AppLayout so the "join the vote" call to action follows the user across
- * every standard page. The group whose detail page is currently open is
- * excluded — that page already has its own join CTA.
- */
 export function ActiveVoteBanner() {
   const { t } = useTranslation()
   const navigate = useNavigate()

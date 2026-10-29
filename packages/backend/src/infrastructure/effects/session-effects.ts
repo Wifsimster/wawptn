@@ -1,6 +1,3 @@
-// This file subscribes to domain events and triggers the appropriate side effects.
-// It's the ONLY place where domain events get translated to Socket.io, Discord, and notifications.
-
 import { domainEvents } from '../../domain/events/event-bus.js'
 import { getIO } from '../socket/socket.js'
 import { notifySessionCreated, notifyVoteClosed } from '../discord/notifier.js'
@@ -11,7 +8,6 @@ import { db } from '../database/connection.js'
 
 export function registerSessionEffects(): void {
   domainEvents.on('session:created', async (event) => {
-    // Emit Socket.io event
     try {
       getIO().to(`group:${event.groupId}`).emit('session:created', {
         sessionId: event.sessionId,
@@ -24,12 +20,10 @@ export function registerSessionEffects(): void {
       logger.warn({ error: String(err), groupId: event.groupId }, 'socket emit session:created failed')
     }
 
-    // Send Discord notification (bot-backed or webhook fallback). Non-blocking.
     notifySessionCreated(event.groupId, event.sessionId, event.games).catch((err) =>
       logger.warn({ error: String(err), groupId: event.groupId }, 'Discord session notification failed')
     )
 
-    // In-app notifications
     try {
       const group = await db('groups').where({ id: event.groupId }).first()
       const groupName = group?.name || 'Groupe'
@@ -53,9 +47,6 @@ export function registerSessionEffects(): void {
     }
   })
 
-  // Vote cast — drives the debounced Discord live-count updater. Both web
-  // and Discord vote paths emit this event, so any vote from any source
-  // keeps the Discord message in sync with the canonical DB tally.
   domainEvents.on('vote:cast', (event) => {
     try {
       scheduleVoteUpdate(event.sessionId)
@@ -65,19 +56,16 @@ export function registerSessionEffects(): void {
   })
 
   domainEvents.on('session:closed', async (event) => {
-    // Emit Socket.io event
     try {
       getIO().to(`group:${event.groupId}`).emit('vote:closed', { sessionId: event.sessionId, result: event.result })
     } catch (err) {
       logger.warn({ error: String(err), groupId: event.groupId }, 'socket emit vote:closed failed')
     }
 
-    // Discord notification (bot-backed close edit + announcement webhooks)
     notifyVoteClosed(event.groupId, event.sessionId, event.result).catch((err) =>
       logger.warn({ error: String(err), groupId: event.groupId }, 'Discord notification failed')
     )
 
-    // In-app notification
     try {
       const group = await db('groups').where({ id: event.groupId }).first()
       const groupName = group?.name || 'Groupe'

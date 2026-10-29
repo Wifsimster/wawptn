@@ -1,24 +1,16 @@
 import { db } from '../infrastructure/database/connection.js'
 
-/** Tier limits for free users */
 export const FREE_TIER_LIMITS = {
   maxGroups: 2,
   maxMembersPerGroup: 12,
   maxVoteHistorySessions: 10,
 } as const
 
-/** Tier limits for premium users */
 export const PREMIUM_TIER_LIMITS = {
   maxMembersPerGroup: 30,
-  /** Server-side cap on the history endpoint. Premium users can page
-   *  up to this many sessions per request; the overall history is
-   *  still unlimited via offset. */
   maxVoteHistorySessions: 100,
 } as const
 
-/** Stable error payloads for tier gates. Centralized so that route handlers
- *  and Discord/bot handlers all surface the same shape — the frontend keys
- *  off `error` to render upgrade CTAs. */
 export const TIER_ERRORS = {
   freeMaxGroupsReached: () => ({
     error: 'premium_required' as const,
@@ -34,11 +26,8 @@ export const TIER_ERRORS = {
   }),
 } as const
 
-/** Days a past_due subscription keeps premium access while Stripe retries
- *  the payment. The reconciler cancels the row once this has elapsed. */
 export const PAST_DUE_GRACE_PERIOD_DAYS = 3
 
-/** True while a past_due subscription is still inside its grace window. */
 export function isInPastDueGrace(
   row: { status: string | null; past_due_since: Date | string | null } | null | undefined,
   now: number = Date.now(),
@@ -47,17 +36,15 @@ export function isInPastDueGrace(
   return now - new Date(row.past_due_since).getTime() < PAST_DUE_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000
 }
 
-/** In-memory cache for premium status with TTL */
 interface CacheEntry {
   value: boolean
   expiresAt: number
 }
 
-const PREMIUM_CACHE_TTL_MS = 60_000 // 60 seconds
+const PREMIUM_CACHE_TTL_MS = 60_000
 const premiumCache = new Map<string, CacheEntry>()
 
-/** Evict expired entries periodically to prevent unbounded growth */
-const EVICTION_INTERVAL_MS = 5 * 60_000 // 5 minutes
+const EVICTION_INTERVAL_MS = 5 * 60_000
 setInterval(() => {
   const now = Date.now()
   for (const [key, entry] of premiumCache) {
@@ -65,29 +52,11 @@ setInterval(() => {
   }
 }, EVICTION_INTERVAL_MS).unref()
 
-/**
- * Check if a user has an active premium subscription (cached, 60s TTL).
- *
- * Precedence (most-permissive wins):
- *   1. is_admin → premium (admins always have full access).
- *   2. admin_granted_premium → premium (manual grant overrides Stripe).
- *   3. Active paid subscription → premium when tier='premium', status='active',
- *      and current_period_end is in the future.
- *   4. Failed renewal → premium while status='past_due' and past_due_since is
- *      less than PAST_DUE_GRACE_PERIOD_DAYS ago.
- *
- * Rationale: an admin-granted flag must beat a paid subscription so the
- * grant cannot be silently clobbered by a Stripe webhook flipping
- * status='canceled'. The 20260509 migration enforces the metadata
- * invariants for the admin-granted columns; the 20260321/20260508
- * migrations enforce schema invariants on the subscriptions row.
- */
 export async function isUserPremium(userId: string): Promise<boolean> {
   const now = Date.now()
   const cached = premiumCache.get(userId)
   if (cached && cached.expiresAt > now) return cached.value
 
-  // Admins and admin-granted premium users always have premium access
   const user = await db('users')
     .where({ id: userId })
     .select('is_admin', 'admin_granted_premium')
@@ -113,7 +82,6 @@ export async function isUserPremium(userId: string): Promise<boolean> {
   return premium
 }
 
-/** Invalidate the cache for a specific user (call when subscription changes) */
 export function invalidatePremiumCache(userId: string): void {
   premiumCache.delete(userId)
 }

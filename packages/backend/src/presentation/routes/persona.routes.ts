@@ -4,17 +4,6 @@ import { selectPersonaForGroup } from '../../domain/persona-selection.js'
 
 const router = Router()
 
-/**
- * GET /api/persona/current — public, returns the global fallback persona
- * for the app (used on the login/landing page and anywhere no group
- * context exists).
- *
- * **Deprecated.** Per-group personas are the new canonical source — each
- * group now has its own daily persona reachable at
- * `GET /api/groups/:groupId/persona/current`. This endpoint is kept for
- * backward compatibility with the landing page and signals its status via
- * a `Deprecation` + `Sunset` header (RFC 8594).
- */
 router.get('/current', async (_req: Request, res: Response) => {
   try {
     const persona = await selectPersonaForGroup(null)

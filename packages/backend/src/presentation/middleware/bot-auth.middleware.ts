@@ -4,7 +4,6 @@ import { db } from '../../infrastructure/database/connection.js'
 import { authLogger } from '../../infrastructure/logger/logger.js'
 import { env } from '../../config/env.js'
 
-// Extend Express Request for bot auth
 declare global {
   namespace Express {
     interface Request {
@@ -14,10 +13,6 @@ declare global {
   }
 }
 
-/**
- * Middleware for Discord bot API authentication.
- * Validates the shared secret and optionally resolves the Discord user to a WAWPTN user.
- */
 export async function requireBotAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const authHeader = req.headers['authorization']
@@ -38,7 +33,6 @@ export async function requireBotAuth(req: Request, res: Response, next: NextFunc
 
     req.botAuth = true
 
-    // If a Discord user ID is provided, resolve to WAWPTN user
     const discordUserId = req.headers['x-discord-user-id'] as string | undefined
     if (discordUserId) {
       req.discordUserId = discordUserId

@@ -7,7 +7,6 @@ import { logger } from '../logger/logger.js'
 const schedulerLogger = logger.child({ module: 'scheduler' })
 
 export function startVoteScheduler(): void {
-  // Poll every 15 seconds for overdue scheduled sessions
   cron.schedule('*/15 * * * * *', async () => {
     try {
       const overdue = await db('voting_sessions')
@@ -25,7 +24,6 @@ export function startVoteScheduler(): void {
     }
   })
 
-  // Clean up expired Discord link codes every 5 minutes
   cron.schedule('*/5 * * * *', async () => {
     try {
       const deleted = await db('discord_link_codes').where('expires_at', '<', db.fn.now()).del()
@@ -37,7 +35,6 @@ export function startVoteScheduler(): void {
     }
   })
 
-  // Send vote reminders every 30 minutes for open sessions older than 1 hour
   cron.schedule('*/30 * * * *', async () => {
     try {
       await sendVoteReminders()

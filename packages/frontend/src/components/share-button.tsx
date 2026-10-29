@@ -7,21 +7,12 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 interface ShareButtonProps {
-  /** The session ID used to build the share URL */
   sessionId: string
-  /** Display title (used in the share text) */
   title: string
-  /** Number of votes cast in this session — drives the social-proof
-   *  flavour of the Twitter / Discord copy. */
   voteCount?: number
-  /** Optional description (passed to the Web Share API) */
   description?: string
-  /** Button style variant */
   variant?: 'default' | 'outline' | 'ghost'
-  /** Button size override */
   size?: 'sm' | 'default' | 'lg'
-  /** When true, render with the prominent "Annoncer le verdict" copy
-   *  instead of the generic "Partager". Use at the result-reveal moment. */
   prominent?: boolean
 }
 
@@ -37,7 +28,6 @@ async function copyToClipboard(text: string) {
   try {
     await navigator.clipboard.writeText(text)
   } catch {
-    // Fallback for non-secure contexts
     const textarea = document.createElement('textarea')
     textarea.value = text
     textarea.style.position = 'fixed'
@@ -66,7 +56,6 @@ export function ShareButton({
   const shareUrl = `${window.location.origin}/share/vote/${sessionId}`
   const canWebShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
-  // Close on click outside
   useEffect(() => {
     if (!open) return
 
@@ -100,8 +89,6 @@ export function ShareButton({
     setOpen(false)
   }, [shareUrl, t])
 
-  // Social-proof Twitter copy when we know the vote count; fall back to
-  // the simpler "tonight we play X" wording when we don't.
   const twitterText = voteCount && voteCount > 0
     ? t('share.twitterText', { title, count: voteCount })
     : t('share.twitterTextNoCount', { title })
@@ -115,9 +102,6 @@ export function ShareButton({
   }, [shareUrl, twitterText])
 
   const handleDiscordShare = useCallback(async () => {
-    // Copy the full message body — title intro + URL — so when the user
-    // pastes into Discord they get a richer message than just the bare
-    // link. Discord auto-unfurls the URL via the OG preview server-side.
     const intro = t('share.discordIntro', { title })
     await copyToClipboard(`${intro}\n${shareUrl}`)
     toast.success(t('share.linkCopiedDiscord'))
@@ -133,7 +117,6 @@ export function ShareButton({
       })
       setOpen(false)
     } catch (err) {
-      // User cancelled — keep the menu open; fall back on real errors
       if (err instanceof Error && err.name !== 'AbortError') {
         await handleCopyLink()
       }
@@ -166,12 +149,6 @@ export function ShareButton({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.96 }}
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-            // Anchor right-aligned so the popover stays inside the
-            // viewport on phones <360px wide, where the centred variant
-            // would overflow off-screen with no clipping ancestor to
-            // catch it (mobile review §C4). The `right-0` placement is
-            // safe even when the trigger is the rightmost element of a
-            // CTA row — popover width (w-56 = 14rem) ≤ all phones.
             className={cn(
               'absolute right-0 sm:left-1/2 sm:right-auto top-full z-50 mt-2 w-56 sm:-translate-x-1/2 origin-top',
               'overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-2'

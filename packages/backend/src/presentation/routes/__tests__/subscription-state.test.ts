@@ -1,17 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// ---------------------------------------------------------------------------
-// Hoisted shared state
-// ---------------------------------------------------------------------------
-
 const hoisted = vi.hoisted(() => {
-  /** Chained query log — the first chain assertion proof for FOR UPDATE. */
   const chainCalls: string[][] = []
 
-  /** Resolves to whatever `local` row the SELECT … FOR UPDATE should return. */
   let firstSelectResult: unknown = null
 
-  /** Captures the UPDATE payload so tests can inspect what was written. */
   let updatePayload: Record<string, unknown> | null = null
 
   function chainable(): unknown {
@@ -20,8 +13,6 @@ const hoisted = vi.hoisted(() => {
     const proxy: unknown = new Proxy(() => {}, {
       get(_t, prop: string) {
         if (prop === 'then') {
-          // The first first() call returns firstSelectResult (the locked
-          // SELECT). Subsequent ones get undefined.
           return (res: (v: unknown) => void) =>
             Promise.resolve(resolveValue).then(res)
         }
@@ -62,10 +53,6 @@ const hoisted = vi.hoisted(() => {
   }
 })
 
-// ---------------------------------------------------------------------------
-// Module mocks (must precede the import of the SUT)
-// ---------------------------------------------------------------------------
-
 vi.mock('@/infrastructure/database/connection.js', () => ({
   db: { transaction: vi.fn() },
 }))
@@ -100,10 +87,6 @@ vi.mock('@/domain/admin-audit-log.js', () => ({
 import type Stripe from 'stripe'
 import { applySubscriptionState, mapStripeStatus } from '../../../domain/stripe-event-handlers.js'
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function makeStripeSub(overrides: Partial<{ status: string; metadata: Record<string, string>; cancel_at_period_end: boolean; customer: string }> = {}): Stripe.Subscription {
   return {
     id: 'sub_123',
@@ -114,10 +97,6 @@ function makeStripeSub(overrides: Partial<{ status: string; metadata: Record<str
     items: { data: [{ current_period_end: Math.floor(Date.now() / 1000) + 86400 }] },
   } as unknown as Stripe.Subscription
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('applySubscriptionState — past_due transition', () => {
   beforeEach(() => {
@@ -131,9 +110,6 @@ describe('applySubscriptionState — past_due transition', () => {
     const sub = makeStripeSub({ status: 'past_due' })
     await applySubscriptionState(hoisted.trx as never, sub, 'subscription.system.past_due')
 
-    // Find a chain that includes both `where` and `forUpdate` — proves
-    // the locked read is used so concurrent webhook deliveries can't
-    // race the past_due_since transition detection.
     const locked = hoisted.chainCalls.some((c) => c.includes('forUpdate') && c.includes('where'))
     expect(locked).toBe(true)
   })
@@ -149,17 +125,11 @@ describe('applySubscriptionState — past_due transition', () => {
   })
 
   it('does NOT bump past_due_since on a subsequent past_due update', async () => {
-    // Row is already past_due — a dunning retry should not reset the
-    // grace clock. The reviewer flagged this as the "B2 bug": resetting
-    // past_due_since on every webhook re-extended the grace period.
     hoisted.firstSelectResult = { user_id: 'user-1', status: 'past_due', past_due_since: new Date('2026-05-01') }
     const sub = makeStripeSub({ status: 'past_due' })
     await applySubscriptionState(hoisted.trx as never, sub, 'subscription.system.past_due')
 
     expect(hoisted.updatePayload).toBeDefined()
-    // past_due_since should be omitted from the UPDATE payload (undefined
-    // sentinel in the implementation), so the existing column value is
-    // preserved.
     expect(hoisted.updatePayload).not.toHaveProperty('past_due_since')
   })
 
@@ -177,8 +147,6 @@ describe('applySubscriptionState — past_due transition', () => {
     const sub = makeStripeSub({ status: 'active' })
     await applySubscriptionState(hoisted.trx as never, sub, 'subscription.system.update')
 
-    // Last argument is the executor; should be the trx so the audit row
-    // commits atomically with the state change.
     expect(recordSystemAction).toHaveBeenCalled()
     const args = recordSystemAction.mock.calls[0] as unknown as unknown[]
     expect(args?.[3]).toBe(hoisted.trx)
@@ -192,7 +160,6 @@ describe('applySubscriptionState — non-current subscription', () => {
   })
 
   it('ignores a dead event for an older subscription (keeps the current paid one)', async () => {
-    // Row tracks the paid sub_new; Stripe expires the abandoned sub_123.
     hoisted.firstSelectResult = { user_id: 'user-1', status: 'active', past_due_since: null, stripe_subscription_id: 'sub_new' }
     const sub = makeStripeSub({ status: 'incomplete_expired' })
     await applySubscriptionState(hoisted.trx as never, sub, 'subscription.system.update')

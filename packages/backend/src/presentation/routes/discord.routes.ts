@@ -13,7 +13,6 @@ import { domainEvents } from '../../domain/events/event-bus.js'
 import { isLLMEnabled, generateChatResponse, type ChatContext } from '../../infrastructure/llm/client.js'
 import { createDiscordAuthIntent } from '../../domain/discord-auth-intent.js'
 
-/** Check if a group's owner has premium. Returns false if no owner found. */
 async function isGroupOwnerPremium(groupId: string): Promise<boolean> {
   const owner = await db('group_members').where({ group_id: groupId, role: 'owner' }).select('user_id').first()
   if (!owner) return false
@@ -22,13 +21,6 @@ async function isGroupOwnerPremium(groupId: string): Promise<boolean> {
 
 const router = Router()
 
-// ─── Bot-authenticated routes (called by the Discord bot) ─────────────────────
-
-// Setup: Link a Discord channel to a WAWPTN group.
-//
-// Discord channel binding is now part of the base product (design meeting
-// decision C4 — 2026-04-14). The previous premium gate has been removed;
-// every user can bind a channel to their group.
 router.post('/setup', async (req: Request, res: Response) => {
   const { groupId, discordChannelId, discordGuildId, discordGuildName, discordChannelName, discordUserId } = req.body as {
     groupId: string
@@ -50,10 +42,6 @@ router.post('/setup', async (req: Request, res: Response) => {
     return
   }
 
-  // The bot is trusted, but the bot's Discord-side input — which group to
-  // bind — is not. Without this check any group member, or anyone holding
-  // the bot secret, could rebind another group's channel to a channel they
-  // control. Require the invoking Discord user to own the target group.
   const link = await db('discord_links').where({ discord_id: discordUserId }).first()
   const ownerMembership = link
     ? await db('group_members')
@@ -65,10 +53,6 @@ router.post('/setup', async (req: Request, res: Response) => {
     return
   }
 
-  // Names are snapshotted at setup time so the UI can show a readable
-  // "linked to #channel on Server" chip without a live Discord API call.
-  // The bot sends them from the interaction context; tolerate missing
-  // values by falling back to null (frontend shows a generic label).
   const guildName = typeof discordGuildName === 'string' && discordGuildName.trim() ? discordGuildName.trim().slice(0, 200) : null
   const channelName = typeof discordChannelName === 'string' && discordChannelName.trim() ? discordChannelName.trim().slice(0, 200) : null
 
@@ -84,19 +68,6 @@ router.post('/setup', async (req: Request, res: Response) => {
   res.json({ ok: true, groupName: group.name })
 })
 
-/**
- * Magic-link intent issuance (bot-auth).
- *
- * Called by the Discord bot when a user runs `/wawptn setup` (or any
- * slash command that needs a linked WAWPTN session). The bot passes
- * the Discord identity and the target channel/guild; the backend mints
- * a one-shot nonce and returns the URL the bot should surface in its
- * ephemeral reply.
- *
- * The URL is an absolute API endpoint — the browser hits it directly,
- * and the backend bounces the user through Steam OpenID before
- * materialising their `group_members` row.
- */
 router.post('/intent', async (req: Request, res: Response) => {
   const { discordUserId, discordUsername, discordChannelId, discordGuildId, channelName } = req.body as {
     discordUserId?: string
@@ -131,7 +102,6 @@ router.post('/intent', async (req: Request, res: Response) => {
   }
 })
 
-// Link status: Check if a Discord user is linked
 router.get('/link/status', async (req: Request, res: Response) => {
   const discordUserId = req.headers['x-discord-user-id'] as string | undefined
 
@@ -145,7 +115,6 @@ router.get('/link/status', async (req: Request, res: Response) => {
   res.json({ linked: !!link, userId: link?.user_id })
 })
 
-// Generate link code: Create a temporary code for Discord account linking
 router.post('/link', async (req: Request, res: Response) => {
   const { discordUserId, discordUsername } = req.body as {
     discordUserId: string
@@ -157,19 +126,16 @@ router.post('/link', async (req: Request, res: Response) => {
     return
   }
 
-  // Check if already linked
   const existingLink = await db('discord_links').where({ discord_id: discordUserId }).first()
   if (existingLink) {
     res.status(409).json({ error: 'conflict', message: 'This Discord account is already linked' })
     return
   }
 
-  // Delete any existing codes for this Discord user
   await db('discord_link_codes').where({ discord_id: discordUserId }).del()
 
-  // Generate a short alphanumeric code
   const code = crypto.randomBytes(4).toString('hex').toUpperCase()
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
 
   await db('discord_link_codes').insert({
     code,
@@ -181,7 +147,6 @@ router.post('/link', async (req: Request, res: Response) => {
   res.json({ code, frontendUrl: env.CORS_ORIGIN })
 })
 
-// Vote via Discord: Cast a vote on behalf of a linked Discord user
 router.post('/vote', async (req: Request, res: Response) => {
   const userId = req.userId
 
@@ -201,7 +166,6 @@ router.post('/vote', async (req: Request, res: Response) => {
     return
   }
 
-  // Verify session is open
   const session = await db('voting_sessions')
     .where({ id: sessionId, status: 'open' })
     .first()
@@ -211,15 +175,12 @@ router.post('/vote', async (req: Request, res: Response) => {
     return
   }
 
-  // Check if user is a participant
   const participantCount = await db('voting_session_participants')
     .where({ session_id: sessionId })
     .count('* as count')
     .first()
   const hasParticipants = Number(participantCount?.count || 0) > 0
 
-  // Always require current group membership: participant rows survive a
-  // kick/leave, and a removed member must not keep voting.
   const membership = await db('group_members')
     .where({ group_id: session.group_id, user_id: userId })
     .first()
@@ -238,19 +199,15 @@ router.post('/vote', async (req: Request, res: Response) => {
     }
   }
 
-  // Look up game_id from session games
   const sessionGame = await db('voting_session_games')
     .where({ session_id: sessionId, steam_app_id: steamAppId })
     .first()
 
-  // Same guard as the web route: a vote for a game outside the session
-  // would still be tallied by closeSession and could win as "Unknown".
   if (!sessionGame) {
     res.status(400).json({ error: 'validation', message: 'Ce jeu ne fait pas partie de cette session de vote' })
     return
   }
 
-  // Upsert vote
   await db('votes')
     .insert({
       session_id: sessionId,
@@ -262,7 +219,6 @@ router.post('/vote', async (req: Request, res: Response) => {
     .onConflict(['session_id', 'user_id', 'steam_app_id'])
     .merge({ vote, created_at: db.fn.now() })
 
-  // Get voter count for progress
   const voterCount = await db('votes')
     .where({ session_id: sessionId })
     .countDistinct('user_id as count')
@@ -279,7 +235,6 @@ router.post('/vote', async (req: Request, res: Response) => {
     totalParticipants = Number(mCount?.count || 0)
   }
 
-  // Notify via Socket.io (web UI stays in sync)
   getIO().to(`group:${session.group_id}`).emit('vote:cast', {
     sessionId,
     userId,
@@ -287,9 +242,6 @@ router.post('/vote', async (req: Request, res: Response) => {
     totalParticipants,
   })
 
-  // Emit a domain event so the Discord live-count updater re-renders the
-  // interactive message with fresh tallies. `source: 'discord'` helps
-  // downstream logging tell web-cast and bot-cast votes apart.
   domainEvents.emit('vote:cast', {
     sessionId,
     groupId: session.group_id,
@@ -300,7 +252,6 @@ router.post('/vote', async (req: Request, res: Response) => {
   res.json({ ok: true })
 })
 
-// Get common games — resolved either by a channel link or an explicit groupId
 router.get('/games', async (req: Request, res: Response) => {
   const channelId = req.query['channelId'] as string | undefined
   const groupId = req.query['groupId'] as string | undefined
@@ -312,8 +263,6 @@ router.get('/games', async (req: Request, res: Response) => {
 
   let group
   if (groupId) {
-    // When querying by groupId, the caller must be a linked Discord user
-    // and a member of the group.
     const userId = req.userId
     if (!userId) {
       res.status(403).json({ error: 'forbidden', message: 'Discord account not linked. Use /wawptn-link first.' })
@@ -356,7 +305,6 @@ router.get('/games', async (req: Request, res: Response) => {
   })
 })
 
-// Get groups for the linked Discord user
 router.get('/groups', async (req: Request, res: Response) => {
   const userId = req.userId
 
@@ -373,7 +321,6 @@ router.get('/groups', async (req: Request, res: Response) => {
   res.json({ groups })
 })
 
-// Start a voting session from Discord
 router.post('/vote/start', async (req: Request, res: Response) => {
   const userId = req.userId
 
@@ -389,7 +336,6 @@ router.post('/vote/start', async (req: Request, res: Response) => {
     return
   }
 
-  // Verify user is a member of this group
   const membership = await db('group_members')
     .where({ group_id: groupId, user_id: userId })
     .first()
@@ -399,13 +345,6 @@ router.post('/vote/start', async (req: Request, res: Response) => {
     return
   }
 
-  // Bidirectional voting (start a vote from Discord, see it on the web,
-  // vote from either side) is part of the free tier — it's the core
-  // promise of the product per the C4 design decision (2026-04-14).
-  // Other Discord bot features (daily challenges, LLM chat) keep their
-  // own premium gates lower in this file.
-
-  // Get all group members as participants
   const memberIds = await db('group_members')
     .where({ group_id: groupId })
     .pluck('user_id')
@@ -421,9 +360,6 @@ router.post('/vote/start', async (req: Request, res: Response) => {
   } catch (error) {
     const err = error as Error & { statusCode?: number; errorCode?: string }
     const status = err.statusCode || 500
-    // The Discord bot surfaces `message` verbatim to end users; the app
-    // UI is in French so translate the well-known domain errors here.
-    // Anything unrecognised falls through to the original message.
     const message =
       err.errorCode === 'conflict'
         ? 'Un vote est déjà en cours dans ce groupe. Terminez-le avant d\'en démarrer un autre.'
@@ -437,7 +373,6 @@ router.post('/vote/start', async (req: Request, res: Response) => {
   }
 })
 
-// Pick a random common game for a group
 router.get('/random', async (req: Request, res: Response) => {
   const userId = req.userId
 
@@ -453,7 +388,6 @@ router.get('/random', async (req: Request, res: Response) => {
     return
   }
 
-  // Verify user is a member
   const membership = await db('group_members')
     .where({ group_id: groupId, user_id: userId })
     .first()
@@ -493,9 +427,6 @@ router.get('/random', async (req: Request, res: Response) => {
   })
 })
 
-// ─── Daily challenge (Discord) ──────────────────────────────────────────────
-
-// Create (or fetch existing) daily challenge for the group linked to a channel
 router.post('/daily-challenge/create', async (req: Request, res: Response) => {
   try {
     const userId = req.userId
@@ -510,24 +441,15 @@ router.post('/daily-challenge/create', async (req: Request, res: Response) => {
       return
     }
 
-    // Resolve the group via channel link
     const group = await db('groups').where({ discord_channel_id: channelId }).first()
     if (!group) {
       res.status(404).json({ error: 'not_found', message: 'Aucun groupe lié à ce canal Discord' })
       return
     }
 
-    // Daily challenges are part of the free "groupe vivant" baseline —
-    // the goal is to keep linked channels active without asking users
-    // to upgrade first. Premium still covers features with real cost
-    // or broadcast scope (LLM chat, announcement multi-webhooks,
-    // auto-vote cron, scheduled votes).
-
-    // Compute today's date in Europe/Paris timezone
     const todayRow = await db.raw(`SELECT (now() AT TIME ZONE 'Europe/Paris')::date AS today`)
     const today = todayRow.rows[0].today as string
 
-    // Idempotent: if a challenge exists for today, return it unchanged
     const existing = await db('discord_daily_challenges')
       .where({ group_id: group.id, challenge_date: today })
       .first()
@@ -546,7 +468,6 @@ router.post('/daily-challenge/create', async (req: Request, res: Response) => {
       return
     }
 
-    // Pick a random common game from the group members' libraries
     const memberIds = await db('group_members').where({ group_id: group.id }).pluck('user_id')
     const games = await computeCommonGames(memberIds, { threshold: memberIds.length })
 
@@ -589,7 +510,6 @@ router.post('/daily-challenge/create', async (req: Request, res: Response) => {
   }
 })
 
-// Claim today's challenge (user has played/accepted)
 router.post('/daily-challenge/claim', async (req: Request, res: Response) => {
   try {
     const userId = req.userId
@@ -610,7 +530,6 @@ router.post('/daily-challenge/claim', async (req: Request, res: Response) => {
       return
     }
 
-    // Insert claim (idempotent via onConflict ignore)
     await db('discord_daily_challenge_claims')
       .insert({
         challenge_id: challengeId,
@@ -619,12 +538,10 @@ router.post('/daily-challenge/claim', async (req: Request, res: Response) => {
       .onConflict(['challenge_id', 'user_id'])
       .ignore()
 
-    // Fetch this user's claim record to determine rank
     const userClaim = await db('discord_daily_challenge_claims')
       .where({ challenge_id: challengeId, user_id: userId })
       .first()
 
-    // Rank = number of claims on this challenge with claimed_at <= userClaim.claimed_at
     const rankRow = await db('discord_daily_challenge_claims')
       .where({ challenge_id: challengeId })
       .andWhere('claimed_at', '<=', userClaim.claimed_at)
@@ -650,7 +567,6 @@ router.post('/daily-challenge/claim', async (req: Request, res: Response) => {
   }
 })
 
-// Store the Discord message ID tied to a daily challenge
 router.patch('/daily-challenge/:id/message', async (req: Request, res: Response) => {
   try {
     const { id } = req.params
@@ -677,9 +593,6 @@ router.patch('/daily-challenge/:id/message', async (req: Request, res: Response)
   }
 })
 
-// ─── Conversational chat (LLM-powered) ──────────────────────────────────────
-
-// In-memory rate limiter: 5 requests per 5 minutes per user
 const chatRateLimits = new Map<string, { count: number; resetAt: number }>()
 const CHAT_RATE_LIMIT = 5
 const CHAT_RATE_WINDOW_MS = 5 * 60 * 1000
@@ -703,9 +616,6 @@ router.post('/chat', async (req: Request, res: Response) => {
     return
   }
 
-  // Normalise + validate the mentionable member list sent by the bot. Only
-  // numeric Discord snowflakes are accepted to prevent the LLM from being
-  // primed with fabricated IDs (and to make the sanitizer below safe).
   const mentionableMembers: Array<{ id: string; displayName: string }> = []
   const allowedMentionIds = new Set<string>()
   if (Array.isArray(guildMembers)) {
@@ -720,7 +630,6 @@ router.post('/chat', async (req: Request, res: Response) => {
     }
   }
 
-  // Rate limiting
   if (discordUserId) {
     const now = Date.now()
     const userLimit = chatRateLimits.get(discordUserId)
@@ -736,10 +645,8 @@ router.post('/chat', async (req: Request, res: Response) => {
     }
   }
 
-  // Build context from the channel-linked group
   const context: ChatContext = { personaVoice, mentionableMembers }
 
-  // Resolve user name
   if (req.userId) {
     const user = await db('users').where({ id: req.userId }).first()
     if (user) {
@@ -747,12 +654,10 @@ router.post('/chat', async (req: Request, res: Response) => {
     }
   }
 
-  // Resolve group from channel
   if (channelId) {
     const group = await db('groups').where({ discord_channel_id: channelId }).first()
 
     if (group) {
-      // LLM chat via Discord requires group owner premium
       const ownerPremium = await isGroupOwnerPremium(group.id)
       if (!ownerPremium) {
         res.status(403).json({ error: 'premium_required', message: 'Discord bot chat requires a premium subscription' })
@@ -770,7 +675,6 @@ router.post('/chat', async (req: Request, res: Response) => {
         context.commonGames = games.slice(0, 20).map(g => g.gameName)
       }
 
-      // Recent vote sessions (last 3)
       const recentSessions = await db('voting_sessions')
         .where({ group_id: group.id })
         .orderBy('created_at', 'desc')
@@ -809,12 +713,6 @@ router.post('/chat', async (req: Request, res: Response) => {
   try {
     const reply = await generateChatResponse(message.slice(0, 1000), context)
 
-    // Sanitize in three passes:
-    //  1. Neutralise @everyone and @here.
-    //  2. Strip role mentions <@&id> — the bot must never ping roles.
-    //  3. For user mentions <@id> / <@!id>, keep only IDs the bot explicitly
-    //     shipped as mentionable. Protects against the LLM hallucinating a
-    //     snowflake or being prompt-injected into pinging an arbitrary user.
     const sanitized = reply
       .replace(/@everyone/g, '@\u200Beveryone')
       .replace(/@here/g, '@\u200Bhere')
@@ -832,9 +730,6 @@ router.post('/chat', async (req: Request, res: Response) => {
 
 export { router as discordRoutes }
 
-// ─── Bot-only utility routes ──────────────────────────────────────────────────
-
-// Get all active personas (for bot persona rotation)
 router.get('/personas', async (_req: Request, res: Response) => {
   const personas = await db('personas')
     .where({ is_active: true })
@@ -858,20 +753,11 @@ router.get('/personas', async (_req: Request, res: Response) => {
   })))
 })
 
-// Get bot settings from app_settings table (for scheduler config)
 router.get('/bot-settings', async (_req: Request, res: Response) => {
   const rows = await db('app_settings')
     .where('key', 'like', 'bot.%')
     .select('key', 'value')
 
-  // app_settings.value is a jsonb column but the seed migration and the
-  // admin PATCH endpoint both call JSON.stringify() before inserting, so
-  // the exact shape that comes back from knex/pg depends on how the row
-  // was written. Defensively unwrap string values so the Discord bot's
-  // scheduler receives a plain cron expression like `0 21 * * 5` instead
-  // of the JSON-encoded `"0 21 * * 5"` with literal quotes — the latter
-  // fails cron.validate() silently and no reminder ever gets scheduled.
-  // This mirrors the parse helper in loadGlobalBotDefaults() below.
   const settings: Record<string, unknown> = {}
   for (const row of rows) {
     const shortKey = row.key.replace(/^bot\./, '')
@@ -880,7 +766,6 @@ router.get('/bot-settings', async (_req: Request, res: Response) => {
       try {
         value = JSON.parse(value)
       } catch {
-        // Not JSON — leave as-is (plain string, already usable).
       }
     }
     settings[shortKey] = value
@@ -889,10 +774,6 @@ router.get('/bot-settings', async (_req: Request, res: Response) => {
   res.json(settings)
 })
 
-// Get all Discord channels linked to a group (for scheduled messages).
-// Each entry now carries `groupId` + per-group persona settings so the bot
-// can compute the correct "persona du jour" per channel: one persona pick
-// per group, not one globally shared persona for every linked server.
 router.get('/linked-channels', async (_req: Request, res: Response) => {
   const channels = await db('groups')
     .leftJoin('group_persona_settings', 'group_persona_settings.group_id', 'groups.id')
@@ -935,12 +816,6 @@ router.get('/linked-channels', async (_req: Request, res: Response) => {
   )
 })
 
-// ─── Per-guild bot config overrides (Tom #2) ──────────────────────────────
-// The Discord bot /wawptn-config slash command reads and writes these via
-// the two endpoints below. Settings are merged against the global defaults
-// in app_settings on read so the bot only ever sees a fully-resolved
-// BotSettings-shaped payload.
-
 interface GlobalBotDefaults {
   friday_schedule: string
   wednesday_schedule: string
@@ -970,13 +845,6 @@ async function loadGlobalBotDefaults(): Promise<GlobalBotDefaults> {
   }
 }
 
-// Bot auth is enforced here (and on the PUT below) in addition to the
-// mount-level `requireBotAuth` in index.ts. Defense-in-depth: (1) makes the
-// auth contract visible when reading the route in isolation — the reviewer
-// who flagged this file (no access control!) was right to be worried — and
-// (2) keeps the route safe if the index.ts mount-order ever regresses or
-// `DISCORD_BOT_API_SECRET` falls out of the env and the routes collide with
-// the unauthed `discordUserRoutes` mount.
 router.get('/guild-settings/:guildId', requireBotAuth, async (req: Request, res: Response) => {
   const guildId = String(req.params['guildId'] ?? '')
   if (!/^\d{5,32}$/.test(guildId)) {
@@ -992,8 +860,6 @@ router.get('/guild-settings/:guildId', requireBotAuth, async (req: Request, res:
     friday_schedule: override?.friday_schedule ?? defaults.friday_schedule,
     wednesday_schedule: override?.wednesday_schedule ?? defaults.wednesday_schedule,
     schedule_timezone: override?.schedule_timezone ?? defaults.schedule_timezone,
-    // Flags whose fields are overridden so the UI can show "(default)"
-    // labels next to inherited values.
     overrides: {
       friday_schedule: override?.friday_schedule != null,
       wednesday_schedule: override?.wednesday_schedule != null,
@@ -1017,11 +883,6 @@ router.put('/guild-settings/:guildId', requireBotAuth, async (req: Request, res:
     updatedByDiscordId?: string | null
   }
 
-  // Each field accepts either a valid cron string (or tz string) or
-  // explicit null to drop the override back to the global default.
-  // Undefined = "don't touch this column" (partial PATCH semantics even
-  // though the verb is PUT — the bot command always sends one field at
-  // a time).
   const cronPattern = /^[-*/,0-9\s]+$/
   if (body.friday_schedule !== undefined && body.friday_schedule !== null) {
     if (typeof body.friday_schedule !== 'string' || body.friday_schedule.length > 64 || !cronPattern.test(body.friday_schedule)) {
@@ -1058,9 +919,6 @@ router.put('/guild-settings/:guildId', requireBotAuth, async (req: Request, res:
   res.json({ ok: true })
 })
 
-// Group leaderboard: aggregates voting activity into three rankings so the
-// Discord bot can surface "who's the most active in this group". Used by the
-// /wawptn-stats slash command.
 router.get('/stats', async (req: Request, res: Response) => {
   const userId = req.userId
 
@@ -1075,8 +933,6 @@ router.get('/stats', async (req: Request, res: Response) => {
     return
   }
 
-  // Verify the requesting user is a member of the group — leaderboards are
-  // group-private and should never leak across groups.
   const membership = await db('group_members')
     .where({ group_id: groupId, user_id: userId })
     .first()
@@ -1091,9 +947,6 @@ router.get('/stats', async (req: Request, res: Response) => {
     return
   }
 
-  // ── Top vote launchers — who created the most voting sessions ──────────
-  // Limited to closed sessions so cancelled or stale draft sessions don't
-  // skew the count.
   const launchers = await db('voting_sessions')
     .join('users', 'voting_sessions.created_by', 'users.id')
     .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed' })
@@ -1106,7 +959,6 @@ router.get('/stats', async (req: Request, res: Response) => {
     .orderBy('count', 'desc')
     .limit(5)
 
-  // ── Most active voters — distinct sessions each member has cast a vote in ──
   const voters = await db('votes')
     .join('voting_sessions', 'votes.session_id', 'voting_sessions.id')
     .join('users', 'votes.user_id', 'users.id')
@@ -1120,7 +972,6 @@ router.get('/stats', async (req: Request, res: Response) => {
     .orderBy('count', 'desc')
     .limit(5)
 
-  // ── Top winning games — count of times each game won a session ─────────
   const topGames = await db('voting_sessions')
     .where({ group_id: groupId, status: 'closed' })
     .whereNotNull('winning_game_app_id')
@@ -1133,7 +984,6 @@ router.get('/stats', async (req: Request, res: Response) => {
     .orderBy('wins', 'desc')
     .limit(5)
 
-  // ── Streak leaders — best consecutive participation streak in this group ──
   const streakLeaders = await db('streaks')
     .join('users', 'streaks.user_id', 'users.id')
     .where({ 'streaks.group_id': groupId })
@@ -1164,15 +1014,8 @@ router.get('/stats', async (req: Request, res: Response) => {
   })
 })
 
-// ─── User-authenticated routes (called from web frontend) ─────────────────────
-
 const userRouter = Router()
 
-// Bot invite URL: surfaced in the "link a Discord channel" UI so the group
-// owner can add the WAWPTN bot to their server, then finish binding with
-// `/wawptn-setup` in the target channel. Public (no auth) — the URL carries
-// no secret, and the frontend needs to know whether to show the button
-// before the owner has clicked on anything.
 userRouter.get('/bot-invite-url', async (_req: Request, res: Response) => {
   const { isBotConfigured, buildBotInviteUrl } = await import('../../infrastructure/discord/bot-invite.js')
   if (!isBotConfigured()) {
@@ -1182,7 +1025,6 @@ userRouter.get('/bot-invite-url', async (_req: Request, res: Response) => {
   res.json({ enabled: true, url: buildBotInviteUrl() })
 })
 
-// Confirm Discord link: User enters code on web frontend to confirm the link
 userRouter.post('/link/confirm', requireAuth, async (req: Request, res: Response) => {
   const userId = req.userId!
   const { code } = req.body as { code: string }
@@ -1202,21 +1044,18 @@ userRouter.post('/link/confirm', requireAuth, async (req: Request, res: Response
     return
   }
 
-  // Check if this WAWPTN user is already linked to a Discord account
   const existingLink = await db('discord_links').where({ user_id: userId }).first()
   if (existingLink) {
     res.status(409).json({ error: 'conflict', message: 'Votre compte WAWPTN est déjà lié à un compte Discord' })
     return
   }
 
-  // Create the permanent link
   await db('discord_links').insert({
     user_id: userId,
     discord_id: linkCode.discord_id,
     discord_username: linkCode.discord_username,
   })
 
-  // Clean up the link code
   await db('discord_link_codes').where({ id: linkCode.id }).del()
 
   logger.info({ userId, discordId: linkCode.discord_id }, 'Discord account linked')
@@ -1224,9 +1063,6 @@ userRouter.post('/link/confirm', requireAuth, async (req: Request, res: Response
   res.json({ ok: true, discordUsername: linkCode.discord_username })
 })
 
-// Unlink Discord: Remove the linked Discord account for the current user.
-// Safe to call even if the user isn't linked (idempotent) so the frontend
-// doesn't have to special-case the empty state.
 userRouter.delete('/link', requireAuth, async (req: Request, res: Response) => {
   const userId = req.userId!
   const deleted = await db('discord_links').where({ user_id: userId }).del()
@@ -1234,21 +1070,6 @@ userRouter.delete('/link', requireAuth, async (req: Request, res: Response) => {
   res.json({ ok: true, wasLinked: deleted > 0 })
 })
 
-// Set webhook URL for a group (group owner only).
-//
-// Binding a Discord destination to a group is part of the free tier
-// (C4 design decision — 2026-04-14). Both binding paths must be free
-// for the promise to hold: `/setup` for users who deploy the bot in
-// their guild, and this `/webhook` endpoint for users who only want
-// one-way announcements without running a bot. Keeping only one of
-// them free would leave webhook-only adopters behind the paywall.
-//
-// Announcement webhooks (multi-channel broadcast) stay premium — see
-// `/announcements` below.
-// The backend POSTs to stored webhook URLs, so anything other than a real
-// Discord webhook endpoint is a server-side request forgery vector (internal
-// services, cloud metadata). `endsWith('discord.com')` alone would also let
-// `evildiscord.com` through.
 const DISCORD_WEBHOOK_HOSTS = new Set(['discord.com', 'discordapp.com', 'ptb.discord.com', 'canary.discord.com'])
 function isDiscordWebhookUrl(value: unknown): boolean {
   if (typeof value !== 'string') return false
@@ -1290,22 +1111,6 @@ userRouter.post('/webhook', requireAuth, async (req: Request, res: Response) => 
   res.json({ ok: true })
 })
 
-// ─── Extra announcement webhooks (Tom #4) ─────────────────────────────────
-// Lets a group owner broadcast vote results to additional channels beyond
-// the primary discord_webhook_url — typically #general or #announcements in
-// the same guild for cross-channel visibility. The primary webhook stays
-// where it is; these are additive.
-//
-// These endpoints stay PREMIUM explicitly, by arbitration (2026-04-15, #143).
-// When the C4 "Salon = Groupe" decision made the primary binding free
-// (`/setup` and `/webhook` above), the premium line was redrawn to cover
-// only features with (a) real runtime cost, or (b) broadcast scope beyond
-// the single bound channel. Announcement webhooks are case (b): one POST
-// here fans out to up to ANNOUNCEMENT_WEBHOOK_LIMIT channels, so they are
-// explicitly premium and not part of the base binding promise.
-//
-// Related explicitly-premium endpoints in this file: `/chat` (LLM cost).
-
 const ANNOUNCEMENT_WEBHOOK_LIMIT = 5
 
 async function assertOwnerAndPremium(
@@ -1328,9 +1133,6 @@ async function assertOwnerAndPremium(
   return true
 }
 
-// List announcement webhooks for a group. The webhook URL itself is NOT
-// returned — only the id and label — because the URL is a secret that
-// would otherwise be exposed to any group owner viewing the settings.
 userRouter.get('/announcements', requireAuth, async (req: Request, res: Response) => {
   const userId = req.userId!
   const groupId = typeof req.query['groupId'] === 'string' ? req.query['groupId'] : ''
@@ -1353,8 +1155,6 @@ userRouter.get('/announcements', requireAuth, async (req: Request, res: Response
   res.json({ data: rows, limit: ANNOUNCEMENT_WEBHOOK_LIMIT })
 })
 
-// Add an announcement webhook. Owner-only + premium; capped at
-// ANNOUNCEMENT_WEBHOOK_LIMIT per group to prevent a runaway fan-out.
 userRouter.post('/announcements', requireAuth, async (req: Request, res: Response) => {
   const userId = req.userId!
   const { groupId, webhookUrl, label } = req.body as {
@@ -1406,7 +1206,6 @@ userRouter.post('/announcements', requireAuth, async (req: Request, res: Respons
       createdAt: row.created_at,
     })
   } catch (error) {
-    // Unique constraint on (group_id, webhook_url) — already registered
     if (String(error).includes('duplicate')) {
       res.status(409).json({ error: 'conflict', message: 'This channel is already registered' })
       return
@@ -1416,8 +1215,6 @@ userRouter.post('/announcements', requireAuth, async (req: Request, res: Respons
   }
 })
 
-// Remove an announcement webhook by id. Owner-only, scoped to the caller's
-// groups so an owner can't accidentally wipe someone else's channel list.
 userRouter.delete('/announcements/:id', requireAuth, async (req: Request, res: Response) => {
   const userId = req.userId!
   const webhookId = String(req.params['id'])

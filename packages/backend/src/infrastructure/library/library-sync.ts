@@ -10,13 +10,6 @@ import {
   type SyncedHandler,
 } from '../../domain/library-sync-coordinator.js'
 
-/**
- * Record `platformGameId → gameId` and return the canonical id that actually
- * owns the mapping. Group syncs run every member in parallel, so two users
- * owning the same unseen game race on the unique (platform, platform_game_id)
- * key; the loser adopts the winner's game instead of aborting its whole sync.
- * A canonical game created only for the lost race is removed again.
- */
 async function claimPlatformMapping(
   platform: string,
   platformGameId: string,
@@ -39,22 +32,6 @@ async function claimPlatformMapping(
   return winner.game_id as string
 }
 
-/**
- * Per-platform library sync. These functions orchestrate the platform Web API
- * clients (Steam/Epic/GOG) and persist the owned games into the canonical
- * `games` / `game_platform_ids` / `user_games` tables. They live in the
- * infrastructure layer (not in a route file) so any caller — HTTP routes,
- * schedulers, the group fan-out coordinator — can reuse them without a
- * presentation-layer dependency.
- */
-
-/**
- * Sync a "simple" platform library (Epic, GOG) — storefronts that expose only
- * an opaque game id and a title, with no playtime or per-app conflict key. Each
- * game is matched to a canonical `games` row by its platform mapping, falling
- * back to a normalized-name lookup, then upserted into `user_games`. Steam is
- * handled separately because it carries playtime + new-game spotlight detection.
- */
 async function syncSimplePlatformLibrary<TGame>(opts: {
   userId: string
   platform: 'epic' | 'gog'
@@ -77,7 +54,6 @@ async function syncSimplePlatformLibrary<TGame>(opts: {
     const platformId = platformGameId(game)
     let gameId: string | null = null
 
-    // Check if this game already has a platform mapping
     const existingMapping = await db('game_platform_ids')
       .where({ platform, platform_game_id: platformId })
       .first()
@@ -85,7 +61,6 @@ async function syncSimplePlatformLibrary<TGame>(opts: {
     if (existingMapping) {
       gameId = existingMapping.game_id
     } else {
-      // Try to find a canonical game with matching normalized name
       const normalizedName = normalizeGameName(name)
       const existingGame = await db('games')
         .whereRaw('LOWER(REGEXP_REPLACE(canonical_name, \'[^a-zA-Z0-9\\s]\', \'\', \'g\')) = ?', [normalizedName])
@@ -124,7 +99,6 @@ async function syncSimplePlatformLibrary<TGame>(opts: {
   return games.length
 }
 
-// ─── Epic ───────────────────────────────────────────────────────────
 export function syncEpicLibrary(userId: string): Promise<number> {
   return syncSimplePlatformLibrary({
     userId,
@@ -137,13 +111,9 @@ export function syncEpicLibrary(userId: string): Promise<number> {
   })
 }
 
-// ─── Steam ──────────────────────────────────────────────────────────
 export async function syncUserLibrary(userId: string, steamId: string): Promise<number> {
   const games = await getOwnedGames(steamId)
   if (!games) {
-    // null means the Steam call failed (5xx, timeout, circuit open) — not a
-    // private profile (that comes back as []). Keep the current visibility
-    // so a Steam hiccup doesn't flag every synced user as private.
     steamLogger.warn({ steamId }, 'Steam library fetch failed — keeping existing library state')
     return 0
   }
@@ -154,19 +124,14 @@ export async function syncUserLibrary(userId: string, steamId: string): Promise<
     return 0
   }
 
-  // Detect freshly acquired games for the new-game spotlight. Snapshot the
-  // library BEFORE the upsert so we can tell which app IDs are genuinely new.
-  // The very first sync seeds the entire library, so we never spotlight on it.
   const existingAppIds = new Set<number>(
     await db('user_games').where({ user_id: userId, platform: 'steam' }).pluck('steam_app_id'),
   )
   const isFirstSync = existingAppIds.size === 0
   const newlyAcquired: NewlyAcquiredGame[] = []
 
-  // Upsert all games
   const now = new Date()
   for (const game of games) {
-    // Find or create canonical game entry
     let gameId: string | null = null
     const existingMapping = await db('game_platform_ids')
       .where({ platform: 'steam', platform_game_id: String(game.appid) })
@@ -175,7 +140,6 @@ export async function syncUserLibrary(userId: string, steamId: string): Promise<
     if (existingMapping) {
       gameId = existingMapping.game_id
     } else {
-      // Create canonical game + platform mapping
       const [newGame] = await db('games')
         .insert({
           canonical_name: game.name,
@@ -220,16 +184,11 @@ export async function syncUserLibrary(userId: string, steamId: string): Promise<
   await db('users').where({ id: userId }).update({ library_visible: true, updated_at: now })
   steamLogger.info({ userId, steamId, gameCount: games.length }, 'library synced')
 
-  // Evaluate playtime/collection/dedication challenges after sync (non-blocking)
   const { evaluateChallenges } = await import('../../domain/challenges/challenge-service.js')
   evaluateChallenges(userId, ['playtime', 'dedication', 'collection']).catch(err =>
     steamLogger.warn({ error: String(err), userId }, 'challenge evaluation after sync failed')
   )
 
-  // Announce freshly acquired games into the member's groups (non-blocking).
-  // Dynamic import keeps this off the module-load critical path and avoids a
-  // require cycle (the spotlight module pulls in create-session, which would
-  // otherwise tangle with the auth routes at load time).
   if (newlyAcquired.length > 0) {
     const { processNewGameSpotlights } = await import('../../domain/new-game-spotlight.js')
     processNewGameSpotlights(userId, newlyAcquired).catch(err =>
@@ -240,7 +199,6 @@ export async function syncUserLibrary(userId: string, steamId: string): Promise<
   return games.length
 }
 
-// ─── GOG ────────────────────────────────────────────────────────────
 export function syncGogLibrary(userId: string): Promise<number> {
   return syncSimplePlatformLibrary({
     userId,
@@ -253,11 +211,6 @@ export function syncGogLibrary(userId: string): Promise<number> {
   })
 }
 
-/**
- * Builds a coordinator wired with every supported platform provider. Steam is
- * always synced; Epic and GOG run only for members who have linked those
- * accounts. Adding a platform = register it here, nothing else changes.
- */
 export function createLibrarySyncCoordinator(): LibrarySyncCoordinator {
   return new LibrarySyncCoordinator()
     .register({
@@ -277,7 +230,6 @@ export function createLibrarySyncCoordinator(): LibrarySyncCoordinator {
     })
 }
 
-/** Convenience: sync every member of a group across all linked platforms. */
 export function syncGroupLibraries(groupId: string, onSynced: SyncedHandler): Promise<void> {
   return createLibrarySyncCoordinator().syncGroup(groupId, onSynced)
 }

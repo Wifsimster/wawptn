@@ -131,18 +131,11 @@ function HeroSection() {
 
   return (
     <section className="relative min-h-[100dvh] flex flex-col items-center justify-center px-4 py-24">
-      {/* Top accent line with neon glow */}
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent" />
       <div className="absolute top-0 inset-x-[20%] h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent blur-sm" />
 
-      {/* Giant "?" watermark — more subtle, more depth */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
         <m.span
-          // On narrow phones `text-[50vw]` rendered as a ~195px glyph that
-          // visually outweighed the headline + CTA behind it. `35vw` keeps
-          // the dramatic scale (~135px on a 390px viewport) without
-          // competing for primary focus; sm:/lg: breakpoints restore the
-          // original desktop sizing.
           className="landing-question-mark font-heading font-extrabold text-[35vw] sm:text-[38vw] lg:text-[30vw] leading-none"
           aria-hidden="true"
           initial={{ opacity: 0, scale: 0.85 }}
@@ -161,25 +154,17 @@ function HeroSection() {
         </m.span>
       </div>
 
-      {/* Gradient orbs — richer, multi-hue. The `landing-blur-orb` class
-          lets index.css strip them on mobile / coarse-pointer devices
-          where stacking three 160-220px blurs tanked scroll perf on
-          mid-tier Android. Desktop keeps the full effect. */}
       <div className="landing-blur-orb absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] sm:w-[750px] h-[450px] sm:h-[550px] rounded-full bg-primary/25 blur-[160px] sm:blur-[220px] pointer-events-none" />
       <div className="landing-blur-orb absolute bottom-[30%] right-[20%] w-[300px] sm:w-[450px] h-[250px] sm:h-[350px] rounded-full bg-neon/[0.07] blur-[110px] sm:blur-[150px] pointer-events-none" />
       <div className="landing-blur-orb absolute top-[45%] left-[8%] size-[220px] rounded-full bg-ember/[0.05] blur-[90px] pointer-events-none hidden lg:block" />
       <div className="landing-blur-orb absolute bottom-[15%] left-[30%] size-[180px] rounded-full bg-reward/[0.04] blur-[80px] pointer-events-none" />
 
-      {/* Content */}
       <m.div
         className="text-center max-w-5xl mx-auto relative z-10"
         initial="hidden"
         animate="visible"
         variants={stagger}
       >
-        {/* Asymmetric headline: small lead-in + massive punchline.
-            The brand mark lives in the fixed LandingHeader — the hero
-            spends its attention budget on the hook, not the logo. */}
         <m.h1
           variants={fadeUp}
           className="font-heading font-extrabold tracking-[-0.05em]"
@@ -192,14 +177,12 @@ function HeroSection() {
           </span>
         </m.h1>
 
-        {/* Decorative horizontal rule */}
         <m.div variants={fadeUp} className="flex items-center justify-center gap-4 mt-8 sm:mt-10 mb-6 sm:mb-8">
           <div className="h-px w-16 bg-gradient-to-r from-transparent to-primary/30" />
           <div className="size-1.5 rounded-full bg-primary/40" />
           <div className="h-px w-16 bg-gradient-to-l from-transparent to-primary/30" />
         </m.div>
 
-        {/* Subtitle */}
         <m.p
           variants={fadeUp}
           className="text-base sm:text-lg text-muted-foreground mb-10 sm:mb-14 max-w-md mx-auto leading-relaxed"
@@ -207,7 +190,6 @@ function HeroSection() {
           {t('landing.subheadline')}
         </m.p>
 
-        {/* CTA */}
         <m.div
           variants={fadeUp}
           className="flex flex-col items-center gap-5"
@@ -220,7 +202,6 @@ function HeroSection() {
         </m.div>
       </m.div>
 
-      {/* Scroll indicator — refined */}
       <m.div
         className="absolute bottom-8 left-1/2 -translate-x-1/2"
         initial={{ opacity: 0 }}
@@ -247,8 +228,6 @@ function HeroSection() {
   )
 }
 
-// Static snapshot of a live vote — real co-op staples, plausible counts.
-// Shows the product (principle: show, don't tell) before the page explains it.
 const PREVIEW_GAMES = [
   { name: 'Deep Rock Galactic', votes: 4, share: 100, leader: true },
   { name: 'Lethal Company', votes: 2, share: 50, leader: false },
@@ -334,7 +313,6 @@ function HowItWorksSection() {
 
   return (
     <section className="relative px-4 py-28 sm:py-36">
-      {/* Section divider — neon glow */}
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
       <div className="absolute top-0 inset-x-[30%] h-px bg-gradient-to-r from-transparent via-primary/15 to-transparent blur-sm" />
 
@@ -352,7 +330,6 @@ function HowItWorksSection() {
         </m.div>
 
         <div className="relative">
-          {/* Connecting line between step badges (desktop) */}
           <div className="hidden md:block absolute top-7 left-[15%] right-[15%] h-px bg-gradient-to-r from-neon/20 via-primary/25 to-reward/15" />
 
           <m.div
@@ -367,7 +344,6 @@ function HowItWorksSection() {
               return (
                 <m.div key={step.titleKey} variants={scaleIn}>
                   <div className="relative h-full">
-                    {/* Step number badge */}
                     <div className="flex justify-center mb-7">
                       <div className="relative">
                         <div
@@ -383,7 +359,6 @@ function HowItWorksSection() {
                       </div>
                     </div>
 
-                    {/* Card body */}
                     <div className="landing-glass-card p-7 sm:p-9 rounded-2xl text-center group">
                       <div className="relative inline-flex items-center justify-center size-14 rounded-xl bg-white/[0.03] border border-white/[0.05] mb-6 transition-transform duration-500 group-hover:scale-110">
                         <step.icon className={`size-7 ${colors.icon}`} />
@@ -411,7 +386,6 @@ function PricingSection() {
 
   return (
     <section className="px-4 py-28 sm:py-36 scroll-mt-14" id="pricing">
-      {/* Section divider */}
       <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
 
       <div className="max-w-4xl mx-auto">
@@ -437,7 +411,6 @@ function PricingSection() {
           viewport={{ once: true, margin: '-80px' }}
           variants={stagger}
         >
-          {/* Free Tier */}
           <m.div variants={scaleIn}>
             <div className="h-full landing-glass-card rounded-2xl p-7 sm:p-9">
               <div className="flex items-center gap-3 mb-7">
@@ -478,7 +451,6 @@ function PricingSection() {
             </div>
           </m.div>
 
-          {/* Premium Tier */}
           <m.div variants={scaleIn}>
             <div className="h-full rounded-2xl landing-premium-card p-7 sm:p-9 relative">
               <Badge className="absolute -top-3 left-6 bg-reward text-reward-foreground hover:bg-reward/90 shadow-[0_0_16px_oklch(0.82_0.17_70_/_0.25)]">

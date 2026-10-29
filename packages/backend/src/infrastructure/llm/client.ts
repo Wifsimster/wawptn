@@ -2,7 +2,6 @@ import OpenAI from 'openai'
 import { env } from '../../config/env.js'
 import { logger } from '../logger/logger.js'
 
-// Base prompt: capabilities, commands, and safety rules (invariant, never overridden by persona)
 const BASE_SYSTEM_PROMPT = `Tu es le bot WAWPTN (What Are We Playing Tonight?), un assistant pour des groupes d'amis qui veulent décider à quel jeu jouer ensemble.
 
 {PERSONA}
@@ -35,7 +34,6 @@ Mentionner (ping) un membre :
 - N'écris JAMAIS un ID que tu n'as pas vu dans cette liste. Si un pseudo te paraît ambigu ou absent, mentionne-le en texte brut sans inventer d'ID.
 - N'utilise JAMAIS @everyone, @here ni les mentions de rôles (<@&ID>).`
 
-// Default persona (used when no persona overlay is provided)
 const DEFAULT_PERSONA = `Ta personnalité :
 - Tu es drôle, sarcastique mais bienveillant
 - Tu parles en français, de manière décontractée
@@ -67,14 +65,7 @@ export interface ChatContext {
   commonGames?: string[]
   recentVoteSessions?: Array<{ date: string; winner?: string }>
   userName?: string
-  /** Daily persona voice overlay — replaces the personality section of the system prompt */
   personaVoice?: string
-  /**
-   * Guild members the LLM is allowed to @mention by emitting <@id> syntax.
-   * The caller is expected to have already validated the IDs (numeric
-   * snowflakes, non-bots). The backend sanitizer strips any mention whose
-   * ID is not present in this list before the reply reaches Discord.
-   */
   mentionableMembers?: Array<{ id: string; displayName: string }>
 }
 

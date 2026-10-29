@@ -28,7 +28,6 @@ interface ResponsiveDialogProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   children: React.ReactNode
-  /** Vaul snap points for mobile drawer (e.g., [0.5, 1]) */
   snapPoints?: (number | string)[]
 }
 
@@ -88,7 +87,6 @@ function ResponsiveDialogContent({
         <div className="overflow-y-auto overflow-x-hidden overscroll-contain max-h-[calc(96dvh-4rem)] px-0.5 py-2 min-w-0 touch-scroll">
           {children}
         </div>
-        {/* Scroll fade indicator */}
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-card to-transparent" />
       </div>
     </DrawerContent>

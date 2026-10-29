@@ -7,15 +7,8 @@ import { domainEvents } from './events/event-bus.js'
 import { recordSessionEvent } from './session-audit-trail.js'
 import type { VoteResult } from '@wawptn/types'
 
-/**
- * Atomically close a voting session and tally votes.
- * Returns the VoteResult if the session was closed, or null if it was already closed.
- */
 export async function closeSession(sessionId: string, groupId: string): Promise<VoteResult | null> {
-  // Wrap the entire close + tally + winner update in a single transaction
-  // to prevent races between concurrent close requests
   const txResult = await db.transaction(async (trx) => {
-    // Atomically claim the right to close (optimistic locking)
     const updated = await trx('voting_sessions')
       .where({ id: sessionId, status: 'open' })
       .update({
@@ -24,11 +17,9 @@ export async function closeSession(sessionId: string, groupId: string): Promise<
       })
 
     if (updated === 0) {
-      // Already closed by another process/request
       return null
     }
 
-    // Tally votes: count yes-votes per game
     const results = await trx('votes')
       .where({ session_id: sessionId, vote: true })
       .groupBy('steam_app_id')
@@ -79,17 +70,10 @@ export async function closeSession(sessionId: string, groupId: string): Promise<
     totalVoters: Number(voterCount?.count || 0),
   }
 
-  // Load participants for event payload + downstream domain logic (challenges, streaks)
   const participantIds: string[] = await db('voting_session_participants')
     .where({ session_id: sessionId })
     .pluck('user_id')
 
-  // Pin a snapshot of who was eligible to vote at close time + the final
-  // tally to the session_audit_trail. This is the canonical record for
-  // dispute resolution: even if a member is later removed from the group
-  // or the session is purged, the closed-state evidence stays intact (the
-  // row CASCADEs on session delete by design — that's a deliberate scope
-  // choice; system-wide retention belongs in a separate ETL).
   await recordSessionEvent({
     sessionId,
     event: 'session_closed',
@@ -103,8 +87,6 @@ export async function closeSession(sessionId: string, groupId: string): Promise<
     },
   })
 
-  // Emit domain event — side effects (Socket.io, Discord, in-app notifs) are
-  // handled by subscribers registered in infrastructure/effects/session-effects.ts
   domainEvents.emit('session:closed', {
     sessionId,
     groupId,
@@ -112,14 +94,12 @@ export async function closeSession(sessionId: string, groupId: string): Promise<
     participantIds,
   })
 
-  // Evaluate participation challenges for all participants (non-blocking)
   for (const pid of participantIds) {
     evaluateChallenges(pid, ['participation']).catch(err =>
       logger.warn({ error: String(err), userId: pid }, 'challenge evaluation after session close failed')
     )
   }
 
-  // Update voting streaks for all participants (non-blocking)
   for (const pid of participantIds) {
     updateStreak(pid, groupId, sessionId).catch(err =>
       logger.warn({ error: String(err), userId: pid, groupId }, 'streak update after session close failed')

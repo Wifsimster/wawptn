@@ -1,8 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { z } from 'zod'
 
-// Mock the logger before importing the module under test so the import
-// graph doesn't pull in the real pino logger and its env-dependent setup.
 vi.mock('@/infrastructure/logger/logger.js', () => {
   const noop = () => {}
   const child = () => ({ info: noop, warn: noop, error: noop, debug: noop, child })

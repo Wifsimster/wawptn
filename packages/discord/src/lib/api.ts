@@ -6,12 +6,6 @@ interface ApiOptions {
   discordUserId?: string
 }
 
-/**
- * Error thrown by `backendApi` for non-2xx responses. Callers (notably the
- * `@mention` chat handler) need to distinguish between "LLM unavailable",
- * "premium required", "rate limit", etc. to pick the right user-facing
- * response instead of collapsing every failure into a generic message.
- */
 export class BackendApiError extends Error {
   constructor(
     public readonly status: number,
@@ -53,10 +47,6 @@ export async function backendApi<T>(path: string, options: ApiOptions = {}): Pro
   return res.json() as Promise<T>
 }
 
-/**
- * Per-group persona overrides shipped alongside each linked channel. When
- * a field is null/empty, the group inherits the global bot.* defaults.
- */
 export interface GroupPersonaOverrides {
   rotationEnabled: boolean | null
   disabledPersonas: string[]
@@ -65,14 +55,8 @@ export interface GroupPersonaOverrides {
 }
 
 export interface LinkedChannel {
-  /** Backend group UUID — the selection key for the per-group persona
-   * hash. Always present on fresh rows; older rows that predate the
-   * per-group persona refactor may be missing if the group was deleted. */
   groupId: string
   channelId: string
-  /** Discord guild (server) ID — used by the per-guild scheduler to
-   * route each channel through its own cron. Nullable for legacy rows
-   * inserted before the backend started storing the guild id. */
   guildId: string | null
   groupName: string
   personaSettings: GroupPersonaOverrides
@@ -122,7 +106,6 @@ export interface BotSettings {
   disabled_personas: string[]
   announce_persona_change: boolean
   persona_override: string | null
-  /** Toggles the 10am daily-pulse cron (morning greetings + weekend vibes). */
   daily_pulse_enabled: boolean
 }
 
@@ -154,8 +137,6 @@ export interface ApiPersona {
   fridayMessages: string[]
   weekdayMessages: string[]
   backOnlineMessages: string[]
-  /** Pure-character lines with no slash command. May be missing on
-   *  personas saved before the pool migration — normalise to [] in callers. */
   idleBanter?: string[]
   morningGreetings?: string[]
   weekendVibes?: string[]

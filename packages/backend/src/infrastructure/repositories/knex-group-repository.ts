@@ -6,12 +6,6 @@ import type {
   GroupMemberRow,
 } from '../../domain/repositories/group-repository.js'
 
-/**
- * Knex-backed implementation of `IGroupRepository`.
- *
- * The `knex` instance is injected (defaulting to the shared `db` singleton),
- * which lets callers pass a transaction (`trx`) or a test double.
- */
 export class KnexGroupRepository implements IGroupRepository {
   constructor(private readonly knex: Knex = db) {}
 
@@ -52,5 +46,4 @@ export class KnexGroupRepository implements IGroupRepository {
   }
 }
 
-/** Default singleton bound to the shared `db` connection. */
 export const groupRepository: IGroupRepository = new KnexGroupRepository()

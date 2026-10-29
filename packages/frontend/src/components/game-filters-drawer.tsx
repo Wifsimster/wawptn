@@ -35,12 +35,6 @@ interface GameFiltersDrawerProps {
   onResetFilters: () => void
 }
 
-/**
- * Advanced filters drawer — holds everything that used to shout from the main
- * panel: metacritic, sort, genres, and the less-used "gamesOnly / controller"
- * toggles. Extracted from GameGrid to keep that component focused on the list
- * + empty states; the drawer's markup is large and self-contained.
- */
 export function GameFiltersDrawer({
   open,
   onOpenChange,
@@ -65,13 +59,7 @@ export function GameFiltersDrawer({
           <ResponsiveDialogTitle>{t('group.moreFilters')}</ResponsiveDialogTitle>
           <ResponsiveDialogDescription>{t('group.moreFiltersDescription')}</ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
-        {/* No nested scroll container — `ResponsiveDialogContent`
-            already caps at 96dvh and scrolls. Adding our own
-            overflow-y here created a swipe-trap on iOS where the
-            outer drawer-handle pull-down gesture got captured by
-            the inner scroller (mobile review §C4 follow-up). */}
         <div className="px-4 pb-4 space-y-5">
-          {/* Metacritic */}
           <section>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-2">
               <Star className="size-3" />
@@ -93,7 +81,6 @@ export function GameFiltersDrawer({
             </div>
           </section>
 
-          {/* Sort */}
           <section>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-2">
               <TrendingUp className="size-3" />
@@ -115,7 +102,6 @@ export function GameFiltersDrawer({
             </div>
           </section>
 
-          {/* Secondary toggles */}
           <section>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               {t('group.secondaryFilters')}
@@ -144,7 +130,6 @@ export function GameFiltersDrawer({
             </div>
           </section>
 
-          {/* Genres */}
           {availableGenres.length > 0 && (
             <section>
               <button

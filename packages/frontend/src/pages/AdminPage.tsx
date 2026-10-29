@@ -32,8 +32,6 @@ import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
-/* ─── Types ─────────────────────────────────────────── */
-
 interface BotSettings {
   persona_rotation_enabled: boolean
   friday_schedule: string
@@ -117,8 +115,6 @@ const EMPTY_FORM: PersonaFormData = {
   embedColor: '#5865F2',
 }
 
-/* ─── Persona dialog reducer ────────────────────────── */
-
 interface PersonaDialogState {
   dialogOpen: boolean
   dialogMode: 'create' | 'edit'
@@ -189,8 +185,6 @@ const TABS: { id: AdminTab; label: string; icon: typeof BarChart3 }[] = [
   { id: 'users', label: 'Utilisateurs', icon: Users },
 ]
 
-/* ─── Helpers ───────────────────────────────────────── */
-
 function colorIntToHex(color: number): string {
   return '#' + color.toString(16).padStart(6, '0').toUpperCase()
 }
@@ -225,8 +219,6 @@ function personaToForm(persona: AdminPersona): PersonaFormData {
   }
 }
 
-/* ─── Animated counter ──────────────────────────────── */
-
 function AnimatedNumber({ value, duration = 1200 }: { value: number; duration?: number }) {
   const [display, setDisplay] = useState(0)
   const ref = useRef<number>(0)
@@ -240,7 +232,6 @@ function AnimatedNumber({ value, duration = 1200 }: { value: number; duration?: 
     function tick(now: number) {
       const elapsed = now - startTime
       const progress = Math.min(elapsed / duration, 1)
-      // Ease out cubic
       const eased = 1 - Math.pow(1 - progress, 3)
       const current = Math.round(start + diff * eased)
       setDisplay(current)
@@ -256,8 +247,6 @@ function AnimatedNumber({ value, duration = 1200 }: { value: number; duration?: 
 
   return <>{display.toLocaleString('fr-FR')}</>
 }
-
-/* ─── Motion variants ───────────────────────────────── */
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -295,8 +284,6 @@ const tabContent: Variants = {
     transition: { duration: 0.2 },
   },
 }
-
-/* ─── Admin data reducer (loaded together) ──────────── */
 
 interface AdminDataState {
   settings: BotSettings | null
@@ -336,8 +323,6 @@ function adminDataReducer(state: AdminDataState, action: AdminDataAction): Admin
   }
 }
 
-/* ─── Users list reducer (paginated, loaded together) ── */
-
 interface UsersState {
   items: AdminUser[]
   offset: number
@@ -372,8 +357,6 @@ function usersReducer(state: UsersState, action: UsersAction): UsersState {
       return state
   }
 }
-
-/* ─── Tab navigation ────────────────────────────────── */
 
 function AdminTabNav({
   activeTab,
@@ -439,33 +422,21 @@ function AdminTabNav({
   )
 }
 
-/* ─── Main component ────────────────────────────────── */
-
-/**
- * All admin-dashboard state, data loading and mutation handlers. Lives in a hook
- * so the AdminPage component stays a thin shell that just wires state to the UI.
- */
 function useAdminDashboard() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const [saving, setSaving] = useState(false)
 
-  // Admin dashboard data (settings, stats, personas) loaded together via loadData
   const [data, dispatchData] = useReducer(adminDataReducer, initialAdminDataState)
   const { settings, stats, personas, loading } = data
 
-  // Paginated users list (items + offset + total + loading) loaded together
   const [usersState, dispatchUsers] = useReducer(usersReducer, initialUsersState)
   const { items: users, offset: usersOffset, total: usersTotal, loading: usersLoading } = usersState
 
-  // Users search input
   const [userSearch, setUserSearch] = useState('')
-  // Holds the latest debounced query. It's only ever read inside handlers/effects
-  // (pagination + refresh), never in render, so a ref avoids needless re-renders.
   const debouncedUserSearchRef = useRef('')
   const usersRequestId = useRef(0)
 
-  // Persona create/edit + delete dialog state (consolidated)
   const [dialog, dispatchDialog] = useReducer(personaDialogReducer, initialPersonaDialogState)
   const { dialogMode, editingPersonaId, deletingPersonaId, formData } = dialog
 
@@ -474,7 +445,6 @@ function useAdminDashboard() {
     dispatchUsers({ type: 'loadStart' })
     try {
       const res = await api.getAdminUsers({ limit: USERS_PAGE_SIZE, offset, q: q || undefined })
-      // Apply only if this is still the most recent request (drop stale responses)
       if (requestId === usersRequestId.current) {
         dispatchUsers({ type: 'loaded', items: res.data, total: res.total, offset: res.offset })
       }
@@ -499,8 +469,6 @@ function useAdminDashboard() {
       const s = settingsData as unknown as BotSettings
       if (!Array.isArray(s.disabled_personas)) s.disabled_personas = []
       if (s.persona_override === undefined) s.persona_override = null
-      // Default to true so the daily-pulse UI reflects the migration default
-      // instead of blanking the checkbox for admins on existing installs.
       if (typeof s.daily_pulse_enabled !== 'boolean') s.daily_pulse_enabled = true
       dispatchData({ type: 'loaded', settings: s, stats: statsData, personas: personasData })
     } catch {
@@ -514,11 +482,6 @@ function useAdminDashboard() {
     void loadUsers(usersOffset, debouncedUserSearchRef.current)
   }, [loadData, loadUsers, usersOffset])
 
-  // Debounce user search input, then re-fetch the first page. The trimmed query
-  // is stored in a ref (never read during render) so pagination/refresh handlers
-  // can reach the latest value without it being a render-driving state. The
-  // initial mount is skipped because the auth effect below already fetches
-  // page 0 with an empty query.
   const isFirstSearch = useRef(true)
   const applyDebouncedSearch = useEffectEvent((query: string) => {
     debouncedUserSearchRef.current = query
@@ -563,10 +526,8 @@ function useAdminDashboard() {
       dispatchUsers({ type: 'setItems', items: users.map(u => u.id === targetUser.id ? {
         ...u,
         isAdmin: newIsAdmin,
-        // Admins implicitly have premium access
         isPremium: newIsAdmin ? true : u.adminGrantedPremium,
       } : u) })
-      // Keep the overview admin count in sync without refetching the full page
       if (stats) {
         dispatchData({ type: 'setStats', stats: { ...stats, admins: stats.admins + (newIsAdmin ? 1 : -1) } })
       }
@@ -583,7 +544,6 @@ function useAdminDashboard() {
       dispatchUsers({ type: 'setItems', items: users.map(u => u.id === targetUser.id ? {
         ...u,
         adminGrantedPremium: newGranted,
-        // Admins keep premium regardless; otherwise reflect the grant
         isPremium: u.isAdmin ? true : newGranted,
       } : u) })
       toast.success(newGranted
@@ -645,9 +605,6 @@ function useAdminDashboard() {
       return
     }
 
-    // Clamp the rate defensively — the slider already enforces 0..1 but a
-    // stale form state could otherwise push garbage to the backend, where
-    // the zod schema would reject it with a non-actionable error.
     const offTopicInjectionRate = Math.max(0, Math.min(1, Number(formData.offTopicInjectionRate) || 0))
 
     dispatchDialog({ type: 'setFormSaving', saving: true })
@@ -739,8 +696,6 @@ function useAdminDashboard() {
   }
 }
 
-/* ─── Main component ────────────────────────────────── */
-
 export function AdminPage() {
   useDocumentTitle('Administration')
   const [activeTab, setActiveTab] = useState<AdminTab>('overview')
@@ -784,7 +739,6 @@ export function AdminPage() {
           paddingRight: 'max(1rem, env(safe-area-inset-right))',
         }}
       >
-        {/* ── Header ─────────────────────────────────── */}
         <m.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -817,7 +771,6 @@ export function AdminPage() {
           </Button>
         </m.div>
 
-        {/* ── Tab navigation ─────────────────────────── */}
         <AdminTabNav
           activeTab={activeTab}
           onTabChange={setActiveTab}
@@ -826,7 +779,6 @@ export function AdminPage() {
           userCount={stats?.users ?? 0}
         />
 
-        {/* ── Tab content ────────────────────────────── */}
         <AdminTabContent
           activeTab={activeTab}
           settings={settings}
@@ -869,10 +821,6 @@ export function AdminPage() {
     </>
   )
 }
-
-/* ═══════════════════════════════════════════════════════
-   Tab content router
-   ═══════════════════════════════════════════════════════ */
 
 function AdminTabContent({
   activeTab,
@@ -997,10 +945,6 @@ function AdminTabContent({
   )
 }
 
-/* ═══════════════════════════════════════════════════════
-   Persona create/edit + delete dialogs
-   ═══════════════════════════════════════════════════════ */
-
 function PersonaDialogs({
   dialogOpen,
   dialogMode,
@@ -1026,7 +970,6 @@ function PersonaDialogs({
 }) {
   return (
     <>
-      {/* ── Create/Edit Persona Dialog ──────────────── */}
       <Dialog open={dialogOpen} onOpenChange={onDialogOpenChange}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1225,7 +1168,6 @@ function PersonaDialogs({
         </DialogContent>
       </Dialog>
 
-      {/* ── Delete Confirmation Dialog ──────────────── */}
       <Dialog open={deleteDialogOpen} onOpenChange={onDeleteDialogOpenChange}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -1247,10 +1189,6 @@ function PersonaDialogs({
     </>
   )
 }
-
-/* ═══════════════════════════════════════════════════════
-   TAB: Notifications
-   ═══════════════════════════════════════════════════════ */
 
 function NotificationsTab() {
   const { t } = useTranslation()
@@ -1321,10 +1259,6 @@ function NotificationsTab() {
   )
 }
 
-/* ═══════════════════════════════════════════════════════
-   TAB: Email integration testing
-   ═══════════════════════════════════════════════════════ */
-
 interface EmailStatus {
   configured: boolean
   from: string
@@ -1374,9 +1308,6 @@ function emailSendReducer(state: EmailSendState, action: EmailSendAction): Email
 function EmailTab() {
   const [status, setStatus] = useState<EmailStatus | null>(null)
   const [statusLoading, setStatusLoading] = useState(true)
-  // The test-email form fields, in-flight flag and last result all change
-  // together as part of a single "send a test email" flow, so they live in
-  // one reducer rather than separate useState slots.
   const [send, dispatchSend] = useReducer(emailSendReducer, initialEmailSendState)
   const { to, subject, message, sending, lastResult } = send
 
@@ -1423,7 +1354,6 @@ function EmailTab() {
 
   return (
     <div className="space-y-4">
-      {/* Status card */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -1469,7 +1399,6 @@ function EmailTab() {
         </CardContent>
       </Card>
 
-      {/* Test form */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -1531,7 +1460,6 @@ function EmailTab() {
         </CardContent>
       </Card>
 
-      {/* Last result */}
       {lastResult && (
         <Card>
           <CardHeader className="pb-3">
@@ -1569,10 +1497,6 @@ function EmailTab() {
     </div>
   )
 }
-
-/* ═══════════════════════════════════════════════════════
-   TAB: Overview
-   ═══════════════════════════════════════════════════════ */
 
 function OverviewTab({
   stats,
@@ -1623,7 +1547,6 @@ function OverviewTab({
 
   return (
     <div className="space-y-8">
-      {/* ── Stat cards grid ── */}
       <m.div
         variants={stagger}
         initial="hidden"
@@ -1677,7 +1600,6 @@ function OverviewTab({
                   )}
                   style={{ boxShadow: c.glow }}
                 >
-                  {/* Background glow orb */}
                   <div
                     className="absolute -top-8 -right-8 size-24 rounded-full opacity-[0.04] blur-2xl transition-opacity duration-500 group-hover:opacity-[0.08]"
                     style={{
@@ -1711,17 +1633,14 @@ function OverviewTab({
           })}
       </m.div>
 
-      {/* ── Health card ── */}
       <AdminHealthCard />
 
-      {/* ── Recent activity grid ── */}
       <m.div
         variants={stagger}
         initial="hidden"
         animate="visible"
         className="grid gap-4 lg:grid-cols-2"
       >
-        {/* Personas overview */}
         <m.div variants={fadeUp}>
           <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04]">
             <CardHeader className="pb-3">
@@ -1777,7 +1696,6 @@ function OverviewTab({
           </Card>
         </m.div>
 
-        {/* Recent users */}
         <m.div variants={fadeUp}>
           <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04]">
             <CardHeader className="pb-3">
@@ -1823,10 +1741,6 @@ function OverviewTab({
   )
 }
 
-/* ═══════════════════════════════════════════════════════
-   TAB: Bot Settings
-   ═══════════════════════════════════════════════════════ */
-
 function BotSettingsTab({
   settings,
   loading,
@@ -1850,7 +1764,6 @@ function BotSettingsTab({
       animate="visible"
       className="max-w-2xl space-y-6"
     >
-      {/* Persona rotation */}
       <m.div variants={fadeUp}>
         <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04] overflow-hidden">
           <div className="h-[2px] bg-gradient-to-r from-primary/40 via-neon/30 to-transparent" />
@@ -1919,7 +1832,6 @@ function BotSettingsTab({
                   </label>
                 </div>
 
-                {/* Persona override */}
                 <div className="space-y-2 pt-2">
                   <label htmlFor="persona-override" className="text-sm font-medium flex items-center gap-1.5">
                     <Theater className="size-3.5 text-muted-foreground" />
@@ -1952,7 +1864,6 @@ function BotSettingsTab({
         </Card>
       </m.div>
 
-      {/* Schedules */}
       <m.div variants={fadeUp}>
         <Card className="bg-card/60 backdrop-blur-sm border-white/[0.04] overflow-hidden">
           <div className="h-[2px] bg-gradient-to-r from-ember/40 via-reward/30 to-transparent" />
@@ -2020,7 +1931,6 @@ function BotSettingsTab({
         </Card>
       </m.div>
 
-      {/* Save bar */}
       <m.div variants={fadeUp} className="flex gap-3 pt-2">
         <Button onClick={onSave} disabled={saving || loading} className="gap-2">
           <Save className="size-4" />
@@ -2030,10 +1940,6 @@ function BotSettingsTab({
     </m.div>
   )
 }
-
-/* ═══════════════════════════════════════════════════════
-   TAB: Personas
-   ═══════════════════════════════════════════════════════ */
 
 function PersonasTab({
   personas,
@@ -2083,7 +1989,6 @@ function PersonasTab({
                     : 'border-white/[0.03] opacity-50 hover:opacity-70',
                 )}
               >
-                {/* Color stripe top */}
                 <div
                   className="h-1 w-full transition-all duration-300"
                   style={{
@@ -2093,7 +1998,6 @@ function PersonasTab({
                 />
 
                 <div className="p-4 space-y-3">
-                  {/* Header row */}
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div
@@ -2117,19 +2021,16 @@ function PersonasTab({
                     )}
                   </div>
 
-                  {/* Preview */}
                   <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                     {persona.systemPromptOverlay || persona.introMessage || 'Aucune description'}
                   </p>
 
-                  {/* Stats row */}
                   <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground/50">
                     <span>{persona.fridayMessages.length} msg vendredi</span>
                     <span className="text-white/10">|</span>
                     <span>{persona.weekdayMessages.length} msg semaine</span>
                   </div>
 
-                  {/* Actions */}
                   <div className="flex items-center gap-2 pt-1 border-t border-white/[0.04]">
                     <Checkbox
                       id={`persona-${persona.id}`}
@@ -2178,10 +2079,6 @@ function PersonasTab({
   )
 }
 
-/* ═══════════════════════════════════════════════════════
-   TAB: Users
-   ═══════════════════════════════════════════════════════ */
-
 function UsersTab({
   users,
   totalUsers,
@@ -2216,7 +2113,6 @@ function UsersTab({
 
   return (
     <div className="space-y-5">
-      {/* Search bar */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/50" />
@@ -2245,7 +2141,6 @@ function UsersTab({
         </span>
       </div>
 
-      {/* Users list */}
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
@@ -2382,7 +2277,6 @@ function UsersTab({
         </m.div>
       )}
 
-      {/* Pagination */}
       {!loading && totalUsers > pageSize && (
         <div className="flex items-center justify-between pt-2">
           <span className="text-[11px] font-mono text-muted-foreground/50">

@@ -1,48 +1,22 @@
-// ─── Daily persona rotation ──────────────────────────────────────────────────
-//
-// Each day the bot adopts a different voice. The persona is selected
-// deterministically from the date so every instance agrees, even after restarts.
-//
-// Personas are loaded from the backend API (database-backed). The hardcoded
-// PERSONAS array is kept as a fallback in case the API is unreachable.
-//
-// Invariant rules (never acknowledge being a bot, no tech leaks, etc.) live in
-// the backend SYSTEM_PROMPT and are NOT overridable by personas.
-
 import { getPersonas as fetchPersonasFromApi, type ApiPersona } from './lib/api.js'
 
 export interface Persona {
   id: string
   name: string
-  /** Injected into the LLM system prompt — replaces the personality section only */
   systemPromptOverlay: string
   fridayMessages: string[]
   weekdayMessages: string[]
   backOnlineMessages: string[]
-  /** Pure-character one-liners with no slash command. Rolled in probabilistically
-   *  by the scheduler in place of a friday/weekday reminder so the bot isn't
-   *  solely a vote-CTA machine. Empty array disables off-topic injection. */
   idleBanter: string[]
-  /** Daily-pulse morning hello sent ~10am on weekdays (Mon–Fri). */
   morningGreetings: string[]
-  /** Daily-pulse chill line sent ~10am on Sat/Sun. */
   weekendVibes: string[]
-  /** Reply when someone @mentions the bot with an empty message */
   emptyMentionReply: string
-  /** Sent at 07:00 local time to announce the day's active persona */
   introMessage: string
-  /** Discord embed accent color */
   embedColor: number
-  /** 0..1 — probability the scheduler picks from `idleBanter` instead of the
-   *  regular vote-reminder pool. Tuned per persona (e.g. the deadpan character
-   *  leans higher, the coach lower so encouragement stays visible). */
   offTopicInjectionRate: number
 }
 
-// ─── Hardcoded fallback personas ─────────────────────────────────────────────
-
 const PERSONAS: Persona[] = [
-  // 0 — The original: sarcastic but kind friend
   {
     id: 'pote-sarcastique',
     name: 'Le Pote Sarcastique',
@@ -103,7 +77,6 @@ const PERSONAS: Persona[] = [
     offTopicInjectionRate: 0.4,
   },
 
-  // 1 — The dramatic narrator
   {
     id: 'narrateur-dramatique',
     name: 'Le Narrateur Dramatique',
@@ -164,7 +137,6 @@ const PERSONAS: Persona[] = [
     offTopicInjectionRate: 0.35,
   },
 
-  // 2 — The overly optimistic motivator
   {
     id: 'coach-motivation',
     name: 'Le Coach Motivation',
@@ -225,7 +197,6 @@ const PERSONAS: Persona[] = [
     offTopicInjectionRate: 0.25,
   },
 
-  // 3 — The deadpan dry wit
   {
     id: 'pince-sans-rire',
     name: 'Le Pince-Sans-Rire',
@@ -286,7 +257,6 @@ const PERSONAS: Persona[] = [
     offTopicInjectionRate: 0.5,
   },
 
-  // 4 — The nostalgic retro gamer
   {
     id: 'nostalgique-retro',
     name: 'Le Nostalgique Rétro',
@@ -347,7 +317,6 @@ const PERSONAS: Persona[] = [
     offTopicInjectionRate: 0.35,
   },
 
-  // 5 — The competitive tryhard
   {
     id: 'competiteur',
     name: 'Le Compétiteur',
@@ -408,7 +377,6 @@ const PERSONAS: Persona[] = [
     offTopicInjectionRate: 0.4,
   },
 
-  // 6 — The chill philosopher
   {
     id: 'philosophe-zen',
     name: 'Le Philosophe Zen',
@@ -470,18 +438,12 @@ const PERSONAS: Persona[] = [
   },
 ]
 
-// ─── API-loaded persona cache ─────────────────────────────────────────────────
-
 let cachedPersonas: Persona[] | null = null
 let cacheRefreshTimer: ReturnType<typeof setInterval> | null = null
 
-const CACHE_REFRESH_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
+const CACHE_REFRESH_INTERVAL_MS = 5 * 60 * 1000
 
 function apiPersonaToPersona(p: ApiPersona): Persona {
-  // The API is authoritative but old rows (pre-migration) or personas
-  // created by an admin who left the new pools empty will report
-  // missing/null arrays. Normalise here so every consumer sees well-shaped
-  // arrays instead of crashing inside `pickRandom`.
   return {
     id: p.id,
     name: p.name,
@@ -500,10 +462,6 @@ function apiPersonaToPersona(p: ApiPersona): Persona {
   }
 }
 
-/**
- * Loads personas from the backend API and caches them.
- * Returns the loaded personas, or null if the fetch fails.
- */
 export async function loadPersonasFromApi(): Promise<Persona[] | null> {
   try {
     const apiPersonas = await fetchPersonasFromApi()
@@ -520,10 +478,6 @@ export async function loadPersonasFromApi(): Promise<Persona[] | null> {
   }
 }
 
-/**
- * Starts the periodic persona cache refresh (every 5 minutes).
- * Call this once at bot startup.
- */
 export function startPersonaCacheRefresh(): void {
   if (cacheRefreshTimer) return
   cacheRefreshTimer = setInterval(() => {
@@ -532,18 +486,10 @@ export function startPersonaCacheRefresh(): void {
   console.log(`[personas] Cache refresh scheduled every ${CACHE_REFRESH_INTERVAL_MS / 1000}s`)
 }
 
-/**
- * Returns the active persona pool: API-loaded if available, hardcoded fallback otherwise.
- */
 function getPersonaPool(): Persona[] {
   return cachedPersonas && cachedPersonas.length > 0 ? cachedPersonas : PERSONAS
 }
 
-// ─── Deterministic daily selection ───────────────────────────────────────────
-
-/**
- * Simple string hash (djb2) — deterministic, fast, good distribution.
- */
 function hashCode(str: string): number {
   let hash = 5381
   for (let i = 0; i < str.length; i++) {
@@ -552,36 +498,17 @@ function hashCode(str: string): number {
   return Math.abs(hash)
 }
 
-/**
- * Returns today's persona based on a deterministic hash of the date.
- * Uses Europe/Paris timezone so the persona changes at midnight local time.
- * Uses API-loaded personas if available, falls back to hardcoded.
- * Filters out disabled personas if provided.
- *
- * Global / app-wide fallback — prefer `getTodayPersonaForGroup` when a
- * group context is available so each group gets its own persona.
- */
 export function getTodayPersona(disabledIds: string[] = []): Persona {
   const pool = getPersonaPool()
   const available = disabledIds.length > 0
     ? pool.filter(p => !disabledIds.includes(p.id))
     : pool
-  const finalPool = available.length > 0 ? available : pool // fallback if all disabled
-  const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }) // YYYY-MM-DD
+  const finalPool = available.length > 0 ? available : pool
+  const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' })
   const index = hashCode(dateStr) % finalPool.length
   return finalPool[index]!
 }
 
-/**
- * Returns today's persona for a specific group. The selection key is
- * `${YYYY-MM-DD}:${groupId}` so each group draws its own deterministic
- * persona from the shared pool — exactly matching the backend hash in
- * `packages/backend/src/domain/persona-selection.ts`.
- *
- * Override priority: explicit `override` arg > rotation disabled (default
- * persona) > filtered hash pick. If `rotationEnabled === false` the group
- * always sees the default persona (index 0).
- */
 export function getTodayPersonaForGroup(
   groupId: string,
   opts: {
@@ -609,35 +536,22 @@ export function getTodayPersonaForGroup(
   return finalPool[index]!
 }
 
-/**
- * Returns the persona for a specific date string (YYYY-MM-DD). Useful for testing.
- */
 export function getPersonaForDate(dateStr: string): Persona {
   const pool = getPersonaPool()
   const index = hashCode(dateStr) % pool.length
   return pool[index]!
 }
 
-/**
- * Returns the default persona (index 0).
- * Used when persona rotation is disabled.
- */
 export function getDefaultPersona(): Persona {
   const pool = getPersonaPool()
   return pool[0]!
 }
 
-/**
- * Returns a persona by ID, or undefined if not found.
- */
 export function getPersonaById(id: string): Persona | undefined {
   const pool = getPersonaPool()
   return pool.find(p => p.id === id)
 }
 
-/**
- * Returns all personas with their IDs and names (for admin UI).
- */
 export function getAllPersonas(): Pick<Persona, 'id' | 'name' | 'embedColor'>[] {
   const pool = getPersonaPool()
   return pool.map(p => ({ id: p.id, name: p.name, embedColor: p.embedColor }))

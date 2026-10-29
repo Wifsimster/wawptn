@@ -1,8 +1,3 @@
-// Verification scaffolding: preloaded into the backend by `control-wawptn launch`
-// (node --import). Refuses every outbound HTTP(S) call to a host other than
-// localhost, so a verification run can never reach Steam, Discord, Stripe,
-// Resend, an LLM API or an alert webhook. Each refused call is appended to
-// $WAWPTN_EGRESS_LOG as one JSON line; `control-wawptn doctor` reports the count.
 import fs from 'node:fs'
 import http from 'node:http'
 import https from 'node:https'

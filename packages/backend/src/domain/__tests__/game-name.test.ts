@@ -23,7 +23,6 @@ describe('normalizeGameName', () => {
   it('drops edition suffixes after a colon', () => {
     expect(normalizeGameName('Hades: Definitive Edition')).toBe('hades')
     expect(normalizeGameName('Skyrim: Special Edition')).toBe('skyrim special edition')
-    // Only recognised editions get stripped via the colon shortcut
   })
 
   it('drops the common GOTY / Definitive Edition suffixes without a colon', () => {
@@ -33,7 +32,6 @@ describe('normalizeGameName', () => {
   })
 
   it('treats a non-edition subtitle as part of the title', () => {
-    // "Odyssey Update" is not in the edition list so it stays.
     const result = normalizeGameName('Hades: Odyssey Update')
     expect(result).toContain('hades')
     expect(result).toContain('odyssey update')

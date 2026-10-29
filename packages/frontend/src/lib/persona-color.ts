@@ -1,24 +1,3 @@
-/**
- * Persona color clamp — addresses D8 from the design review.
- *
- * Discord embed colors are 24-bit integers a server admin (or the
- * persona pool seed) freely picks. Without clamping, a low-lightness
- * blue or a near-white yellow lands on a card that's already on a
- * dark background and either disappears or burns the eye out.
- *
- * The clamp parses the embed integer through HSL and snaps the
- * lightness and saturation into a "designer-friendly" range:
- *
- *   - Lightness clamp: [0.55, 0.78] keeps the color above the
- *     contrast floor on `--background` (oklch 0.115) without going
- *     so light it loses saturation.
- *   - Saturation clamp: [0.45, 0.85] avoids muddy near-greys at the
- *     low end and oversaturated retina-burners at the high end.
- *
- * Pure functions — no DOM, no side effects — so they work in any
- * environment. Hue is preserved so each persona keeps its identity.
- */
-
 const MIN_LIGHTNESS = 0.55
 const MAX_LIGHTNESS = 0.78
 const MIN_SATURATION = 0.45
@@ -92,13 +71,6 @@ function hslToRgb({ h, s, l }: HSL): RGB {
   }
 }
 
-/**
- * Clamp a Discord embed color (24-bit integer) into the
- * designer-approved lightness/saturation range and return a hex
- * string. Hue is preserved.
- *
- * Exported separately for unit testing.
- */
 export function clampPersonaColor(embedColor: number): string {
   const rgb = intToRgb(embedColor)
   const hsl = rgbToHsl(rgb)

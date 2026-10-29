@@ -13,11 +13,6 @@ export type ActiveVoteSession = { id: string; scheduledAt: string | null }
 
 export type TodayPersona = { id: string; name: string; embedColor: number; introMessage: string }
 
-// Server-driven group data that the mount effect and the live socket events
-// keep in sync. Bundling it behind one reducer means a single dispatch can
-// update several related fields at once (e.g. a finished vote both clears the
-// active session and refreshes history) instead of firing a cascade of
-// independent setState calls inside the effect.
 export interface GroupDataState {
   games: CommonGame[]
   gamesLoading: boolean
@@ -26,8 +21,6 @@ export interface GroupDataState {
   activeVoteSession: ActiveVoteSession | null
   todayPersona: TodayPersona | null
   onlineUserIds: string[]
-  /** Timestamp (ms) each member was last seen going offline, so the members
-   *  panel can render a "last seen" label without an extra round-trip. */
   lastSeen: Record<string, number>
 }
 

@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// ---------------------------------------------------------------------------
-// vi.hoisted — variables available inside vi.mock factories (which are hoisted)
-// ---------------------------------------------------------------------------
-
 const {
   mockDb,
   trxResults,
@@ -13,12 +9,6 @@ const {
   computeCommonGamesMock,
   recordSessionEventMock,
 } = vi.hoisted(() => {
-  /**
-   * Chainable mock mimicking a Knex query builder.
-   * Every method returns the same proxy, and `await` resolves to `resolveValue`.
-   * When `resolveValue` is itself a thenable (e.g. `Promise.reject(...)`) the
-   * rejection propagates through, which is how we simulate a 23505 on insert.
-   */
   function chain(resolveValue: unknown = undefined): unknown {
     const proxy: unknown = new Proxy(() => {}, {
       get(_t, prop: string) {
@@ -82,10 +72,6 @@ const {
   }
 })
 
-// ---------------------------------------------------------------------------
-// Module mocks
-// ---------------------------------------------------------------------------
-
 vi.mock('@/infrastructure/database/connection.js', () => ({ db: mockDb }))
 
 vi.mock('@/infrastructure/logger/logger.js', () => {
@@ -102,20 +88,11 @@ vi.mock('@/domain/session-audit-trail.js', () => ({
   recordSessionEvent: recordSessionEventMock,
 }))
 
-// Domain events are fire-and-forget; swallow listeners for the test.
 vi.mock('@/domain/events/event-bus.js', () => ({
   domainEvents: { emit: () => {}, on: () => {}, removeAllListeners: () => {} },
 }))
 
-// ---------------------------------------------------------------------------
-// Import module under test (after mocks)
-// ---------------------------------------------------------------------------
-
 import { createVotingSession } from '../create-session.js'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function setTrxResult(table: string, ...values: unknown[]) {
   trxResults.set(table, values)
@@ -129,10 +106,6 @@ const sampleGames = [
   { steamAppId: 440, gameName: 'Team Fortress 2', headerImageUrl: 'https://img/440.jpg' },
 ]
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe('createVotingSession — "one open session per group" enforcement', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -145,17 +118,13 @@ describe('createVotingSession — "one open session per group" enforcement', () 
   })
 
   function stageHappyPrechecks() {
-    // group_members.pluck → valid members list
     setDbResult('group_members', ['u1', 'u2'])
-    // groups.first → group row (no threshold override)
     setDbResult('groups', { common_game_threshold: null })
-    // votes.select → no previous vote counts
     setDbResult('votes', [])
   }
 
   it('throws a 409 when the pre-check finds an existing open session', async () => {
     stageHappyPrechecks()
-    // voting_sessions.first (pre-check inside trx) returns an existing row.
     setTrxResult('voting_sessions', { id: 'existing-session-id' })
 
     await expect(
@@ -166,15 +135,10 @@ describe('createVotingSession — "one open session per group" enforcement', () 
       message: 'A voting session is already open',
     })
 
-    // We bail out of the transaction before hitting the insert path.
     expect(recordSessionEventMock).not.toHaveBeenCalled()
   })
 
   it('translates Postgres 23505 unique_violation on the insert into the same 409 conflict', async () => {
-    // This simulates the race window: pre-check finds no open session,
-    // but between the SELECT and the INSERT a concurrent transaction
-    // committed an open session for the same group, so the partial
-    // unique index rejects our INSERT.
     stageHappyPrechecks()
 
     const uniqueViolation = Object.assign(
@@ -184,12 +148,7 @@ describe('createVotingSession — "one open session per group" enforcement', () 
       { code: '23505' },
     )
 
-    // The first trx('voting_sessions') call is the FOR UPDATE pre-check
-    // (resolves to undefined — no existing session). The second call is
-    // the insert — rejects with 23505.
     setTrxResult('voting_sessions', undefined, Promise.reject(uniqueViolation))
-    // Swallow the unhandled rejection warning emitted when Vitest sees
-    // the rejected promise we staged above before the proxy consumes it.
     ;(trxResults.get('voting_sessions')![1] as Promise<unknown>).catch(() => {})
 
     await expect(
@@ -202,8 +161,6 @@ describe('createVotingSession — "one open session per group" enforcement', () 
   })
 
   it('re-throws non-unique-violation DB errors unchanged', async () => {
-    // Defensive: a 23502 NOT NULL violation (or any other error) should
-    // propagate as-is so we don't mask real bugs as spurious 409s.
     stageHappyPrechecks()
 
     const otherError = Object.assign(

@@ -114,7 +114,6 @@ interface RenameDialogProps {
 
 export function RenameGroupDialog({ open, onOpenChange, groupName, onRename }: RenameDialogProps) {
   const { t } = useTranslation()
-  // Seeded once from the prop; the parent remounts via `key` to re-seed.
   const [renameName, setRenameName] = useState(() => groupName)
   const [renaming, setRenaming] = useState(false)
 
@@ -169,7 +168,6 @@ interface AutoVoteDialogProps {
 
 export function AutoVoteDialog({ open, onOpenChange, autoVoteSchedule, autoVoteDurationMinutes, onUpdate }: AutoVoteDialogProps) {
   const { t } = useTranslation()
-  // Seeded once from props; the parent remounts via `key` to re-seed.
   const [autoVoteCron, setAutoVoteCron] = useState(() => autoVoteSchedule || '')
   const [autoVoteDuration, setAutoVoteDuration] = useState(() => autoVoteDurationMinutes)
   const [autoVoteSaving, setAutoVoteSaving] = useState(false)
@@ -268,7 +266,6 @@ interface DigestDialogProps {
 
 export function ReleasesDigestDialog({ open, onOpenChange, releasesDigestEnabled, releasesDigestSchedule, releasesDigestCoopOnly, onUpdate, onTest }: DigestDialogProps) {
   const { t } = useTranslation()
-  // Seeded once from props; the parent remounts via `key` to re-seed.
   const [digestCron, setDigestCron] = useState(() => releasesDigestSchedule || '0 21 * * 5')
   const [digestCoopOnly, setDigestCoopOnly] = useState(() => releasesDigestCoopOnly)
   const [digestSaving, setDigestSaving] = useState(false)

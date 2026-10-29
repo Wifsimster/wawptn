@@ -6,16 +6,6 @@ import { SESSION_COOKIE_NAME } from '../../config/session.js'
 
 const router = Router()
 
-/**
- * User profile routes — power the "view another user's profile" and
- * "compare with me" flows. See issue #142 for the full design.
- *
- * Authorization rule (Julien's red line): the viewer must share at
- * least one group with the target. There is no global directory.
- * URL params use the internal UUID `users.id`, never the Steam ID.
- */
-
-// ── Types ───────────────────────────────────────────────────────────
 
 interface UserRow {
   id: string
@@ -33,15 +23,8 @@ interface GameRow {
   playtime_forever: number | null
 }
 
-// UUID validation — matches the shape postgres gen_random_uuid() emits.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-// ── Authz helper ────────────────────────────────────────────────────
-
-/**
- * Returns true if `viewerId` and `targetId` share at least one group.
- * A user is always co-member of themselves for this check.
- */
 async function areCoMembers(viewerId: string, targetId: string): Promise<boolean> {
   if (viewerId === targetId) return true
   const row = await db('group_members as viewer')
@@ -52,8 +35,6 @@ async function areCoMembers(viewerId: string, targetId: string): Promise<boolean
     .first()
   return !!row
 }
-
-// ── Query helpers ───────────────────────────────────────────────────
 
 async function loadUser(userId: string): Promise<UserRow | null> {
   const row = await db('users')
@@ -91,11 +72,6 @@ async function loadTopGames(userId: string, limit: number): Promise<GameRow[]> {
     .select('steam_app_id', 'game_name', 'header_image_url', 'playtime_forever')
 }
 
-/**
- * Compute the games owned by both users, with per-user playtime.
- * Ordered by combined playtime desc so the UI shows the most-played
- * common games first.
- */
 async function loadCommonGames(
   userIdA: string,
   userIdB: string,
@@ -125,8 +101,6 @@ async function loadCommonGames(
     playtime_b: r.playtime_b,
   }))
 }
-
-// ── Response shaping ────────────────────────────────────────────────
 
 function serializeGame(row: GameRow) {
   return {
@@ -160,15 +134,6 @@ async function buildPublicProfile(viewerId: string, target: UserRow) {
   }
 }
 
-// ── Shared guard ────────────────────────────────────────────────────
-
-/**
- * Middleware factory that looks up a target user by their UUID from
- * a route param, ensures the viewer is a co-member, and stashes the
- * resolved user row on `res.locals.target`. Returns 404 for both
- * "not found" and "not a co-member" so an attacker cannot enumerate
- * which UUIDs correspond to real accounts.
- */
 function requireCoMember(paramName: string) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const targetId = String(req.params[paramName] ?? '')
@@ -197,9 +162,6 @@ function requireCoMember(paramName: string) {
   }
 }
 
-// ── Routes ──────────────────────────────────────────────────────────
-
-// GET /api/users/me/visibility — read own visibility toggles
 router.get('/me/visibility', async (req: Request, res: Response) => {
   const row = await db('users')
     .where({ id: req.userId! })
@@ -215,16 +177,12 @@ router.get('/me/visibility', async (req: Request, res: Response) => {
   })
 })
 
-// GET /api/users/me/streaks — per-user streak roll-up across every group.
-// Powers the GroupsPage retention badge ("🔥 N"). Returns zeros when the
-// user has never closed a session — call sites suppress rendering then.
 router.get('/me/streaks', async (req: Request, res: Response) => {
   const { getUserStreakSummary } = await import('../../domain/streaks.js')
   const summary = await getUserStreakSummary(req.userId!)
   res.json(summary)
 })
 
-// PATCH /api/users/me/visibility — update own visibility toggles
 router.patch('/me/visibility', async (req: Request, res: Response) => {
   const { visibilityFullLibrary, visibilityLastPlayed } = req.body as {
     visibilityFullLibrary?: unknown
@@ -255,8 +213,6 @@ router.patch('/me/visibility', async (req: Request, res: Response) => {
   })
 })
 
-// GET /api/users/me/export — RGPD data portability: download all of the
-// caller's own data as a JSON file.
 router.get('/me/export', async (req: Request, res: Response) => {
   const { exportUserData } = await import('../../domain/account-deletion.js')
   const data = await exportUserData(req.userId!)
@@ -264,10 +220,6 @@ router.get('/me/export', async (req: Request, res: Response) => {
   res.json(data)
 })
 
-// DELETE /api/users/me — RGPD right to erasure. Permanently deletes the
-// caller's account; owned groups are transferred to another member or
-// removed. requireSameOrigin blocks a forged cross-site request from
-// deleting a victim's account through their logged-in browser.
 router.delete('/me', requireSameOrigin, async (req: Request, res: Response) => {
   const userId = req.userId!
   const { deleteUserAccount } = await import('../../domain/account-deletion.js')
@@ -277,7 +229,6 @@ router.delete('/me', requireSameOrigin, async (req: Request, res: Response) => {
   res.json({ ok: true })
 })
 
-// GET /api/users/compare?a=:userIdA&b=:userIdB — two-user comparison
 router.get('/compare', async (req: Request, res: Response) => {
   const viewerId = req.userId!
   const a = String(req.query['a'] ?? '')
@@ -313,9 +264,6 @@ router.get('/compare', async (req: Request, res: Response) => {
       loadGameCount(b),
     ])
 
-    // Games only owned by A or B — only populated when each side has
-    // opted in to sharing their full library, otherwise it would leak
-    // ownership outside the intersection.
     const [topRawA, topRawB] = await Promise.all([
       targetA.visibility_full_library ? loadTopGames(a, 50) : Promise.resolve([]),
       targetB.visibility_full_library ? loadTopGames(b, 50) : Promise.resolve([]),
@@ -352,7 +300,6 @@ router.get('/compare', async (req: Request, res: Response) => {
   }
 })
 
-// GET /api/users/:userId/profile — single profile, co-member scoped
 router.get('/:userId/profile', requireCoMember('userId'), async (req: Request, res: Response) => {
   const target = res.locals['target'] as UserRow
   try {

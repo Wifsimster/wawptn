@@ -12,14 +12,6 @@ export interface CreateSessionParams {
   filters?: GameFilters
   scheduledAt?: Date | null
   excludeAppIds?: number[]
-  /**
-   * Explicit game list. When provided, the common-games computation is
-   * bypassed and these exact games are put up for the vote. Used by the
-   * new-game spotlight to open a vote on a member's freshly acquired games
-   * (which are deliberately NOT required to be owned by everyone — the whole
-   * point is "who wants to play this?"). When omitted, the session falls back
-   * to the usual common-games selection.
-   */
   games?: SessionGame[]
 }
 
@@ -42,9 +34,6 @@ export interface CreateSessionResult {
   games: SessionGame[]
 }
 
-/** Shape the "already open" 409 conflict uniformly in one place so both the
- *  in-transaction pre-check and the post-insert unique-violation handler
- *  throw the exact same error object. */
 function conflictError(): Error & { statusCode: number; errorCode: string } {
   const err = new Error('A voting session is already open') as Error & {
     statusCode: number
@@ -55,28 +44,14 @@ function conflictError(): Error & { statusCode: number; errorCode: string } {
   return err
 }
 
-/** Postgres SQLSTATE 23505 = unique_violation. node-postgres exposes this on
- *  `err.code`; Knex wraps it but keeps the original property. We only care
- *  about the string match so we coerce to string defensively. */
 function isUniqueViolation(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === '23505'
 }
 
-/**
- * Create a voting session for a group.
- * Computes common games, sorts by popularity, inserts session + participants + games,
- * then emits a `session:created` domain event that infrastructure effects subscribe to
- * (Socket.io, Discord webhook, in-app notifications).
- *
- * Throws on validation errors (with a `statusCode` property on the error).
- */
 export async function createVotingSession(params: CreateSessionParams): Promise<CreateSessionResult> {
   const { groupId, createdBy, filter, filters, scheduledAt, excludeAppIds, games: explicitGames } = params
-  // Deduplicate before validating: [me, me] must not pass the 2-participant
-  // minimum and produce a single-voter session.
   const participantIds = [...new Set(params.participantIds)]
 
-  // Validate participantIds
   if (participantIds.length < 2) {
     const err = new Error('At least 2 participant IDs are required') as Error & { statusCode: number; errorCode: string }
     err.statusCode = 400
@@ -84,7 +59,6 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
     throw err
   }
 
-  // Validate all participant IDs are group members
   const validMembers = await db('group_members')
     .where({ group_id: groupId })
     .whereIn('user_id', participantIds)
@@ -99,8 +73,6 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
     throw err
   }
 
-  // The set of games put up for the vote. Either the caller's explicit list
-  // (spotlight path) or the group's common games (the usual path).
   let selectedGames: Array<{
     steamAppId: number
     gameId?: string | null
@@ -110,12 +82,8 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
   }>
 
   if (explicitGames && explicitGames.length > 0) {
-    // Explicit-games path: the caller already decided what to vote on (e.g. a
-    // member's freshly acquired games), so skip the common-games computation
-    // and ordering entirely.
     selectedGames = explicitGames
   } else {
-    // Get common games for the selected participants
     const group = await db('groups').where({ id: groupId }).first()
     const threshold = group?.common_game_threshold
       ? Math.min(group.common_game_threshold, validMembers.length)
@@ -123,7 +91,6 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
 
     const commonGames = await computeCommonGames(validMembers, { filter, filters, threshold })
 
-    // Exclude specific games (e.g. the winning game from a previous session for rematch)
     const filteredCommonGames = excludeAppIds && excludeAppIds.length > 0
       ? commonGames.filter(g => !excludeAppIds.includes(g.steamAppId))
       : commonGames
@@ -135,7 +102,6 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
       throw err
     }
 
-    // Order common games by popularity in previous sessions (most voted-for first)
     const previousVoteCounts = await db('votes')
       .join('voting_sessions', 'votes.session_id', 'voting_sessions.id')
       .where({ 'voting_sessions.group_id': groupId, 'voting_sessions.status': 'closed', 'votes.vote': true })
@@ -151,7 +117,6 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
       const countA = voteCountMap.get(a.steamAppId) || 0
       const countB = voteCountMap.get(b.steamAppId) || 0
       if (countA !== countB) return countB - countA
-      // Tiebreaker: aggregate playtime across group members (most played first)
       const playtimeA = a.totalPlaytime ?? 0
       const playtimeB = b.totalPlaytime ?? 0
       if (playtimeA !== playtimeB) return playtimeB - playtimeA
@@ -159,20 +124,6 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
     })
   }
 
-  // Atomic check-and-create. Two layers of protection:
-  //
-  //  1. In-transaction `SELECT ... FOR UPDATE` + pre-check. Catches the
-  //     common case early so we can return a clean 409 without wasting
-  //     an INSERT and surfacing a Postgres error. NOTE: under READ
-  //     COMMITTED, FOR UPDATE on a query returning zero rows does NOT
-  //     acquire predicate locks, so it alone cannot prevent two
-  //     concurrent "start vote" requests from both passing this check.
-  //
-  //  2. Partial unique index `uniq_voting_sessions_one_open_per_group`
-  //     on `(group_id) WHERE status = 'open'`. The database rejects the
-  //     second concurrent insert with Postgres error 23505, which we
-  //     translate into the same 409 conflict below. This is the real
-  //     race-proof guarantee.
   const session = await db.transaction(async (trx) => {
     const existingSession = await trx('voting_sessions')
       .where({ group_id: groupId, status: 'open' })
@@ -192,10 +143,6 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
         ...(scheduledAt ? { scheduled_at: scheduledAt } : {}),
       }).returning('*')
     } catch (err) {
-      // Postgres 23505 = unique_violation. Raised when a concurrent
-      // transaction won the race and committed its own open session
-      // first. Translate to the same 409 the pre-check produces so
-      // callers only ever see one shape.
       if (isUniqueViolation(err) && /uniq_voting_sessions_one_open_per_group/.test(String(err))) {
         throw conflictError()
       }
@@ -219,10 +166,6 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
       }))
     )
 
-    // Snapshot the participant list at creation time so we can later answer
-    // "who was eligible to vote when this session was opened?" even after
-    // the underlying group_members table churns. Pinned to the same
-    // transaction so the audit row lives or dies with the session itself.
     await recordSessionEvent({
       sessionId: sess.id,
       event: 'session_created',
@@ -240,8 +183,6 @@ export async function createVotingSession(params: CreateSessionParams): Promise<
     return sess
   })
 
-  // Emit domain event — side effects (Socket.io, Discord, in-app notifs) are
-  // handled by subscribers registered in infrastructure/effects/session-effects.ts
   domainEvents.emit('session:created', {
     sessionId: session.id,
     groupId,

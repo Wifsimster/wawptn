@@ -32,9 +32,6 @@ interface AppHeaderProps {
   children?: React.ReactNode
   className?: string
   maxWidth?: 'narrow' | 'wide'
-  /** Set by AppLayout: whether a page has portalled content into the header
-   *  slot. When AppLayout passes an (always-truthy) slot node as `children`,
-   *  this — not `children` — decides the page-content layout. */
   hasPageContent?: boolean
 }
 
@@ -73,10 +70,8 @@ export function AppHeader({ children, className, maxWidth = 'narrow', hasPageCon
         </button>
         <div className={cn('flex-1', showPageContent && 'hidden sm:block')} />
 
-        {/* Notifications */}
         {user && <NotificationBell />}
 
-        {/* User menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button

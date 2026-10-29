@@ -10,30 +10,16 @@ import { recordSystemAction } from '../../domain/admin-audit-log.js'
 
 const reconcilerLogger = logger.child({ module: 'subscription-reconciler' })
 
-/** Grace period in days before downgrading past_due subscriptions */
 const GRACE_PERIOD_DAYS = PAST_DUE_GRACE_PERIOD_DAYS
 
-/** Postgres advisory-lock key — only one replica may hold this at a time, so
- *  the daily reconcile fires once across the fleet instead of N times. The
- *  literal value is arbitrary but must be stable; pick a fixed bigint. */
-const RECONCILER_LOCK_KEY = 0x5741575054_4e525043n // 'WAWPTNRPC'
+const RECONCILER_LOCK_KEY = 0x5741575054_4e525043n
 
-/** Same-instance overlap guard: a manual /admin trigger that lands while the
- *  cron is mid-run would otherwise queue up duplicate work. */
 let isRunning = false
 
-/** SIGTERM coordination — the inner pass polls this flag between Stripe
- *  pages so a graceful shutdown can stop without aborting an in-flight
- *  Stripe call. */
 let shuttingDown = false
 
-/** Promise of the in-flight pass, exposed so the process shutdown handler
- *  can await it before closing the DB connection. */
 let currentRun: Promise<unknown> | null = null
 
-/** In-memory snapshot of the last reconcile pass — surfaced by the
- *  /admin/subscription-health endpoint so ops can see whether the daily
- *  job is healthy without grepping logs. */
 export interface ReconcilerHealth {
   lastRunAt: Date | null
   lastRunSucceeded: boolean | null
@@ -60,14 +46,6 @@ export function getReconcilerHealth(): ReconcilerHealth {
   return { ...health }
 }
 
-/**
- * Start daily cron job to reconcile subscription state with Stripe.
- *
- * Cross-replica election is enforced via a Postgres advisory lock acquired
- * inside `runReconciliation` — every replica's cron fires, but only the one
- * that wins the lock proceeds. The rest log and exit, so we don't hammer
- * Stripe N times per day on a multi-replica deploy.
- */
 export function startSubscriptionReconciler(): void {
   if (!isStripeEnabled()) return
 
@@ -75,44 +53,21 @@ export function startSubscriptionReconciler(): void {
     await runReconciliation()
   })
 
-  // Catch-up: in-process cron does not replay a fire time missed while the
-  // process was down, so a deploy or crash spanning 03:00 UTC would skip a
-  // day of reconciliation. Run once shortly after startup to cover that.
-  // The pass is idempotent and advisory-locked, so an extra run per deploy
-  // is harmless.
   setTimeout(() => { void runReconciliation() }, 30_000)
 
   reconcilerLogger.info('subscription reconciler scheduled (daily at 03:00 UTC, catch-up on startup)')
 }
 
-/** Signal the reconciler that the process is shutting down and wait for any
- *  in-flight pass to settle. Called from the SIGTERM/SIGINT handler so an
- *  active Stripe pagination loop has a chance to stop cleanly between pages
- *  before the DB connection is closed. */
 export async function stopSubscriptionReconciler(): Promise<void> {
   shuttingDown = true
   if (currentRun) {
     try {
       await currentRun
     } catch {
-      // Errors are already logged inside runReconciliation.
     }
   }
 }
 
-/** Single pass — exposed for testability and for an /admin endpoint that
- *  manually triggers reconciliation if the daily job has been failing.
- *
- *  Concurrency model:
- *    1. `isRunning` blocks a second concurrent call on the SAME instance.
- *    2. `pg_try_advisory_xact_lock` on a dedicated transaction blocks
- *       concurrent runs across replicas. The lock is auto-released when the
- *       lock-holding transaction commits (xact-scoped), so a crashed replica
- *       cannot leave the lock orphaned.
- *
- *  The lock-holding transaction does no business work — it just sits idle
- *  for the duration of the pass. All actual reconciliation queries use the
- *  regular `db` pool so reads/writes don't pile onto a long-lived tx. */
 export async function runReconciliation(): Promise<ReconcilerHealth> {
   if (isRunning) {
     reconcilerLogger.warn('reconciliation already in flight on this instance — skipping')
@@ -188,7 +143,7 @@ export async function runReconciliation(): Promise<ReconcilerHealth> {
     } catch (error) {
       reconcilerLogger.error({ error: String(error) }, 'reconciliation outer failure')
       if (lockTrx) {
-        try { await lockTrx.rollback() } catch { /* swallow */ }
+        try { await lockTrx.rollback() } catch { }
       }
       health.lastRunSucceeded = false
       health.lastRunDurationMs = Date.now() - start
@@ -205,25 +160,15 @@ export async function runReconciliation(): Promise<ReconcilerHealth> {
 }
 
 
-/**
- * Reconcile active subscriptions with Stripe to fix drift. Pulls Stripe's
- * canonical state via auto-paginated `subscriptions.list` rather than
- * one-retrieve-per-row, cutting round-trips from N to ceil(N/100).
- */
 async function reconcileSubscriptions(): Promise<void> {
   const stripe = getStripe()
 
-  // Index local rows by stripe_subscription_id for O(1) drift comparison.
   const localRows = await db('subscriptions')
     .whereNotNull('stripe_subscription_id')
     .select('user_id', 'stripe_subscription_id', 'tier', 'status', 'cancel_at_period_end', 'past_due_since')
   const byStripeId = new Map<string, typeof localRows[number]>()
   for (const row of localRows) byStripeId.set(row.stripe_subscription_id, row)
 
-  // Auto-paginate every Stripe subscription so we also catch new subs
-  // created via the Customer Portal that never produced a checkout.session
-  // event. Status='all' returns canceled rows too — we want those to
-  // detect divergence.
   for await (const stripeSub of stripe.subscriptions.list({ status: 'all', limit: 100 })) {
     if (shuttingDown) {
       reconcilerLogger.warn('shutdown signaled — aborting reconcileSubscriptions mid-pass')
@@ -231,17 +176,10 @@ async function reconcileSubscriptions(): Promise<void> {
     }
     const local = byStripeId.get(stripeSub.id)
 
-    // Same mapping as the webhook path, so the two never fight over a row
-    // (e.g. incomplete_expired is 'canceled' in both).
     const { tier: stripeTier, status: stripeStatus, cancelAtPeriodEnd } = mapStripeStatus(stripeSub)
 
     try {
       if (!local) {
-        // Stripe knows about this sub, we don't. Try to recover via
-        // metadata.userId — but only when it can't clobber the user's
-        // current subscription: `status: 'all'` also lists every old,
-        // canceled or abandoned sub of a user whose row points elsewhere,
-        // and the Stripe account is shared with other apps.
         const userId = stripeSub.metadata?.['userId']
         const recoverable = typeof userId === 'string' && userId.length > 0
           && await isRecoverableOrphanSub(userId, stripeSub)
@@ -294,9 +232,6 @@ async function reconcileSubscriptions(): Promise<void> {
           current_period_end: periodEnd,
           updated_at: db.fn.now(),
         }
-        // Keep the grace clock consistent with the webhook path: start it
-        // only when a paying row falls behind (never for a row the grace
-        // enforcement already canceled), clear it on the way out.
         if (stripeStatus === 'past_due') {
           if (local.status === 'active') update['past_due_since'] = new Date()
         } else {
@@ -338,15 +273,7 @@ async function reconcileSubscriptions(): Promise<void> {
   }
 }
 
-/**
- * Whether an unknown Stripe subscription may be written onto the user's row.
- * Allowed when the user exists and either has no row yet, a row with no
- * subscription attached, or the Stripe sub is live while the current row is
- * not (e.g. a new sub created from the Customer Portal). A dead or stale sub
- * must never overwrite the one the user currently has.
- */
 async function isRecoverableOrphanSub(userId: string, stripeSub: Stripe.Subscription): Promise<boolean> {
-  // Other apps on the shared Stripe account may use non-uuid user ids.
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) return false
   const user = await db('users').where({ id: userId }).select('id').first()
   if (!user) return false
@@ -361,11 +288,6 @@ async function isRecoverableOrphanSub(userId: string, stripeSub: Stripe.Subscrip
   return live && row.status !== 'active'
 }
 
-/**
- * Repair customers with a stripe_customer_id but no stripe_subscription_id.
- * These are users whose /checkout call created a Stripe customer but where
- * the checkout.session.completed webhook was lost.
- */
 async function repairOrphanCustomers(): Promise<void> {
   const stripe = getStripe()
 
@@ -380,8 +302,6 @@ async function repairOrphanCustomers(): Promise<void> {
       return
     }
     try {
-      // List active and trialing subs for this customer. If there's one,
-      // the checkout completed at Stripe but we missed the webhook.
       const result = await stripe.subscriptions.list({
         customer: row.stripe_customer_id,
         status: 'all',
@@ -428,11 +348,6 @@ async function repairOrphanCustomers(): Promise<void> {
   }
 }
 
-/**
- * Downgrade past_due subscriptions after grace period expires. Uses
- * past_due_since (set on the transition into past_due) rather than
- * updated_at, so dunning retries don't reset the clock.
- */
 async function enforcePastDueGracePeriod(): Promise<number> {
   const graceDeadline = new Date()
   graceDeadline.setDate(graceDeadline.getDate() - GRACE_PERIOD_DAYS)

@@ -4,7 +4,6 @@ import { logger } from '../../infrastructure/logger/logger.js'
 
 const router = Router()
 
-// Get current user's challenge progress
 router.get('/me', async (req: Request, res: Response) => {
   const userId = req.userId!
   try {

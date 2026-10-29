@@ -3,27 +3,12 @@ import { env } from '../../config/env.js'
 import { logger } from '../logger/logger.js'
 import { isBotClientEnabled, postChannelEmbed } from './bot-client.js'
 
-/**
- * Posts the "new game spotlight" announcement into a group's Discord: a member
- * just acquired one or more games, so we announce them ("X vient d'ajouter Y")
- * along with how many group members already own each one — the "have or not in
- * common" angle. The interactive "qui veut jouer ?" vote is opened separately
- * (see new-game-spotlight.ts) through the existing voting machinery; this embed
- * is the context that precedes it.
- *
- * Mirrors `releases-notifier.ts`'s dual-transport posture: a bot-linked channel
- * is served by the bot's generic channel-post endpoint, a webhook-only group by
- * a direct webhook POST. Both are best-effort — a Discord failure is logged,
- * never thrown, since this is a non-critical announcement.
- */
-
 const STEAM_BLUE = 0x66c0f4
 
 export interface SpotlightGame {
   steamAppId: number
   gameName: string
   headerImageUrl: string | null
-  /** How many group members already own this game (the owner included). */
   ownerCount: number
 }
 
@@ -34,10 +19,6 @@ export interface SpotlightGroup {
   discordWebhookUrl: string | null
 }
 
-/**
- * Renders the "already owned by N members" hint for one game. Pure so it can
- * be unit-tested independently of Discord.
- */
 export function ownershipHint(ownerCount: number, memberCount: number): string {
   if (ownerCount >= memberCount && memberCount > 0) {
     return '✅ Tout le monde l’a déjà'
@@ -98,11 +79,6 @@ async function postWebhook(webhookUrl: string, embed: DiscordEmbedPayload): Prom
   }
 }
 
-/**
- * Best-effort post of the spotlight announcement. Returns whether any
- * transport accepted the post (callers don't currently depend on this, but it
- * matches the releases-notifier contract).
- */
 export async function notifyNewGameSpotlight(
   group: SpotlightGroup,
   ownerName: string,
@@ -114,7 +90,6 @@ export async function notifyNewGameSpotlight(
   const embed = buildSpotlightEmbed(group.name, ownerName, memberCount, games)
   let delivered = false
 
-  // Primary: bot-backed post into the linked channel.
   if (group.discordChannelId && isBotClientEnabled()) {
     delivered = await postChannelEmbed(group.discordChannelId, [embed])
     if (delivered) {
@@ -122,8 +97,6 @@ export async function notifyNewGameSpotlight(
     }
   }
 
-  // Fallback: direct webhook POST for webhook-only groups (or when the bot
-  // post failed and a webhook is also configured).
   if (!delivered && group.discordWebhookUrl) {
     delivered = await postWebhook(group.discordWebhookUrl, embed)
     if (delivered) {

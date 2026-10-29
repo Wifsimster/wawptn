@@ -19,26 +19,6 @@ import { db } from '../../infrastructure/database/connection.js'
 import { logger } from '../../infrastructure/logger/logger.js'
 import { claimStripeEvent, handleStripeEvent } from '../../domain/stripe-event-handlers.js'
 
-/**
- * Stripe webhook router.
- *
- * Mounted separately from the user-facing subscription routes (`/me`,
- * `/checkout`, `/portal`) so it can run BEFORE express.json() with a raw
- * body parser — signature verification needs the unparsed bytes — and
- * with NO auth/CSRF middleware (Stripe authenticates by signed payload).
- *
- * Responsibilities here are HTTP only:
- *   1. Verify signature, increment metrics
- *   2. Atomic dedup-and-claim against stripe_events
- *   3. Dispatch to the domain handlers inside a single transaction so
- *      side effects + the success-mark commit atomically
- *   4. Classify failures as transient (5xx — Stripe retries) vs permanent
- *      (200 — Stripe stops; we triage from stripe_events)
- *
- * All actual side-effect work lives in
- * `domain/stripe-event-handlers.ts` so it's testable without an Express
- * harness.
- */
 export const subscriptionWebhookRouter = Router()
 
 const subLogger = logger.child({ module: 'subscription-webhook' })
@@ -78,8 +58,6 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
   try {
     await db.transaction(async (trx) => {
       await handleStripeEvent(trx, stripe, event)
-      // Mark the event as processed inside the same transaction so the
-      // success state can never be committed without the side-effects.
       await trx('stripe_events')
         .where({ event_id: event.id })
         .update({ status: 'success', last_attempted_at: trx.fn.now() })
@@ -89,10 +67,6 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
     res.json({ received: true })
   } catch (error) {
     incrementWebhookFailure(event.type)
-    // Mark the event as failed so a Stripe retry can re-claim it.
-    // Classify the error: 4xx Stripe errors and known data-shape errors
-    // are permanent failures (return 200 to stop retries); 5xx and
-    // network errors are transient (return 500 so Stripe retries).
     const transient = isStripeError(error)
       ? (error.statusCode ?? 500) >= 500 || error.type === 'StripeConnectionError'
       : true
@@ -113,8 +87,6 @@ subscriptionWebhookRouter.post('/', async (req: Request, res: Response) => {
     if (transient) {
       res.status(500).json({ error: 'processing_error' })
     } else {
-      // Permanent failure: 200 stops Stripe from retrying. The failure
-      // is recorded in stripe_events for the team to investigate.
       res.status(200).json({ received: true, error: 'permanent_failure' })
     }
   }

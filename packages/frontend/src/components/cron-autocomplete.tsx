@@ -4,16 +4,10 @@ import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface CronPreset {
-  /** Cron expression (standard 5-field format). */
   expression: string
-  /** i18n key for the humanized label. */
   labelKey: string
 }
 
-/**
- * Curated list of common cron presets exposed as autocomplete suggestions.
- * Kept intentionally short so the dropdown stays scannable.
- */
 const CRON_PRESETS: CronPreset[] = [
   { expression: '0 18 * * *', labelKey: 'group.autoVotePresetDaily18' },
   { expression: '0 19 * * *', labelKey: 'group.autoVotePresetDaily19' },
@@ -39,13 +33,6 @@ interface CronAutocompleteProps {
   autoFocus?: boolean
 }
 
-/**
- * Input with a humanized autocomplete dropdown for cron schedules.
- *
- * Users can either type a raw cron expression or pick a preset. Presets are
- * filtered by matching the query against both the humanized label and the
- * cron expression itself.
- */
 export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }: CronAutocompleteProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -62,10 +49,8 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
     })
   }, [value, t])
 
-  // Keep the highlight within the bounds of the current filtered list.
   const activeIndex = filtered.length === 0 ? -1 : Math.min(highlight, filtered.length - 1)
 
-  // Close on outside click.
   useEffect(() => {
     if (!open) return
     const handler = (event: MouseEvent) => {
@@ -78,7 +63,6 @@ export function CronAutocomplete({ id, value, onChange, placeholder, autoFocus }
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
-  // Keep the highlighted item visible when navigating with the keyboard.
   useEffect(() => {
     if (!open || !listRef.current || activeIndex < 0) return
     const el = listRef.current.querySelector<HTMLDivElement>(`[data-index="${activeIndex}"]`)

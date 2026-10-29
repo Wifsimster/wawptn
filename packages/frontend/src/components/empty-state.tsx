@@ -14,17 +14,12 @@ interface EmptyStateProps {
     loading?: boolean
     icon?: LucideIcon
   }
-  /** Secondary, less prominent action — shown next to the primary action. */
   secondaryAction?: {
     label: string
     onClick: () => void
     icon?: LucideIcon
   }
-  /** Visual register for the state. `neutral` is the default,
-   *  `warning` for invite-token problems / dead links,
-   *  `celebrate` for milestones (first vote completed, etc.). */
   tone?: 'neutral' | 'warning' | 'celebrate'
-  /** Optional secondary content rendered below the action (checklist, FAQ link, etc.) */
   hint?: ReactNode
 }
 
@@ -53,8 +48,6 @@ export function EmptyState({
       transition={{ duration: 0.4, ease: 'easeOut' }}
       className="relative flex flex-col items-center justify-center py-12 px-4 text-center overflow-hidden"
     >
-      {/* Brand "?" watermark — same motif as LandingPage / GroupsPage welcome.
-          aria-hidden so screen readers don't read a meaningless character. */}
       <span
         aria-hidden="true"
         className={cn(

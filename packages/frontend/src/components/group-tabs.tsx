@@ -17,14 +17,9 @@ const TAB_META: Record<GroupTab, { icon: LucideIcon; labelKey: string }> = {
 interface GroupTabsProps {
   active: GroupTab
   onChange: (tab: GroupTab) => void
-  /** When true, the Tonight tab carries a live-vote indicator so an
-   *  in-progress vote is visible from any other tab. */
   voteLive?: boolean
 }
 
-/** Persistent, labelled navigation for the group detail page. Replaces the
- *  old hidden mobile bottom-sheet + desktop sidebar so every group feature
- *  has a visible home on both viewports. */
 export function GroupTabs({ active, onChange, voteLive = false }: GroupTabsProps) {
   const { t } = useTranslation()
 

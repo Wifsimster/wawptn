@@ -6,11 +6,6 @@ import { logger } from '../../infrastructure/logger/logger.js'
 
 const router = Router()
 
-/**
- * Public JSON invite preview — returns group info, member avatars,
- * top 3 most-voted games, and the most recent winning game.
- * No authentication required so the JoinPage can show a rich preview.
- */
 router.get('/:token/preview', async (req: Request, res: Response) => {
   const token = String(req.params['token'])
 
@@ -33,14 +28,12 @@ router.get('/:token/preview', async (req: Request, res: Response) => {
       return
     }
 
-    // Member count
     const countResult = await db('group_members')
       .where({ group_id: group.id })
       .count('* as count')
       .first()
     const memberCount = Number(countResult?.count || 0)
 
-    // Member avatars (up to 5)
     const members = await db('group_members')
       .join('users', 'users.id', 'group_members.user_id')
       .where({ group_id: group.id })
@@ -49,7 +42,6 @@ router.get('/:token/preview', async (req: Request, res: Response) => {
       .limit(5) as { avatar_url: string | null }[]
     const memberAvatars = members.map(m => m.avatar_url).filter(Boolean) as string[]
 
-    // Top 3 most voted-for games (by positive vote count across closed sessions)
     const topGames = await db('votes')
       .join('voting_sessions', 'voting_sessions.id', 'votes.session_id')
       .join('voting_session_games', function () {
@@ -66,7 +58,6 @@ router.get('/:token/preview', async (req: Request, res: Response) => {
       .orderBy('voteCount', 'desc')
       .limit(3) as unknown as { gameName: string; headerImageUrl: string | null }[]
 
-    // Recent winner: last closed session with a winning game
     const lastWinner = await db('voting_sessions')
       .where({ group_id: group.id, status: 'closed' })
       .whereNotNull('winning_game_name')
@@ -76,7 +67,6 @@ router.get('/:token/preview', async (req: Request, res: Response) => {
 
     let recentWinner: { gameName: string; headerImageUrl: string | null } | null = null
     if (lastWinner) {
-      // Get header image from voting_session_games
       const gameRow = await db('voting_session_games')
         .join('voting_sessions', 'voting_sessions.id', 'voting_session_games.session_id')
         .where({ 'voting_sessions.group_id': group.id })
@@ -111,11 +101,6 @@ router.get('/:token/preview', async (req: Request, res: Response) => {
   }
 })
 
-/**
- * Public invite preview route for Discord/social media rich embeds.
- * Returns minimal HTML with Open Graph meta tags, then redirects to the SPA.
- * No authentication required — crawlers (Discord, Slack, Twitter) cannot authenticate.
- */
 router.get('/:token', async (req: Request, res: Response) => {
   const token = String(req.params['token'])
 
@@ -141,7 +126,6 @@ router.get('/:token', async (req: Request, res: Response) => {
       memberCount = Number(result?.count || 0)
     }
   } catch {
-    // If DB lookup fails, serve generic preview
   }
 
   const ogTitle = isValid
@@ -152,24 +136,15 @@ router.get('/:token', async (req: Request, res: Response) => {
     ? `${memberCount} membre${memberCount > 1 ? 's' : ''} — Connecte-toi avec Steam et vote pour le jeu de ce soir !`
     : 'Connecte-toi avec Steam, rejoins un groupe et votez pour le jeu de ce soir !'
 
-  // Absolute base URL from config. req.protocol/req.get('host') would be
-  // wrong behind the Traefik proxy (reports http, not https) and is
-  // attacker-controllable via the Host header — both would poison the OG
-  // image and canonical URLs handed to crawlers.
   const baseUrl = env.API_URL
-  // `token` is a raw URL path segment. Escape every interpolation that lands
-  // in an HTML attribute so a crafted token cannot break out and inject markup.
   const spaUrl = escapeHtml(`${baseUrl}/join/${token}`)
   const inviteUrl = escapeHtml(`${baseUrl}/invite/${token}`)
-  // Valid invites get a dynamic branded card (group name, member count, top
-  // games); expired/invalid tokens fall back to the static logo.
   const ogImageUrl = escapeHtml(
     isValid
       ? `${baseUrl}/api/og/invite/${token}.png`
       : `${baseUrl}/og-image.png`,
   )
 
-  // Minimal HTML with OG tags for crawlers + meta refresh redirect for humans
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>

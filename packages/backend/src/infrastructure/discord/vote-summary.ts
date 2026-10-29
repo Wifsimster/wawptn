@@ -1,15 +1,6 @@
 import type { DiscordVoteSummary, DiscordVoteTally } from '@wawptn/types'
 import { db } from '../database/connection.js'
 
-/**
- * Build the `DiscordVoteSummary` the bot needs to render a live-count or
- * closed embed for a voting session.
- *
- * Kept as a single query per concern (games / tallies / voter count) instead
- * of one grand join so each read stays cheap enough to run on every vote
- * edit without needing a query planner deep-dive. The debouncer upstream
- * rate-limits how often this runs anyway.
- */
 export async function buildVoteSummary(sessionId: string): Promise<DiscordVoteSummary> {
   const games = await db('voting_session_games')
     .where({ session_id: sessionId })
@@ -46,8 +37,6 @@ export async function buildVoteSummary(sessionId: string): Promise<DiscordVoteSu
     .countDistinct('user_id as count')
     .first()
 
-  // Prefer the participant snapshot over the current group roster so the
-  // denominator can't drift if membership changes mid-session.
   const participantCountRow = await db('voting_session_participants')
     .where({ session_id: sessionId })
     .count('* as count')
@@ -57,8 +46,6 @@ export async function buildVoteSummary(sessionId: string): Promise<DiscordVoteSu
   let totalParticipants = Number(participantCountRow?.count ?? 0)
 
   if (totalParticipants === 0) {
-    // Legacy sessions (pre-participants-table) — fall back to the group's
-    // current member count so the UI still shows a plausible denominator.
     const session = await db('voting_sessions').where({ id: sessionId }).first()
     if (session) {
       const mCount = await db('group_members')

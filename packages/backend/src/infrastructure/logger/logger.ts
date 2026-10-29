@@ -14,8 +14,6 @@ export const logger = pino({
       'req.headers.authorization',
       'req.headers["stripe-signature"]',
       'steamApiKey',
-      // Stripe SDK errors include a `raw` property with the request payload —
-      // strip it so signed event bodies don't appear in 500 logs.
       'err.raw',
       '*.raw',
     ],

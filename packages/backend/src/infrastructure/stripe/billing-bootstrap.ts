@@ -5,19 +5,6 @@ import { logger } from '../logger/logger.js'
 
 const bootLogger = logger.child({ module: 'billing-bootstrap' })
 
-/**
- * Boot-time guardrail against the Toko-Premium failure mode: a stringly-
- * typed STRIPE_PRICE_ID env var pointing at the wrong Stripe Product (in
- * the original incident, the Toko Premium 4,99 € price instead of WAWPTN
- * Premium). The mistake passed startup, passed checkout, and would have
- * silently sold the wrong subscription.
- *
- * Mitigation: when STRIPE_PRODUCT_ID is configured, retrieve every price
- * the catalog resolves to and assert `price.product === STRIPE_PRODUCT_ID`.
- * Mismatch → throw on boot. Caller (index.ts) treats throws here as fatal
- * in production and as a warning in development so a half-set local env
- * doesn't block running the app without Stripe.
- */
 export async function assertConfiguredPricesBelongToProduct(): Promise<void> {
   if (!isStripeEnabled()) return
   if (!env.STRIPE_PRODUCT_ID) {

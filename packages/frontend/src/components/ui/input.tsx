@@ -1,8 +1,6 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 
-// `h-11` on phones so the field clears the 44px touch-target minimum, back to
-// the denser `h-10` from `sm:` up where a pointer is doing the aiming.
 function Input({
   className,
   type,

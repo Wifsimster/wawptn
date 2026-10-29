@@ -11,8 +11,6 @@ interface Particle {
 }
 
 interface CelebrationParticlesProps {
-  /** Number of particles per burst (default 18). Pass a smaller value for
-   * more frequent, lighter bursts (e.g. one per incoming vote). */
   count?: number
 }
 
@@ -27,17 +25,7 @@ function createParticles(count: number): Particle[] {
   }))
 }
 
-/**
- * Sparkle particles that burst upward from the parent's bottom edge.
- *
- * Place inside a `relative` container — the particles are absolutely
- * positioned within `inset-0`. To trigger a fresh burst (e.g. each time a
- * new vote comes in), pass a changing `key` prop so React remounts the
- * component and the lazy initializer recomputes random positions.
- */
 export function CelebrationParticles({ count = 18 }: CelebrationParticlesProps = {}) {
-  // Lazy state initializer so Math.random is only called once on mount
-  // (React Compiler rejects calls to impure functions during render).
   const [particles] = useState<Particle[]>(() => createParticles(count))
 
   return (

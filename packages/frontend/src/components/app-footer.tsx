@@ -2,10 +2,6 @@ import { Link } from 'react-router-dom'
 import { WawptnLogo } from '@/components/icons/wawptn-logo'
 import { useTranslation } from 'react-i18next'
 
-// The legal documents (mentions légales, CGU, CGV, confidentialité,
-// cookies, remboursement) are published once on the operator's portfolio
-// site and explicitly cover wawptn.battistella.ovh — link to the canonical
-// copies rather than maintaining a divergent set here.
 const LEGAL_BASE = 'https://pro.battistella.ovh'
 
 export function AppFooter() {

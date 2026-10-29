@@ -35,7 +35,6 @@ function shuffleArray<T>(array: T[]): T[] {
 
 function RandomPickContent({ games }: { games: Game[] }) {
   const { t } = useTranslation()
-  // Lazy initializer — only runs once on mount (when dialog opens)
   const [deck, setDeck] = useState(() => shuffleArray(games))
   const [deckIndex, setDeckIndex] = useState(0)
   const [pickCount, setPickCount] = useState(1)
@@ -56,7 +55,6 @@ function RandomPickContent({ games }: { games: Game[] }) {
     setPickCount(prev => prev + 1)
   }, [games, deck.length])
 
-  // Keyboard: Space/Enter to re-roll, Escape handled by Dialog
   useEffect(() => {
     if (games.length <= 1) return
 

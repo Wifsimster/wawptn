@@ -1,26 +1,5 @@
 import { db } from '../infrastructure/database/connection.js'
 
-/**
- * Daily persona selection — per group.
- *
- * Each group has its own deterministic "persona du jour" derived from
- * `djb2("${YYYY-MM-DD}:${groupId}")`. The selection layers over three
- * fallback levels in priority order:
- *
- *   1. Group override (`group_persona_settings.persona_override`)
- *   2. Global override (`app_settings.bot.persona_override`)
- *   3. Deterministic daily hash of the group's filtered persona pool
- *
- * When the group has no row in `group_persona_settings`, it silently
- * inherits the global `bot.*` defaults — existing groups keep working
- * with zero backfill. The shared `personas` table stays global.
- *
- * The cache is keyed on `(parisDate, groupId)` and lives as long as the
- * Paris day does: when the date string changes, all stale entries are
- * garbage-collected on the next read. That gives us sub-millisecond hits
- * on the steady state and a clean cutover at midnight without any cron.
- */
-
 export interface DailyPersona {
   id: string
   name: string
@@ -37,12 +16,6 @@ interface PersonaRow {
   created_at: Date
 }
 
-/**
- * djb2 string hash — deterministic, same as packages/discord/src/personas.ts
- * and packages/backend legacy route. Keep all three call sites in lockstep
- * so the backend, Discord bot, and future consumers always pick the same
- * persona for the same (date, groupId).
- */
 export function hashCode(str: string): number {
   let hash = 5381
   for (let i = 0; i < str.length; i++) {
@@ -51,49 +24,28 @@ export function hashCode(str: string): number {
   return Math.abs(hash)
 }
 
-/**
- * Canonical selection key shared by the backend and the Discord bot.
- * Pass `null` as the groupId for the global/app-wide fallback (used by
- * the legacy `/api/persona/current` endpoint).
- */
 export function selectionKey(dateStr: string, groupId: string | null): string {
   return groupId ? `${dateStr}:${groupId}` : dateStr
 }
 
-/** Returns the current Paris-local date as YYYY-MM-DD. */
 export function parisDate(now: Date = new Date()): string {
   return now.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' })
 }
 
-// ─── Cache ────────────────────────────────────────────────────────────────
-
 interface CacheEntry {
   date: string
   persona: DailyPersona
-  /**
-   * Epoch ms after which this entry must be recomputed, even though the
-   * Paris day hasn't rolled over yet. Set when the pick came from a
-   * time-boxed group override so the cache stops serving the override the
-   * moment it expires instead of holding it stale until midnight.
-   */
   validUntil?: number
 }
 
 const personaCache = new Map<string, CacheEntry>()
 
 function pruneStale(today: string): void {
-  // Lazy prune: when today's date differs from a cached entry's date, drop
-  // the entry. Keeps memory bounded in O(groups) and avoids a cron job.
   for (const [key, entry] of personaCache) {
     if (entry.date !== today) personaCache.delete(key)
   }
 }
 
-/**
- * Drop cached entries for a specific group. Call after a PATCH to
- * `/groups/:id/persona-settings` so the next read reflects the new
- * override / disabled list immediately.
- */
 export function invalidateGroupPersonaCache(groupId: string | null): void {
   const suffix = groupId ? `:${groupId}` : ''
   for (const key of personaCache.keys()) {
@@ -102,8 +54,6 @@ export function invalidateGroupPersonaCache(groupId: string | null): void {
     }
   }
 }
-
-// ─── App-settings helpers ────────────────────────────────────────────────
 
 interface GlobalDefaults {
   rotationEnabled: boolean
@@ -151,8 +101,6 @@ async function loadGroupSettings(groupId: string): Promise<GroupSettingsRow | nu
   return row ?? null
 }
 
-// ─── Core selection ──────────────────────────────────────────────────────
-
 function pickFromPool(pool: PersonaRow[], key: string): PersonaRow {
   const index = hashCode(key) % pool.length
   return pool[index]!
@@ -167,10 +115,6 @@ function toDailyPersona(row: PersonaRow): DailyPersona {
   }
 }
 
-/**
- * Resolves the persona of the day for a specific group. Pass `null` for
- * the global fallback persona (used by the deprecated top-level endpoint).
- */
 export async function selectPersonaForGroup(
   groupId: string | null,
   now: Date = new Date(),
@@ -199,7 +143,6 @@ export async function selectPersonaForGroup(
 
   if (personas.length === 0) return null
 
-  // Resolve effective settings (group overrides global, nullish inherits).
   const rotationEnabled =
     groupSettings?.rotation_enabled ?? globals.rotationEnabled
   const disabledIds = new Set<string>([
@@ -217,17 +160,14 @@ export async function selectPersonaForGroup(
 
   let selected: PersonaRow | undefined
 
-  // 1. Override (group > global)
   if (effectiveOverride) {
     selected = personas.find((p) => p.id === effectiveOverride)
   }
 
-  // 2. Rotation disabled → default persona (first active)
   if (!selected && !rotationEnabled) {
     selected = personas[0]
   }
 
-  // 3. Deterministic daily hash on the filtered pool
   if (!selected) {
     const available = personas.filter((p) => !disabledIds.has(p.id))
     const pool = available.length > 0 ? available : personas
@@ -236,8 +176,6 @@ export async function selectPersonaForGroup(
 
   if (!selected) return null
 
-  // If the pick came from a time-boxed group override, cap the cache TTL at
-  // the override's expiry so rotation resumes the instant it elapses.
   const validUntil =
     groupOverride && selected.id === groupOverride && groupSettings?.override_expires_at
       ? groupSettings.override_expires_at.getTime()
@@ -248,12 +186,6 @@ export async function selectPersonaForGroup(
   return persona
 }
 
-/**
- * Batch helper used by `GET /api/groups` to enrich the list response with
- * `todayPersona` in a single pass without triggering N+1 DB reads. All
- * groups share the same `personas`/`app_settings` fetch, and only the
- * per-group `group_persona_settings` rows are fetched in bulk.
- */
 export async function selectPersonasForGroups(
   groupIds: string[],
   now: Date = new Date(),

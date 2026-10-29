@@ -1,15 +1,9 @@
 import { test, expect, mockGames, mockOpenVoteSession } from './fixtures'
 
 test.describe('Voting system on mobile', () => {
-  // The vote-page specs assume an open ballot exists for group-1. The shared
-  // fixture defaults to "no active session" (so group-page specs see the
-  // start-vote CTA); register the open session here. Individual tests that need
-  // a different session shape override this afterwards.
   test.beforeEach(async ({ page }) => {
     await mockOpenVoteSession(page, 'group-1')
   })
-
-  // ── Vote page: game selection ─────────────────────────────────
 
   test.describe('Game selection interface', () => {
     test('shows all votable games in 2-column grid', async ({ page }) => {
@@ -18,11 +12,9 @@ test.describe('Voting system on mobile', () => {
 
       await expect(page.getByText('Choisis tes jeux')).toBeVisible()
 
-      // Grid should have 2 columns on mobile
       const grid = page.locator('.grid.grid-cols-2')
       await expect(grid).toBeVisible()
 
-      // Games should be displayed (only type=game, first 5)
       const gameButtons = page.locator('.grid button[aria-pressed]')
       const count = await gameButtons.count()
       expect(count).toBeGreaterThan(0)
@@ -35,19 +27,15 @@ test.describe('Voting system on mobile', () => {
 
       const firstGame = page.locator('.grid button[aria-pressed]').first()
 
-      // Initially not selected
       await expect(firstGame).toHaveAttribute('aria-pressed', 'false')
 
-      // Tap to select
       await firstGame.click()
 
-      // Should now be pressed; the card shows the primary border + check icon
       await expect(firstGame).toHaveAttribute('aria-pressed', 'true')
       const card = page.locator('.grid > div').first()
       await expect(card).toHaveClass(/border-primary/)
       await expect(card.locator('.bg-primary.rounded-full')).toBeVisible()
 
-      // Selection count should update
       await expect(page.getByText('1 jeu(x) sélectionné(s)').first()).toBeVisible()
     })
 
@@ -59,7 +47,6 @@ test.describe('Voting system on mobile', () => {
       await firstGame.click()
       await expect(page.getByText('1 jeu(x) sélectionné(s)').first()).toBeVisible()
 
-      // Tap again to deselect
       await firstGame.click()
       await expect(page.getByText('0 jeu(x) sélectionné(s)').first()).toBeVisible()
       await expect(firstGame).toHaveAttribute('aria-pressed', 'false')
@@ -72,7 +59,6 @@ test.describe('Voting system on mobile', () => {
       const games = page.locator('.grid button[aria-pressed]')
       const count = await games.count()
 
-      // Select first 3 games
       for (let i = 0; i < Math.min(3, count); i++) {
         await games.nth(i).click()
       }
@@ -80,8 +66,6 @@ test.describe('Voting system on mobile', () => {
       await expect(page.getByText(`${Math.min(3, count)} jeu(x) sélectionné(s)`).first()).toBeVisible()
     })
   })
-
-  // ── Vote page: search ─────────────────────────────────────────
 
   test.describe('Vote page search', () => {
     test('filters games by name in vote view', async ({ page }) => {
@@ -100,21 +84,15 @@ test.describe('Voting system on mobile', () => {
       await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
-      // Select a game
       await page.locator('.grid button[aria-pressed]').first().click()
       await expect(page.getByText('1 jeu(x) sélectionné(s)').first()).toBeVisible()
 
-      // Search
       await page.getByPlaceholder('Rechercher un jeu...').fill('xyz')
-      // Clear search
       await page.getByPlaceholder('Rechercher un jeu...').fill('')
 
-      // Selection should persist
       await expect(page.getByText('1 jeu(x) sélectionné(s)').first()).toBeVisible()
     })
   })
-
-  // ── Vote submission ───────────────────────────────────────────
 
   test.describe('Vote submission', () => {
     test('submit button is disabled when no games selected', async ({ page }) => {
@@ -139,14 +117,11 @@ test.describe('Voting system on mobile', () => {
       await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
-      // Select 2 games
       await page.locator('.grid button[aria-pressed]').nth(0).click()
       await page.locator('.grid button[aria-pressed]').nth(1).click()
 
-      // Submit
       await page.getByRole('button', { name: 'Valider ma sélection' }).click()
 
-      // Should show waiting screen
       await expect(page.getByText('Vote soumis !')).toBeVisible({ timeout: 5000 })
       await expect(page.getByText('2 jeu(x) sélectionné(s)').first()).toBeVisible()
     })
@@ -158,7 +133,6 @@ test.describe('Voting system on mobile', () => {
       const actionBar = page.locator('.fixed.bottom-0')
       await expect(actionBar).toBeVisible()
 
-      // Verify it's at the bottom
       const box = await actionBar.boundingBox()
       const viewport = page.viewportSize()
       expect(box).not.toBeNull()
@@ -168,11 +142,8 @@ test.describe('Voting system on mobile', () => {
     })
   })
 
-  // ── Waiting screen ────────────────────────────────────────────
-
   test.describe('Waiting screen', () => {
     test('shows progress after voting', async ({ page }) => {
-      // Mock vote session where user has already voted
       await page.route('**/api/groups/group-1/vote', (route) => {
         if (route.request().method() === 'GET') {
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
@@ -195,12 +166,10 @@ test.describe('Voting system on mobile', () => {
       await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
-      // Should show waiting screen since user already voted
       await expect(page.getByText('Vote soumis !')).toBeVisible()
       await expect(page.getByText('2 jeu(x) sélectionné(s)').first()).toBeVisible()
       await expect(page.getByText(/1 sur 3 ont voté/)).toBeVisible()
 
-      // Progress bar should be present (native <progress>, implicit role)
       await expect(page.getByRole('progressbar').first()).toBeVisible()
     })
 
@@ -272,8 +241,6 @@ test.describe('Voting system on mobile', () => {
     })
   })
 
-  // ── Closing vote and result screen ────────────────────────────
-
   test.describe('Vote result screen', () => {
     test('closing vote shows winning game', async ({ page }) => {
       await page.route('**/api/groups/group-1/vote', (route) => {
@@ -294,18 +261,13 @@ test.describe('Voting system on mobile', () => {
       await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
-      // Close the vote
       await page.getByText('Clôturer le vote').click()
 
-      // Result screen
       await expect(page.getByText('Ce soir vous jouez à')).toBeVisible({ timeout: 5000 })
       await expect(page.getByText('Counter-Strike 2')).toBeVisible()
-      // Consensus block: ratio label is rendered immediately (the percent
-      // number animates via a count-up so we avoid asserting on it).
       await expect(page.getByText('2/3', { exact: true })).toBeVisible()
       await expect(page.getByRole('progressbar')).toHaveAttribute('value', '67')
 
-      // Steam launch button
       await expect(page.getByText('Lancer sur Steam')).toBeVisible()
     })
 
@@ -359,8 +321,6 @@ test.describe('Voting system on mobile', () => {
     })
   })
 
-  // ── Non-participant view ──────────────────────────────────────
-
   test.describe('Non-participant view', () => {
     test('shows read-only message for non-participants', async ({ page }) => {
       await page.route('**/api/groups/group-1/vote', (route) => {
@@ -386,11 +346,9 @@ test.describe('Voting system on mobile', () => {
     })
   })
 
-  // ── Scheduled vote with countdown ─────────────────────────────
-
   test.describe('Scheduled vote', () => {
     test('shows countdown timer for scheduled session', async ({ page }) => {
-      const futureDate = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString() // 3 hours from now
+      const futureDate = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()
 
       await page.route('**/api/groups/group-1/vote', (route) => {
         if (route.request().method() === 'GET') {
@@ -410,19 +368,13 @@ test.describe('Voting system on mobile', () => {
       await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
-      // Should show waiting screen with countdown
       await expect(page.getByText('Vote soumis !')).toBeVisible()
       await expect(page.getByText('La soirée commence dans...')).toBeVisible()
     })
   })
 
-  // ── Full voting flow E2E ──────────────────────────────────────
-
   test.describe('Full voting flow', () => {
     test('complete flow: start vote -> select games -> submit -> close -> result', async ({ page }) => {
-      // This flow begins on the group page (no active vote yet) and creates one,
-      // so the vote session must be stateful: absent until the user starts it,
-      // open afterwards. This override wins over the file-level open-session mock.
       let voteCreated = false
       await page.route('**/api/groups/group-1/vote', (route) => {
         const method = route.request().method()
@@ -441,49 +393,38 @@ test.describe('Voting system on mobile', () => {
         return route.fallback()
       })
 
-      // Step 1: Start from group page
       await page.goto('/groups/group-1')
       await expect(page.getByRole('button', { name: 'Lancer un vote', exact: true })).toBeVisible({ timeout: 15000 })
 
-      // Step 2: Open vote setup
       await page.getByRole('button', { name: 'Lancer un vote', exact: true }).click()
       const dialog = page.getByRole('dialog')
       await expect(dialog.getByText('Qui joue ce soir ?')).toBeVisible()
-      await page.waitForTimeout(400) // Wait for drawer animation
+      await page.waitForTimeout(400)
 
-      // Step 3+4: Keep all members selected and quick-start the vote
       const lancerBtn = dialog.getByRole('button', { name: 'Lancer le vote' })
       await lancerBtn.scrollIntoViewIfNeeded()
       await lancerBtn.click({ force: true })
       await page.waitForURL('**/groups/group-1/vote')
 
-      // Step 5: Select some games
       await expect(page.getByText('Choisis tes jeux')).toBeVisible()
       const gameButtons = page.locator('.grid button[aria-pressed]')
       await gameButtons.nth(0).click()
       await gameButtons.nth(1).click()
       await expect(page.getByText('2 jeu(x) sélectionné(s)').first()).toBeVisible()
 
-      // Step 6: Submit vote
       await page.getByRole('button', { name: 'Valider ma sélection' }).click()
 
-      // Step 7: Waiting screen
       await expect(page.getByText('Vote soumis !')).toBeVisible({ timeout: 5000 })
 
-      // Step 8: Close vote (as creator)
       await page.getByText('Clôturer le vote').click()
 
-      // Step 9: Result screen
       await expect(page.getByText('Ce soir vous jouez à')).toBeVisible({ timeout: 5000 })
       await expect(page.getByText('Lancer sur Steam')).toBeVisible()
 
-      // Step 10: Back to group
       await page.getByText('Retour au groupe').click()
       await page.waitForURL('**/groups/group-1')
     })
   })
-
-  // ── Mobile-specific touch interactions ────────────────────────
 
   test.describe('Mobile touch interactions', () => {
     test('game cards have touch-friendly tap targets', async ({ page }) => {
@@ -495,7 +436,6 @@ test.describe('Voting system on mobile', () => {
 
       expect(box).not.toBeNull()
       if (box) {
-        // Minimum 44px tap target (WCAG recommendation)
         expect(box.height).toBeGreaterThanOrEqual(44)
         expect(box.width).toBeGreaterThanOrEqual(44)
       }
@@ -513,11 +453,9 @@ test.describe('Voting system on mobile', () => {
       await page.goto('/groups/group-1/vote')
       await page.waitForTimeout(500)
 
-      // Content should be scrollable
       const main = page.locator('main')
       await expect(main).toBeVisible()
 
-      // Perform a scroll gesture (use evaluate for cross-browser support)
       await page.evaluate(() => window.scrollBy(0, 300))
       await page.waitForTimeout(200)
     })

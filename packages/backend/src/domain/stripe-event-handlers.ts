@@ -5,35 +5,14 @@ import { logger } from '../infrastructure/logger/logger.js'
 import { invalidatePremiumCache } from './subscription-service.js'
 import { recordSystemAction, type AdminAuditAction } from './admin-audit-log.js'
 
-/**
- * Stripe webhook business logic.
- *
- * Pulled out of the route file so the webhook router stays small (HTTP
- * concerns only: signature verify, dedup claim, transaction management,
- * status code classification) and so the per-event handlers are testable
- * in isolation. Callers pass in a Knex transaction; every handler does
- * its work inside it so audit rows + state changes commit atomically.
- */
-
 const handlerLogger = logger.child({ module: 'stripe-event-handlers' })
 
-// ─── Stripe payload helpers ─────────────────────────────────────────────────
-
-/** Extract current_period_end from subscription items (Stripe SDK v20 / clover API) */
 export function getSubscriptionPeriodEnd(items: { data: Array<{ current_period_end: number }> }): Date | null {
   const item = items.data[0]
   if (!item) return null
   return new Date(item.current_period_end * 1000)
 }
 
-/** Snapshot of the price the subscription was last billed on. We persist
- *  it alongside tier/status so reporting + future audits can answer "what
- *  did this user pay?" without re-fetching from Stripe row by row. Pricing
- *  changes (or A/B variants) leave a historical trail in the audit log.
- *
- *  Returns nulls when the Subscription has no items (degenerate state) so
- *  callers can apply a partial UPDATE without clobbering existing values
- *  with garbage. */
 export function getSubscriptionPricing(sub: Stripe.Subscription): {
   priceId: string | null
   amountCents: number | null
@@ -49,18 +28,12 @@ export function getSubscriptionPricing(sub: Stripe.Subscription): {
   }
 }
 
-/** Extract subscription ID from an invoice's parent (Stripe SDK v20 / clover API) */
 export function getInvoiceSubscriptionId(invoice: { parent?: { subscription_details?: { subscription?: string | { id: string } } | null } | null }): string | null {
   const sub = invoice.parent?.subscription_details?.subscription
   if (!sub) return null
   return typeof sub === 'string' ? sub : sub.id
 }
 
-/** Resolve the subscription a charge belongs to. The reviewer flagged
- *  charge.refunded firing for unrelated past invoices and silently nuking
- *  premium — this helper is the single place we answer "which sub did
- *  this charge pay for?". Retrieves the invoice if necessary so the
- *  answer is always authoritative. */
 export async function chargeSubscriptionId(stripe: Stripe, charge: Stripe.Charge): Promise<string | null> {
   const invoiceField = (charge as unknown as { invoice?: string | { id: string; parent?: { subscription_details?: { subscription?: string | { id: string } } | null } | null } | null }).invoice
   let invoice: { parent?: { subscription_details?: { subscription?: string | { id: string } } | null } | null } | null = null
@@ -73,31 +46,11 @@ export async function chargeSubscriptionId(stripe: Stripe, charge: Stripe.Charge
   return getInvoiceSubscriptionId(invoice)
 }
 
-/** Extract userId from a Subscription's metadata (set by the Checkout flow
- *  via subscription_data.metadata). Falls back to null — the caller will
- *  resolve via stripe_customer_id lookup. */
 export function getUserIdFromSubscription(sub: Stripe.Subscription): string | null {
   const metaUser = sub.metadata?.['userId']
   return typeof metaUser === 'string' && metaUser.length > 0 ? metaUser : null
 }
 
-/** Map a Stripe Subscription's status to local (tier, status). The webhook
- *  handler always uses this rather than trusting the inbound event payload
- *  directly, so out-of-order delivery can't downgrade an active sub.
- *
- *  Rules:
- *  - active or trialing → premium / active (cancel_at_period_end is a
- *    separate flag, NOT a status flip)
- *  - past_due, unpaid → free / past_due. The tier column reflects Stripe's
- *    billing state; premium *access* continues for GRACE_PERIOD_DAYS after
- *    past_due_since (see isUserPremium), then the reconciler cancels.
- *  - incomplete → free / inactive: the first payment hasn't gone through
- *    yet, so there was never a paid period to grace.
- *  - canceled, incomplete_expired → free / canceled (immediate downgrade,
- *    no grace — incomplete_expired means the initial payment never
- *    succeeded inside Stripe's retry window, so there's no legitimate
- *    "active" period to grace)
- */
 export function mapStripeStatus(sub: Stripe.Subscription): {
   tier: 'free' | 'premium'
   status: 'active' | 'past_due' | 'canceled' | 'inactive'
@@ -117,11 +70,6 @@ export function mapStripeStatus(sub: Stripe.Subscription): {
   return { tier: 'free', status: 'past_due', cancelAtPeriodEnd }
 }
 
-/** Resolve the local subscriptions row for a Stripe Subscription with a
- *  row-level lock so concurrent webhook deliveries for the same sub can't
- *  interleave reads with writes. Tries metadata.userId first (set by the
- *  Checkout flow), then falls back to stripe_customer_id. Caller must hold
- *  a transaction. */
 export async function findLocalSubscriptionForUpdate(
   trx: Knex.Transaction,
   stripeSub: Stripe.Subscription,
@@ -144,12 +92,6 @@ export async function findLocalSubscriptionForUpdate(
   return row ?? null
 }
 
-/** True when an event concerns a Stripe subscription other than the one the
- *  local row currently tracks (an abandoned incomplete checkout, a sub the
- *  user replaced, …). Such events must not overwrite the current one — the
- *  refund/dispute handlers already apply the same rule. A live (active or
- *  trialing) subscription is still allowed to take over the row, e.g. one
- *  created from the Customer Portal after the previous one ended. */
 export function isStaleSubscriptionEvent(
   local: { stripe_subscription_id: string | null } | null,
   stripeSub: Stripe.Subscription,
@@ -158,14 +100,6 @@ export function isStaleSubscriptionEvent(
   return stripeSub.status !== 'active' && stripeSub.status !== 'trialing'
 }
 
-/** Refetch the Subscription from Stripe and apply state. Centralised so
- *  every event handler converges on the same write path — out-of-order
- *  events self-heal because we always use Stripe's authoritative state.
- *
- *  Runs entirely inside the supplied transaction. The row read uses
- *  SELECT … FOR UPDATE so the read of `past_due_since` can't race with
- *  another worker writing the same row — closes the TOCTOU on the
- *  past_due transition detection. */
 export async function applySubscriptionState(
   trx: Knex.Transaction,
   stripeSub: Stripe.Subscription,
@@ -186,9 +120,6 @@ export async function applySubscriptionState(
   const periodEnd = getSubscriptionPeriodEnd(stripeSub.items)
   const pricing = getSubscriptionPricing(stripeSub)
 
-  // past_due_since starts the premium grace window (isUserPremium), so only
-  // a paying sub falling behind starts it. A row the grace enforcement has
-  // already canceled must not get a fresh window from a later dunning retry.
   let pastDueSince: Date | null | undefined = undefined
   if (status === 'past_due') {
     if (local?.status === 'past_due') pastDueSince = undefined
@@ -257,8 +188,6 @@ export async function applySubscriptionState(
     }
   }
 }
-
-// ─── Per-event handlers ─────────────────────────────────────────────────────
 
 async function handleCheckoutCompleted(trx: Knex.Transaction, stripe: Stripe, event: Stripe.Event): Promise<void> {
   const session = event.data.object as Stripe.Checkout.Session
@@ -334,7 +263,6 @@ async function handleSubscriptionEvent(trx: Knex.Transaction, stripe: Stripe, ev
 async function handleSubscriptionDeleted(trx: Knex.Transaction, event: Stripe.Event): Promise<void> {
   const subscription = event.data.object as Stripe.Subscription
   const local = await findLocalSubscriptionForUpdate(trx, subscription)
-  // Deleting an old subscription must not cancel the one the user pays for now.
   if (local?.stripe_subscription_id && local.stripe_subscription_id !== subscription.id) {
     handlerLogger.info(
       { userId: local.user_id, deletedSubId: subscription.id, currentSubId: local.stripe_subscription_id },
@@ -413,9 +341,6 @@ async function handleChargeRefunded(trx: Knex.Transaction, stripe: Stripe, event
     return
   }
 
-  // Treat full refunds (refunded === true) and amount_refunded matching
-  // amount as a revocation; partial refunds are logged but do not flip
-  // tier — Stripe-side accounting only.
   const fullyRefunded = charge.refunded === true || charge.amount_refunded >= charge.amount
   if (!fullyRefunded) {
     handlerLogger.info(
@@ -472,15 +397,6 @@ async function handleChargeDispute(trx: Knex.Transaction, stripe: Stripe, event:
   handlerLogger.error({ disputeId: dispute.id, userId: local.user_id }, 'dispute opened — premium revoked')
 }
 
-// ─── Dispatcher ─────────────────────────────────────────────────────────────
-
-/**
- * Dispatch a verified Stripe event to its handler. Caller passes in the
- * Knex transaction; every handler runs inside it so business writes +
- * audit rows commit atomically. Unknown event types are no-ops (Stripe
- * may send events we don't subscribe to in the dashboard but might add
- * later — fail open).
- */
 export async function handleStripeEvent(
   trx: Knex.Transaction,
   stripe: Stripe,
@@ -518,17 +434,6 @@ export async function handleStripeEvent(
   }
 }
 
-// ─── Webhook claim helpers ──────────────────────────────────────────────────
-
-/**
- * Atomic dedup-and-claim: insert with ON CONFLICT, look at the existing
- * status. The row starts in 'pending' — success is written *after* the
- * handler completes, so a transient failure leaves the row in
- * 'pending'/'failure' and the next Stripe retry re-claims it.
- *
- * Returns true when the caller should proceed to dispatch, false when
- * the event has already been successfully processed by another delivery.
- */
 export async function claimStripeEvent(eventId: string, eventType: string): Promise<boolean> {
   return db.transaction(async (trx) => {
     const inserted = await trx('stripe_events')

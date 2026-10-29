@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-// ---------------------------------------------------------------------------
-// vi.hoisted — variables available inside vi.mock factories
-// ---------------------------------------------------------------------------
-
 const { mockDb, dbResultQueue, dbCallCounts } = vi.hoisted(() => {
   function chain(resolveValue: unknown = undefined): unknown {
     const proxy: unknown = new Proxy(() => {}, {
@@ -41,10 +37,6 @@ const { mockDb, dbResultQueue, dbCallCounts } = vi.hoisted(() => {
 
 vi.mock('@/infrastructure/database/connection.js', () => ({ db: mockDb }))
 
-// ---------------------------------------------------------------------------
-// Import module under test
-// ---------------------------------------------------------------------------
-
 import {
   selectPersonaForGroup,
   invalidateGroupPersonaCache,
@@ -55,15 +47,10 @@ function setResult(table: string, ...values: unknown[]) {
   dbResultQueue.set(table, values)
 }
 
-// Two active personas, ordered by created_at asc (as the real query does).
 const PERSONAS = [
   { id: 'p-a', name: 'A', embed_color: 1, intro_message: 'a', is_active: true, created_at: new Date('2026-01-01') },
   { id: 'p-b', name: 'B', embed_color: 2, intro_message: 'b', is_active: true, created_at: new Date('2026-01-02') },
 ]
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('selectPersonaForGroup — time-boxed override expiry', () => {
   beforeEach(() => {
@@ -73,18 +60,15 @@ describe('selectPersonaForGroup — time-boxed override expiry', () => {
 
   it('drops a group override the moment it expires, even within the same Paris day (cache must not hold it stale)', async () => {
     const groupId = 'grp-expiry'
-    // Unique key per test → isolate the module-level cache.
     invalidateGroupPersonaCache(groupId)
 
-    // Pick the persona the daily hash would land on for this group/date, then
-    // override to the *other* one so the pick visibly changes after expiry.
     const dateStr = '2026-06-02'
     const hashed = PERSONAS[hashCode(`${dateStr}:${groupId}`) % PERSONAS.length]!
     const overrideId = hashed.id === 'p-a' ? 'p-b' : 'p-a'
 
     const expiry = new Date('2026-06-02T12:00:00Z')
     setResult('personas', PERSONAS)
-    setResult('app_settings', []) // global defaults: rotation on, no override
+    setResult('app_settings', [])
     setResult('group_persona_settings', {
       rotation_enabled: null,
       disabled_personas: null,
@@ -92,12 +76,9 @@ describe('selectPersonaForGroup — time-boxed override expiry', () => {
       override_expires_at: expiry,
     })
 
-    // Before expiry (08:00 UTC = 10:00 Paris) → override wins.
     const before = await selectPersonaForGroup(groupId, new Date('2026-06-02T08:00:00Z'))
     expect(before?.id).toBe(overrideId)
 
-    // After expiry (18:00 UTC = 20:00 Paris, same Paris day) → rotation resumes.
-    // The cache from the first call must be treated as stale here.
     const after = await selectPersonaForGroup(groupId, new Date('2026-06-02T18:00:00Z'))
     expect(after?.id).toBe(hashed.id)
     expect(after?.id).not.toBe(overrideId)
@@ -120,7 +101,6 @@ describe('selectPersonaForGroup — time-boxed override expiry', () => {
     const first = await selectPersonaForGroup(groupId, new Date('2026-06-02T08:00:00Z'))
     expect(first?.id).toBe('p-b')
 
-    // A later read still inside the validity window returns the same override.
     const second = await selectPersonaForGroup(groupId, new Date('2026-06-02T12:00:00Z'))
     expect(second?.id).toBe('p-b')
   })

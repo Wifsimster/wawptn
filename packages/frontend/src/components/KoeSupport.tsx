@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react'
 import { KoeWidget } from '@wifsimster/koe'
-// The widget stylesheet is imported from `index.css` inside the `koe`
-// cascade layer — see the comment there before importing it here.
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth.store'
 
 const PROJECT_KEY = (import.meta.env.VITE_KOE_PROJECT_KEY as string | undefined) ?? 'wawptn'
 const API_URL = (import.meta.env.VITE_KOE_API_URL as string | undefined) ?? 'https://koe.battistella.ovh'
-
-// `openKoeSupport` lives in `lib/koe-support.ts` so this module exports
-// only React components — keeps Vite's fast-refresh happy.
 
 const FR_LOCALE = {
   launcherLabel: 'Support',
@@ -55,8 +50,6 @@ export function KoeSupport() {
     return () => { cancelled = true }
   }, [user])
 
-  // Gate on identity.userId matching so a stale hash from a previous
-  // session never leaks into the next user's widget.
   if (!PROJECT_KEY || !API_URL || !user || identity?.userId !== user.id) return null
 
   return (

@@ -1,7 +1,6 @@
 import type { Knex } from 'knex'
 
 export async function up(knex: Knex): Promise<void> {
-  // Use IF NOT EXISTS guards because epic_games_support may have already created some of these
   await knex.raw(`
     DO $$ BEGIN
       IF NOT EXISTS (

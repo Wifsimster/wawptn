@@ -24,11 +24,6 @@ interface NoWinnerResultProps {
   headingRef: React.RefObject<HTMLHeadingElement | null>
 }
 
-/**
- * No-winner branch: drops the hero image + consensus bar and keeps only the
- * rescue actions. Rematch is promoted to the primary button here since it's
- * the only meaningful forward motion.
- */
 function NoWinnerResult({ rematching, onRematch, onBack, shouldReduceMotion, headingRef }: NoWinnerResultProps) {
   const { t } = useTranslation()
   return (
@@ -104,8 +99,6 @@ function ConsensusBar({ percent, yesCount, totalVoters, displayPercent, isUnanim
           {yesCount}/{totalVoters}
         </span>
       </div>
-      {/* Visually-hidden native progress carries the semantics; the styled bar
-          below renders the animated fill and is hidden from assistive tech. */}
       <progress
         className="sr-only"
         value={percent}
@@ -165,8 +158,6 @@ function WinnerResult({
 }: WinnerResultProps) {
   const { t } = useTranslation()
 
-  // Reveal choreography. Kept simple under reduced motion: no stagger, no
-  // spring, no keyframes — a single 0.15s fade replaces the whole sequence.
   const container: Variants = {
     hidden: {},
     visible: {
@@ -221,8 +212,6 @@ function WinnerResult({
           variants={container}
           className="text-center max-w-md w-full"
         >
-          {/* Wrap the title block in a live region so SR users get the full
-              "tonight you play → game name" announcement as one payload. */}
           <output aria-live="polite" aria-atomic="true" className="block">
             <m.p
               variants={eyebrow}
@@ -233,9 +222,6 @@ function WinnerResult({
 
             {result.headerImageUrl && (
               <m.div variants={imageVariants} className="relative mb-6">
-                {/* Warm reward glow that breathes around the image. The
-                    cool primary rim underneath adds depth without stealing
-                    focus from the orange payoff colour. */}
                 <m.div
                   aria-hidden="true"
                   className="absolute -inset-6 bg-reward/30 blur-3xl rounded-3xl pointer-events-none"
@@ -264,8 +250,6 @@ function WinnerResult({
                   }}
                   className="relative w-full rounded-lg shadow-[0_30px_80px_-20px_oklch(0.82_0.17_70/0.45)] ring-1 ring-reward/40"
                 />
-                {/* Changing the key forces a fresh mount so the particle
-                    generator re-randomises positions on rematch reveals. */}
                 {particlesVisible && (
                   <CelebrationParticles
                     key={`result-burst-${result.steamAppId}`}
@@ -296,10 +280,6 @@ function WinnerResult({
             />
           )}
 
-          {/* CTA ladder — Launch is the hero. Share + Back are equal-weight
-              siblings on the row below. Rematch is demoted to a small text
-              link because it throws away the group's decision, so it should
-              read as a rescue hatch rather than a competing call-to-action. */}
           <m.div
             variants={fadeUp}
             className="flex flex-col items-center gap-3"
@@ -309,8 +289,6 @@ function WinnerResult({
                 shouldReduceMotion
                   ? undefined
                   : {
-                      // Steam-blue pulse — referenced by oklch so it
-                      // tracks `--steam` if the brand evolves.
                       boxShadow: [
                         '0 0 0 0 oklch(0.55 0.18 240 / 0)',
                         '0 0 0 10px oklch(0.55 0.18 240 / 0.18)',
@@ -383,13 +361,6 @@ function WinnerResult({
   )
 }
 
-/**
- * The reveal screen — the payoff of the whole app. Sequencing is intentional:
- * eyebrow → image (spring + warm glow) → confetti burst → heading → consensus
- * bar with count-up → CTA ladder. The CTA ladder demotes "Relancer un vote"
- * to a small rescue link since rematching throws away the group's decision.
- * Everything collapses to a single fade when prefers-reduced-motion is on.
- */
 export function ResultScreen({
   result,
   sessionId,
@@ -406,15 +377,9 @@ export function ResultScreen({
     result.totalVoters > 0
       ? Math.round((result.yesCount / result.totalVoters) * 100)
       : 0
-  // Suppress the consensus block in the solo case — "100 % of 1" reads as
-  // clinical rather than celebratory and just eats vertical space.
   const showConsensus = hasWinner && result.totalVoters > 1
   const isUnanimous = percent === 100 && result.totalVoters > 1
 
-  // Animated count-up for the consensus percentage. Framer-motion's
-  // imperative `animate` drives a React state through its onUpdate callback;
-  // under reduced motion we skip the animation and show the final value
-  // directly (derived during render, no setState in the effect body).
   const [animatedPercent, setAnimatedPercent] = useState(0)
   const displayPercent = shouldReduceMotion ? percent : animatedPercent
   useEffect(() => {
@@ -428,14 +393,10 @@ export function ResultScreen({
     return () => controls.stop()
   }, [percent, shouldReduceMotion, showConsensus])
 
-  // Move focus to the heading on mount so screen reader users hear the reveal
-  // as a state change instead of silently landing on a new UI.
   useEffect(() => {
     headingRef.current?.focus({ preventScroll: true })
   }, [])
 
-  // One-shot celebration burst — fires after the image lands. Skipped under
-  // reduced-motion and when there's no winner to celebrate.
   const [particlesVisible, setParticlesVisible] = useState(false)
   useEffect(() => {
     if (shouldReduceMotion || !hasWinner) return

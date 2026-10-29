@@ -38,7 +38,6 @@ export function DiscordLinkPage() {
     return () => { cancelled = true }
   }, [user, code, t])
 
-  // No code in URL
   if (!code) {
     return (
       <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-4">
@@ -50,7 +49,6 @@ export function DiscordLinkPage() {
     )
   }
 
-  // Not logged in — prompt to log in
   if (!user) {
     return (
       <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-4">
@@ -64,7 +62,6 @@ export function DiscordLinkPage() {
     )
   }
 
-  // Linking in progress
   if (linking) {
     return (
       <main
@@ -80,7 +77,6 @@ export function DiscordLinkPage() {
     )
   }
 
-  // Success
   if (discordUsername) {
     return (
       <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-4">
@@ -94,7 +90,6 @@ export function DiscordLinkPage() {
     )
   }
 
-  // Error
   return (
     <main id="main-content" className="min-h-dvh flex flex-col items-center justify-center px-4" role="alert">
       <X className="size-12 text-destructive mb-4" aria-hidden="true" />

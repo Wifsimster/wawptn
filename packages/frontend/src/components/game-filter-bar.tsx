@@ -44,9 +44,6 @@ export function GameFilterBar({
 
   return (
     <div className="space-y-2 min-w-0">
-      {/* Search + "Plus de filtres" entry on the same row — keeps the
-          primary surface compact and pushes advanced knobs (metacritic,
-          sort, genres, gamesOnly, controllerOnly) into a drawer. */}
       <div className="flex items-center gap-2">
         <search className="relative flex-1 min-w-0 block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
@@ -94,10 +91,6 @@ export function GameFilterBar({
         </Button>
       </div>
 
-      {/* Smart mode chips — only the 2 highest-signal toggles remain on
-          the main surface. Users get instant feedback without opening
-          the drawer. `aria-pressed` makes the toggle state available
-          to screen readers (variant change alone wasn't enough). */}
       <div className="flex flex-wrap gap-1.5">
         <Button
           variant={filters.multiplayerOnly ? 'default' : 'secondary'}
@@ -121,9 +114,6 @@ export function GameFilterBar({
         </Button>
       </div>
 
-      {/* Preset chips row — opinionated shortcuts that patch several
-          filter fields at once. Scrolls horizontally on tight screens
-          so all presets stay reachable without wrapping. */}
       <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-1 px-1 pb-0.5">
         <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1 shrink-0 pr-1">
           <Sparkles className="size-3" />
@@ -151,8 +141,6 @@ export function GameFilterBar({
         })}
       </div>
 
-      {/* Active advanced-filter summary row — dismissible chips so
-          state hidden in the drawer is never invisible. */}
       {advancedFilterCount > 0 && (
         <div className="flex flex-wrap gap-1.5 items-center">
           {filters.minMetacritic !== null && (

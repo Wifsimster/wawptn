@@ -23,27 +23,11 @@ const DISCORD_INTENT_COOKIE = 'wawptn.discord_intent'
 
 const router = Router()
 
-// Validate returnTo path against strict allowlist
 function isAllowedReturnPath(path: string): boolean {
   return /^\/join\/[a-f0-9]{64}$/.test(path)
     || /^\/discord\/link\?code=[A-Za-z0-9]+$/.test(path)
 }
 
-/**
- * Discord magic-link entry point.
- *
- * The Discord bot issues a one-shot nonce via POST /api/discord/intent
- * (see discord.routes.ts) and replies to the user in Discord with a URL
- * pointing at this endpoint. Flow:
- *
- *   1. Validate the nonce exists and is live.
- *   2. Park it in a signed, short-lived cookie scoped to the Steam
- *      callback path so the callback can consume it after auth.
- *   3. Kick off Steam OpenID, reusing the existing CSRF + return flow.
- *
- * Nothing is mutated here — the intent is only marked consumed once the
- * Steam callback successfully materialises a user session.
- */
 router.get('/discord/intent/:nonce', async (req: Request, res: Response) => {
   const nonce = String(req.params['nonce'] ?? '')
   if (!/^[a-f0-9]{64}$/.test(nonce)) {
@@ -59,9 +43,6 @@ router.get('/discord/intent/:nonce', async (req: Request, res: Response) => {
     return
   }
 
-  // Park the nonce in a signed cookie for the Steam callback. We intentionally
-  // do NOT consume the intent here — the one-shot mutation happens inside the
-  // Steam callback so an abandoned Steam login doesn't burn the nonce.
   res.cookie(DISCORD_INTENT_COOKIE, nonce, {
     httpOnly: true,
     signed: true,
@@ -71,9 +52,6 @@ router.get('/discord/intent/:nonce', async (req: Request, res: Response) => {
     path: '/api/auth/steam/callback',
   })
 
-  // If the user already has a live WAWPTN session, skip Steam entirely and
-  // materialise the group membership straight away. Returning users should
-  // get a one-tap experience.
   const existingToken = req.signedCookies?.[SESSION_COOKIE_NAME]
   if (existingToken) {
     const existingUserId = await getSessionUserId(existingToken)
@@ -103,7 +81,6 @@ router.get('/discord/intent/:nonce', async (req: Request, res: Response) => {
     }
   }
 
-  // No live session — set the CSRF cookie and redirect to Steam.
   const csrfState = crypto.randomBytes(16).toString('hex')
   res.cookie(CSRF_COOKIE_NAME, csrfState, {
     httpOnly: true,
@@ -118,7 +95,6 @@ router.get('/discord/intent/:nonce', async (req: Request, res: Response) => {
   res.redirect(getSteamLoginUrl(returnUrl))
 })
 
-// Initiate Steam OpenID login
 router.get('/steam/login', (req: Request, res: Response) => {
   const returnTo = req.query.returnTo as string | undefined
   if (returnTo && isAllowedReturnPath(returnTo)) {
@@ -127,19 +103,18 @@ router.get('/steam/login', (req: Request, res: Response) => {
       signed: true,
       secure: env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 10 * 60 * 1000, // 10 minutes
+      maxAge: 10 * 60 * 1000,
       path: '/api/auth/steam/callback',
     })
   }
 
-  // CSRF protection: set a signed nonce cookie, verified on callback
   const csrfState = crypto.randomBytes(16).toString('hex')
   res.cookie(CSRF_COOKIE_NAME, csrfState, {
     httpOnly: true,
     signed: true,
     secure: env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 10 * 60 * 1000, // 10 minutes
+    maxAge: 10 * 60 * 1000,
     path: '/api/auth/steam/callback',
   })
 
@@ -148,10 +123,8 @@ router.get('/steam/login', (req: Request, res: Response) => {
   res.redirect(loginUrl)
 })
 
-// Steam OpenID callback
 router.get('/steam/callback', async (req: Request, res: Response) => {
   try {
-    // CSRF verification: ensure the login was initiated from our /steam/login endpoint
     const csrfState = req.signedCookies?.[CSRF_COOKIE_NAME]
     res.clearCookie(CSRF_COOKIE_NAME, { path: '/api/auth/steam/callback' })
     if (!csrfState) {
@@ -162,7 +135,6 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
 
     const params = req.query as Record<string, string>
 
-    // Validate return_to matches our callback URL
     const returnTo = params['openid.return_to']
     const expectedReturnTo = `${env.API_URL}/api/auth/steam/callback`
     if (returnTo !== expectedReturnTo) {
@@ -171,7 +143,6 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
       return
     }
 
-    // Verify with Steam
     const steamId = await verifySteamLogin(params)
     if (!steamId) {
       authLogger.warn('steam callback rejected: OpenID verification failed')
@@ -179,7 +150,6 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
       return
     }
 
-    // Get player profile from Steam
     const profile = await getPlayerSummary(steamId)
     if (!profile) {
       authLogger.warn({ steamId }, 'steam callback rejected: failed to fetch player profile')
@@ -187,14 +157,12 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
       return
     }
 
-    // Find or create the user via the auth domain service
     const user = await findOrCreateSteamUser(steamId, {
       displayName: profile.personaname,
       avatarUrl: profile.avatarfull,
       profileUrl: profile.profileurl,
     })
 
-    // Admin promotion: set is_admin based on ADMIN_STEAM_ID env var
     if (env.ADMIN_STEAM_ID && steamId === env.ADMIN_STEAM_ID) {
       const existing = await db('users').where({ id: user.id }).first()
       if (existing && !existing.is_admin) {
@@ -203,10 +171,8 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
       }
     }
 
-    // Create session
     const session = await createUserSession(user.id)
 
-    // Set signed session cookie
     res.cookie(SESSION_COOKIE_NAME, session.token, {
       httpOnly: true,
       signed: true,
@@ -216,15 +182,10 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
       path: '/',
     })
 
-    // Trigger background library sync
     syncUserLibrary(user.id, steamId).catch(err => {
       steamLogger.error({ error: String(err), steamId }, 'background library sync failed')
     })
 
-    // Discord magic-link flow: if a Discord auth intent was parked in
-    // the cookie before the Steam hop, consume it and materialise the
-    // group membership. This is the one-shot step — any subsequent
-    // replay of the same nonce is rejected by consumeDiscordAuthIntent.
     const discordIntentNonce = req.signedCookies?.[DISCORD_INTENT_COOKIE]
     res.clearCookie(DISCORD_INTENT_COOKIE, { path: '/api/auth/steam/callback' })
     if (typeof discordIntentNonce === 'string' && /^[a-f0-9]{64}$/.test(discordIntentNonce)) {
@@ -234,8 +195,6 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
           const consumed = await consumeDiscordAuthIntent(discordIntentNonce)
           if (consumed) {
             const result = await materializeGroupForIntent(user.id, intent)
-            // Clear the older invite-return cookie defensively — a
-            // Discord intent always wins over a stale invite redirect.
             res.clearCookie('wawptn.invite_return', { path: '/api/auth/steam/callback' })
             res.redirect(`${env.CORS_ORIGIN}/groups/${result.groupId}`)
             return
@@ -256,7 +215,6 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
       }
     }
 
-    // Redirect to invite join page if cookie present, otherwise home
     const inviteReturn = req.signedCookies?.['wawptn.invite_return']
     res.clearCookie('wawptn.invite_return', { path: '/api/auth/steam/callback' })
     const redirectPath = typeof inviteReturn === 'string' && isAllowedReturnPath(inviteReturn)
@@ -269,7 +227,6 @@ router.get('/steam/callback', async (req: Request, res: Response) => {
   }
 })
 
-// Get current session
 router.get('/me', async (req: Request, res: Response) => {
   try {
     const token = req.signedCookies?.[SESSION_COOKIE_NAME]
@@ -307,7 +264,6 @@ router.get('/me', async (req: Request, res: Response) => {
   }
 })
 
-// Get referral stats for the current user
 router.get('/me/referrals', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.userId!
@@ -339,14 +295,6 @@ router.get('/me/referrals', requireAuth, async (req: Request, res: Response) => 
   }
 })
 
-// ─── Wishlist (Sarah #3) ──────────────────────────────────────────────────
-
-/**
- * List the current user's wishlist. Returns lightweight steam_app_ids
- * keyed on createdAt so the frontend can render star state on game
- * cards without a second round-trip per card. The frontend stores this
- * as a Set<number> for O(1) lookup during render.
- */
 router.get('/me/wishlist', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.userId!
@@ -370,9 +318,6 @@ router.post('/me/wishlist', requireAuth, async (req: Request, res: Response) => 
   }
 
   try {
-    // Idempotent upsert — calling POST for a game that's already in the
-    // wishlist is a no-op, not a 409. Matches the "toggle star" UX on
-    // the client: pressing the star twice from two tabs shouldn't error.
     await db('game_wishlists')
       .insert({ user_id: userId, steam_app_id: steamAppId })
       .onConflict(['user_id', 'steam_app_id'])
@@ -401,7 +346,6 @@ router.delete('/me/wishlist/:steamAppId', requireAuth, async (req: Request, res:
   }
 })
 
-// Get full profile with platform connections
 router.get('/profile', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.userId
@@ -416,7 +360,6 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
       return
     }
 
-    // Get game counts and playtime stats per platform
     const gameCounts = await db('user_games')
       .where({ user_id: userId })
       .groupBy('platform')
@@ -430,7 +373,6 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
     const steamStats = gameCounts.find((g: { platform: string }) => g.platform === 'steam')
     const epicStats = gameCounts.find((g: { platform: string }) => g.platform === 'epic')
 
-    // Get connected platforms from accounts table
     const accounts = await db('accounts')
       .where({ user_id: userId })
       .select('provider_id', 'account_id', 'status', 'created_at')
@@ -486,7 +428,6 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
       { id: 'ubisoft', name: 'Ubisoft Connect', connected: false, comingSoon: true },
     ]
 
-    // Get top 5 most-played games for profile display
     const topGames = await db('user_games')
       .where({ user_id: userId, platform: 'steam' })
       .whereNotNull('playtime_forever')
@@ -495,8 +436,6 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
       .limit(5)
       .select('game_name as gameName', 'steam_app_id as steamAppId', 'header_image_url as headerImageUrl', 'playtime_forever as playtimeForever')
 
-    // Include Discord link status so the profile UI can render a "Link
-    // your Discord" section without a second round-trip.
     const discordLink = await db('discord_links')
       .where({ user_id: userId })
       .select('discord_id', 'discord_username', 'linked_at')
@@ -532,7 +471,6 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
   }
 })
 
-// Sync current user's Steam library
 router.post('/profile/sync', requireAuth, async (req: Request, res: Response) => {
   try {
     const token = req.signedCookies?.[SESSION_COOKIE_NAME]
@@ -553,12 +491,10 @@ router.post('/profile/sync', requireAuth, async (req: Request, res: Response) =>
       return
     }
 
-    // Trigger background sync for Steam
     syncUserLibrary(userId, user.steam_id).catch(err => {
       steamLogger.error({ error: String(err), steamId: user.steam_id }, 'profile Steam sync failed')
     })
 
-    // Also sync other connected platforms
     const linkedAccounts = await db('accounts')
       .where({ user_id: userId, status: 'active' })
       .whereIn('provider_id', ['epic', 'gog'])
@@ -583,7 +519,6 @@ router.post('/profile/sync', requireAuth, async (req: Request, res: Response) =>
   }
 })
 
-// Logout
 router.post('/logout', async (req: Request, res: Response) => {
   const token = req.signedCookies?.[SESSION_COOKIE_NAME]
   if (token) {
@@ -600,16 +535,12 @@ router.post('/logout', async (req: Request, res: Response) => {
   res.json({ ok: true })
 })
 
-// ─── Epic Games Account Linking ─────────────────────────────────────
-
-// Initiate Epic Games account linking (requires authenticated user)
 router.get('/epic/link', requireAuth, (req: Request, res: Response) => {
   if (!isEpicEnabled()) {
     res.status(404).json({ error: 'not_available', message: 'Epic Games linking is not configured' })
     return
   }
 
-  // Generate state bound to the authenticated user (256-bit entropy)
   const nonce = crypto.randomBytes(32).toString('hex')
   const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex')
   const state = `${nonce}.${userHash}`
@@ -627,10 +558,8 @@ router.get('/epic/link', requireAuth, (req: Request, res: Response) => {
   res.redirect(authUrl)
 })
 
-// Epic Games OAuth2 callback
 router.get('/epic/callback', requireAuth, async (req: Request, res: Response) => {
   try {
-    // Verify CSRF state
     const storedState = req.signedCookies?.[EPIC_LINK_STATE_COOKIE]
     res.clearCookie(EPIC_LINK_STATE_COOKIE, { path: '/api/auth/epic/callback' })
 
@@ -641,7 +570,6 @@ router.get('/epic/callback', requireAuth, async (req: Request, res: Response) =>
       return
     }
 
-    // Verify state is bound to current user (constant-time)
     const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex')
     const storedUserHash = storedState.split('.')[1] || ''
     if (!storedUserHash || storedUserHash.length !== userHash.length || !crypto.timingSafeEqual(Buffer.from(storedUserHash), Buffer.from(userHash))) {
@@ -657,14 +585,12 @@ router.get('/epic/callback', requireAuth, async (req: Request, res: Response) =>
       return
     }
 
-    // Exchange code for tokens
     const tokens = await exchangeCodeForTokens(code)
     if (!tokens) {
       res.redirect(`${env.CORS_ORIGIN}/profile?epic=error&reason=token_exchange`)
       return
     }
 
-    // Check if this Epic account is already linked to another user
     const existingLink = await db('accounts')
       .where({ provider_id: 'epic', account_id: tokens.account_id })
       .whereNot({ user_id: req.userId! })
@@ -676,7 +602,6 @@ router.get('/epic/callback', requireAuth, async (req: Request, res: Response) =>
       return
     }
 
-    // Store encrypted tokens in accounts table
     const now = new Date()
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000)
 
@@ -706,7 +631,6 @@ router.get('/epic/callback', requireAuth, async (req: Request, res: Response) =>
 
     epicLogger.info({ userId: req.userId, epicAccountId: tokens.account_id }, 'Epic account linked')
 
-    // Trigger background library sync
     syncEpicLibrary(req.userId!).catch(err => {
       epicLogger.error({ error: String(err), userId: req.userId }, 'background Epic library sync failed')
     })
@@ -718,7 +642,6 @@ router.get('/epic/callback', requireAuth, async (req: Request, res: Response) =>
   }
 })
 
-// Unlink Epic Games account
 router.post('/epic/unlink', requireAuth, async (req: Request, res: Response) => {
   try {
     const deleted = await db('accounts')
@@ -730,7 +653,6 @@ router.post('/epic/unlink', requireAuth, async (req: Request, res: Response) => 
       return
     }
 
-    // Remove Epic games from user library
     await db('user_games')
       .where({ user_id: req.userId!, platform: 'epic' })
       .del()
@@ -743,7 +665,6 @@ router.post('/epic/unlink', requireAuth, async (req: Request, res: Response) => 
   }
 })
 
-// Sync Epic library
 router.post('/epic/sync', requireAuth, async (req: Request, res: Response) => {
   try {
     const account = await db('accounts')
@@ -771,9 +692,6 @@ router.post('/epic/sync', requireAuth, async (req: Request, res: Response) => {
   }
 })
 
-// ─── GOG Galaxy Account Linking ──────────────────────────────────────
-
-// Initiate GOG account linking (requires authenticated user)
 router.get('/gog/link', requireAuth, (req: Request, res: Response) => {
   if (!isGogEnabled()) {
     res.status(404).json({ error: 'not_available', message: 'GOG linking is not configured' })
@@ -797,7 +715,6 @@ router.get('/gog/link', requireAuth, (req: Request, res: Response) => {
   res.redirect(authUrl)
 })
 
-// GOG OAuth2 callback
 router.get('/gog/callback', requireAuth, async (req: Request, res: Response) => {
   try {
     const storedState = req.signedCookies?.[GOG_LINK_STATE_COOKIE]
@@ -810,7 +727,6 @@ router.get('/gog/callback', requireAuth, async (req: Request, res: Response) => 
       return
     }
 
-    // Verify state is bound to current user (constant-time)
     const userHash = crypto.createHmac('sha256', env.APP_SECRET).update(req.userId!).digest('hex')
     const storedUserHash = storedState.split('.')[1] || ''
     if (!storedUserHash || storedUserHash.length !== userHash.length || !crypto.timingSafeEqual(Buffer.from(storedUserHash), Buffer.from(userHash))) {
@@ -832,7 +748,6 @@ router.get('/gog/callback', requireAuth, async (req: Request, res: Response) => 
       return
     }
 
-    // Check if this GOG account is already linked to another user
     const existingLink = await db('accounts')
       .where({ provider_id: 'gog', account_id: tokens.user_id })
       .whereNot({ user_id: req.userId! })
@@ -884,7 +799,6 @@ router.get('/gog/callback', requireAuth, async (req: Request, res: Response) => 
   }
 })
 
-// Unlink GOG account
 router.post('/gog/unlink', requireAuth, async (req: Request, res: Response) => {
   try {
     const deleted = await db('accounts')
@@ -908,7 +822,6 @@ router.post('/gog/unlink', requireAuth, async (req: Request, res: Response) => {
   }
 })
 
-// Sync GOG library
 router.post('/gog/sync', requireAuth, async (req: Request, res: Response) => {
   try {
     const account = await db('accounts')

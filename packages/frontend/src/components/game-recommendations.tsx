@@ -28,8 +28,6 @@ const INITIAL_STATE: RecommendationsState = { recommendations: [], loaded: false
 
 export function GameRecommendations({ groupId }: GameRecommendationsProps) {
   const { t } = useTranslation()
-  // State resets per group via a `key={groupId}` remount at the parent
-  // (see GroupPanel), so stale recommendations never flash on group change.
   const [state, setState] = useState<RecommendationsState>(INITIAL_STATE)
   const { recommendations, loaded } = state
 
@@ -41,15 +39,11 @@ export function GameRecommendations({ groupId }: GameRecommendationsProps) {
         setState({ recommendations: data.recommendations, loaded: true })
       })
       .catch(() => {
-        // Non-critical (includes premium_required 403). Mark loaded so the
-        // empty state shows instead of an endless skeleton.
         if (!cancelled) setState({ recommendations: [], loaded: true })
       })
     return () => { cancelled = true }
   }, [groupId])
 
-  // The common "never played together" case uses the quietest variant so a
-  // uniform list reads calmly; the rarer, more actionable reasons stand out.
   const reasonBadge = (reason: string) => {
     switch (reason) {
       case 'never_played':

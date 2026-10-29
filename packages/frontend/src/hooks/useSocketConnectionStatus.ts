@@ -3,24 +3,6 @@ import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useSocketStore } from '@/stores/socket.store'
 
-/**
- * Mount once at the app shell. Binds the socket store to the socket.io
- * client's connection events and surfaces user-visible feedback when
- * the connection drops or recovers.
- *
- * We deliberately swallow the initial idle → connecting → connected
- * transition (no toast on first page load) and only pop a toast on:
- *   - transition from connected → reconnecting  ("lost connection")
- *   - transition from reconnecting → connected  ("back online")
- *   - state == 'error' with a lastError          ("connection error")
- *
- * `unauthorized` is explicitly silent: the socket handshake needs a session
- * cookie, so a logged-out visitor (or one whose session just expired) is an
- * expected rejection, not a failure worth reporting.
- *
- * Toasts are identified by a stable id so a flapping connection only
- * updates the existing toast instead of stacking new ones.
- */
 export function useSocketConnectionStatus() {
   const { t } = useTranslation()
   const bind = useSocketStore((s) => s.bind)
@@ -28,8 +10,6 @@ export function useSocketConnectionStatus() {
   const lastError = useSocketStore((s) => s.lastError)
   const previousStateRef = useRef(state)
 
-  // Bind the store on first mount. Idempotent — bind() is a no-op on
-  // subsequent calls so a HMR re-render won't double-wire listeners.
   useEffect(() => {
     const teardown = bind()
     return () => {
@@ -41,7 +21,6 @@ export function useSocketConnectionStatus() {
     const previous = previousStateRef.current
     previousStateRef.current = state
 
-    // Connected → reconnecting: show the "lost connection" toast.
     if (previous === 'connected' && state === 'reconnecting') {
       toast.warning(t('socket.lostConnection'), {
         id: 'socket-status',
@@ -51,7 +30,6 @@ export function useSocketConnectionStatus() {
       return
     }
 
-    // Reconnecting → connected: celebrate the recovery, dismiss quickly.
     if (previous === 'reconnecting' && state === 'connected') {
       toast.success(t('socket.reconnected'), {
         id: 'socket-status',
@@ -60,7 +38,6 @@ export function useSocketConnectionStatus() {
       return
     }
 
-    // Hard error state: show the last error with a manual dismiss.
     if (state === 'error' && lastError) {
       toast.error(t('socket.connectionError'), {
         id: 'socket-status',
@@ -70,15 +47,11 @@ export function useSocketConnectionStatus() {
       return
     }
 
-    // Session-less socket: stay quiet and clear any toast still on screen
-    // (a session expiring mid-reconnect leaves the "lost connection" warning
-    // up otherwise, since it never times out on its own).
     if (state === 'unauthorized') {
       toast.dismiss('socket-status')
       return
     }
 
-    // Connected from any other state: clear the status toast if it's up.
     if (state === 'connected' && previous !== 'connected' && previous !== 'idle') {
       toast.dismiss('socket-status')
     }

@@ -13,13 +13,6 @@ interface HeaderSlot {
 
 const HeaderSlotContext = createContext<HeaderSlot | null>(null)
 
-/**
- * Portals page-specific header content (back buttons, page titles) into the
- * single shared AppHeader rendered by AppLayout. A page renders
- * `<PageHeader>...</PageHeader>` anywhere in its tree and the content lands in
- * the global header. Renders nothing in place; renders nothing at all until
- * the layout's slot element has mounted.
- */
 export function PageHeader({ children }: { children: ReactNode }) {
   const slot = use(HeaderSlotContext)
   const setHasContent = slot?.setHasContent
@@ -45,12 +38,6 @@ function RouteFallback() {
   )
 }
 
-/**
- * Shared chrome for every standard authenticated page: one persistent
- * AppHeader + AppFooter wrapping a router `<Outlet>`. Pages no longer
- * hand-roll the `min-h-dvh` wrapper or mount their own header/footer — they
- * render only their `<main>` and (optionally) a `<PageHeader>`.
- */
 export function AppLayout() {
   const [element, setElement] = useState<HTMLElement | null>(null)
   const [hasContent, setHasContent] = useState(false)

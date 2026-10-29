@@ -35,7 +35,6 @@ export function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
 
-        {/* Header image — eager since it's in-viewport when the dialog opens. */}
         <img
           src={game.headerImageUrl}
           alt={game.gameName}
@@ -46,9 +45,7 @@ export function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }
           className="w-full rounded-lg aspect-[460/215] object-cover"
         />
 
-        {/* Metadata badges row */}
         <div className="flex flex-wrap gap-2">
-          {/* Metacritic */}
           {game.metacriticScore != null && (
             <Badge
               variant="outline"
@@ -63,14 +60,12 @@ export function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }
             </Badge>
           )}
 
-          {/* Free badge */}
           {game.isFree && (
             <Badge variant="secondary" className="bg-score-good/10 text-score-good border-score-good/20">
               {t('vote.free')}
             </Badge>
           )}
 
-          {/* Controller support */}
           {game.controllerSupport && (
             <Badge variant="secondary" className="gap-1">
               <Gamepad2 className="size-3" />
@@ -78,7 +73,6 @@ export function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }
             </Badge>
           )}
 
-          {/* Release date */}
           {game.releaseDate && (
             <Badge variant="outline">
               {game.releaseDate}
@@ -86,7 +80,6 @@ export function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }
           )}
         </div>
 
-        {/* Platforms */}
         {game.platforms && (
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">{t('vote.platforms')}:</span>
@@ -113,7 +106,6 @@ export function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }
           </div>
         )}
 
-        {/* Genres */}
         {game.genres && game.genres.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {game.genres.map(genre => (
@@ -124,14 +116,12 @@ export function GameDetailDialog({ game, isSelected, onOpenChange, onToggle, t }
           </div>
         )}
 
-        {/* Short description */}
         {game.shortDescription && (
           <p className="text-sm text-muted-foreground leading-relaxed">
             {decodeHtmlEntities(game.shortDescription)}
           </p>
         )}
 
-        {/* Footer actions */}
         <ResponsiveDialogFooter className="flex flex-col sm:flex-row gap-2">
           <Button
             variant="outline"

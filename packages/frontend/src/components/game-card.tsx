@@ -12,17 +12,7 @@ function resolveHeaderImage(game: Game): string {
   return resolveSteamHeaderImage(game.steamAppId, game.headerImageUrl)
 }
 
-// React.memo so virtualizer slice changes (e.g. on viewport resize)
-// don't force every visible card to re-render. `game` is stable per
-// appId from the parent's useMemo'd filtered list; `t` is stable for
-// the locale. The wishlist Zustand subscription inside the body uses
-// a steamAppId selector so an unrelated star toggle doesn't kick a
-// sibling card either. See mobile review §C2.
 export const GameCard = memo(function GameCard({ game, t }: { game: Game; t: (key: string, options?: Record<string, unknown>) => string }) {
-  // Subscribe only to our own steamAppId's wishlist state so siblings
-  // don't re-render when unrelated cards are starred. Zustand bails out
-  // when the selected boolean hasn't actually changed, which keeps the
-  // grid cheap even with hundreds of cards.
   const isWishlisted = useWishlistStore((s) => s.ids.has(game.steamAppId))
   const toggleWishlist = useWishlistStore((s) => s.toggle)
 
@@ -85,9 +75,6 @@ export const GameCard = memo(function GameCard({ game, t }: { game: Game; t: (ke
           </TooltipContent>
         </Tooltip>
       )}
-      {/* Wishlist star — positioned below the owner-count badge when that
-          badge is present, otherwise top-right. Click swallows the event
-          so taps don't also trigger the underlying tooltip trigger. */}
       <Tooltip>
         <TooltipTrigger asChild>
           <button
@@ -95,8 +82,6 @@ export const GameCard = memo(function GameCard({ game, t }: { game: Game; t: (ke
             onClick={handleWishlistClick}
             aria-label={isWishlisted ? t('wishlist.removeLabel') : t('wishlist.addLabel')}
             aria-pressed={isWishlisted}
-            /* The visible pill stays 28px so it doesn't swallow the capsule
-               art; `before:` grows the *hit* area to 44px for thumbs. */
             className={`absolute ${game.ownerCount < game.totalMembers ? 'top-8' : 'top-1'} right-1 z-10 flex size-7 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition-all hover:bg-black/80 before:absolute before:-inset-2 before:content-[''] ${
               isWishlisted ? 'text-reward' : 'text-white/60 hover:text-white'
             }`}

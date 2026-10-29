@@ -29,11 +29,6 @@ export interface GameFilters {
   free?: boolean
 }
 
-/**
- * Compute common games for a set of user IDs.
- * Returns games owned by at least `threshold` of the provided users.
- * Groups by game_id (canonical game) to support cross-platform matching.
- */
 export async function computeCommonGames(
   userIds: string[],
   options?: { filter?: string; filters?: GameFilters; threshold?: number }
@@ -45,7 +40,6 @@ export async function computeCommonGames(
     .whereIn('user_games.user_id', userIds)
     .whereNotNull('user_games.game_id')
 
-  // Legacy string-based filter support
   if (options?.filter === 'multiplayer') {
     query = query.where(function () {
       this.where('game_metadata.is_multiplayer', true).orWhereNull('game_metadata.is_multiplayer')
@@ -58,7 +52,6 @@ export async function computeCommonGames(
     })
   }
 
-  // Structured filters support
   if (options?.filters?.multiplayer) {
     query = query.where(function () {
       this.where('game_metadata.is_multiplayer', true).orWhereNull('game_metadata.is_multiplayer')
@@ -78,9 +71,6 @@ export async function computeCommonGames(
   }
 
   const games = await query
-    // Group on the canonical game only: name/image can differ per platform
-    // or per sync (Epic rows have no image, Steam renames, deduped app ids),
-    // and grouping on them would split one game's owners across buckets.
     .groupBy('user_games.game_id')
     .havingRaw('COUNT(DISTINCT user_games.user_id) >= ?', [threshold])
     .select(
@@ -131,10 +121,6 @@ export async function computeCommonGames(
   }))
 }
 
-/**
- * Count common games for a set of user IDs (lightweight, no metadata).
- * Returns the number of games owned by at least `threshold` users.
- */
 export async function countCommonGames(
   userIds: string[],
   threshold?: number
@@ -158,13 +144,6 @@ interface GroupMemberInfo {
   threshold: number
 }
 
-/**
- * Count common games for multiple groups in a single DB round-trip.
- * Fetches (user_id, game_id) pairs once for all users across all groups,
- * then computes per-group common game counts in application code.
- *
- * Returns a Map from groupId to the count of common games.
- */
 export async function countCommonGamesForGroups(
   groups: GroupMemberInfo[]
 ): Promise<Map<string, number>> {
@@ -172,7 +151,6 @@ export async function countCommonGamesForGroups(
 
   if (groups.length === 0) return result
 
-  // Collect all unique user IDs across all groups
   const allUserIds = new Set<string>()
   for (const g of groups) {
     for (const uid of g.memberIds) allUserIds.add(uid)
@@ -183,13 +161,11 @@ export async function countCommonGamesForGroups(
     return result
   }
 
-  // Single query: fetch (user_id, game_id) for all relevant users
   const rows: Array<{ user_id: string; game_id: string }> = await db('user_games')
     .whereIn('user_id', Array.from(allUserIds))
     .whereNotNull('game_id')
     .select('user_id', 'game_id')
 
-  // Build a map: user_id -> Set<game_id>
   const userGamesMap = new Map<string, Set<string>>()
   for (const row of rows) {
     let gameSet = userGamesMap.get(row.user_id)
@@ -200,14 +176,12 @@ export async function countCommonGamesForGroups(
     gameSet.add(row.game_id)
   }
 
-  // For each group, count games that meet the threshold
   for (const g of groups) {
     if (g.memberIds.length < 1) {
       result.set(g.groupId, 0)
       continue
     }
 
-    // Count owners per game_id within this group
     const gameOwnerCount = new Map<string, number>()
     for (const uid of g.memberIds) {
       const games = userGamesMap.get(uid)
@@ -217,7 +191,6 @@ export async function countCommonGamesForGroups(
       }
     }
 
-    // Count games that meet the threshold
     let count = 0
     for (const ownerCount of gameOwnerCount.values()) {
       if (ownerCount >= g.threshold) count++

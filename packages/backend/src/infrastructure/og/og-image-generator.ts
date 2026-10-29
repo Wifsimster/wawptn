@@ -4,7 +4,6 @@ import { logger } from '../logger/logger.js'
 
 const ogLogger = logger.child({ module: 'og' })
 
-// Font source URLs (Inter from rsms/inter GitHub repo — stable, reliable CDN)
 const FONT_REGULAR_URL =
   'https://github.com/rsms/inter/raw/master/docs/font-files/Inter-Regular.ttf'
 const FONT_BOLD_URL =
@@ -36,7 +35,6 @@ async function loadFonts(): Promise<LoadedFonts | null> {
     return { regular, bold }
   } catch (error) {
     ogLogger.error({ error: String(error) }, 'og font loading failed')
-    // Reset the cached promise so a later request can retry the download.
     fontsPromise = null
     return null
   }
@@ -61,10 +59,6 @@ export interface GenerateVoteResultImageParams {
 const WIDTH = 1200
 const HEIGHT = 630
 
-/**
- * Render a minimal SVG fallback when satori/resvg fails or fonts are unavailable.
- * Uses only default system font references so it never depends on loaded fonts.
- */
 function renderFallbackPng(params: GenerateVoteResultImageParams): Buffer {
   const safeGame = escapeXml(truncate(params.gameName, 60))
   const safeGroup = escapeXml(truncate(params.groupName, 60))
@@ -93,7 +87,6 @@ function renderFallbackPng(params: GenerateVoteResultImageParams): Buffer {
     return resvg.render().asPng()
   } catch (error) {
     ogLogger.error({ error: String(error) }, 'og fallback render failed, returning raw svg bytes')
-    // Absolute last resort: return the raw SVG bytes so callers still get a Buffer.
     return Buffer.from(svg, 'utf-8')
   }
 }
@@ -112,18 +105,12 @@ function escapeXml(text: string): string {
     .replace(/'/g, '&apos;')
 }
 
-/**
- * Build the satori layout tree describing the OG card.
- * Uses plain objects instead of JSX since this file is .ts not .tsx and
- * the backend does not depend on React.
- */
 function buildLayout(params: GenerateVoteResultImageParams): unknown {
   const { groupName, gameName, headerImageUrl, yesCount, totalVoters } = params
   const ratio = totalVoters > 0 ? Math.round((yesCount / totalVoters) * 100) : 0
 
   const children: unknown[] = []
 
-  // Header row: logo + group badge
   children.push({
     type: 'div',
     props: {
@@ -170,7 +157,6 @@ function buildLayout(params: GenerateVoteResultImageParams): unknown {
     },
   })
 
-  // Main content: optional header image + game title
   const mainChildren: unknown[] = []
 
   if (headerImageUrl) {
@@ -244,7 +230,6 @@ function buildLayout(params: GenerateVoteResultImageParams): unknown {
     },
   })
 
-  // Stats row
   children.push({
     type: 'div',
     props: {
@@ -383,7 +368,6 @@ function buildInviteLayout(params: GenerateInvitePreviewImageParams): unknown {
   const { groupName, memberCount, topGames } = params
   const children: unknown[] = []
 
-  // Header row: logo + member count badge
   children.push({
     type: 'div',
     props: {
@@ -428,7 +412,6 @@ function buildInviteLayout(params: GenerateInvitePreviewImageParams): unknown {
     },
   })
 
-  // Middle: headline
   children.push({
     type: 'div',
     props: {
@@ -470,7 +453,6 @@ function buildInviteLayout(params: GenerateInvitePreviewImageParams): unknown {
     },
   })
 
-  // Top games strip (up to 3 thumbnails)
   const thumbs = topGames.filter(g => g.headerImageUrl).slice(0, 3)
   if (thumbs.length > 0) {
     children.push({
@@ -499,7 +481,6 @@ function buildInviteLayout(params: GenerateInvitePreviewImageParams): unknown {
     })
   }
 
-  // Footer: CTA hint
   children.push({
     type: 'div',
     props: {

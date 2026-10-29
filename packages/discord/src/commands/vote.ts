@@ -38,7 +38,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       result.session.id,
     )
 
-    // Send the session announcement as a public message in the channel
     if (interaction.channel && 'send' in interaction.channel) {
       await interaction.channel.send({ embeds, components })
     }

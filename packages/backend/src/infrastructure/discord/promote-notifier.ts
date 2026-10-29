@@ -2,20 +2,6 @@ import type { DiscordEmbedPayload } from '@wawptn/types'
 import { logger } from '../logger/logger.js'
 import { isBotClientEnabled, postChannelEmbed } from './bot-client.js'
 
-/**
- * Posts a member-initiated "game promotion" into a group's Discord channel:
- * from the "Ma bibliothèque" page a member picks one of their own games and
- * pushes it to a group so they can rally people to play it together ("hey,
- * j'ai ce jeu, qui est chaud ?"). Unlike the new-game spotlight (which fires
- * automatically when a member acquires a game), this is an explicit,
- * on-demand share triggered from the web UI.
- *
- * Mirrors `spotlight-notifier.ts`'s dual-transport posture: a bot-linked
- * channel is served by the bot's generic channel-post endpoint, a
- * webhook-only group by a direct webhook POST. Both are best-effort — a
- * Discord failure is logged, never thrown.
- */
-
 const STEAM_BLUE = 0x66c0f4
 
 export interface PromoteGame {
@@ -31,11 +17,6 @@ export interface PromoteGroup {
   discordWebhookUrl: string | null
 }
 
-/**
- * Neutralises Discord mass-mentions in a free-text promotion message so a
- * promoter can't @everyone/@here a whole server or ping arbitrary roles/users
- * through the embed. Pure so it can be unit-tested without Discord.
- */
 export function sanitizePromoteMessage(message: string): string {
   return message
     .replace(/@everyone/g, '@​everyone')
@@ -91,10 +72,6 @@ async function postWebhook(webhookUrl: string, embed: DiscordEmbedPayload): Prom
   }
 }
 
-/**
- * Best-effort post of a member's game promotion. Returns whether any
- * transport accepted the post so the route can report success to the user.
- */
 export async function notifyGamePromotion(
   group: PromoteGroup,
   promoterName: string,
@@ -104,7 +81,6 @@ export async function notifyGamePromotion(
   const embed = buildPromoteEmbed(group.name, promoterName, game, message)
   let delivered = false
 
-  // Primary: bot-backed post into the linked channel.
   if (group.discordChannelId && isBotClientEnabled()) {
     delivered = await postChannelEmbed(group.discordChannelId, [embed])
     if (delivered) {
@@ -112,8 +88,6 @@ export async function notifyGamePromotion(
     }
   }
 
-  // Fallback: direct webhook POST for webhook-only groups (or when the bot
-  // post failed and a webhook is also configured).
   if (!delivered && group.discordWebhookUrl) {
     delivered = await postWebhook(group.discordWebhookUrl, embed)
     if (delivered) {

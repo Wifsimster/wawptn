@@ -127,7 +127,6 @@ export function GameSelection({
           </p>
         </div>
 
-        {/* Search bar */}
         <search className="relative mb-4 block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" aria-hidden="true" />
           <input
@@ -146,19 +145,8 @@ export function GameSelection({
           />
         </search>
 
-        {/* Scrollable grid area: holds the sticky selection badge so users
-            don't lose track of their pick count while scrolling on mobile. */}
         <div className="flex-1 overflow-y-auto pb-24 touch-scroll overscroll-contain">
-          {/* Sticky selection counter — appears at the top of the scroll
-              container as soon as the user picks at least one game. The
-              floating bottom bar still shows the same count and the submit
-              CTA, but on mobile the bottom bar is easily covered by the
-              scrolling thumb, so this pill keeps the context visible at the
-              top of the viewport. */}
           {selectedGames.size > 0 && (
-            // Polite live region instead of aria-hidden — screen reader users
-            // also need the count, especially on long ballots where the
-            // bottom bar duplicate scrolls out of view.
             <output
               aria-live="polite"
               aria-atomic="true"
@@ -169,12 +157,6 @@ export function GameSelection({
               </span>
             </output>
           )}
-          {/* The interactive children below are <button>s with their own
-              accessible names; an outer role="list"/role="listitem" stack
-              causes screen readers to announce each card twice ("list, 1
-              of N, button"). Native <ul>/<li> would carry the same
-              implicit semantics, but in this grid layout we skip the
-              wrapper roles entirely. */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {filteredGames.map(game => (
             <GameCard
@@ -188,7 +170,6 @@ export function GameSelection({
           </div>
         </div>
 
-        {/* Game detail dialog */}
         <GameDetailDialog
           game={detailGame}
           isSelected={detailGame ? selectedGames.has(detailGame.steamAppId) : false}
@@ -197,7 +178,6 @@ export function GameSelection({
           t={t}
         />
 
-        {/* Floating submit button */}
         <div className="fixed bottom-0 left-0 right-0 p-2.5 sm:p-4 pl-[max(0.625rem,env(safe-area-inset-left))] pr-[max(0.625rem,env(safe-area-inset-right))] pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))] bg-background/80 backdrop-blur-sm shadow-[0_-4px_12px_rgba(0,0,0,0.1)]">
           <div className="max-w-2xl mx-auto flex items-center justify-between">
             <output aria-live="polite" className="text-sm text-muted-foreground">

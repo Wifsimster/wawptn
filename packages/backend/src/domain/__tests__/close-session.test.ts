@@ -1,14 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// ---------------------------------------------------------------------------
-// vi.hoisted — variables available inside vi.mock factories (which are hoisted)
-// ---------------------------------------------------------------------------
-
 const { mockDb, trxResults, dbResults, trxCallCounts, dbCallCounts } = vi.hoisted(() => {
-  /**
-   * Chainable mock mimicking a Knex query builder.
-   * Every method returns the same proxy, and `await` resolves to `resolveValue`.
-   */
   function chain(resolveValue: unknown = undefined): unknown {
     const proxy: unknown = new Proxy(() => {}, {
       get(_t, prop: string) {
@@ -64,12 +56,7 @@ const { mockDb, trxResults, dbResults, trxCallCounts, dbCallCounts } = vi.hoiste
   return { mockDb, trxResults, dbResults, trxCallCounts, dbCallCounts }
 })
 
-// Module-scope vi.fn for the socket emit (created after hoisted block)
 const socketEmit = vi.fn()
-
-// ---------------------------------------------------------------------------
-// Module mocks
-// ---------------------------------------------------------------------------
 
 vi.mock('@/infrastructure/database/connection.js', () => ({ db: mockDb }))
 
@@ -99,22 +86,12 @@ vi.mock('@/domain/streaks.js', () => ({
   updateStreak: () => Promise.resolve(),
 }))
 
-// ---------------------------------------------------------------------------
-// Import module under test
-// ---------------------------------------------------------------------------
-
 import { closeSession } from '../close-session.js'
 import { registerSessionEffects } from '@/infrastructure/effects/session-effects.js'
 import { domainEvents } from '@/domain/events/event-bus.js'
 
-// Register effects once so the domain event bus has subscribers hooked into
-// the mocked infrastructure modules above.
 domainEvents.removeAllListeners()
 registerSessionEffects()
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function setTrxResult(table: string, ...values: unknown[]) {
   trxResults.set(table, values)
@@ -122,10 +99,6 @@ function setTrxResult(table: string, ...values: unknown[]) {
 function setDbResult(table: string, ...values: unknown[]) {
   dbResults.set(table, values)
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('closeSession', () => {
   beforeEach(() => {
@@ -138,12 +111,6 @@ describe('closeSession', () => {
   })
 
   it('should return the correct winner when one game has the most votes', async () => {
-    // Inside the transaction:
-    // trx('voting_sessions') call #1 → .where().update() → 1 (row updated)
-    // trx('votes') call #1 → tally results
-    // trx('voting_session_games') → game info
-    // trx('voting_sessions') call #2 → winner update → 1
-    // trx('votes') call #2 → countDistinct → { count }
     setTrxResult('voting_sessions', 1, 1)
     setTrxResult('votes',
       [
@@ -154,7 +121,6 @@ describe('closeSession', () => {
     )
     setTrxResult('voting_session_games', { game_name: 'Counter-Strike 2', game_id: 'game-cs2' })
 
-    // Post-transaction queries
     setDbResult('groups', { name: 'Test Group' })
     setDbResult('voting_session_participants', ['user-1', 'user-2'])
 
@@ -177,7 +143,6 @@ describe('closeSession', () => {
 
     const randomSpy = vi.spyOn(Math, 'random')
 
-    // random picks first (index 0)
     randomSpy.mockReturnValue(0)
     setTrxResult('voting_sessions', 1, 1)
     setTrxResult('votes', tiedVotes, { count: '6' })
@@ -189,13 +154,11 @@ describe('closeSession', () => {
     expect(r1).not.toBeNull()
     expect(r1!.steamAppId).toBe(730)
 
-    // Reset for second call
     trxResults.clear()
     dbResults.clear()
     trxCallCounts.clear()
     dbCallCounts.clear()
 
-    // random picks second (index 1)
     randomSpy.mockReturnValue(0.99)
     setTrxResult('voting_sessions', 1, 1)
     setTrxResult('votes', tiedVotes, { count: '6' })
@@ -228,7 +191,7 @@ describe('closeSession', () => {
   })
 
   it('should return null when session is already closed', async () => {
-    setTrxResult('voting_sessions', 0) // 0 rows updated
+    setTrxResult('voting_sessions', 0)
 
     const result = await closeSession('s1', 'g1')
 

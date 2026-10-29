@@ -10,20 +10,6 @@ interface PublicStats {
   votesClosed7d: number
 }
 
-/**
- * Landing-page social-proof strip — addresses B1 from the conversion
- * review (no-social-proof was flagged as the single biggest conversion
- * blocker on the marketing surface).
- *
- * Fetches `/api/stats/public` (5-min server cache) and renders three
- * compact tiles. Suppressed entirely when the numbers are below a
- * minimum credible threshold — early-stage product, an honest "1 vote
- * closed" looks worse than no proof at all.
- *
- * Graceful failure: errors swallow silently and the strip just doesn't
- * render. Falls back to a fade-in animation so the LCP isn't blocked
- * by the network request.
- */
 const MIN_CREDIBLE_USERS = 25
 const MIN_CREDIBLE_VOTES = 10
 
@@ -44,7 +30,7 @@ export function SocialProofStrip() {
     api
       .getPublicStats()
       .then((s) => { if (!cancelled) setStats(s) })
-      .catch(() => { /* swallow — never block the hero */ })
+      .catch(() => { })
     return () => { cancelled = true }
   }, [])
 

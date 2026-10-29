@@ -9,19 +9,6 @@ import type {
 import { env } from '../../config/env.js'
 import { logger } from '../logger/logger.js'
 
-/**
- * HTTP client that talks to the Discord bot's internal API.
- *
- * This module is a thin transport — it does NO business logic, NO debouncing,
- * NO persistence. It is the only place in the backend that knows how the
- * backend ↔ bot wire protocol is shaped, so higher layers (notifier,
- * live-vote-updater) can be swapped or tested without touching the network.
- *
- * The whole module short-circuits to "disabled" when either the URL or the
- * shared secret are missing. Callers don't need to check — they can always
- * call these functions and expect a safe no-op in dev.
- */
-
 const REQUEST_TIMEOUT_MS = 5_000
 
 export function isBotClientEnabled(): boolean {
@@ -36,8 +23,6 @@ interface FetchOptions {
 async function postJson<T>(path: string, options: FetchOptions): Promise<T> {
   const url = `${env.DISCORD_BOT_HTTP_URL}${path}`
 
-  // Per-call abort so a hung bot can never stall a vote write. If the caller
-  // passed in their own signal we chain the two so both fire.
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   const onExternalAbort = () => controller.abort()
@@ -66,12 +51,6 @@ async function postJson<T>(path: string, options: FetchOptions): Promise<T> {
   }
 }
 
-/**
- * Ask the bot to post a new interactive voting message. Returns the message
- * snowflake so the caller can persist it on the voting_session row for
- * later edits. Returns `null` when the client is disabled or the call
- * fails — a Discord post must never be load-bearing for session creation.
- */
 export async function postSessionCreated(
   payload: DiscordSessionCreatedRequest,
 ): Promise<DiscordSessionCreatedResponse | null> {
@@ -89,11 +68,6 @@ export async function postSessionCreated(
   }
 }
 
-/**
- * Ask the bot to edit an existing voting message with the current live
- * counts. Errors are logged but never thrown — live updates are best-effort,
- * the canonical tally lives in Postgres.
- */
 export async function postSessionUpdate(payload: DiscordSessionUpdateRequest): Promise<void> {
   if (!isBotClientEnabled()) return
   try {
@@ -106,16 +80,6 @@ export async function postSessionUpdate(payload: DiscordSessionUpdateRequest): P
   }
 }
 
-/**
- * Ask the bot to edit the message into its closed state (winner reveal +
- * disabled buttons). Also best-effort: a failure here does not block the
- * session close.
- *
- * Returns `true` when the bot successfully edited the message, `false`
- * otherwise (disabled, HTTP error, or non-2xx response). Callers use this
- * to decide whether to fire the webhook fallback so a dead bot never
- * results in a silently missing winner announcement.
- */
 export async function postSessionClosed(payload: DiscordSessionClosedRequest): Promise<boolean> {
   if (!isBotClientEnabled()) return false
   try {
@@ -130,12 +94,6 @@ export async function postSessionClosed(payload: DiscordSessionClosedRequest): P
   }
 }
 
-/**
- * Ask the bot to post one or more plain embeds into a channel. Generic
- * (no business logic) — used for best-effort announcements like the weekly
- * Steam releases digest. Returns `true` only when the bot confirmed the
- * post, so callers can fall back to a webhook on `false`.
- */
 export async function postChannelEmbed(channelId: string, embeds: DiscordEmbedPayload[]): Promise<boolean> {
   if (!isBotClientEnabled()) return false
   const body: DiscordChannelPostRequest = { channelId, embeds }

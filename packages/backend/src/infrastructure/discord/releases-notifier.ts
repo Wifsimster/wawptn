@@ -2,16 +2,6 @@ import type { DiscordEmbedField, DiscordEmbedPayload, ReleaseDigestGame } from '
 import { logger } from '../logger/logger.js'
 import { isBotClientEnabled, postChannelEmbed } from './bot-client.js'
 
-/**
- * Posts the weekly Steam new-releases digest into a group's Discord.
- *
- * Mirrors `notifier.ts`'s dual-transport posture: a bot-linked channel is
- * served by the bot's generic channel-post endpoint, a webhook-only group
- * by a direct webhook POST. Both transports are best-effort — a Discord
- * failure is logged, never thrown, since the digest is a non-critical
- * scheduled announcement.
- */
-
 const STEAM_BLUE = 0x66c0f4
 
 interface DigestGroup {
@@ -74,7 +64,6 @@ export async function notifyReleasesDigest(group: DigestGroup, games: ReleaseDig
   const embed = buildDigestEmbed(group.name, games)
   let delivered = false
 
-  // Primary: bot-backed post into the linked channel.
   if (group.discordChannelId && isBotClientEnabled()) {
     delivered = await postChannelEmbed(group.discordChannelId, [embed])
     if (delivered) {
@@ -82,8 +71,6 @@ export async function notifyReleasesDigest(group: DigestGroup, games: ReleaseDig
     }
   }
 
-  // Fallback: direct webhook POST for webhook-only groups (or when the bot
-  // post failed and a webhook is also configured).
   if (!delivered && group.discordWebhookUrl) {
     delivered = await postWebhook(group.discordWebhookUrl, embed)
     if (delivered) {
@@ -104,13 +91,6 @@ export async function notifyReleasesDigest(group: DigestGroup, games: ReleaseDig
   }
 }
 
-/**
- * Posts a one-off test message into a group's Discord. Used by the digest
- * settings dialog so an owner can confirm the channel link works before
- * relying on the weekly schedule. Uses the same dual-transport posture as
- * `notifyReleasesDigest` and returns whether Discord accepted the post so
- * the caller can surface success or failure to the owner.
- */
 export async function notifyReleasesDigestTest(group: DigestGroup): Promise<boolean> {
   const embed: DiscordEmbedPayload = {
     title: '🧪 Test — Nouveautés Steam',

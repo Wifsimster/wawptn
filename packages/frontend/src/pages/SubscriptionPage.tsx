@@ -15,10 +15,6 @@ type Cadence = 'monthly' | 'yearly'
 type CatalogEntry = { cadence: Cadence; priceId: string; unitAmount: number | null; currency: string | null; default: boolean }
 type Catalog = { entries: CatalogEntry[]; annualAvailable: boolean }
 
-// The currency varies per catalog entry, so a single hoisted
-// `Intl.NumberFormat` won't do. `Number.prototype.toLocaleString` formats
-// against the runtime's shared (engine-cached) formatter without
-// constructing a new instance on each call.
 function formatCurrency(amount: number, currency: string): string {
   return amount.toLocaleString('fr-FR', { style: 'currency', currency })
 }
@@ -44,9 +40,6 @@ export function SubscriptionPage() {
     fetchSubscription()
   }, [fetchSubscription])
 
-  // Catalog drives the cadence toggle. If the call fails or returns no
-  // entries (Stripe unconfigured / unreachable), the UI falls back to a
-  // single monthly CTA so the upgrade path is never broken.
   useEffect(() => {
     let cancelled = false
     api.getCatalog()
@@ -77,14 +70,8 @@ export function SubscriptionPage() {
     track('premium.cadence_selected', { cadence: next })
   }
 
-  // The contextual gate banner: which feature/limit sent the user here.
-  // Drives the lead-in copy (e.g. "You've hit the free group limit") and
-  // the analytics attribution on the resulting checkout.
   const fromKey = searchParams.get('from')
   const wantsActivation = searchParams.get('success') === 'true'
-  // Derived — true while we're still waiting for the webhook to flip
-  // tier to premium. Avoids storing redundant state in the component and
-  // keeps the synchronous-setState-in-effect lint happy.
   const activating = wantsActivation && !pollEnded && tier !== 'premium'
 
   useEffect(() => {
@@ -96,11 +83,6 @@ export function SubscriptionPage() {
   useEffect(() => {
     if (!wantsActivation) return
 
-    // Stripe redirects to success_url synchronously, but the
-    // checkout.session.completed webhook can land 1–5 s later. A single
-    // fetch right after redirect would often see tier='free' and render
-    // the upgrade CTA on the user we just charged. Poll briefly with
-    // backoff until the store reports premium, then stop.
     let cancelled = false
     track('premium.checkout_completed')
 
@@ -119,10 +101,6 @@ export function SubscriptionPage() {
         return
       }
       if (attempt >= delays.length) {
-        // Webhook clearly hasn't landed; stop the spinner and show a soft
-        // notice so the user can refresh manually. The reconciler will
-        // self-heal within 24h, and a refresh after a few seconds will
-        // usually pick up the change.
         toast.message(t('subscription.activationDelayed'))
         setPollEnded(true)
         return
@@ -172,14 +150,7 @@ export function SubscriptionPage() {
     }
   }
 
-  // isPremium is shared with PremiumGate via selectIsPremium so a user
-  // who would see the upgrade gate elsewhere never sees the "Premium"
-  // badge on this page (they used to diverge: the page treated
-  // status='canceled' as premium, the gate did not).
   const isAdminGranted = isPremium && source === 'admin_grant'
-  // A past_due subscription still lives in Stripe: the card has to be fixed
-  // in the portal (a new checkout is refused to avoid double billing), both
-  // during the grace window and after it has run out.
   const paymentPastDue = status === 'past_due' && source === 'stripe'
   const canManageSubscription = source === 'stripe' && (isPremium || paymentPastDue)
 

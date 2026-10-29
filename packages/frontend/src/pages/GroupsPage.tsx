@@ -33,10 +33,6 @@ type GroupListItem = ReturnType<typeof useGroupStore.getState>['groups'][number]
 const normalize = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
-// Hero pick: the group most likely to be acted on right now. Active vote
-// always wins; otherwise we fall back to the most-recently-finished session,
-// then to creation date. Stable enough that returning users land on the
-// same group every time.
 function pickHeroGroup(groups: GroupListItem[]): GroupListItem | null {
   if (groups.length === 0) return null
   const sorted = groups.toSorted((a, b) => {
@@ -49,9 +45,6 @@ function pickHeroGroup(groups: GroupListItem[]): GroupListItem | null {
   return sorted[0] ?? null
 }
 
-// Pull-to-refresh state lives as one unit: the spinner flag and the drag
-// distance always change together (a drag sets the distance; a release either
-// refreshes or resets both). A reducer keeps the two in lockstep.
 interface PullState {
   refreshing: boolean
   distance: number
@@ -106,7 +99,6 @@ export function GroupsPage() {
       try {
         await fetchGroups()
       } catch {
-        // errors are surfaced via store/toast; swallow here to avoid unhandled rejections
       }
       if (cancelled) return
     })()
@@ -149,9 +141,6 @@ export function GroupsPage() {
       track('group.hero_join_vote')
       navigate(`/groups/${heroGroup.id}/vote`)
     } else {
-      // Hand off to GroupPage's vote-setup flow via a query param so the
-      // dashboard stays free of the participant-picker dialog. GroupPage
-      // reads ?startVote=1 once members have loaded and opens the dialog.
       track('group.hero_start_vote')
       navigate(`/groups/${heroGroup.id}?startVote=1`)
     }
@@ -167,7 +156,6 @@ export function GroupsPage() {
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
-        {/* Pull-to-refresh indicator */}
         {(pullDistance > 0 || refreshing) && (
           <div
             className="flex justify-center overflow-hidden transition-all"
@@ -198,7 +186,6 @@ export function GroupsPage() {
           </Button>
         </div>
 
-        {/* Search — only useful past a handful of groups. */}
         {otherGroups.length > 7 && (
           <search className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
@@ -233,8 +220,6 @@ export function GroupsPage() {
 
         <JoinGroupDialog open={showJoin} onOpenChange={setShowJoin} />
 
-        {/* Loading skeleton — only on the first load. A background refetch
-            (e.g. the global vote-banner sync) keeps the list on screen. */}
         {loading && groups.length === 0 ? (
           <output
             className="block space-y-3"
@@ -258,18 +243,12 @@ export function GroupsPage() {
             animate="visible"
             variants={stagger}
           >
-            {/* Hero card — primary action surface for the group most likely
-                to be played tonight. Inline CTA collapses two taps (open
-                group → start vote) into one. */}
             {heroGroup && (
               <m.div variants={fadeUp}>
                 <HeroGroupCard group={heroGroup} onAction={goToHeroVote} />
               </m.div>
             )}
 
-            {/* Other groups — compact rows. No icons, no badges, no chevron.
-                The only signal worth surfacing is "vote en cours" because it
-                still beats the hero pick when the user has multiple groups. */}
             {filteredOtherGroups.length > 0 && (
               <m.div variants={fadeUp} className="space-y-2">
                 <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground px-1">
@@ -296,8 +275,6 @@ export function GroupsPage() {
               </div>
             )}
 
-            {/* Demoted Join — present but quiet. Most users open this page
-                to act inside an existing group, not to join a new one. */}
             <m.div variants={fadeUp} className="text-center pt-2">
               <button
                 type="button"
@@ -311,14 +288,9 @@ export function GroupsPage() {
           </m.div>
         )}
 
-        {/* Spacer so the last row isn't covered by the mobile bottom bar. */}
         {heroGroup && <div className="h-24 sm:hidden" />}
       </main>
 
-      {/* Mobile thumb-zone bar — mirrors the hero CTA so the primary action
-          stays reachable when the hero scrolls off-screen. The previous
-          Create/Join pair lived here and stole the prime real estate from
-          the action returning users actually want. */}
       {heroGroup && !loading && groups.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-sm border-t border-border pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="flex max-w-2xl mx-auto">
@@ -366,14 +338,8 @@ function HeroGroupCard({ group, onAction }: HeroGroupCardProps) {
         />
       )}
 
-      {/* Phones stack the status pill under the name: side by side, the
-          `shrink-0` pill ate ~190px of a 320px card and truncated the group
-          name down to a few characters. */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3 mb-4">
         <div className="min-w-0 sm:flex-1">
-          {/* `flex min-w-0`, not `inline-flex`: an inline-flex link sizes to
-              its content, so a long group name grew past the card and shoved
-              the crown off-screen instead of letting the h2 truncate. */}
           <Link
             to={`/groups/${group.id}`}
             className="flex min-w-0 max-w-full items-center gap-2 py-1 hover:opacity-90 transition-opacity"
@@ -422,8 +388,6 @@ function CompactGroupRow({ group }: CompactGroupRowProps) {
   const navigate = useNavigate()
   const isActive = !!group.activeVoteSession
 
-  // No live vote: the whole row is one link to the group page, where the
-  // prominent "tonight" CTA lives.
   if (!isActive) {
     return (
       <Link
@@ -443,8 +407,6 @@ function CompactGroupRow({ group }: CompactGroupRowProps) {
     )
   }
 
-  // A vote is live: surface a direct "join" shortcut so the user doesn't
-  // have to open the group page and hunt for it.
   return (
     <div
       className={cn(

@@ -12,7 +12,6 @@ export type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>
 
 let io: TypedServer
 
-// In-memory presence: groupId -> Set<userId>
 const groupPresence = new Map<string, Set<string>>()
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -51,7 +50,6 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
     pingInterval: 25000,
   })
 
-  // Auth middleware — verify session cookie on every connection
   io.use(async (socket, next) => {
     try {
       const cookieHeader = socket.handshake.headers.cookie
@@ -60,7 +58,6 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
         return next(new Error('unauthorized'))
       }
 
-      // Parse and unsign session token from cookie header
       const cookies = parseCookie(cookieHeader)
       const raw = cookies[SESSION_COOKIE_NAME]
       if (!raw) {
@@ -68,10 +65,9 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
         return next(new Error('unauthorized'))
       }
 
-      // Signed cookies are prefixed with "s:" by cookie-parser
       const token = raw.startsWith('s:')
         ? unsign(raw.slice(2), env.APP_SECRET)
-        : raw // fallback for unsigned cookies during transition
+        : raw
       if (!token) {
         socketLogger.info('socket auth: invalid cookie signature')
         return next(new Error('unauthorized'))
@@ -98,17 +94,12 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
   io.on('connection', (socket) => {
     socketLogger.info({ userId: socket.data.userId }, 'client connected')
 
-    // Auto-join user-specific room for targeted notifications
     socket.join(`user:${socket.data.userId}`)
 
     socket.on('group:join', async (groupId) => {
-      // groupId is client-controlled: a non-uuid value would make Postgres
-      // reject the query, and Socket.IO does not catch listener promises, so
-      // the rejection would reach the process-level handler and exit.
       if (typeof groupId !== 'string' || !UUID_RE.test(groupId)) return
 
       try {
-        // Verify membership before joining room
         const membership = await db('group_members')
           .where({ group_id: groupId, user_id: socket.data.userId })
           .first()
@@ -117,10 +108,8 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
           await socket.join(`group:${groupId}`)
           socketLogger.debug({ userId: socket.data.userId, groupId }, 'joined group room')
 
-          // Send current presence list to the joining socket
           socket.emit('group:presence', { onlineUserIds: getPresence(groupId) })
 
-          // Track presence and notify others
           const wasNew = addPresence(groupId, socket.data.userId)
           if (wasNew) {
             socket.to(`group:${groupId}`).emit('member:online', { groupId, userId: socket.data.userId })
@@ -134,7 +123,6 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
     socket.on('group:leave', async (groupId) => {
       await socket.leave(`group:${groupId}`)
 
-      // Check if user still has other sockets in this room
       const room = io.sockets.adapter.rooms.get(`group:${groupId}`)
       const stillConnected = room && Array.from(room).some((socketId) => {
         const s = io.sockets.sockets.get(socketId)
@@ -152,10 +140,8 @@ export function createSocketServer(httpServer: HttpServer): TypedServer {
     socket.on('disconnect', () => {
       socketLogger.debug({ userId: socket.data.userId }, 'client disconnected')
 
-      // Remove presence from all groups this user was in
       for (const [groupId, members] of groupPresence.entries()) {
         if (members.has(socket.data.userId)) {
-          // Check if user has other sockets still in this group room
           const room = io.sockets.adapter.rooms.get(`group:${groupId}`)
           const stillConnected = room && Array.from(room).some((socketId) => {
             const s = io.sockets.sockets.get(socketId)

@@ -106,7 +106,7 @@ The feature map in [`features/README.md`](features/README.md) has one recipe per
 - Proof standards:
   - Drive the real user path: the create dialog, the invite link, the ballot cards and the close button. Do not POST to the API yourself.
   - Capture the action and the resulting state: before/after screenshots plus the HTTP response.
-  - Check the side effect with a second read: `group_members`, `voting_sessions`, `votes` rows (`$C group show`, `$C vote show`), and socket.io frames (`vote:cast`, `vote:closed`, `member:joined`) in `network-log`.
+  - Check the side effect with a second read: `group_members`, `voting_sessions`, `votes` rows (`$C group show`, `$C vote show`), and socket.io frames (`vote:cast`, `vote:closed`) in `network-log`. `member:joined` only reaches pages already in the group room, and the harness drives one player at a time, so it never shows up (see [group-invite.md](features/group-invite.md)).
   - The login seam is the one deliberate shortcut. Say so when a proof depends on it, and never use it to claim the Steam button works.
   - For a bug, reproduce it on the same surface first, then show it gone.
 - In a git worktree the default evidence dir dies with `git worktree remove`. Set `WAWPTN_EVIDENCE_DIR` outside the checkout before `launch`.

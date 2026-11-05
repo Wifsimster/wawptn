@@ -9,7 +9,7 @@ A group member starts a vote for tonight. The ballot holds the games every selec
 - `vote-progress` updates the waiting list over socket.io (`vote:cast`).
 - `vote-close` reveals the winner (`POST .../close`, socket.io `vote:closed`), with consensus and "Lancer sur Steam".
 - `vote-rematch` restarts with "Relancer un vote" from the result page.
-- `vote-schedule` plans the evening for later ("Plus d'options" → "Planifier pour plus tard"); the scheduler closes it automatically.
+- `vote-schedule` plans the evening for later ("Plus d'options" → checkbox "Planifier pour plus tard"); the scheduler closes it automatically. Premium only: the checkbox is disabled for a free player and the API answers 403 `premium_required`.
 
 ## How to get to it (user POV)
 
@@ -28,7 +28,7 @@ Preconditions:
 - **Ballots.** Run `$C vote cast --pick 1,2` as alice, then `$C login --as bob` and `$C vote cast --pick "Verify Quest"`, then the same for carol. Each call shows `response.status 200`, `progressShown` ("N sur 3 ont voté"), and `votesRows` with one row per ballot game where `vote` is true exactly for the picks.
 - **Close.** Run `$C login --as alice`, then `$C vote close`. Expect `progressBeforeClose` "3 sur 3", `response.result.gameName`, `winnerShown` equal to `session.winner`, and `session.status: "closed"`. `vote-result.png` shows the reveal.
 - **Second read.** Run `$C vote show` for every ballot. Run `$C network-log --filter socket.io` and count `session:created`, `vote:cast` and `vote:closed` frames.
-- **Rematch / schedule.** Not wrapped. Use `$C click --role button --name "Relancer un vote"`, or "Plus d'options" in the start dialog, then `$C snapshot`.
+- **Rematch / schedule.** Not wrapped. Use `$C click --role button --name "Relancer un vote"`, or "Plus d'options" in the start dialog, then `$C snapshot`. The fake players are not premium, so `vote-schedule` is `verified-unreachable`: the snapshot shows `checkbox "Planifier pour plus tard" [disabled]`.
 
 ## Gotchas
 

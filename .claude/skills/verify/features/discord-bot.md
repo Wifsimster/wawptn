@@ -12,7 +12,7 @@ The bot (`packages/discord`, discord.js) lets a server vote from Discord, links 
 ## How to get to it (user POV)
 
 - A Discord server with the bot invited.
-- `/groups/<id>` → "Lier un salon" (the card shows even with the Discord variables empty; the bot invite URL is then empty).
+- `/groups/<id>` → "Lier un salon", shown to the group owner only and only while no channel is linked (it shows even with the Discord variables empty; the bot invite URL is then empty).
 - `/discord/link` for account linking.
 
 ## Driving it with control-wawptn

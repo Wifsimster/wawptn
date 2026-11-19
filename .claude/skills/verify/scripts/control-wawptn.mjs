@@ -766,10 +766,19 @@ async function browserd() {
     return route.abort('blockedbyclient')
   })
   const playerIps = Object.fromEntries(Object.keys(USERS).map((k, i) => [k, `10.77.0.${i + 1}`]))
-  await ctx.route((url) => ['localhost', '127.0.0.1'].includes(url.hostname) && url.pathname.startsWith('/api/'), (route) => {
+  const isLocal = (host) => ['localhost', '127.0.0.1'].includes(host)
+  await ctx.route((url) => isLocal(url.hostname) && url.pathname.startsWith('/api/'), async (route) => {
     const ip = playerIps[readState()?.currentPlayer]
-    if (!ip) return route.continue()
-    return route.continue({ headers: { ...route.request().headers(), 'x-forwarded-for': ip } })
+    const headers = ip ? { ...route.request().headers(), 'x-forwarded-for': ip } : route.request().headers()
+    if (!new URL(route.request().url()).pathname.startsWith('/api/auth/steam/')) return route.continue({ headers })
+    const res = await route.fetch({ headers, maxRedirects: 0 })
+    const location = res.headers().location
+    if (location && !isLocal(new URL(location, route.request().url()).hostname)) {
+      netw.write(JSON.stringify({ ts: new Date().toISOString(), method: route.request().method(), url: route.request().url(), status: res.status(), location }) + '\n')
+      netw.write(JSON.stringify({ ts: new Date().toISOString(), method: 'GET', url: new URL(location, route.request().url()).href, status: 'blocked' }) + '\n')
+      return route.abort('blockedbyclient')
+    }
+    return route.fulfill({ response: res })
   })
   const attach = (page) => {
     page.on('console', (m) => con.write(JSON.stringify({ ts: new Date().toISOString(), type: m.type(), text: m.text(), url: page.url() }) + '\n'))

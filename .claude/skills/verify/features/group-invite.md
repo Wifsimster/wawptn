@@ -13,7 +13,7 @@ A signed-in player creates a group and gets an invite link at once. Friends open
 ## How to get to it (user POV)
 
 - `/` → button "Créer" (header) or "Créer mon premier groupe" (empty state).
-- The invite link from the dialog, `http://localhost:5173/invite/<token>`, opened by another player.
+- The invite link from the dialog, `http://localhost:5173/invite/<token>` (or the port set by `WAWPTN_VERIFY_FRONTEND_PORT`), opened by another player.
 - `/` → "Rejoindre avec un code" (paste the token or link).
 - `/groups/<id>` → tab "Membres".
 

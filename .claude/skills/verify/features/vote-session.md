@@ -27,7 +27,7 @@ Preconditions:
 - **Start.** Run `$C login --as alice`, then `$C vote start`. Expect `response.status 201` with the four common games, `setupDialogPlayers` all checked, `session.status: "open"`, and `url` ending with `/vote`. `vote-started.png` shows "Choisis tes jeux".
 - **Ballots.** Run `$C vote cast --pick 1,2` as alice, then `$C login --as bob` and `$C vote cast --pick "Verify Quest"`, then the same for carol. Each call shows `response.status 200`, `progressShown` ("N sur 3 ont voté"), and `votesRows` with one row per ballot game where `vote` is true exactly for the picks.
 - **Close.** Run `$C login --as alice`, then `$C vote close`. Expect `progressBeforeClose` "3 sur 3", `response.result.gameName`, `winnerShown` equal to `session.winner`, and `session.status: "closed"`. `vote-result.png` shows the reveal.
-- **Second read.** Run `$C vote show` for every ballot. Run `$C network-log --filter socket.io` and count `session:created`, `vote:cast` and `vote:closed` frames.
+- **Second read.** Run `$C vote show` for every ballot. Run `$C network-log --filter socket.io --last 500` and count `session:created`, `vote:cast` and `vote:closed` frames.
 - **Rematch / schedule.** Not wrapped. Use `$C click --role button --name "Relancer un vote"`, or "Plus d'options" in the start dialog, then `$C snapshot`. The fake players are not premium, so `vote-schedule` is `verified-unreachable`: the snapshot shows `checkbox "Planifier pour plus tard" [disabled]`.
 
 ## Gotchas

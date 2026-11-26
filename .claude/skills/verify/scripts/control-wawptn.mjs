@@ -21,7 +21,14 @@ const STATE_FILE = path.join(RUN_DIR, 'state.json')
 const EGRESS_LOG = path.join(RUN_DIR, 'egress-blocked.jsonl')
 const EVIDENCE_ROOT = process.env.WAWPTN_EVIDENCE_DIR || path.join(REPO, '.verify-evidence')
 
-const PORTS = { backend: 3000, frontend: 5173, cdp: 9334, postgres: 55442 }
+const RECORDED_FRONTEND_PORT = (() => {
+  try {
+    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')).frontendPort
+  } catch {
+    return undefined
+  }
+})()
+const PORTS = { backend: 3000, frontend: Number(RECORDED_FRONTEND_PORT || process.env.WAWPTN_VERIFY_FRONTEND_PORT || 5173), cdp: 9334, postgres: 55442 }
 const PG = 'wawptn-verify-pg'
 const LABEL = 'wawptn-verify=1'
 const DB_URL = `postgresql://wawptn:wawptn_verify@127.0.0.1:${PORTS.postgres}/wawptn`
@@ -230,7 +237,7 @@ Also refuses, before touching anything, when the Playwright Chromium is not inst
     const plan = {
       ports: PORTS,
       containers: [PG],
-      steps: ['docker run postgres:16-alpine (tmpfs)', 'npm run build:types', 'npm run db:migrate', 'seed fake players + games (psql)', 'tsx --import no-egress.mjs src/index.ts', 'vite --port 5173 --strictPort', 'browser daemon'],
+      steps: ['docker run postgres:16-alpine (tmpfs)', 'npm run build:types', 'npm run db:migrate', 'seed fake players + games (psql)', 'tsx --import no-egress.mjs src/index.ts', `vite --port ${PORTS.frontend} --strictPort`, 'browser daemon'],
       users: USERS,
       games: GAMES.map((g) => g.name),
       evidenceRoot: EVIDENCE_ROOT,
@@ -246,7 +253,7 @@ Also refuses, before touching anything, when the Playwright Chromium is not inst
 
     const runId = new Date().toISOString().replace(/[:.]/g, '-')
     const appSecret = crypto.randomBytes(32).toString('hex')
-    const state = { runId, startedAt: new Date().toISOString(), evidenceRoot: EVIDENCE_ROOT, pids: {}, containers: [], appSecret, gitSha: sh('git', ['-C', REPO, 'rev-parse', '--short', 'HEAD']) }
+    const state = { runId, startedAt: new Date().toISOString(), evidenceRoot: EVIDENCE_ROOT, frontendPort: PORTS.frontend, pids: {}, containers: [], appSecret, gitSha: sh('git', ['-C', REPO, 'rev-parse', '--short', 'HEAD']) }
     writeState(state)
     const timings = {}
     let t = Date.now()
